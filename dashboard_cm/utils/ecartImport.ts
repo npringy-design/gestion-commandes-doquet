@@ -225,28 +225,25 @@ function fromRows(rows: any[][]): EcartRow[] {
 
   let headerRowIndex = 0;
   let header: string[] = (rows[0] ?? []).map(c => cleanLabel(String(c ?? '')));
-  const has = (h: string[], needle: string) => h.some(x => x === needle || x.includes(needle));
   for (let i = 0; i < Math.min(rows.length, 15); i++) {
     const h = (rows[i] ?? []).map(c => cleanLabel(String(c ?? '')));
-    // Tolérant: certains exports ajoutent des suffixes (ex: "(€)", "(Qté)")
-    const looks = has(h, wantedA) && has(h, wantedB) && has(h, wantedProd) && has(h, wantedSect);
+    const looks = h.includes(wantedA) && h.includes(wantedB) && (h.includes(wantedProd) || h.some(x => x.includes(wantedProd))) && (h.includes(wantedSect) || h.some(x => x.includes(wantedSect)));
     if (looks) {
       headerRowIndex = i;
       header = h;
       break;
     }
   }
-  const isConsolidated = has(header, wantedA) && has(header, wantedB);
+  const isConsolidated = header.includes(wantedA) && header.includes(wantedB);
 
   if (isConsolidated) {
-    const idxProduit = header.findIndex(h => h === wantedProd || h.includes(wantedProd));
-    const idxSector = header.findIndex(h => h === wantedSect || h.includes(wantedSect));
-    const idxQty = header.findIndex(h => h === wantedA || h.includes(wantedA));
-    const idxVal = header.findIndex(h => h === wantedB || h.includes(wantedB));
+    const idxProduit = header.findIndex(h => h === 'produit');
+    const idxSector = header.findIndex(h => h === cleanLabel('destination de stock'));
+    const idxQty = header.findIndex(h => h === cleanLabel('démarque inconnue qté'));
+    const idxVal = header.findIndex(h => h === cleanLabel('démarque inconnue total'));
     // PU : soit une vraie colonne "PU", soit "Conso réelle prix UHT"
-    const wantedUht = cleanLabel('conso réelle prix uht');
-    const idxPU = header.findIndex(h => h === 'pu' || h.includes('pu'));
-    const idxUht = header.findIndex(h => h === wantedUht || h.includes(wantedUht));
+    const idxPU = header.findIndex(h => h === 'pu');
+    const idxUht = header.findIndex(h => h === cleanLabel('conso réelle prix uht'));
 
     for (let i = headerRowIndex + 1; i < rows.length; i++) {
       const r = rows[i];
@@ -388,17 +385,9 @@ export function parseEcartCsvText(text: string): EcartRow[] {
 ?
 /).filter(l => l.trim().length > 0);
   if (lines.length === 0) return [];
-
-  // Detect delimiter robustly (some exports have title/blank lines before the real header).
-  // We score candidates on the first N lines and pick the one that appears most often.
-  const N = Math.min(lines.length, 20);
-  const sample = lines.slice(0, N);
-  const count = (sep: string) => sample.reduce((acc, l) => acc + (l.split(sep).length - 1), 0);
-  const scoreSemi = count(';');
-  const scoreTab = count('	');
-  const scoreComma = count(',');
-  const sep = scoreSemi >= scoreTab && scoreSemi >= scoreComma ? ';' : (scoreTab >= scoreComma ? '	' : ',');
-
+  // detect delimiter (;, 	, ,)
+  const first = lines[0];
+  const sep = first.includes(';') ? ';' : (first.includes('	') ? '	' : ',');
   const rows = lines.map(l => parseCsvLine(l, sep));
   return fromRows(rows);
 }
@@ -409,20 +398,9 @@ export async function parseEcartFile(file: File): Promise<EcartRow[]> {
   // CSV/TXT
   if (ext === 'csv' || ext === 'txt') {
     const text = await file.text();
-    const lines = text.split(/
-?
-/).filter(l => l.trim().length > 0);
-    if (lines.length === 0) return [];
-
-    const N = Math.min(lines.length, 20);
-    const sample = lines.slice(0, N);
-    const count = (sep: string) => sample.reduce((acc, l) => acc + (l.split(sep).length - 1), 0);
-    const scoreSemi = count(';');
-    const scoreTab = count('	');
-    const scoreComma = count(',');
-    const sep = scoreSemi >= scoreTab && scoreSemi >= scoreComma ? ';' : (scoreTab >= scoreComma ? '	' : ',');
-
-    const rows = lines.map(l => parseCsvLine(l, sep));
+    const lines = text.split(/\r?\n/).filter(Boolean);
+    const sep = lines[0]?.includes(';') ? ';' : ',';
+    const rows = lines.map(l => l.split(sep));
     return fromRows(rows);
   }
 

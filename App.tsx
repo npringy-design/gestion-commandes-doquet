@@ -496,7 +496,7 @@ const CostAnalysisPage: React.FC<{
           IMPORTS / PARAMÈTRES
         </button>
       </div>
-      <DashboardApp key={Object.keys(detailedInventory || {}).sort().map(k => `${k}:${(detailedInventory as any)[k]?.length || 0}`).join('|')} csvByMonth={csvByMonth} />
+      <DashboardApp csvByMonth={csvByMonth} />
     </div>
   );
 };
@@ -511,8 +511,7 @@ const StatsPage: React.FC<{
   setDetailedInventory: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   products: ProductWithHistory[];
   validatedMonths: Record<string, boolean>;
-  setValidatedMonths: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
-}> = ({ setView, covers, setCovers, detailedInventory, setDetailedInventory, products, validatedMonths, setValidatedMonths }) => {
+}> = ({ setView, covers, setCovers, detailedInventory, setDetailedInventory, products, validatedMonths }) => {
   const [modalState, setModalState] = useState<{ month: string } | null>(null);
 
   const handleFile = async (file: File) => {
@@ -524,7 +523,7 @@ const StatsPage: React.FC<{
         let content = '';
         if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
           const wb = XLSX.read(data, { type: 'array' });
-          const csv = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]], { FS: ';' });
+          const csv = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]);
           content = csv;
         } else {
           content = data as string;
@@ -555,21 +554,6 @@ const StatsPage: React.FC<{
         </button>
         <div className="flex-1"></div>
         <div className="space-y-4">
-             <button
-               onClick={() => {
-                 if (!window.confirm('Vider tous les imports Inventaire détaillé et réinitialiser les validations ?')) return;
-                 setDetailedInventory({});
-                 setValidatedMonths({});
-                 try {
-                   localStorage.removeItem('hippo_v7_inventory');
-                   localStorage.removeItem('hippo_v7_validatedMonths');
-                 } catch (e) {}
-               }}
-               className="w-full bg-[#cc0000] hover:bg-[#a40000] text-white py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-[0_4px_0_#660000] active:translate-y-1 active:shadow-none transition-all"
-             >
-               Vider imports<br/>Inventaire détaillé
-             </button>
-             
              <button onClick={() => setView('daily_forecast')} className="w-full bg-[#93c47d] hover:bg-[#76a560] text-white py-6 rounded-2xl font-black uppercase text-xs tracking-widest shadow-[0_4px_0_#38761d] active:translate-y-1 active:shadow-none transition-all">
                Prévisionnel<br/>Couverts
              </button>
@@ -736,9 +720,7 @@ const App: React.FC = () => {
 
 
   const loadState = (key: string, defaultVal: any) => {
-    // Migration friendly: we version only imports/validation to avoid keeping old broken data
-    const prefix = (key === 'inventory' || key === 'validatedMonths') ? 'hippo_v7_' : 'hippo_v6_';
-    const saved = localStorage.getItem(`${prefix}${key}`);
+    const saved = localStorage.getItem(`hippo_v6_${key}`);
     return saved ? JSON.parse(saved) : defaultVal;
   };
 
@@ -785,8 +767,7 @@ const App: React.FC = () => {
   useEffect(() => localStorage.setItem('hippo_v6_covers', JSON.stringify(covers)), [covers]);
   useEffect(() => localStorage.setItem('hippo_v6_dailyCovers', JSON.stringify(dailyCovers)), [dailyCovers]);
   useEffect(() => localStorage.setItem('hippo_v6_orderStates', JSON.stringify(orderStates)), [orderStates]);
-  useEffect(() => localStorage.setItem('hippo_v7_inventory', JSON.stringify(detailedInventory)), [detailedInventory]);
-  useEffect(() => localStorage.setItem('hippo_v7_validatedMonths', JSON.stringify(validatedMonths)), [validatedMonths]);
+  useEffect(() => localStorage.setItem('hippo_v6_inventory', JSON.stringify(detailedInventory)), [detailedInventory]);  useEffect(() => localStorage.setItem('hippo_v6_validatedMonths', JSON.stringify(validatedMonths)), [validatedMonths]);
   useEffect(() => localStorage.setItem('hippo_v6_supplierConfigs', JSON.stringify(supplierConfigs)), [supplierConfigs]);
   useEffect(() => localStorage.setItem('hippo_v6_deliveryDateBySupplier', JSON.stringify(deliveryDateBySupplier)), [deliveryDateBySupplier]);
 
@@ -943,8 +924,7 @@ const App: React.FC = () => {
       setCovers={setCovers} 
       detailedInventory={detailedInventory} 
       setDetailedInventory={setDetailedInventory}      products={products} 
-      validatedMonths={validatedMonths}
-      setValidatedMonths={setValidatedMonths}
+      validatedMonths={validatedMonths} 
     />
   );
 

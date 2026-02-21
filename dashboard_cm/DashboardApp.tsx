@@ -33,35 +33,6 @@ const DEFAULT_COST_SETTINGS: CostSettings = {
 };
 
 
-const MONTH_KEY_TO_LABEL: Record<string, string> = {
-  jan: 'Janvier', feb: 'Février', mar: 'Mars', apr: 'Avril', may: 'Mai', jun: 'Juin',
-  jul: 'Juillet', aug: 'Août', sep: 'Septembre', oct: 'Octobre', nov: 'Novembre', dec: 'Décembre',
-};
-
-function normalizeCsvSource(input?: Record<string, string>): Record<string, string> {
-  const out: Record<string, string> = {};
-  if (!input) return out;
-  for (const [k, v] of Object.entries(input)) {
-    if (!v) continue;
-    const label = MONTH_KEY_TO_LABEL[k] ?? k;
-    out[label] = v;
-  }
-  return out;
-}
-
-function loadCsvSourceFromLocalStorage(): Record<string, string> {
-  const keys = ['hippo_v7_inventory', 'hippo_inventory', 'inventory'];
-  for (const k of keys) {
-    try {
-      const raw = localStorage.getItem(k);
-      if (!raw) continue;
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object') return normalizeCsvSource(parsed);
-    } catch {}
-  }
-  return {};
-}
-
 const App: React.FC<{ csvByMonth?: Record<string, string> }> = ({ csvByMonth }) => {
   const [selectedMonth, setSelectedMonth] = useState<PeriodKey>('Janvier');
   const [ecartByMonth, setEcartByMonth] = useState<Record<MonthKey, EcartItem[]>>({});
@@ -141,13 +112,12 @@ const App: React.FC<{ csvByMonth?: Record<string, string> }> = ({ csvByMonth }) 
     saveJSON(COST_STORAGE_KEY, costSettings);
   }, [costSettings]);
 
-  // Source unique: imports faits dans Paramètres (Inventaire détaillé / Export consolidé)
-  // + fallback localStorage pour éviter les cas où la prop n'arrive pas (build/caching Vercel / version mixte).
+  // Source unique: on consomme les imports déjà faits dans l'app (Inventaire détaillé / Export consolidé)
   useEffect(() => {
-    const source = Object.keys(csvByMonth || {}).length > 0 ? normalizeCsvSource(csvByMonth) : loadCsvSourceFromLocalStorage();
+    if (!csvByMonth) return;
     const next: Record<MonthKey, EcartItem[]> = {};
     for (const m of MONTHS) {
-      const csv = source[m];
+      const csv = csvByMonth[m];
       if (!csv) continue;
       try {
         const rows = parseEcartCsvText(csv);
@@ -569,7 +539,7 @@ const App: React.FC<{ csvByMonth?: Record<string, string> }> = ({ csvByMonth }) 
           <div className="bg-white/70 backdrop-blur rounded-2xl border border-white/60 shadow-sm px-4 py-3 flex items-center justify-between gap-3 flex-none">
             <div className="min-w-0">
               <p className="text-sm font-extrabold tracking-tight">👋 On fait le point sur {selectedMonth === 'Annuel' ? 'l’année' : selectedMonth.toLowerCase()}.</p>
-              <p className="text-[11px] text-slate-600 mt-0.5">Les données viennent de l’import Inventaire détaillé (Paramètres). Repère les plus gros écarts et lance ton plan d’action.</p>
+              <p className="text-[11px] text-slate-600 mt-0.5">Importe l’écart inventaire, repère les plus gros écarts, et lance ton plan d’action.</p>
             </div>
             <div className="flex items-center gap-2 flex-none">
               <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-900 text-[10px] font-extrabold">{importedMonthsCount}/12 mois importés</span>
