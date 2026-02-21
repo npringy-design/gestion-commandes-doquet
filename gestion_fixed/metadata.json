@@ -1,0 +1,5 @@
+{
+  "name": "Gestion de Commandes Doquet",
+  "description": "Une application de gestion de stock et de calcul de commandes basée sur les besoins théoriques et les marges de sécurité pour le fournisseur Doquet.",
+  "requestFramePermissions": []
+}
