@@ -418,6 +418,7 @@ export const useAppState = () => {
     salesHtByMonth, setSalesHtByMonth,
     costMatterByMonth, setCostMatterByMonth,
     validatedMonths,
+    workMonth,
     supplierConfigs, setSupplierConfigs,
     products, setProducts,
 

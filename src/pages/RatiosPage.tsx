@@ -43,6 +43,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
     activeMappingId, setActiveMappingId,
     allAvailableImportNames,
     validatedMonths,
+    workMonth,
     addNewProduct,
     deleteSelectedProducts,
     toggleProductSelection,
@@ -108,6 +109,9 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
             <h1 className="text-2xl font-black uppercase tracking-tighter text-slate-800">
               Intelligence de Vente <span className="text-indigo-600">2026</span>
             </h1>
+              <div className="mt-1 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-[11px] font-black uppercase">
+                Mois de travail : <span className="text-indigo-700">{workMonth.toUpperCase()}</span>
+              </div>
           </div>
         </div>
 
