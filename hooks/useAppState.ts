@@ -397,8 +397,27 @@ export const useAppState = () => {
     });
 
   const [products, setProducts] = useState<ProductWithHistory[]>(() => {
-    const loaded = loadState('products', DEFAULT_PRODUCTS);
-    return mergeAndNormalizeProducts(loaded);
+    const loaded = loadState('products', [
+      ...DOQUET_PRODUCTS, ...VINS_PRODUCTS, ...VIANDES_PRODUCTS,
+      ...DOMAFRAIS_PRODUCTS, ...DOMAFRAIS_BOF_PRODUCTS, ...DOMAFRAIS_SURGELE_PRODUCTS, ...POMONA_EPISAVEURS_PRODUCTS,
+    ]);
+
+    // Fusion : ajouter les nouveaux produits qui n'existaient pas encore
+    const existingIds = new Set(loaded.map((p: ProductWithHistory) => p.id));
+    const allProducts = [...loaded];
+    [...VINS_PRODUCTS, ...VIANDES_PRODUCTS, ...DOMAFRAIS_PRODUCTS, ...DOMAFRAIS_BOF_PRODUCTS, ...DOMAFRAIS_SURGELE_PRODUCTS, ...POMONA_EPISAVEURS_PRODUCTS]
+      .forEach(p => { if (!existingIds.has(p.id)) allProducts.push(p); });
+
+    // Normalisation des champs
+    return allProducts.map((p: ProductWithHistory) => ({
+      ...p,
+      stock:           p.stock          == null || p.stock          === 0 ? '' : p.stock,
+      upcomingDelivery: p.upcomingDelivery == null || p.upcomingDelivery === 0 ? '' : p.upcomingDelivery,
+      targetStock:     p.targetStock     == null || p.targetStock     === 0 ? '' : p.targetStock,
+      packaging:       !p.packaging || p.packaging === 0 ? 1 : p.packaging,
+      importDivisor:   !p.importDivisor  || p.importDivisor === 0 ? '' : p.importDivisor,
+      supplierId:      p.supplierId || (DOQUET_PRODUCTS.find(dp => dp.id === p.id) ? 'doquet' : 'vins'),
+    }));
   });
 
   // --- Persistance automatique à chaque changement ---
