@@ -38,6 +38,12 @@ const SUPPLIER_CARDS = [
     name:     'Domafrais B.O.F',
     subtitle: 'Crémerie • Fromages',
   },
+
+  {
+    view:     'pomona_episaveurs' as View,
+    name:     'Pomona Episaveurs',
+    subtitle: 'Épicerie • Aides culinaires',
+  },
   // Sans image externe pour éviter les conflits de merge GitHub
   {
     view:     'domafrais_surgele' as View,
