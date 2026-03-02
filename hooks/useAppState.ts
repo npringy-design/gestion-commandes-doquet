@@ -144,10 +144,10 @@ export const useAppState = () => {
               domafrais: DOMAFRAIS_CONFIG, domafrais_bof: DOMAFRAIS_BOF_CONFIG, domafrais_surgele: DOMAFRAIS_SURGELE_CONFIG, pomona_episaveurs: POMONA_EPISAVEURS_CONFIG,
             };
             const merged: Record<string, SupplierConfig> = {};
-            Object.keys(CODE_DEFAULT_SUPPLIER_CONFIGS).forEach(id => {
+            Object.keys(codeDefaults).forEach(id => {
               merged[id] = {
                 ...cloudConfigs[id],                  // préférences cloud (cutoffTime, etc.)
-                ...CODE_DEFAULT_SUPPLIER_CONFIGS[id], // structure code (deliveryDays, flexibleDelivery)
+                ...codeDefaults[id],                  // structure code (deliveryDays, flexibleDelivery)
               };
             });
             setSupplierConfigs(merged);
@@ -234,8 +234,8 @@ export const useAppState = () => {
             domafrais: DOMAFRAIS_CONFIG, domafrais_bof: DOMAFRAIS_BOF_CONFIG, domafrais_surgele: DOMAFRAIS_SURGELE_CONFIG, pomona_episaveurs: POMONA_EPISAVEURS_CONFIG,
           };
           const merged: Record<string, SupplierConfig> = {};
-          Object.keys(CODE_DEFAULT_SUPPLIER_CONFIGS).forEach(id => {
-            merged[id] = { ...cloudConfigs[id], ...CODE_DEFAULT_SUPPLIER_CONFIGS[id] };
+          Object.keys(codeDefaults).forEach(id => {
+            merged[id] = { ...cloudConfigs[id], ...codeDefaults[id] };
           });
           setSupplierConfigs(merged);
           break;
@@ -390,8 +390,8 @@ export const useAppState = () => {
         domafrais: DOMAFRAIS_CONFIG, domafrais_bof: DOMAFRAIS_BOF_CONFIG, domafrais_surgele: DOMAFRAIS_SURGELE_CONFIG, pomona_episaveurs: POMONA_EPISAVEURS_CONFIG,
       };
       const merged: Record<string, SupplierConfig> = {};
-      Object.keys(CODE_DEFAULT_SUPPLIER_CONFIGS).forEach(id => {
-        merged[id] = { ...saved[id], ...CODE_DEFAULT_SUPPLIER_CONFIGS[id] };
+      (Object.keys(defaults) as (keyof typeof defaults)[]).forEach(id => {
+        merged[id] = { ...saved[id], ...defaults[id] };
       });
       return merged;
     });
