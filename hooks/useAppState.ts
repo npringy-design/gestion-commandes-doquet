@@ -57,6 +57,29 @@ const saveState = (key: string, value: unknown, onError?: (msg: string) => void)
   }
 };
 
+
+const DEFAULT_PRODUCTS: ProductWithHistory[] = [
+  ...DOQUET_PRODUCTS, ...VINS_PRODUCTS, ...VIANDES_PRODUCTS,
+  ...DOMAFRAIS_PRODUCTS, ...DOMAFRAIS_BOF_PRODUCTS, ...DOMAFRAIS_SURGELE_PRODUCTS,
+  ...POMONA_EPISAVEURS_PRODUCTS,
+];
+
+const mergeAndNormalizeProducts = (incoming: ProductWithHistory[]): ProductWithHistory[] => {
+  const existingIds = new Set(incoming.map((p: ProductWithHistory) => p.id));
+  const merged = [...incoming];
+  DEFAULT_PRODUCTS.forEach(p => { if (!existingIds.has(p.id)) merged.push(p); });
+
+  return merged.map((p: ProductWithHistory) => ({
+    ...p,
+    stock:            p.stock == null || p.stock === 0 ? '' : p.stock,
+    upcomingDelivery: p.upcomingDelivery == null || p.upcomingDelivery === 0 ? '' : p.upcomingDelivery,
+    targetStock:      p.targetStock == null || p.targetStock === 0 ? '' : p.targetStock,
+    packaging:        !p.packaging || p.packaging === 0 ? 1 : p.packaging,
+    importDivisor:    !p.importDivisor || p.importDivisor === 0 ? '' : p.importDivisor,
+    supplierId:       p.supplierId || (DOQUET_PRODUCTS.find(dp => dp.id === p.id) ? 'doquet' : 'vins'),
+  }));
+};
+
 // -----------------------------------------------------------
 // Hook principal
 // -----------------------------------------------------------
@@ -131,7 +154,7 @@ export const useAppState = () => {
           }
           if (cloudMap['deliveryDateBySupplier']) setDeliveryDateBySupplier(cloudMap['deliveryDateBySupplier'] as Record<string, string>);
           if (cloudMap['nextDeliveryDateBySupplier']) setNextDeliveryDateBySupplier(cloudMap['nextDeliveryDateBySupplier'] as Record<string, string>);
-          if (cloudMap['products']) setProducts(cloudMap['products'] as ProductWithHistory[]);
+          if (cloudMap['products']) setProducts(mergeAndNormalizeProducts(cloudMap['products'] as ProductWithHistory[]));
           setTimeout(() => { isHydratingFromCloud.current = false; }, 600);
         }
       } catch (e) {
@@ -219,7 +242,7 @@ export const useAppState = () => {
         }
         case 'deliveryDateBySupplier': setDeliveryDateBySupplier(value as Record<string, string>); break;
         case 'nextDeliveryDateBySupplier': setNextDeliveryDateBySupplier(value as Record<string, string>); break;
-        case 'products': setProducts(value as ProductWithHistory[]); break;
+        case 'products': setProducts(mergeAndNormalizeProducts(value as ProductWithHistory[])); break;
         default: break;
       }
       // Relâche après un court délai pour laisser React stabiliser les contrôles
