@@ -23,10 +23,10 @@ const nowIso = () => new Date().toISOString();
 import { useToast } from '../components/Toast';
 import {
   DOQUET_PRODUCTS, VINS_PRODUCTS, VIANDES_PRODUCTS,
-  DOMAFRAIS_PRODUCTS, DOMAFRAIS_BOF_PRODUCTS, DOMAFRAIS_SURGELE_PRODUCTS, POMONA_EPISAVEURS_PRODUCTS, POMONA_TERRE_AZUR_PRODUCTS,
+  DOMAFRAIS_PRODUCTS, DOMAFRAIS_BOF_PRODUCTS, DOMAFRAIS_SURGELE_PRODUCTS, POMONA_EPISAVEURS_PRODUCTS,
   MONTHLY_COVERS as INITIAL_COVERS,
   DOQUET_CONFIG, VINS_CONFIG, VIANDES_CONFIG,
-  DOMAFRAIS_CONFIG, DOMAFRAIS_BOF_CONFIG, DOMAFRAIS_SURGELE_CONFIG, POMONA_EPISAVEURS_CONFIG, POMONA_TERRE_AZUR_CONFIG,
+  DOMAFRAIS_CONFIG, DOMAFRAIS_BOF_CONFIG, DOMAFRAIS_SURGELE_CONFIG, POMONA_EPISAVEURS_CONFIG,
   ProductWithHistory, DAILY_COVERS_INITIAL,
 } from '../data';
 import { OrderState, SupplierConfig } from '../types';
@@ -58,23 +58,10 @@ const saveState = (key: string, value: unknown, onError?: (msg: string) => void)
 };
 
 
-
-const CODE_DEFAULT_SUPPLIER_CONFIGS: Record<string, SupplierConfig> = {
-  doquet: DOQUET_CONFIG,
-  vins: VINS_CONFIG,
-  viandes: VIANDES_CONFIG,
-  domafrais: DOMAFRAIS_CONFIG,
-  domafrais_bof: DOMAFRAIS_BOF_CONFIG,
-  domafrais_surgele: DOMAFRAIS_SURGELE_CONFIG,
-  pomona_episaveurs: POMONA_EPISAVEURS_CONFIG,
-  pomona_terre_azur: POMONA_TERRE_AZUR_CONFIG,
-};
-
 const DEFAULT_PRODUCTS: ProductWithHistory[] = [
   ...DOQUET_PRODUCTS, ...VINS_PRODUCTS, ...VIANDES_PRODUCTS,
   ...DOMAFRAIS_PRODUCTS, ...DOMAFRAIS_BOF_PRODUCTS, ...DOMAFRAIS_SURGELE_PRODUCTS,
   ...POMONA_EPISAVEURS_PRODUCTS,
-  ...POMONA_TERRE_AZUR_PRODUCTS,
 ];
 
 const mergeAndNormalizeProducts = (incoming: ProductWithHistory[]): ProductWithHistory[] => {
@@ -152,6 +139,10 @@ export const useAppState = () => {
           // Les champs deliveryDays / flexibleDelivery viennent TOUJOURS du code
           if (cloudMap['supplierConfigs']) {
             const cloudConfigs = cloudMap['supplierConfigs'] as Record<string, SupplierConfig>;
+            const codeDefaults: Record<string, SupplierConfig> = {
+              doquet: DOQUET_CONFIG, vins: VINS_CONFIG, viandes: VIANDES_CONFIG,
+              domafrais: DOMAFRAIS_CONFIG, domafrais_bof: DOMAFRAIS_BOF_CONFIG, domafrais_surgele: DOMAFRAIS_SURGELE_CONFIG, pomona_episaveurs: POMONA_EPISAVEURS_CONFIG,
+            };
             const merged: Record<string, SupplierConfig> = {};
             Object.keys(CODE_DEFAULT_SUPPLIER_CONFIGS).forEach(id => {
               merged[id] = {
@@ -238,6 +229,10 @@ export const useAppState = () => {
         case 'validatedMonths': setValidatedMonths(value as Record<string, boolean>); break;
         case 'supplierConfigs': {
           const cloudConfigs = value as Record<string, SupplierConfig>;
+          const codeDefaults: Record<string, SupplierConfig> = {
+            doquet: DOQUET_CONFIG, vins: VINS_CONFIG, viandes: VIANDES_CONFIG,
+            domafrais: DOMAFRAIS_CONFIG, domafrais_bof: DOMAFRAIS_BOF_CONFIG, domafrais_surgele: DOMAFRAIS_SURGELE_CONFIG, pomona_episaveurs: POMONA_EPISAVEURS_CONFIG,
+          };
           const merged: Record<string, SupplierConfig> = {};
           Object.keys(CODE_DEFAULT_SUPPLIER_CONFIGS).forEach(id => {
             merged[id] = { ...cloudConfigs[id], ...CODE_DEFAULT_SUPPLIER_CONFIGS[id] };
@@ -390,6 +385,10 @@ export const useAppState = () => {
       // Toujours partir des configs du code comme base,
       // puis appliquer les éventuelles préférences sauvegardées
       const saved = loadState<Record<string, SupplierConfig>>('supplierConfigs', {});
+      const defaults = {
+        doquet: DOQUET_CONFIG, vins: VINS_CONFIG, viandes: VIANDES_CONFIG,
+        domafrais: DOMAFRAIS_CONFIG, domafrais_bof: DOMAFRAIS_BOF_CONFIG, domafrais_surgele: DOMAFRAIS_SURGELE_CONFIG, pomona_episaveurs: POMONA_EPISAVEURS_CONFIG,
+      };
       const merged: Record<string, SupplierConfig> = {};
       Object.keys(CODE_DEFAULT_SUPPLIER_CONFIGS).forEach(id => {
         merged[id] = { ...saved[id], ...CODE_DEFAULT_SUPPLIER_CONFIGS[id] };
@@ -398,8 +397,27 @@ export const useAppState = () => {
     });
 
   const [products, setProducts] = useState<ProductWithHistory[]>(() => {
-    const loaded = loadState('products', DEFAULT_PRODUCTS);
-    return mergeAndNormalizeProducts(loaded);
+    const loaded = loadState('products', [
+      ...DOQUET_PRODUCTS, ...VINS_PRODUCTS, ...VIANDES_PRODUCTS,
+      ...DOMAFRAIS_PRODUCTS, ...DOMAFRAIS_BOF_PRODUCTS, ...DOMAFRAIS_SURGELE_PRODUCTS, ...POMONA_EPISAVEURS_PRODUCTS,
+    ]);
+
+    // Fusion : ajouter les nouveaux produits qui n'existaient pas encore
+    const existingIds = new Set(loaded.map((p: ProductWithHistory) => p.id));
+    const allProducts = [...loaded];
+    [...VINS_PRODUCTS, ...VIANDES_PRODUCTS, ...DOMAFRAIS_PRODUCTS, ...DOMAFRAIS_BOF_PRODUCTS, ...DOMAFRAIS_SURGELE_PRODUCTS, ...POMONA_EPISAVEURS_PRODUCTS]
+      .forEach(p => { if (!existingIds.has(p.id)) allProducts.push(p); });
+
+    // Normalisation des champs
+    return allProducts.map((p: ProductWithHistory) => ({
+      ...p,
+      stock:           p.stock          == null || p.stock          === 0 ? '' : p.stock,
+      upcomingDelivery: p.upcomingDelivery == null || p.upcomingDelivery === 0 ? '' : p.upcomingDelivery,
+      targetStock:     p.targetStock     == null || p.targetStock     === 0 ? '' : p.targetStock,
+      packaging:       !p.packaging || p.packaging === 0 ? 1 : p.packaging,
+      importDivisor:   !p.importDivisor  || p.importDivisor === 0 ? '' : p.importDivisor,
+      supplierId:      p.supplierId || (DOQUET_PRODUCTS.find(dp => dp.id === p.id) ? 'doquet' : 'vins'),
+    }));
   });
 
   // --- Persistance automatique à chaque changement ---
@@ -545,7 +563,7 @@ export const useAppState = () => {
   const performReset = () => {
     const viewToSupplier: Record<string, string> = {
       doquet: 'doquet', vins: 'vins', viandes: 'viandes',
-      domafrais: 'domafrais', domafrais_bof: 'domafrais_bof', domafrais_surgele: 'domafrais_surgele', pomona_episaveurs: 'pomona_episaveurs', pomona_terre_azur: 'pomona_terre_azur',
+      domafrais: 'domafrais', domafrais_bof: 'domafrais_bof', domafrais_surgele: 'domafrais_surgele', pomona_episaveurs: 'pomona_episaveurs',
     };
     const id = viewToSupplier[view];
     if (!id) return;
@@ -559,7 +577,7 @@ export const useAppState = () => {
   const addNewProduct = () => {
     const viewToSupplier: Record<string, SupplierId> = {
       doquet: 'doquet', vins: 'vins', viandes: 'viandes',
-      domafrais: 'domafrais', domafrais_bof: 'domafrais_bof', domafrais_surgele: 'domafrais_surgele', pomona_episaveurs: 'pomona_episaveurs', pomona_terre_azur: 'pomona_terre_azur', ratios: ratioTab,
+      domafrais: 'domafrais', domafrais_bof: 'domafrais_bof', domafrais_surgele: 'domafrais_surgele', pomona_episaveurs: 'pomona_episaveurs', ratios: ratioTab,
     };
     const supplierId = viewToSupplier[view] ?? 'doquet';
     const newProd: ProductWithHistory = {

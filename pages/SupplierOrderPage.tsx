@@ -15,7 +15,7 @@ import { ResetConfirmModal } from '../components/Modals';
 import WindowsCalendar from '../components/WindowsCalendar';
 import {
   DOQUET_CONFIG, VINS_CONFIG, VIANDES_CONFIG,
-  DOMAFRAIS_CONFIG, DOMAFRAIS_BOF_CONFIG, POMONA_EPISAVEURS_CONFIG, POMONA_TERRE_AZUR_CONFIG,
+  DOMAFRAIS_CONFIG, DOMAFRAIS_BOF_CONFIG, POMONA_EPISAVEURS_CONFIG,
 } from '../data';
 import { SupplierConfig } from '../types';
 import { useAppState } from '../hooks/useAppState';
@@ -42,9 +42,6 @@ const SupplierIcon: React.FC<{ view: string }> = ({ view }) => {
   // Pomona Episaveurs — caisse épicerie
   if (view === 'pomona_episaveurs')
     return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7h18l-2 10H5L3 7z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V5a4 4 0 018 0v2"/></svg>;
-  // Pomona Terre Azur — cagette fruits/légumes
-  if (view === 'pomona_terre_azur')
-    return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8h18v9a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 8l2-4h6l2 4"/></svg>;
   // Fallback — panier
   return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>;
 };
@@ -73,7 +70,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
   // Guard : si la config n'est pas encore chargée (Supabase en cours), utiliser le défaut du code
   const _configDefaults: Record<string, SupplierConfig> = {
     doquet: DOQUET_CONFIG, vins: VINS_CONFIG, viandes: VIANDES_CONFIG,
-    domafrais: DOMAFRAIS_CONFIG, domafrais_bof: DOMAFRAIS_BOF_CONFIG, pomona_episaveurs: POMONA_EPISAVEURS_CONFIG, pomona_terre_azur: POMONA_TERRE_AZUR_CONFIG,
+    domafrais: DOMAFRAIS_CONFIG, domafrais_bof: DOMAFRAIS_BOF_CONFIG, pomona_episaveurs: POMONA_EPISAVEURS_CONFIG,
   };
   const currentConfig  = supplierConfigs[currentSupplierId] ?? _configDefaults[currentSupplierId];
   const supplierLabel  = SUPPLIER_LABELS[currentSupplierId];
