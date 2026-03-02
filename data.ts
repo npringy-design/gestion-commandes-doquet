@@ -205,6 +205,17 @@ export const DOMAFRAIS_SURGELE_CONFIG: SupplierConfig = {
   cutoffTime: '10:00'
 };
 
+
+export const POMONA_TERRE_AZUR_CONFIG: SupplierConfig = {
+  id: 'pomona_terre_azur',
+  name: 'Pomona Terre Azur',
+  deliveryDay: 1,
+  cutoffDay: 5,      // Vendredi avant 10h pour livraison lundi
+  cutoffTime: '10:00',
+  flexibleDelivery: true, // Même calendrier que Plaine Maison
+};
+
+
 export const DOQUET_PRODUCTS: ProductWithHistory[] = [
   { id: '1', supplierId: 'doquet', name: 'coca cola vc', searchName: 'Coca cola 33cl vc', packaging: 24, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
   { id: '2', supplierId: 'doquet', name: 'coca cherry vc', searchName: 'Coca Cola Cherry 33cl vc', packaging: 24, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
@@ -437,4 +448,23 @@ export const DOMAFRAIS_SURGELE_PRODUCTS: ProductWithHistory[] = [
   { id: 'ds60', supplierId: 'domafrais_surgele', name: 'Glace Fraise', searchName: 'Glace Fraise', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
   { id: 'ds61', supplierId: 'domafrais_surgele', name: 'Glace Framboise', searchName: 'Glace Framboise', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
   { id: 'ds62', supplierId: 'domafrais_surgele', name: 'Glace Passion', searchName: 'Glace Passion', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 }
+];
+
+
+
+
+export const POMONA_TERRE_AZUR_PRODUCTS: ProductWithHistory[] = [
+  { id: 'pta1', supplierId: 'pomona_terre_azur', name: 'Banane', searchName: 'Banane cat 1', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta2', supplierId: 'pomona_terre_azur', name: 'Champignons', searchName: 'Champignon paris gros', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta3', supplierId: 'pomona_terre_azur', name: 'ciboulette', searchName: 'Ciboulette fraiche', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta4', supplierId: 'pomona_terre_azur', name: 'citron jaune', searchName: 'Citron jaune moyen', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta5', supplierId: 'pomona_terre_azur', name: 'citron vert', searchName: 'Citron vert', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta6', supplierId: 'pomona_terre_azur', name: 'coeur de romaine', searchName: 'Coeur de romaine Salade', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta7', supplierId: 'pomona_terre_azur', name: 'coriandre', searchName: 'Coriandre botte', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta8', supplierId: 'pomona_terre_azur', name: 'echalote', searchName: 'Echalote cuisse poulet', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta9', supplierId: 'pomona_terre_azur', name: 'menthe', searchName: 'Menthe fraiche', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta10', supplierId: 'pomona_terre_azur', name: 'oignon jaune', searchName: 'Oignon jaune', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta11', supplierId: 'pomona_terre_azur', name: 'oignon rouge', searchName: 'Oignon rouge', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta12', supplierId: 'pomona_terre_azur', name: 'persil plat', searchName: 'Persil plat', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta13', supplierId: 'pomona_terre_azur', name: 'pomme de terre four', searchName: 'Pomme de terre au four colis 12.5 Kg', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
 ];
