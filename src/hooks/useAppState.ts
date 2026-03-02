@@ -21,11 +21,7 @@ import {
 import { OrderState, SupplierConfig } from '../types';
 import { MONTHS_ORDER, STORAGE_PREFIX, View, SupplierId } from '../constants';
 import { DailyCoversState } from '../utils/dateHelpers';
-import {
-  extractAllNamesFromCsvs,
-  buildConsoIndexFromCsv,
-  getImportedValueFromIndex,
-} from '../utils/csvHelpers';
+import { getImportedValueForProduct, extractAllNamesFromCsvs } from '../utils/csvHelpers';
 import { loadAllFromSupabase, saveToSupabaseDebounced, isSupabaseConfigured } from '../utils/supabase';
 
 // -----------------------------------------------------------
@@ -193,32 +189,22 @@ export const useAppState = () => {
     return sum;
   }, [dailyCovers]);
 
-  // ---------------------------------------------------------
-  // ✅ Logique perf : workMonth = 1er mois importé NON figé
-  // - Mois figés : jamais de re-parsing CSV (on lit le snapshot salesHistory)
-  // - workMonth : seul mois où on parse + matching + alertes
-  // - Mois plus récents : pas de parsing tant que workMonth n'est pas figé
-  // ---------------------------------------------------------
-  const workMonth = useMemo(() => {
-    const monthsWithCsv = MONTHS_ORDER.filter(m => !!detailedInventory[m]);
-    const firstOpenWithCsv = monthsWithCsv.find(m => !validatedMonths[m]);
+  // Mois cible d'import: premier mois non figé disposant d'un CSV, sinon fallback sur le premier mois importé
+  const importTargetMonth = useMemo(() => {
+    const firstOpenWithCsv = MONTHS_ORDER.find(m => !validatedMonths[m] && !!detailedInventory[m]);
     if (firstOpenWithCsv) return firstOpenWithCsv;
-    return monthsWithCsv[0] ?? MONTHS_ORDER[0];
+    const firstWithCsv = MONTHS_ORDER.find(m => !!detailedInventory[m]);
+    return firstWithCsv ?? MONTHS_ORDER[0];
   }, [detailedInventory, validatedMonths]);
-
-  // Index CSV du workMonth (parsé 1 seule fois)
-  const workMonthIndex = useMemo(() => {
-    return buildConsoIndexFromCsv(detailedInventory[workMonth]);
-  }, [detailedInventory, workMonth]);
 
   // Ensemble des noms disponibles dans le CSV du mois cible (pour le mapping et les alertes unmatched)
   const allAvailableImportNames = useMemo(
     () => extractAllNamesFromCsvs(
-      detailedInventory[workMonth]
-        ? { [workMonth]: detailedInventory[workMonth] }
+      detailedInventory[importTargetMonth]
+        ? { [importTargetMonth]: detailedInventory[importTargetMonth] }
         : {}
     ),
-    [detailedInventory, workMonth]
+    [detailedInventory, importTargetMonth]
   );
 
   // --- Actions sur les produits ---
@@ -231,39 +217,26 @@ export const useAppState = () => {
 
     MONTHS_ORDER.forEach(m => {
       const isValid    = validatedMonths[m] || false;
-      // ⚡ Perf + règle :
-      // - mois figé => snapshot
-      // - workMonth => import brut + matching
-      // - autres mois non figés => 0 (ne pas afficher d'anciens snapshots non validés)
-      const importedVal = (!isValid && m === workMonth)
-        ? getImportedValueFromIndex(workMonthIndex, p.searchName, p.importDivisor)
-        : null;
-
-      const val = isValid
+      const importedVal = getImportedValueForProduct(detailedInventory[m], p.searchName, p.importDivisor);
+      const val        = isValid
         ? Math.round(p.salesHistory[m] || 0)
-        : (m === workMonth ? (importedVal ?? 0) : 0);
+        : (importedVal ?? Math.round(p.salesHistory[m] || 0));
 
       const c = covers[m] || 1;
       const r = val / c;
 
-      mS[m] = { value: val, isImported: !isValid && m === workMonth && importedVal !== null, isValidated: isValid };
+      mS[m] = { value: val, isImported: !isValid && importedVal !== null, isValidated: isValid };
       mR[m] = r;
 
       if (val > 0) { totalR += r; countR++; }
     });
 
     return { avgRatio: countR > 0 ? totalR / countR : 0, mR, mS };
-  }, [validatedMonths, covers, workMonth, workMonthIndex]);
+  }, [detailedInventory, validatedMonths, covers]);
 
   // Valide / dévalide un mois (fige les valeurs importées dans l'historique)
   const toggleValidateMonth = (m: string) => {
     const next = !validatedMonths[m];
-    // Garde-fou : on ne permet de figer que le workMonth.
-    // Ça force le workflow "on traite 1 mois à la fois" et évite de parser 12 CSV.
-    if (next && m !== workMonth) {
-      window.alert(`Ce mois n'est pas le mois de travail.\n\nMois de travail actuel : ${m === workMonth ? m : workMonth.toUpperCase()}`);
-      return;
-    }
     if (next) {
       setProducts(prev => prev.map(p => ({
         ...p,
@@ -418,7 +391,6 @@ export const useAppState = () => {
     salesHtByMonth, setSalesHtByMonth,
     costMatterByMonth, setCostMatterByMonth,
     validatedMonths,
-    workMonth,
     supplierConfigs, setSupplierConfigs,
     products, setProducts,
 

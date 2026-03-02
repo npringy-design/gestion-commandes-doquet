@@ -480,24 +480,37 @@ export const useAppState = () => {
     const mR: Record<string, number> = {};
     const mS: Record<string, { value: number; isImported: boolean; isValidated: boolean }> = {};
 
+    // RÈGLE PERF (workMonth) :
+    // - Mois figés (validated) : on affiche uniquement le snapshot (salesHistory) -> jamais de lecture CSV
+    // - Mois de travail (importTargetMonth) : seul mois autorisé à lire/parsing CSV + matching/alertes
+    // - Autres mois non figés : 0 (pas de parsing, pas de fallback salesHistory)
     MONTHS_ORDER.forEach(m => {
-      const isValid    = validatedMonths[m] || false;
-      const importedVal = getImportedValueForProduct(detailedInventory[m], p.searchName, p.importDivisor);
-      const val        = isValid
-        ? Math.round(p.salesHistory[m] || 0)
-        : (importedVal ?? Math.round(p.salesHistory[m] || 0));
+      const isValidated = validatedMonths[m] || false;
+      const isWorkMonth = m === importTargetMonth;
+
+      let importedVal: number | null = null;
+      let val = 0;
+
+      if (isValidated) {
+        val = Math.round(p.salesHistory[m] || 0);
+      } else if (isWorkMonth) {
+        importedVal = getImportedValueForProduct(detailedInventory[m], p.searchName, p.importDivisor);
+        val = importedVal ?? 0;
+      } else {
+        val = 0;
+      }
 
       const c = covers[m] || 1;
       const r = val / c;
 
-      mS[m] = { value: val, isImported: !isValid && importedVal !== null, isValidated: isValid };
+      mS[m] = { value: val, isImported: !isValidated && isWorkMonth && importedVal !== null, isValidated };
       mR[m] = r;
 
       if (val > 0) { totalR += r; countR++; }
     });
 
     return { avgRatio: countR > 0 ? totalR / countR : 0, mR, mS };
-  }, [detailedInventory, validatedMonths, covers]);
+  }, [detailedInventory, validatedMonths, covers, importTargetMonth]);
 
   // Valide / dévalide un mois (fige les valeurs importées dans l'historique)
   const toggleValidateMonth = (m: string) => {
@@ -662,6 +675,7 @@ export const useAppState = () => {
     salesHtByMonth, setSalesHtByMonth,
     costMatterByMonth, setCostMatterByMonth,
     validatedMonths,
+    importTargetMonth,
     supplierConfigs, setSupplierConfigs,
     products, setProducts,
 

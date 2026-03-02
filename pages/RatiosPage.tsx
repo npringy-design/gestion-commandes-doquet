@@ -276,6 +276,9 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
           <h1 className="text-2xl font-black uppercase tracking-tighter text-slate-800">
             Intelligence de Vente <span className="text-indigo-600">2026</span>
           </h1>
+          <div className="mt-1 text-xs text-slate-500">
+            Mois de travail (workMonth) : <span className="font-semibold text-slate-700">{state.importTargetMonth?.toUpperCase?.() ?? state.importTargetMonth}</span>
+          </div>
         </div>
       </div>
     </div>
