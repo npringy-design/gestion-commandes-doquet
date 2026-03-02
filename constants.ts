@@ -52,6 +52,7 @@ export type View =
   | 'domafrais'
   | 'domafrais_bof'
   | 'domafrais_surgele'
+  | 'pomona_terre_azur'
   | 'pomona_episaveurs'
   | 'stats'
   | 'ratios'
@@ -61,7 +62,7 @@ export type View =
   | 'cost_analysis';
 
 // IDs des fournisseurs
-export type SupplierId = 'doquet' | 'vins' | 'viandes' | 'domafrais' | 'domafrais_bof' | 'domafrais_surgele' | 'pomona_episaveurs';
+export type SupplierId = 'doquet' | 'vins' | 'viandes' | 'domafrais' | 'domafrais_bof' | 'domafrais_surgele' | 'pomona_terre_azur' | 'pomona_episaveurs';
 
 export const SUPPLIER_LABELS: Record<SupplierId, { name: string; subtitle: string }> = {
   doquet:        { name: "DOQUET",            subtitle: "Softs • Jus • Cocktails" },
@@ -70,5 +71,6 @@ export const SUPPLIER_LABELS: Record<SupplierId, { name: string; subtitle: strin
   domafrais:     { name: "Domafrais Viandes", subtitle: "Viandes • Volailles"     },
   domafrais_bof: { name: "Domafrais B.O.F",   subtitle: "Crémerie • Fromages"     },
   domafrais_surgele: { name: "Domafrais Surgelé", subtitle: "Surgelés • Glaces" },
+  pomona_terre_azur: { name: "Pomona Terre Azur", subtitle: "Fruits • Légumes" },
   pomona_episaveurs: { name: "Pomona Episaveurs", subtitle: "Épicerie • Aides culinaires" },
 };

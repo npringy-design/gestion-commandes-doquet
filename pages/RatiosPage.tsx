@@ -29,6 +29,7 @@ const SUPPLIER_TABS: { id: SupplierId; label: string }[] = [
   { id: 'domafrais',     label: 'Domafrais Viandes' },
   { id: 'domafrais_bof', label: 'Domafrais B.O.F'   },
   { id: 'domafrais_surgele', label: 'Domafrais Surgelé' },
+  { id: 'pomona_terre_azur', label: 'Pomona Terre Azur' },
   { id: 'pomona_episaveurs', label: 'Pomona Episaveurs' },
 ];
 
