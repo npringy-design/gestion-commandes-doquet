@@ -15,7 +15,7 @@ import { ResetConfirmModal } from '../components/Modals';
 import WindowsCalendar from '../components/WindowsCalendar';
 import {
   DOQUET_CONFIG, VINS_CONFIG, VIANDES_CONFIG,
-  DOMAFRAIS_CONFIG, DOMAFRAIS_BOF_CONFIG,
+  DOMAFRAIS_CONFIG, DOMAFRAIS_BOF_CONFIG, POMONA_EPISAVEURS_CONFIG,
 } from '../data';
 import { SupplierConfig } from '../types';
 import { useAppState } from '../hooks/useAppState';
@@ -39,6 +39,9 @@ const SupplierIcon: React.FC<{ view: string }> = ({ view }) => {
   // Domafrais BOF — fromage / crémerie
   if (view === 'domafrais_bof')
     return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><circle cx="12" cy="12" r="2" strokeWidth="2"/></svg>;
+  // Pomona Episaveurs — caisse épicerie
+  if (view === 'pomona_episaveurs')
+    return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7h18l-2 10H5L3 7z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V5a4 4 0 018 0v2"/></svg>;
   // Fallback — panier
   return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>;
 };
@@ -67,7 +70,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
   // Guard : si la config n'est pas encore chargée (Supabase en cours), utiliser le défaut du code
   const _configDefaults: Record<string, SupplierConfig> = {
     doquet: DOQUET_CONFIG, vins: VINS_CONFIG, viandes: VIANDES_CONFIG,
-    domafrais: DOMAFRAIS_CONFIG, domafrais_bof: DOMAFRAIS_BOF_CONFIG,
+    domafrais: DOMAFRAIS_CONFIG, domafrais_bof: DOMAFRAIS_BOF_CONFIG, pomona_episaveurs: POMONA_EPISAVEURS_CONFIG,
   };
   const currentConfig  = supplierConfigs[currentSupplierId] ?? _configDefaults[currentSupplierId];
   const supplierLabel  = SUPPLIER_LABELS[currentSupplierId];
