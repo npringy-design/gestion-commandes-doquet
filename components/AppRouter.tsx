@@ -146,7 +146,7 @@ const MobileBlocked: React.FC<{ title: string }> = ({ title }) => (
 
   if (view === 'suppliers') return <><SuppliersPage setView={setView} />{SyncBadge}{LogoutButton}</>;
 
-  if (['doquet', 'vins', 'viandes', 'domafrais', 'domafrais_bof', 'domafrais_surgele'].includes(view)) {
+  if (['doquet', 'vins', 'viandes', 'domafrais', 'domafrais_bof', 'domafrais_surgele', 'pomona_episaveurs'].includes(view)) {
     return <><SupplierOrderPage state={state} />{SyncBadge}{LogoutButton}</>;
   }
 

@@ -205,6 +205,18 @@ export const DOMAFRAIS_SURGELE_CONFIG: SupplierConfig = {
   cutoffTime: '10:00'
 };
 
+
+export const POMONA_EPISAVEURS_CONFIG: SupplierConfig = {
+  id: 'pomona_episaveurs',
+  name: 'Pomona Episaveurs',
+  deliveryDay: 5,    // Vendredi
+  cutoffDay: 2,      // Mardi avant 10h
+  cutoffTime: '10:00',
+  deliveryRules: [
+    { cutoffDay: 2, deliveryDay: 5 }, // Mardi→Vendredi
+  ],
+};
+
 export const DOQUET_PRODUCTS: ProductWithHistory[] = [
   { id: '1', supplierId: 'doquet', name: 'coca cola vc', searchName: 'Coca cola 33cl vc', packaging: 24, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
   { id: '2', supplierId: 'doquet', name: 'coca cherry vc', searchName: 'Coca Cola Cherry 33cl vc', packaging: 24, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
@@ -437,4 +449,63 @@ export const DOMAFRAIS_SURGELE_PRODUCTS: ProductWithHistory[] = [
   { id: 'ds60', supplierId: 'domafrais_surgele', name: 'Glace Fraise', searchName: 'Glace Fraise', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
   { id: 'ds61', supplierId: 'domafrais_surgele', name: 'Glace Framboise', searchName: 'Glace Framboise', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
   { id: 'ds62', supplierId: 'domafrais_surgele', name: 'Glace Passion', searchName: 'Glace Passion', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 }
+];
+
+
+export const POMONA_EPISAVEURS_PRODUCTS: ProductWithHistory[] = [
+  { id: 'pe1', supplierId: 'pomona_episaveurs', name: 'ail fumée', searchName: 'Ail saveur fumée boîte 300 G DUCROS', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe2', supplierId: 'pomona_episaveurs', name: 'ananas déshydrater', searchName: 'Tranches fruits déshydratés Ananas boîte 120 pieces -p', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe3', supplierId: 'pomona_episaveurs', name: 'citron déshydrater', searchName: 'Tranches fruits déshydratés Citron Jaune paquet 192 pieces -p', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe4', supplierId: 'pomona_episaveurs', name: 'orange déshydrater', searchName: 'Tranches fruits déshydratés Orange paquet 130 pcs -p', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe5', supplierId: 'pomona_episaveurs', name: 'pomme déshydrater', searchName: 'Tranches fruits déshydratés Pomme paquet 130 pcs -p', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe6', supplierId: 'pomona_episaveurs', name: 'amande', searchName: 'Amandes effilées scht 1kg', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe7', supplierId: 'pomona_episaveurs', name: 'aide à rôtir', searchName: 'Assaisonnement aide a rotir pâte 1 kg Hippo', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe8', supplierId: 'pomona_episaveurs', name: 'biscuits cuillères', searchName: 'Biscuits cuillers aux oeufs spécial restaurants colis de 1,6kg / 192 pieces', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe9', supplierId: 'pomona_episaveurs', name: 'brochettes bonbons', searchName: 'Brochette guimauve 30g Hippo', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe10', supplierId: 'pomona_episaveurs', name: 'câpres', searchName: 'Capres fines 4/4 480G PNE', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe11', supplierId: 'pomona_episaveurs', name: 'caramel beurre salé', searchName: 'Sauce caramel au beurre salé', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe12', supplierId: 'pomona_episaveurs', name: 'yellow mustard', searchName: 'Classic Yellow Mustard 2.98 kg Hippo', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe13', supplierId: 'pomona_episaveurs', name: 'compote gourde', searchName: 'Compote gourde pommes ss 90 G Materne Hippo', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe14', supplierId: 'pomona_episaveurs', name: 'cornichons', searchName: 'Cornichons fins 80/119 net', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe15', supplierId: 'pomona_episaveurs', name: 'chocolat couverture', searchName: 'Couverture chocolat L60/40 seau 10 Kg mi amère Hippo Leon -p', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe16', supplierId: 'pomona_episaveurs', name: 'crème brulée', searchName: 'Préparation boisson lactée chocolat poudre 1KG', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe17', supplierId: 'pomona_episaveurs', name: 'brisure galette', searchName: 'Eclats brisures galettes St Michel', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe18', supplierId: 'pomona_episaveurs', name: 'oignon crispy', searchName: 'Crispy bacon tranche entière kg Hippo (surg) -p', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe19', supplierId: 'pomona_episaveurs', name: 'fleur de sel', searchName: 'Fleur de sel de Camargue Kg', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe20', supplierId: 'pomona_episaveurs', name: 'huile amphora', searchName: 'Huile friture -p', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe21', supplierId: 'pomona_episaveurs', name: 'huile olive', searchName: 'Huile Line colza et olive vierge extra L AMPHORA', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe22', supplierId: 'pomona_episaveurs', name: 'jus de poulet', searchName: 'Jus de poulet Pate Chef 640 G', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe23', supplierId: 'pomona_episaveurs', name: 'ketchup bidon', searchName: 'Ketchup bidon (5.7 kg) heinz', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe24', supplierId: 'pomona_episaveurs', name: 'ketchup flacon', searchName: 'Ketchup flacon souple 342g Heinz Hippo', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe25', supplierId: 'pomona_episaveurs', name: 'maizena', searchName: 'Maizena 700g', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe26', supplierId: 'pomona_episaveurs', name: 'meringue drop', searchName: 'Meringue ronde 14 gr diamètre 7.5cm Hippo', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe27', supplierId: 'pomona_episaveurs', name: 'miel', searchName: 'Miel mille fleur 1kg', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe28', supplierId: 'pomona_episaveurs', name: 'crème patissière', searchName: 'Mix poudre crème pâtissière sachet 3 Kg -p', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe29', supplierId: 'pomona_episaveurs', name: "moutarde à l'ancienne", searchName: 'Moutarde ancienne', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe30', supplierId: 'pomona_episaveurs', name: 'moutarde dijon', searchName: 'Moutarde dijon', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe31', supplierId: 'pomona_episaveurs', name: 'roux blanc', searchName: 'Roux blanc 1kg/12.5l', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe32', supplierId: 'pomona_episaveurs', name: 'noisette entière', searchName: 'Noisette entiere emondee sacht 1kg', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe33', supplierId: 'pomona_episaveurs', name: 'noix de coco râpée', searchName: 'Noix coco rape scht 1kg', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe34', supplierId: 'pomona_episaveurs', name: 'paprika', searchName: 'Paprika fumé 230 grs', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe35', supplierId: 'pomona_episaveurs', name: 'ail noir', searchName: "Assaisonnement à l'ail noir en pâte pot CHEF Hippo", packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe36', supplierId: 'pomona_episaveurs', name: 'pâte à tartiner', searchName: 'Nocciolata 830 G Hippo', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe37', supplierId: 'pomona_episaveurs', name: 'piment fort moulu', searchName: 'Piment espelette 250g AOP Hippo', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe38', supplierId: 'pomona_episaveurs', name: 'pistache', searchName: 'Eclat de pistache', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe39', supplierId: 'pomona_episaveurs', name: 'poivre gris noir', searchName: 'Poivre noir grain 1kg', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe40', supplierId: 'pomona_episaveurs', name: 'poivre mignonette', searchName: 'Poivre noir mignonnette Hippo', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe41', supplierId: 'pomona_episaveurs', name: 'poivre vert', searchName: 'Poivre vert en saumure', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe42', supplierId: 'pomona_episaveurs', name: 'riz blanc', searchName: 'Riz long basmati sac 5 Kg', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe43', supplierId: 'pomona_episaveurs', name: 'sauce anglaise', searchName: 'Sauce anglaise Worcesteer 150ml', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe44', supplierId: 'pomona_episaveurs', name: 'sauce barbecue', searchName: 'Sauce barbecue squeeze 1lou 1kg Hippo -p', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe45', supplierId: 'pomona_episaveurs', name: 'sauce béchamel', searchName: 'Sauce béchamel brique 1 L KNORR', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe46', supplierId: 'pomona_episaveurs', name: 'sauce cocktail', searchName: 'Sauce cocktail seau 2.65 Kg Hippo -p', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe47', supplierId: 'pomona_episaveurs', name: 'gros sel', searchName: 'Sel gros pqt 1kg', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe48', supplierId: 'pomona_episaveurs', name: 'sel fin', searchName: 'Sel fin', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe49', supplierId: 'pomona_episaveurs', name: 'cornichon pickle', searchName: 'Sliced pickles bidon 3,76kg PSE', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe50', supplierId: 'pomona_episaveurs', name: 'sucre cassonade', searchName: 'Sucre cassonade', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe51', supplierId: 'pomona_episaveurs', name: 'sucre en poudre', searchName: 'Sucre semoule poudre', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe52', supplierId: 'pomona_episaveurs', name: 'sucre glace', searchName: 'Sucre glace', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe53', supplierId: 'pomona_episaveurs', name: 'tabasco', searchName: 'Tabasco rouge 60ml', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe54', supplierId: 'pomona_episaveurs', name: 'vinaigre blanc', searchName: 'Vinaigre alcool blanc 1.5l', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pe55', supplierId: 'pomona_episaveurs', name: 'vinaigrette balsamique', searchName: 'Vinaigrette Balsamique 850g Hippo -p', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
 ];

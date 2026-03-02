@@ -23,10 +23,10 @@ const nowIso = () => new Date().toISOString();
 import { useToast } from '../components/Toast';
 import {
   DOQUET_PRODUCTS, VINS_PRODUCTS, VIANDES_PRODUCTS,
-  DOMAFRAIS_PRODUCTS, DOMAFRAIS_BOF_PRODUCTS, DOMAFRAIS_SURGELE_PRODUCTS,
+  DOMAFRAIS_PRODUCTS, DOMAFRAIS_BOF_PRODUCTS, DOMAFRAIS_SURGELE_PRODUCTS, POMONA_EPISAVEURS_PRODUCTS,
   MONTHLY_COVERS as INITIAL_COVERS,
   DOQUET_CONFIG, VINS_CONFIG, VIANDES_CONFIG,
-  DOMAFRAIS_CONFIG, DOMAFRAIS_BOF_CONFIG, DOMAFRAIS_SURGELE_CONFIG,
+  DOMAFRAIS_CONFIG, DOMAFRAIS_BOF_CONFIG, DOMAFRAIS_SURGELE_CONFIG, POMONA_EPISAVEURS_CONFIG,
   ProductWithHistory, DAILY_COVERS_INITIAL,
 } from '../data';
 import { OrderState, SupplierConfig } from '../types';
@@ -55,6 +55,29 @@ const saveState = (key: string, value: unknown, onError?: (msg: string) => void)
     if (onError) onError(msg);
     else console.error(msg, err);
   }
+};
+
+
+const DEFAULT_PRODUCTS: ProductWithHistory[] = [
+  ...DOQUET_PRODUCTS, ...VINS_PRODUCTS, ...VIANDES_PRODUCTS,
+  ...DOMAFRAIS_PRODUCTS, ...DOMAFRAIS_BOF_PRODUCTS, ...DOMAFRAIS_SURGELE_PRODUCTS,
+  ...POMONA_EPISAVEURS_PRODUCTS,
+];
+
+const mergeAndNormalizeProducts = (incoming: ProductWithHistory[]): ProductWithHistory[] => {
+  const existingIds = new Set(incoming.map((p: ProductWithHistory) => p.id));
+  const merged = [...incoming];
+  DEFAULT_PRODUCTS.forEach(p => { if (!existingIds.has(p.id)) merged.push(p); });
+
+  return merged.map((p: ProductWithHistory) => ({
+    ...p,
+    stock:            p.stock == null || p.stock === 0 ? '' : p.stock,
+    upcomingDelivery: p.upcomingDelivery == null || p.upcomingDelivery === 0 ? '' : p.upcomingDelivery,
+    targetStock:      p.targetStock == null || p.targetStock === 0 ? '' : p.targetStock,
+    packaging:        !p.packaging || p.packaging === 0 ? 1 : p.packaging,
+    importDivisor:    !p.importDivisor || p.importDivisor === 0 ? '' : p.importDivisor,
+    supplierId:       p.supplierId || (DOQUET_PRODUCTS.find(dp => dp.id === p.id) ? 'doquet' : 'vins'),
+  }));
 };
 
 // -----------------------------------------------------------
@@ -118,7 +141,7 @@ export const useAppState = () => {
             const cloudConfigs = cloudMap['supplierConfigs'] as Record<string, SupplierConfig>;
             const codeDefaults: Record<string, SupplierConfig> = {
               doquet: DOQUET_CONFIG, vins: VINS_CONFIG, viandes: VIANDES_CONFIG,
-              domafrais: DOMAFRAIS_CONFIG, domafrais_bof: DOMAFRAIS_BOF_CONFIG, domafrais_surgele: DOMAFRAIS_SURGELE_CONFIG,
+              domafrais: DOMAFRAIS_CONFIG, domafrais_bof: DOMAFRAIS_BOF_CONFIG, domafrais_surgele: DOMAFRAIS_SURGELE_CONFIG, pomona_episaveurs: POMONA_EPISAVEURS_CONFIG,
             };
             const merged: Record<string, SupplierConfig> = {};
             Object.keys(codeDefaults).forEach(id => {
@@ -131,7 +154,7 @@ export const useAppState = () => {
           }
           if (cloudMap['deliveryDateBySupplier']) setDeliveryDateBySupplier(cloudMap['deliveryDateBySupplier'] as Record<string, string>);
           if (cloudMap['nextDeliveryDateBySupplier']) setNextDeliveryDateBySupplier(cloudMap['nextDeliveryDateBySupplier'] as Record<string, string>);
-          if (cloudMap['products']) setProducts(cloudMap['products'] as ProductWithHistory[]);
+          if (cloudMap['products']) setProducts(mergeAndNormalizeProducts(cloudMap['products'] as ProductWithHistory[]));
           setTimeout(() => { isHydratingFromCloud.current = false; }, 600);
         }
       } catch (e) {
@@ -208,7 +231,7 @@ export const useAppState = () => {
           const cloudConfigs = value as Record<string, SupplierConfig>;
           const codeDefaults: Record<string, SupplierConfig> = {
             doquet: DOQUET_CONFIG, vins: VINS_CONFIG, viandes: VIANDES_CONFIG,
-            domafrais: DOMAFRAIS_CONFIG, domafrais_bof: DOMAFRAIS_BOF_CONFIG, domafrais_surgele: DOMAFRAIS_SURGELE_CONFIG,
+            domafrais: DOMAFRAIS_CONFIG, domafrais_bof: DOMAFRAIS_BOF_CONFIG, domafrais_surgele: DOMAFRAIS_SURGELE_CONFIG, pomona_episaveurs: POMONA_EPISAVEURS_CONFIG,
           };
           const merged: Record<string, SupplierConfig> = {};
           Object.keys(codeDefaults).forEach(id => {
@@ -219,7 +242,7 @@ export const useAppState = () => {
         }
         case 'deliveryDateBySupplier': setDeliveryDateBySupplier(value as Record<string, string>); break;
         case 'nextDeliveryDateBySupplier': setNextDeliveryDateBySupplier(value as Record<string, string>); break;
-        case 'products': setProducts(value as ProductWithHistory[]); break;
+        case 'products': setProducts(mergeAndNormalizeProducts(value as ProductWithHistory[])); break;
         default: break;
       }
       // Relâche après un court délai pour laisser React stabiliser les contrôles
@@ -364,7 +387,7 @@ export const useAppState = () => {
       const saved = loadState<Record<string, SupplierConfig>>('supplierConfigs', {});
       const defaults = {
         doquet: DOQUET_CONFIG, vins: VINS_CONFIG, viandes: VIANDES_CONFIG,
-        domafrais: DOMAFRAIS_CONFIG, domafrais_bof: DOMAFRAIS_BOF_CONFIG, domafrais_surgele: DOMAFRAIS_SURGELE_CONFIG,
+        domafrais: DOMAFRAIS_CONFIG, domafrais_bof: DOMAFRAIS_BOF_CONFIG, domafrais_surgele: DOMAFRAIS_SURGELE_CONFIG, pomona_episaveurs: POMONA_EPISAVEURS_CONFIG,
       };
       const merged: Record<string, SupplierConfig> = {};
       (Object.keys(defaults) as (keyof typeof defaults)[]).forEach(id => {
@@ -374,27 +397,8 @@ export const useAppState = () => {
     });
 
   const [products, setProducts] = useState<ProductWithHistory[]>(() => {
-    const loaded = loadState('products', [
-      ...DOQUET_PRODUCTS, ...VINS_PRODUCTS, ...VIANDES_PRODUCTS,
-      ...DOMAFRAIS_PRODUCTS, ...DOMAFRAIS_BOF_PRODUCTS, ...DOMAFRAIS_SURGELE_PRODUCTS,
-    ]);
-
-    // Fusion : ajouter les nouveaux produits qui n'existaient pas encore
-    const existingIds = new Set(loaded.map((p: ProductWithHistory) => p.id));
-    const allProducts = [...loaded];
-    [...VINS_PRODUCTS, ...VIANDES_PRODUCTS, ...DOMAFRAIS_PRODUCTS, ...DOMAFRAIS_BOF_PRODUCTS, ...DOMAFRAIS_SURGELE_PRODUCTS]
-      .forEach(p => { if (!existingIds.has(p.id)) allProducts.push(p); });
-
-    // Normalisation des champs
-    return allProducts.map((p: ProductWithHistory) => ({
-      ...p,
-      stock:           p.stock          == null || p.stock          === 0 ? '' : p.stock,
-      upcomingDelivery: p.upcomingDelivery == null || p.upcomingDelivery === 0 ? '' : p.upcomingDelivery,
-      targetStock:     p.targetStock     == null || p.targetStock     === 0 ? '' : p.targetStock,
-      packaging:       !p.packaging || p.packaging === 0 ? 1 : p.packaging,
-      importDivisor:   !p.importDivisor  || p.importDivisor === 0 ? '' : p.importDivisor,
-      supplierId:      p.supplierId || (DOQUET_PRODUCTS.find(dp => dp.id === p.id) ? 'doquet' : 'vins'),
-    }));
+    const loaded = loadState('products', DEFAULT_PRODUCTS);
+    return mergeAndNormalizeProducts(loaded);
   });
 
   // --- Persistance automatique à chaque changement ---
@@ -540,7 +544,7 @@ export const useAppState = () => {
   const performReset = () => {
     const viewToSupplier: Record<string, string> = {
       doquet: 'doquet', vins: 'vins', viandes: 'viandes',
-      domafrais: 'domafrais', domafrais_bof: 'domafrais_bof', domafrais_surgele: 'domafrais_surgele',
+      domafrais: 'domafrais', domafrais_bof: 'domafrais_bof', domafrais_surgele: 'domafrais_surgele', pomona_episaveurs: 'pomona_episaveurs',
     };
     const id = viewToSupplier[view];
     if (!id) return;
@@ -554,7 +558,7 @@ export const useAppState = () => {
   const addNewProduct = () => {
     const viewToSupplier: Record<string, SupplierId> = {
       doquet: 'doquet', vins: 'vins', viandes: 'viandes',
-      domafrais: 'domafrais', domafrais_bof: 'domafrais_bof', domafrais_surgele: 'domafrais_surgele', ratios: ratioTab,
+      domafrais: 'domafrais', domafrais_bof: 'domafrais_bof', domafrais_surgele: 'domafrais_surgele', pomona_episaveurs: 'pomona_episaveurs', ratios: ratioTab,
     };
     const supplierId = viewToSupplier[view] ?? 'doquet';
     const newProd: ProductWithHistory = {
