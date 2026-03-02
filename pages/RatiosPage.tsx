@@ -262,7 +262,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
         </div>
 
         {/* Onglets fournisseurs */}
-        <div className="flex overflow-x-auto bg-slate-100 p-1.5 rounded-2xl border border-slate-200 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex flex-wrap gap-1.5 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
           {SUPPLIER_TABS.map(tab => (
             <button
               key={tab.id}
