@@ -450,6 +450,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
       <div className="max-w-[1600px] mx-auto pb-24">
         <div className="bg-white rounded-2xl lg:rounded-[32px] shadow-2xl shadow-slate-300/20 border border-slate-100 overflow-x-auto">
           <table className="w-full" style={{ minWidth: calculationMode === 'margin' ? '760px' : '860px' }}>
+          <table className="w-full" style={{ minWidth: calculationMode === 'margin' ? '760px' : '740px' }}>
             <thead>
               <tr className="text-left h-12 lg:h-16">
 
@@ -591,6 +592,17 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                           enterKeyHint="next"
                           inputMode="numeric"
                           className="w-14 lg:w-full h-9 lg:h-10 rounded-lg border border-emerald-200/50 bg-white text-center font-black text-emerald-700 text-sm outline-none focus:border-emerald-400 transition-all shadow-sm"
+                          placeholder="-" />
+                      </td>
+
+                      <td className="p-2 bg-amber-50/20">
+                        <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockCases}
+                          onChange={e => updateStockFromSplit(p.id, p.packaging, e.target.value, String(getStockSplit(p.stock, p.packaging).stockPieces))}
+                          tabIndex={TAB_STOCK_CASES + rowIdx}
+                          onKeyDown={e => handleEnterKey(e, TAB_STOCK_CASES, rowIdx)}
+                          enterKeyHint="next"
+                          inputMode="numeric"
+                          className="w-14 lg:w-full h-9 lg:h-10 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
                           placeholder="-" />
                       </td>
 
