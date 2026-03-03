@@ -479,9 +479,9 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
             <tbody className="divide-y-2 divide-slate-200">
               {displayedProducts.map((p, rowIdx) => {
                 const { avgRatio } = getProductStats(p);
-                const stockSafe    = toNumber(p.stock);
-                const upcomingSafe = toNumber(p.upcomingDelivery);
-                const targetSafe   = toNumber(p.targetStock);
+                const stockSafe      = getStockSplit(p.stock, p.packaging).totalStock;
+                const upcomingInUnit = getUpcomingDeliveryUnits(p.upcomingDelivery, p.packaging);
+                const targetSafe     = toNumber(p.targetStock);
                 let toOrder = 0;
                 let displayInfo1: number | null = null;
                 let displayInfo2: number | null = null;
@@ -489,7 +489,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                 if (calculationMode === 'margin') {
                   const dynamicTheo   = Math.ceil(avgRatio * windowForecast.total);
                   const currentMargin = orderStates[p.id]?.margin ?? 30;
-                  const res           = calculateOrder(dynamicTheo, upcomingSafe, stockSafe, currentMargin, p.packaging);
+                  const res           = calculateOrder(dynamicTheo, upcomingInUnit, stockSafe, currentMargin, p.packaging);
                   toOrder      = res.toOrder;
                   displayInfo1 = dynamicTheo;
                 } else {
