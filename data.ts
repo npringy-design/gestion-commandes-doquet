@@ -206,6 +206,15 @@ export const DOMAFRAIS_SURGELE_CONFIG: SupplierConfig = {
 };
 
 
+export const POMONA_TERRE_AZUR_CONFIG: SupplierConfig = {
+  id: 'pomona_terre_azur',
+  name: 'Pomona Terre Azur',
+  deliveryDay: 1,
+  cutoffDay: 5,
+  cutoffTime: '10:00',
+  flexibleDelivery: true,
+};
+
 export const POMONA_EPISAVEURS_CONFIG: SupplierConfig = {
   id: 'pomona_episaveurs',
   name: 'Pomona Episaveurs',
@@ -451,6 +460,22 @@ export const DOMAFRAIS_SURGELE_PRODUCTS: ProductWithHistory[] = [
   { id: 'ds62', supplierId: 'domafrais_surgele', name: 'Glace Passion', searchName: 'Glace Passion', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 }
 ];
 
+
+export const POMONA_TERRE_AZUR_PRODUCTS: ProductWithHistory[] = [
+  { id: 'pta1', supplierId: 'pomona_terre_azur', name: 'Banane', searchName: 'Banane cat 1', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta2', supplierId: 'pomona_terre_azur', name: 'Champignons', searchName: 'Champignon paris gros', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta3', supplierId: 'pomona_terre_azur', name: 'Ciboulette', searchName: 'Ciboulette fraiche', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta4', supplierId: 'pomona_terre_azur', name: 'Citron Jaune', searchName: 'Citron jaune moyen', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta5', supplierId: 'pomona_terre_azur', name: 'Citron Vert', searchName: 'Citron vert', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta6', supplierId: 'pomona_terre_azur', name: 'Cœur Romaine', searchName: 'Coeur de romaine Salade', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta7', supplierId: 'pomona_terre_azur', name: 'Coriandre', searchName: 'Coriandre botte', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta8', supplierId: 'pomona_terre_azur', name: 'Echalote', searchName: 'Echalote cuisse poulet', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta9', supplierId: 'pomona_terre_azur', name: 'Menthe', searchName: 'Menthe fraiche', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta10', supplierId: 'pomona_terre_azur', name: 'Oignon Jaune', searchName: 'Oignon jaune', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta11', supplierId: 'pomona_terre_azur', name: 'Oignon Rouge', searchName: 'Oignon rouge', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta12', supplierId: 'pomona_terre_azur', name: 'Persil Plat', searchName: 'Persil plat', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+  { id: 'pta13', supplierId: 'pomona_terre_azur', name: 'Pomme De Terre Four', searchName: 'Pomme de terre au four colis 12.5 Kg', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
+];
 
 export const POMONA_EPISAVEURS_PRODUCTS: ProductWithHistory[] = [
   { id: 'pe1', supplierId: 'pomona_episaveurs', name: 'ail fumée', searchName: 'Ail saveur fumée boîte 300 G DUCROS', packaging: 1, defaultMargin: 0, salesHistory: {}, targetStock: 0 },
