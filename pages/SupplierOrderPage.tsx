@@ -15,7 +15,7 @@ import { ResetConfirmModal } from '../components/Modals';
 import WindowsCalendar from '../components/WindowsCalendar';
 import {
   DOQUET_CONFIG, VINS_CONFIG, VIANDES_CONFIG,
-  DOMAFRAIS_CONFIG, DOMAFRAIS_BOF_CONFIG, POMONA_EPISAVEURS_CONFIG,
+  DOMAFRAIS_CONFIG, DOMAFRAIS_BOF_CONFIG, POMONA_TERRE_AZUR_CONFIG, POMONA_EPISAVEURS_CONFIG,
 } from '../data';
 import { SupplierConfig } from '../types';
 import { useAppState } from '../hooks/useAppState';
@@ -39,6 +39,9 @@ const SupplierIcon: React.FC<{ view: string }> = ({ view }) => {
   // Domafrais BOF — fromage / crémerie
   if (view === 'domafrais_bof')
     return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><circle cx="12" cy="12" r="2" strokeWidth="2"/></svg>;
+  // Pomona Terre Azur — cagette fruits & légumes
+  if (view === 'pomona_terre_azur')
+    return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16l-1 10H5L4 8z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 8V6a3 3 0 016 0v2"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11v4M10 13h4"/></svg>;
   // Pomona Episaveurs — caisse épicerie
   if (view === 'pomona_episaveurs')
     return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7h18l-2 10H5L3 7z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V5a4 4 0 018 0v2"/></svg>;
@@ -70,7 +73,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
   // Guard : si la config n'est pas encore chargée (Supabase en cours), utiliser le défaut du code
   const _configDefaults: Record<string, SupplierConfig> = {
     doquet: DOQUET_CONFIG, vins: VINS_CONFIG, viandes: VIANDES_CONFIG,
-    domafrais: DOMAFRAIS_CONFIG, domafrais_bof: DOMAFRAIS_BOF_CONFIG, pomona_episaveurs: POMONA_EPISAVEURS_CONFIG,
+    domafrais: DOMAFRAIS_CONFIG, domafrais_bof: DOMAFRAIS_BOF_CONFIG, pomona_terre_azur: POMONA_TERRE_AZUR_CONFIG, pomona_episaveurs: POMONA_EPISAVEURS_CONFIG,
   };
   const currentConfig  = supplierConfigs[currentSupplierId] ?? _configDefaults[currentSupplierId];
   const supplierLabel  = SUPPLIER_LABELS[currentSupplierId];
