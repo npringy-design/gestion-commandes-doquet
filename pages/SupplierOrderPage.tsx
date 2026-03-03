@@ -134,13 +134,43 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
   // tabIndex = BASE + rowIdx  → le navigateur suit cet ordre nativement
   // quand l'utilisateur appuie sur "Suivant" du clavier.
   //
-  // Deux colonnes indépendantes :
+  // Trois colonnes indépendantes :
   //   upcomingDelivery : base 100  → 100, 101, 102...
-  //   stock            : base 200  → 200, 201, 202...
+  //   stock colissage  : base 200  → 200, 201, 202...
+  //   stock pièces     : base 300  → 300, 301, 302...
   //
   // Sur PC, Enter dans un input focus le tabIndex suivant via handleEnterKey.
   const TAB_UPCOMING = 100;
-  const TAB_STOCK    = 200;
+  const TAB_STOCK_CASES = 200;
+  const TAB_STOCK_PIECES = 300;
+
+
+  const getStockSplit = (stockVal: number | '' | undefined, packagingVal: number | '') => {
+    const totalStock = Math.max(0, Math.floor(toNumber(stockVal)));
+    const pkg = Math.max(1, Math.floor(toNumber(packagingVal) || 1));
+    const stockCases = Math.floor(totalStock / pkg);
+    const stockPieces = totalStock % pkg;
+    return { totalStock, pkg, stockCases, stockPieces };
+  };
+
+  const updateStockFromSplit = (
+    productId: string,
+    packagingVal: number | '',
+    rawCases: string,
+    rawPieces: string
+  ) => {
+    const pkg = Math.max(1, Math.floor(toNumber(packagingVal) || 1));
+    const parsedCases = rawCases === '' ? 0 : Math.max(0, Math.floor(Number(rawCases) || 0));
+    const parsedPieces = rawPieces === '' ? 0 : Math.max(0, Math.floor(Number(rawPieces) || 0));
+
+    if (rawCases === '' && rawPieces === '') {
+      updateProductValue(productId, 'stock', '');
+      return;
+    }
+
+    const totalStock = parsedCases * pkg + parsedPieces;
+    updateProductValue(productId, 'stock', String(totalStock));
+  };
 
   const handleEnterKey = (e: React.KeyboardEvent<HTMLInputElement>, tabBase: number, rowIdx: number) => {
     if (e.key !== 'Enter') return;
@@ -412,7 +442,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
       ================================================================ */}
       <div className="max-w-[1600px] mx-auto pb-24">
         <div className="bg-white rounded-2xl lg:rounded-[32px] shadow-2xl shadow-slate-300/20 border border-slate-100 overflow-x-auto">
-          <table className="w-full" style={{ minWidth: calculationMode === 'margin' ? '600px' : '580px' }}>
+          <table className="w-full" style={{ minWidth: calculationMode === 'margin' ? '760px' : '740px' }}>
             <thead>
               <tr className="text-left h-12 lg:h-16">
 
@@ -425,12 +455,14 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                 {calculationMode === 'margin' ? (<>
                   <th className="p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Besoin<br/>Théo.</th>
                   <th className="p-2 bg-emerald-600 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Livr.<br/>à venir</th>
-                  <th className="p-2 bg-amber-600 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Stock<br/>Actuel</th>
+                  <th className="p-2 bg-amber-600 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">U. Colisage<br/>en stock</th>
+                  <th className="p-2 bg-amber-500 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">U. Pièce<br/>en stock</th>
                   <th className="p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Colis.</th>
                   <th className="p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Marge<br/>(%)</th>
                 </>) : (<>
                   <th className="p-2 bg-blue-600 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Cible<br/>(Unités)</th>
-                  <th className="p-2 bg-amber-600 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Stock<br/>Actuel</th>
+                  <th className="p-2 bg-amber-600 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">U. Colisage<br/>en stock</th>
+                  <th className="p-2 bg-amber-500 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">U. Pièce<br/>en stock</th>
                   <th className="p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Conso<br/>Estimée</th>
                   <th className="p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Manque</th>
                   <th className="p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Colis.</th>
@@ -492,10 +524,21 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                       </td>
 
                       <td className="p-2 bg-amber-50/20">
-                        <input type="number" value={p.stock}
-                          onChange={e => updateProductValue(p.id, 'stock', e.target.value)}
-                          tabIndex={TAB_STOCK + rowIdx}
-                          onKeyDown={e => handleEnterKey(e, TAB_STOCK, rowIdx)}
+                        <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockCases}
+                          onChange={e => updateStockFromSplit(p.id, p.packaging, e.target.value, String(getStockSplit(p.stock, p.packaging).stockPieces))}
+                          tabIndex={TAB_STOCK_CASES + rowIdx}
+                          onKeyDown={e => handleEnterKey(e, TAB_STOCK_CASES, rowIdx)}
+                          enterKeyHint="next"
+                          inputMode="numeric"
+                          className="w-14 lg:w-full h-9 lg:h-10 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
+                          placeholder="-" />
+                      </td>
+
+                      <td className="p-2 bg-amber-50/20">
+                        <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockPieces}
+                          onChange={e => updateStockFromSplit(p.id, p.packaging, String(getStockSplit(p.stock, p.packaging).stockCases), e.target.value)}
+                          tabIndex={TAB_STOCK_PIECES + rowIdx}
+                          onKeyDown={e => handleEnterKey(e, TAB_STOCK_PIECES, rowIdx)}
                           enterKeyHint="next"
                           inputMode="numeric"
                           className="w-14 lg:w-full h-9 lg:h-10 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
@@ -532,10 +575,21 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                       </td>
 
                       <td className="p-2 bg-amber-50/20">
-                        <input type="number" value={p.stock}
-                          onChange={e => updateProductValue(p.id, 'stock', e.target.value)}
-                          tabIndex={TAB_STOCK + rowIdx}
-                          onKeyDown={e => handleEnterKey(e, TAB_STOCK, rowIdx)}
+                        <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockCases}
+                          onChange={e => updateStockFromSplit(p.id, p.packaging, e.target.value, String(getStockSplit(p.stock, p.packaging).stockPieces))}
+                          tabIndex={TAB_STOCK_CASES + rowIdx}
+                          onKeyDown={e => handleEnterKey(e, TAB_STOCK_CASES, rowIdx)}
+                          enterKeyHint="next"
+                          inputMode="numeric"
+                          className="w-14 lg:w-full h-9 lg:h-10 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
+                          placeholder="-" />
+                      </td>
+
+                      <td className="p-2 bg-amber-50/20">
+                        <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockPieces}
+                          onChange={e => updateStockFromSplit(p.id, p.packaging, String(getStockSplit(p.stock, p.packaging).stockCases), e.target.value)}
+                          tabIndex={TAB_STOCK_PIECES + rowIdx}
+                          onKeyDown={e => handleEnterKey(e, TAB_STOCK_PIECES, rowIdx)}
                           enterKeyHint="next"
                           inputMode="numeric"
                           className="w-14 lg:w-full h-9 lg:h-10 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
