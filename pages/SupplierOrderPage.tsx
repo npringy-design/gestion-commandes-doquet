@@ -153,13 +153,6 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
     return { totalStock, pkg, stockCases, stockPieces };
   };
 
-
-  const getUpcomingDeliveryUnits = (upcomingVal: number | '' | undefined, packagingVal: number | '') => {
-    const upcomingCases = Math.max(0, Math.floor(toNumber(upcomingVal)));
-    const pkg = Math.max(1, Math.floor(toNumber(packagingVal) || 1));
-    return upcomingCases * pkg;
-  };
-
   const updateStockFromSplit = (
     productId: string,
     packagingVal: number | '',
