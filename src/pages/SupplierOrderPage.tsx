@@ -252,6 +252,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                 ) : (
                   <>
                     <th className="p-2 bg-blue-600 text-white font-black uppercase text-[11px] tracking-widest text-center w-32 shadow-lg z-10">Stock Cible<br/>(Unités)</th>
+                    <th className="p-2 bg-emerald-600 text-white font-black uppercase text-[11px] tracking-widest text-center w-32 shadow-lg z-10">Livraison<br/>à venir</th>
                     <th className="p-2 bg-amber-600 text-white font-black uppercase text-[11px] tracking-widest text-center w-32 shadow-lg z-10">Stock<br/>Actuel</th>
                     <th className="p-2 bg-[#FDBA74] text-white font-black uppercase text-[11px] tracking-widest text-center w-24">Consommation<br/>Estimée</th>
                     <th className="p-2 bg-[#FDBA74] text-white font-black uppercase text-[11px] tracking-widest text-center w-24">Manque</th>
@@ -305,6 +306,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                           />
                         </td>
 
+
                         {/* Stock actuel */}
                         <td className="p-2 bg-amber-50/20">
                           <input type="number" value={p.stock}
@@ -354,6 +356,15 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                               {(targetSafe / (Number(p.packaging) || 1)).toFixed(1)} cs
                             </div>
                           )}
+                        </td>
+
+                        {/* Livraison à venir */}
+                        <td className="p-2 bg-emerald-50/20">
+                          <input type="number" value={p.upcomingDelivery}
+                            onChange={e => updateProductValue(p.id, 'upcomingDelivery', e.target.value)}
+                            className="w-full h-10 rounded-lg border border-emerald-200/50 bg-white text-center font-black text-emerald-700 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all shadow-sm"
+                            placeholder="-"
+                          />
                         </td>
 
                         {/* Stock actuel */}
