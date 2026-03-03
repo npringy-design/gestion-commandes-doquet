@@ -26,14 +26,14 @@ const EcartsList: React.FC<EcartsListProps> = ({ title, items, type, onSelectIte
         </div>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto">
-        <table className="w-full text-left text-[11px] sm:text-[12px]">
+        <table className="w-full table-fixed text-left text-[10px] sm:text-[11px]">
           <thead className="sticky top-0 bg-white/80 backdrop-blur z-10">
             <tr className="border-b border-slate-100 text-slate-500 uppercase">
-              <th className="px-3 py-2 font-semibold w-8">#</th>
-              <th className="px-3 py-2 font-semibold">Produit</th>
-              <th className="hidden sm:table-cell px-3 py-2 font-semibold text-right">QTE</th>
-              <th className="px-3 py-2 font-semibold text-right">€</th>
-              <th className="hidden lg:table-cell px-3 py-2 font-semibold text-right">Impact %CA</th>
+              <th className="px-2 sm:px-3 py-2 font-semibold w-8">#</th>
+              <th className="px-2 sm:px-3 py-2 font-semibold w-[48%]">Produit</th>
+              <th className="hidden sm:table-cell px-2 sm:px-3 py-2 font-semibold text-right w-[16%]">QTE</th>
+              <th className="px-2 sm:px-3 py-2 font-semibold text-right w-[18%]">€</th>
+              <th className="hidden lg:table-cell px-2 sm:px-3 py-2 font-semibold text-right w-[18%]">Impact %CA</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
@@ -44,7 +44,7 @@ const EcartsList: React.FC<EcartsListProps> = ({ title, items, type, onSelectIte
                 onClick={() => onSelectItem?.(item)}
               >
                 <td className="px-2 sm:px-3 py-2 text-slate-400 tabular-nums">{idx + 1}</td>
-                <td className="px-2 sm:px-3 py-2 font-medium text-slate-700 truncate max-w-[160px] sm:max-w-[240px]" title={item.name}>
+                <td className="px-2 sm:px-3 py-2 font-medium text-slate-700 whitespace-normal break-words leading-tight" title={item.name}>
                   {item.name}
                 </td>
                 {/* Export: valeur positive = perte, valeur négative = gain */}
