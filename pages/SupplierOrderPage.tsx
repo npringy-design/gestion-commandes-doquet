@@ -82,24 +82,24 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
   const dates = getDeliveryDates(currentConfig);
 
   // ── Contraintes de date ───────────────────────────────────────
-  const _today = new Date(); _today.setHours(0, 0, 0, 0);
-  const minDelivery1 = new Date(_today); minDelivery1.setDate(_today.getDate() + 1);
+  const minDelivery1 = new Date(dates.delivery);
+  minDelivery1.setHours(0, 0, 0, 0);
 
   // ── Livraison courante (calendrier 1) ────────────────────────
   // Par défaut = calculé par getDeliveryDates (respecte les cut-offs)
-  // Si l'override stocké est passé → réinitialiser
+  // Si l'override stocké est antérieur au minimum autorisé métier → réinitialiser
   const deliveryOverride = deliveryDateBySupplier[currentSupplierId];
   const _rawDelivery = deliveryOverride ? new Date(deliveryOverride) : dates.delivery;
   const selectedDeliveryDate = _rawDelivery < minDelivery1 ? dates.delivery : _rawDelivery;
 
-  // Nettoyer le stockage si l'override est périmé
+  // Nettoyer le stockage si l'override est périmé (ou invalide métier)
   React.useEffect(() => {
     if (deliveryOverride && new Date(deliveryOverride) < minDelivery1) {
       setDeliveryDateBySupplier(prev => { const n = { ...prev }; delete n[currentSupplierId]; return n; });
       setNextDeliveryDateBySupplier(prev => { const n = { ...prev }; delete n[currentSupplierId]; return n; });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSupplierId]);
+  }, [currentSupplierId, dates.delivery]);
 
   const selectedDeliveryFormatted = selectedDeliveryDate.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
 
