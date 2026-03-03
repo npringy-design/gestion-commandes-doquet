@@ -29,6 +29,7 @@ const SUPPLIER_TABS: { id: SupplierId; label: string }[] = [
   { id: 'domafrais',     label: 'Domafrais Viandes' },
   { id: 'domafrais_bof', label: 'Domafrais B.O.F'   },
   { id: 'domafrais_surgele', label: 'Domafrais Surgelé' },
+  { id: 'pomona_terre_azur', label: 'Pomona Terre Azur' },
   { id: 'pomona_episaveurs', label: 'Pomona Episaveurs' },
 ];
 
@@ -261,7 +262,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
         </div>
 
         {/* Onglets fournisseurs */}
-        <div className="flex overflow-x-auto bg-slate-100 p-1.5 rounded-2xl border border-slate-200 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex flex-wrap gap-1.5 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
           {SUPPLIER_TABS.map(tab => (
             <button
               key={tab.id}
