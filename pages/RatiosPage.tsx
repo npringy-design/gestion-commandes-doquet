@@ -116,16 +116,15 @@ const ProductCard: React.FC<{
                   placeholder="nom dans le CSV..."
                   onChange={e => updateSearchName(p.id, e.target.value)}
                 />
-                {alert && (
-                  <button
-                    onClick={() => setActiveMappingId(activeMappingId === p.id ? null : p.id)}
-                    className="shrink-0 w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600"
-                  >
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"/>
-                    </svg>
-                  </button>
-                )}
+                <button
+                  onClick={() => setActiveMappingId(activeMappingId === p.id ? null : p.id)}
+                  className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center ${alert ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                  title="Rechercher un mapping"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"/>
+                  </svg>
+                </button>
                 {activeMappingId === p.id && (
                   <div className="absolute top-full left-0 z-50 mt-1">
                     <MappingPopover
@@ -454,12 +453,11 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                           value={p.searchName}
                           onChange={e => state.updateSearchName(p.id, e.target.value)}
                         />
-                        {alert && (
-                          <button onClick={() => state.setActiveMappingId(state.activeMappingId === p.id ? null : p.id)}
-                            className="w-7 h-7 bg-amber-100 hover:bg-amber-200 rounded-full flex items-center justify-center text-amber-600 ml-2">
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"/></svg>
-                          </button>
-                        )}
+                        <button onClick={() => state.setActiveMappingId(state.activeMappingId === p.id ? null : p.id)}
+                          className={`w-7 h-7 rounded-full flex items-center justify-center ml-2 ${alert ? 'bg-amber-100 hover:bg-amber-200 text-amber-600' : 'bg-slate-100 hover:bg-slate-200 text-slate-500'}`}
+                          title="Rechercher un mapping">
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"/></svg>
+                        </button>
                         {state.activeMappingId === p.id && (
                           <MappingPopover
                             orphanNames={Array.from(state.allAvailableImportNames).filter(n => !state.products.some(pr => pr.searchName === n))}
