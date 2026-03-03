@@ -449,7 +449,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
       ================================================================ */}
       <div className="max-w-[1600px] mx-auto pb-24">
         <div className="bg-white rounded-2xl lg:rounded-[32px] shadow-2xl shadow-slate-300/20 border border-slate-100 overflow-x-auto">
-          <table className="w-full" style={{ minWidth: calculationMode === 'margin' ? '760px' : '740px' }}>
+          <table className="w-full" style={{ minWidth: calculationMode === 'margin' ? '760px' : '840px' }}>
             <thead>
               <tr className="text-left h-12 lg:h-16">
 
@@ -468,6 +468,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                   <th className="p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Marge<br/>(%)</th>
                 </>) : (<>
                   <th className="p-2 bg-blue-600 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Cible<br/>(Unités)</th>
+                  <th className="p-2 bg-emerald-600 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Livr.<br/>à venir</th>
                   <th className="p-2 bg-amber-600 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">U. Colisage<br/>en stock</th>
                   <th className="p-2 bg-amber-500 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">U. Pièce<br/>en stock</th>
                   <th className="p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Conso<br/>Estimée</th>
@@ -518,7 +519,6 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
 
                     {calculationMode === 'margin' ? (<>
                       <td className="p-2 text-center font-bold text-slate-700 text-sm bg-[#FFE8CC] whitespace-nowrap">{displayInfo1}</td>
-
                       <td className="p-2 bg-emerald-50/20">
                         <input type="number" value={p.upcomingDelivery}
                           onChange={e => updateProductValue(p.id, 'upcomingDelivery', e.target.value)}
@@ -579,6 +579,17 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                             {(targetSafe / toNumber(p.packaging) || 1).toFixed(1)} cs
                           </div>
                         )}
+                      </td>
+
+                      <td className="p-2 bg-emerald-50/20">
+                        <input type="number" value={p.upcomingDelivery}
+                          onChange={e => updateProductValue(p.id, 'upcomingDelivery', e.target.value)}
+                          tabIndex={TAB_UPCOMING + rowIdx}
+                          onKeyDown={e => handleEnterKey(e, TAB_UPCOMING, rowIdx)}
+                          enterKeyHint="next"
+                          inputMode="numeric"
+                          className="w-14 lg:w-full h-9 lg:h-10 rounded-lg border border-emerald-200/50 bg-white text-center font-black text-emerald-700 text-sm outline-none focus:border-emerald-400 transition-all shadow-sm"
+                          placeholder="-" />
                       </td>
 
                       <td className="p-2 bg-amber-50/20">
