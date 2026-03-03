@@ -480,7 +480,7 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
   }, [selectedProduct, selectedMonthValue, salesForSelectedMonth]);
 
   return (
-    <div className={`min-h-screen lg:h-screen flex flex-col overflow-y-auto ${dailyMode === 'page' ? 'lg:overflow-y-auto' : 'lg:overflow-hidden'} text-slate-900 bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50`}>
+    <div className={`min-h-screen lg:h-screen flex flex-col overflow-y-auto lg:overflow-y-auto text-slate-900 bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50`}>
 
       {/* ══ HEADER ══════════════════════════════════════════════════════ */}
       <header className="flex-none bg-white/90 backdrop-blur border-b border-slate-200 px-3 sm:px-5 py-2.5">
@@ -541,7 +541,7 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
       </header>
 
       {/* ══ CONTENU ══════════════════════════════════════════════════════ */}
-      <main className={dailyMode === 'page' ? "hidden" : "flex-1 min-h-0 p-3 pb-6 sm:p-4 sm:pb-4 lg:p-5 grid grid-cols-12 gap-4 overflow-visible lg:overflow-hidden"}>
+      <main className={dailyMode === 'page' ? "hidden" : "flex-1 min-h-0 p-3 pb-6 sm:p-4 sm:pb-4 lg:p-5 grid grid-cols-12 gap-4 overflow-visible lg:overflow-y-auto lg:overflow-x-hidden"}>
 
         {/* ── Colonne gauche : KPIs + tableaux ──────────────────────────── */}
         <div className="col-span-12 lg:col-span-8 flex flex-col gap-4 min-h-0">

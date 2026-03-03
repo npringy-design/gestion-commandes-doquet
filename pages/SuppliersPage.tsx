@@ -40,6 +40,11 @@ const SUPPLIER_CARDS = [
   },
 
   {
+    view:     'pomona_terre_azur' as View,
+    name:     'Pomona Terre Azur',
+    subtitle: 'Fruits • Légumes',
+  },
+  {
     view:     'pomona_episaveurs' as View,
     name:     'Pomona Episaveurs',
     subtitle: 'Épicerie • Aides culinaires',
