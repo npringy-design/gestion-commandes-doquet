@@ -34,7 +34,7 @@ const MappingPopover: React.FC<MappingPopoverProps> = ({ orphanNames, onSelect, 
     // NOTE: z-index très élevé pour passer au-dessus des colonnes sticky du tableau
     <div
       ref={popoverRef}
-      className="absolute right-0 top-full mt-3 z-[99999] bg-white border border-slate-200 p-3 rounded-xl shadow-2xl w-72 animate-in slide-in-from-top-2"
+      className="absolute right-0 top-full mt-3 z-[99999] bg-white border border-slate-200 p-3 rounded-xl shadow-2xl w-[38rem] max-w-[90vw] animate-in slide-in-from-top-2"
     >
       <input
         autoFocus
