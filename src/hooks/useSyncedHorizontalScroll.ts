@@ -31,14 +31,33 @@ export const useSyncedHorizontalScroll = (enabled: boolean, deps: unknown[] = []
 
   useEffect(() => {
     if (!enabled) return;
-    const el = mainScrollRef.current;
-    if (!el) return;
 
-    const update = () => setScrollWidth(el.scrollWidth || 0);
-    update();
+    const mainEl = mainScrollRef.current;
+    const bottomEl = bottomScrollRef.current;
+    if (!mainEl || !bottomEl) return;
 
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
+    const updateMetrics = () => {
+      const nextWidth = Math.max(mainEl.scrollWidth || 0, 3400);
+      setScrollWidth(nextWidth);
+
+      if (bottomEl.scrollLeft !== mainEl.scrollLeft) {
+        bottomEl.scrollLeft = mainEl.scrollLeft;
+      }
+    };
+
+    updateMetrics();
+
+    const tableEl = mainEl.querySelector('table');
+    const resizeObserver = new ResizeObserver(updateMetrics);
+    resizeObserver.observe(mainEl);
+    if (tableEl) resizeObserver.observe(tableEl);
+
+    window.addEventListener('resize', updateMetrics);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateMetrics);
+    };
   }, [enabled, ...deps]);
 
   return {
