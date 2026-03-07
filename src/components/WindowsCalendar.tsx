@@ -1,56 +1,56 @@
 // =============================================================
 // components/WindowsCalendar.tsx
-// Sélecteur de date "style Windows", affiché en overlay (portal)
-// Extrait de App.tsx
+// Sélecteur de date — position absolute (pas de portal)
+// Le conteneur parent doit avoir position:relative
 // =============================================================
 
 import React, { useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { DAYS_OF_WEEK_LABELS } from '../constants';
 
 interface WindowsCalendarProps {
   selectedDate: Date;
   onSelect:     (date: Date) => void;
   onClose:      () => void;
-  // Rectangle du bouton déclencheur (pour positionner le calendrier juste dessous)
-  anchorRect?:  DOMRect | null;
+  minDate?:     Date;           // date minimum sélectionnable (jours antérieurs grisés)
+  anchorRect?:  DOMRect | null; // gardé pour compatibilité, non utilisé
 }
 
 const WindowsCalendar: React.FC<WindowsCalendarProps> = ({
-  selectedDate, onSelect, onClose, anchorRect,
+  selectedDate, onSelect, onClose, minDate,
 }) => {
   const [currentMonth, setCurrentMonth] = useState(selectedDate.getMonth());
   const [currentYear,  setCurrentYear]  = useState(selectedDate.getFullYear());
   const calendarRef = useRef<HTMLDivElement>(null);
 
-  // Fermer en cliquant en dehors
+  // Fermer en cliquant en dehors — utilise mousedown sur document
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (calendarRef.current && !calendarRef.current.contains(e.target as Node)) {
         onClose();
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    // léger délai pour ne pas attraper le mousedown qui a ouvert le calendrier
+    const timer = setTimeout(() => {
+      document.addEventListener('mousedown', handler);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', handler);
+    };
   }, [onClose]);
 
-  // Génération des jours du mois (avec jours grisés du mois précédent/suivant)
-  const monthName       = new Date(currentYear, currentMonth).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-  const firstDay        = new Date(currentYear, currentMonth, 1).getDay();
-  const lastDate        = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const monthName        = new Date(currentYear, currentMonth).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  const firstDay         = (new Date(currentYear, currentMonth, 1).getDay() + 6) % 7;
+  const lastDate         = new Date(currentYear, currentMonth + 1, 0).getDate();
   const lastDayPrevMonth = new Date(currentYear, currentMonth, 0).getDate();
 
   const days: { day: number; current: boolean; date: Date }[] = [];
-
-  for (let i = firstDay - 1; i >= 0; i--) {
+  for (let i = firstDay - 1; i >= 0; i--)
     days.push({ day: lastDayPrevMonth - i, current: false, date: new Date(currentYear, currentMonth - 1, lastDayPrevMonth - i) });
-  }
-  for (let i = 1; i <= lastDate; i++) {
+  for (let i = 1; i <= lastDate; i++)
     days.push({ day: i, current: true, date: new Date(currentYear, currentMonth, i) });
-  }
-  for (let i = 1; i <= 42 - days.length; i++) {
+  for (let i = 1; i <= 42 - days.length; i++)
     days.push({ day: i, current: false, date: new Date(currentYear, currentMonth + 1, i) });
-  }
 
   const prevMonth = () => {
     if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); }
@@ -61,18 +61,13 @@ const WindowsCalendar: React.FC<WindowsCalendarProps> = ({
     else setCurrentMonth(m => m + 1);
   };
 
-  // Positionnement en overlay (fixed) pour éviter les soucis de z-index
-  const padding       = 10;
-  const preferredTop  = (anchorRect?.bottom ?? 0) + 8;
-  const preferredLeft = anchorRect?.left ?? 0;
-  const top  = Math.max(padding, preferredTop);
-  const left = Math.max(padding, Math.min(preferredLeft, (window.innerWidth || 0) - 320 - padding));
-
-  const calendarNode = (
+  return (
     <div
       ref={calendarRef}
-      className="fixed z-[9999] bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-100 p-5 w-[320px] animate-in fade-in zoom-in-95 duration-200"
-      style={{ top, left }}
+      className="absolute left-0 top-full mt-2 z-[9999] bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.15)] border border-slate-100 p-5 w-[300px]"
+      // Stopper la propagation pour que le mousedown sur le calendrier
+      // ne remonte pas au document et ne déclenche pas onClose
+      onMouseDown={e => e.stopPropagation()}
     >
       {/* Navigation mois */}
       <div className="flex items-center justify-between mb-4">
@@ -99,17 +94,28 @@ const WindowsCalendar: React.FC<WindowsCalendarProps> = ({
       {/* Grille des jours */}
       <div className="grid grid-cols-7 gap-1">
         {days.map((d, i) => {
-          const isSelected = d.date.toDateString() === selectedDate.toDateString();
-          const isToday    = d.date.toDateString() === new Date().toDateString();
+          const isSelected  = d.date.toDateString() === selectedDate.toDateString();
+          const isToday     = d.date.toDateString() === new Date().toDateString();
+          // Griser tout ce qui est <= aujourd'hui (passé + aujourd'hui)
+          const _todayMidnight = new Date(); _todayMidnight.setHours(0,0,0,0);
+          const isPast      = d.date <= _todayMidnight;
+          const isDisabled  = isPast || (minDate ? d.date < minDate : false);
           return (
             <button
               key={i}
-              onClick={() => { onSelect(d.date); onClose(); }}
+              onClick={() => { if (!isDisabled) onSelect(d.date); }}
+              disabled={isDisabled}
               className={`
-                h-10 w-10 flex items-center justify-center rounded-full text-xs transition-all font-bold
-                ${!d.current ? 'text-slate-300' : 'text-slate-700'}
-                ${isSelected ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-slate-50'}
-                ${isToday && !isSelected ? 'text-indigo-600 border-2 border-indigo-100' : ''}
+                h-9 w-9 flex items-center justify-center rounded-full text-xs transition-all font-bold
+                ${isDisabled
+                  ? 'text-slate-200 cursor-not-allowed'
+                  : (!d.current ? 'text-slate-300' : 'text-slate-700')}
+                ${isSelected && !isDisabled
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : (!isDisabled ? 'hover:bg-slate-50' : '')}
+                ${isToday
+                  ? 'bg-slate-100 text-slate-400 line-through'
+                  : ''}
               `}
             >
               {d.day}
@@ -119,10 +125,6 @@ const WindowsCalendar: React.FC<WindowsCalendarProps> = ({
       </div>
     </div>
   );
-
-  return typeof document !== 'undefined'
-    ? createPortal(calendarNode, document.body)
-    : calendarNode;
 };
 
 export default WindowsCalendar;

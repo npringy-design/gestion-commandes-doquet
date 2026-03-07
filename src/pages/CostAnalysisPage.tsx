@@ -6,7 +6,7 @@
 // =============================================================
 
 import React, { useMemo } from 'react';
-import DashboardApp from '../dashboard_cm/DashboardApp';
+import DashboardApp from '../../dashboard_cm/DashboardApp';
 import { View, MONTH_KEY_TO_NAME } from '../constants';
 
 interface CostAnalysisPageProps {
