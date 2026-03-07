@@ -5,10 +5,9 @@
 // Extraite de App.tsx
 // =============================================================
 
-import React, { Suspense, lazy, useMemo } from 'react';
+import React, { useMemo } from 'react';
+import DashboardApp from '../../dashboard_cm/DashboardApp';
 import { View, MONTH_KEY_TO_NAME } from '../constants';
-
-const DashboardApp = lazy(() => import('../../dashboard_cm/DashboardApp'));
 
 interface CostAnalysisPageProps {
   setView:           (v: View) => void;
@@ -18,72 +17,55 @@ interface CostAnalysisPageProps {
   salesHtByMonth:    Record<string, number>;
 }
 
-const convertMonthKeys = <T,>(
-  source: Record<string, T>,
-  mapValue?: (value: T) => T | null,
+// Convertit un Record<'jan'|'feb'|..., T> en Record<'Janvier'|'Février'|..., T|null>
+const convertKeys = <T,>(
+  source: Record<string, T>
 ): Record<string, T | null> => {
   const result: Record<string, T | null> = {};
-  Object.entries(source || {}).forEach(([key, value]) => {
-    const monthName = MONTH_KEY_TO_NAME[key];
-    if (!monthName) return;
-    result[monthName] = mapValue ? mapValue(value) : value;
+  Object.entries(source || {}).forEach(([k, v]) => {
+    const name = MONTH_KEY_TO_NAME[k];
+    if (name) result[name] = typeof v === 'number' && !Number.isNaN(v) ? v : null;
   });
   return result;
 };
 
-const CostAnalysisFallback = () => (
-  <div className="min-h-screen bg-[#FFF8E7] flex items-center justify-center px-4">
-    <div className="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] px-6 py-4 text-center">
-      <div className="text-lg font-semibold text-[#111827]">Chargement de l'analyse coût matière…</div>
-      <div className="text-sm text-[#6B7280] mt-1">Préparation du tableau de bord et des données mensuelles.</div>
-    </div>
-  </div>
-);
-
 const CostAnalysisPage: React.FC<CostAnalysisPageProps> = ({
-  setView,
-  detailedInventory,
-  covers,
-  costMatterByMonth,
-  salesHtByMonth,
+  setView, detailedInventory, covers, costMatterByMonth, salesHtByMonth,
 }) => {
-  const csvByMonth = useMemo(
-    () => convertMonthKeys(detailedInventory, value => (value ? value : null)) as Record<string, string>,
-    [detailedInventory]
-  );
+  // Conversion des CSV : jan → Janvier
+  const csvByMonth = useMemo(() => {
+    const map: Record<string, string> = {};
+    Object.entries(detailedInventory || {}).forEach(([k, v]) => {
+      const name = MONTH_KEY_TO_NAME[k];
+      if (name && v) map[name] = v;
+    });
+    return map;
+  }, [detailedInventory]);
 
-  const coversByMonthFromParams = useMemo(
-    () => convertMonthKeys(covers, value => (typeof value === 'number' ? value : null)) as Record<string, number | null>,
-    [covers]
-  );
+  // Conversion des couverts : jan → Janvier
+  const coversByMonthFromParams = useMemo(() => {
+    const result: Record<string, number | null> = {};
+    Object.entries(covers || {}).forEach(([k, v]) => {
+      const name = MONTH_KEY_TO_NAME[k];
+      if (name) result[name] = typeof v === 'number' ? v : null;
+    });
+    return result;
+  }, [covers]);
 
-  const costByMonthFromParams = useMemo(
-    () => convertMonthKeys(costMatterByMonth, value => (
-      typeof value === 'number' && !Number.isNaN(value) ? value : null
-    )),
-    [costMatterByMonth]
-  );
-
-  const salesByMonthFromParams = useMemo(
-    () => convertMonthKeys(salesHtByMonth, value => (
-      typeof value === 'number' && !Number.isNaN(value) ? value : null
-    )),
-    [salesHtByMonth]
-  );
+  const costByMonthFromParams  = useMemo(() => convertKeys(costMatterByMonth), [costMatterByMonth]);
+  const salesByMonthFromParams = useMemo(() => convertKeys(salesHtByMonth),    [salesHtByMonth]);
 
   return (
-    <Suspense fallback={<CostAnalysisFallback />}>
-      <div className="min-h-screen bg-[#FFF8E7]">
-        <DashboardApp
-          csvByMonth={csvByMonth}
-          coversByMonthFromParams={coversByMonthFromParams}
-          costByMonthFromParams={costByMonthFromParams}
-          salesByMonthFromParams={salesByMonthFromParams}
-          onBackHome={() => setView('home')}
-          onOpenParams={() => setView('stats')}
-        />
-      </div>
-    </Suspense>
+    <div className="min-h-screen bg-[#FFF8E7]">
+      <DashboardApp
+        csvByMonth={csvByMonth}
+        coversByMonthFromParams={coversByMonthFromParams}
+        costByMonthFromParams={costByMonthFromParams}
+        salesByMonthFromParams={salesByMonthFromParams}
+        onBackHome={() => setView('home')}
+        onOpenParams={() => setView('stats')}
+      />
+    </div>
   );
 };
 

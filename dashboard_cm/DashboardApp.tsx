@@ -2,29 +2,16 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import StatCard from './components/StatCard';
 import EcartsList from './components/EcartsList';
-import { FoodCostChart, ProductTrendChart } from './components/Charts';
+import { FoodCostChart, ProductTrendChart, ProductSeriesPoint } from './components/Charts';
 import { loadJSON, saveJSON } from "./utils/storage";
 
 import { MONTHS } from './constants';
-import type { DailyRow, DailySheet, EcartItem, FollowUpItem, FollowUpStatus, MonthKey, PeriodKey, ProductSeriesPoint } from './types';
-import { parseEcartCsvText } from './utils/ecartImport';
-import {
-  DEFAULT_TARGET_PERCENT,
-  buildAnnualItems,
-  buildCostChartData,
-  buildDailyRowsFromTop10,
-  buildFollowUpsFromTop10,
-  buildTrendData,
-  collectProducts,
-  createExcludedSectorMatcher,
-  ensureDailySheet,
-  getSummedMetricForPeriod,
-  getTodayKey,
-  getUnitPriceForProduct,
-  getWeightedCostForPeriod,
-  getTopEcartsByType,
-  withResolvedType,
-} from './utils/dashboardHelpers';
+import { EcartItem } from './types';
+import { cleanLabel, determineType, parseEcartCsvText } from './utils/ecartImport';
+
+type MonthKey = string;
+type PeriodKey = MonthKey | 'Annuel';
+const DEFAULT_TARGET_PERCENT = 25.5;
 
 const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromParams?: Record<string, number | null>; costByMonthFromParams?: Record<string, number | null>; salesByMonthFromParams?: Record<string, number | null>; onBackHome?: () => void; onOpenParams?: () => void; }> = ({ csvByMonth, coversByMonthFromParams, costByMonthFromParams, salesByMonthFromParams, onBackHome, onOpenParams }) => {
   const [selectedMonth, setSelectedMonth] = useState<PeriodKey>('Janvier');
@@ -45,10 +32,53 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
 
   const FOLLOW_UP_ENABLED = false;
   const DAILY_PRINT_ENABLED = false;
+
+  type FollowUpStatus = 'À faire' | 'En cours' | 'Fait';
+  type FollowUpItem = {
+    id: string;
+    name: string;
+    type: 'LIQUIDE' | 'SOLIDE';
+    sector?: string | null;
+    supplier?: string | null;
+    status: FollowUpStatus;
+    notes?: string;
+    createdAt: string; // ISO
+    period: PeriodKey; // mois ou Annuel
+  };
+
   const FOLLOWUP_STORAGE_KEY = 'rpd_followups_v1';
 
+  // Journalier (stock veille / ventes veille / stock jour / perso / perte)
+  type DailyRow = {
+    id: string;
+    name: string;
+    type: 'LIQUIDE' | 'SOLIDE';
+    sector?: string | null;
+    supplier?: string | null;
+    unitPrice?: number | null; // PU (€/u, €/kg, €/L)
+    stockPrev?: number | null;
+    salesPrev?: number | null;
+    stockToday?: number | null;
+    perso?: number | null;
+    loss?: number | null;
+  };
+
+  type DailySheet = {
+    dateKey: string; // YYYY-MM-DD
+    period: PeriodKey;
+    rows: DailyRow[];
+    createdAt: string; // ISO
+    updatedAt: string; // ISO
+  };
+
   const DAILY_STORAGE_KEY = 'rpd_daily_sheets_v1';
-  const todayKey = useMemo(() => getTodayKey(), []);
+  const todayKey = useMemo(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }, []);
   const [dailyDateKey, setDailyDateKey] = useState<string>(todayKey);
   const [dailySheets, setDailySheets] = useState<DailySheet[]>(() => loadJSON(DAILY_STORAGE_KEY, [] as DailySheet[]));
 
@@ -107,53 +137,163 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
 
   const monthItems = useMemo(() => {
     if (!isAnnual) return ecartByMonth[selectedMonth as MonthKey] ?? [];
-    return buildAnnualItems(ecartByMonth);
+
+    // Annuel = agrégation sur les mois importés (somme par produit)
+    const agg = new Map<string, EcartItem>();
+    for (const m of MONTHS) {
+      const items = ecartByMonth[m] ?? [];
+      for (const it of items) {
+        if (!it.id) continue;
+        const prev = agg.get(it.id);
+        if (!prev) {
+          agg.set(it.id, { ...it });
+        } else {
+          agg.set(it.id, {
+            ...prev,
+            quantity: (prev.quantity ?? 0) + (it.quantity ?? 0),
+            value: (prev.value ?? 0) + (it.value ?? 0),
+            // on conserve secteur/fournisseur/type du premier match (suffisant pour top10)
+          });
+        }
+      }
+    }
+    return Array.from(agg.values());
   }, [isAnnual, selectedMonth, ecartByMonth]);
 
   const targetPercent = DEFAULT_TARGET_PERCENT;
-  const costForSelectedMonth = useMemo(
-    () => getWeightedCostForPeriod(isAnnual, selectedMonth, costByMonthFromParams, salesByMonthFromParams),
-    [isAnnual, selectedMonth, costByMonthFromParams, salesByMonthFromParams]
-  );
+  const costForSelectedMonth = useMemo(() => {
+    const cmMap = costByMonthFromParams ?? {};
+    if (!isAnnual) return cmMap[selectedMonth as MonthKey] ?? null;
+    const rows = MONTHS.map((m) => ({ cm: cmMap[m] ?? null, ca: (salesByMonthFromParams ?? {})[m] ?? null }))
+      .filter((r) => r.cm != null);
+    if (!rows.length) return null;
+    const weighted = rows.filter((r) => (r.ca ?? 0) > 0);
+    if (weighted.length) {
+      const sumCa = weighted.reduce((a, r) => a + (r.ca as number), 0);
+      const sumWeighted = weighted.reduce((a, r) => a + ((r.cm as number) * (r.ca as number)), 0);
+      return sumCa > 0 ? sumWeighted / sumCa : null;
+    }
+    return rows.reduce((a, r) => a + (r.cm as number), 0) / rows.length;
+  }, [isAnnual, selectedMonth, costByMonthFromParams, salesByMonthFromParams]);
   const vsObjectivePts = costForSelectedMonth == null ? null : (costForSelectedMonth - targetPercent);
-  const salesForSelectedMonth = useMemo(
-    () => getSummedMetricForPeriod(isAnnual, selectedMonth, salesByMonthFromParams),
-    [isAnnual, selectedMonth, salesByMonthFromParams]
-  );
+  const salesForSelectedMonth = useMemo(() => {
+    const salesMap = salesByMonthFromParams ?? {};
+    if (!isAnnual) return salesMap[selectedMonth as MonthKey] ?? null;
+    return MONTHS.reduce((acc, m) => acc + (salesMap[m] ?? 0), 0) || null;
+  }, [isAnnual, selectedMonth, salesByMonthFromParams]);
 
-  const coversForSelectedMonth = useMemo(
-    () => getSummedMetricForPeriod(isAnnual, selectedMonth, coversByMonthFromParams),
-    [isAnnual, selectedMonth, coversByMonthFromParams]
-  );
+  const coversForSelectedMonth = useMemo(() => {
+    const sourceMap = coversByMonthFromParams ?? {};
+    if (!isAnnual) return sourceMap[selectedMonth as MonthKey] ?? null;
+    return MONTHS.reduce((acc, m) => acc + (sourceMap[m] ?? 0), 0) || null;
+  }, [isAnnual, selectedMonth, coversByMonthFromParams]);
 
-  const isExcluded = useMemo(() => createExcludedSectorMatcher(), []);
+  // Exclusions demandées : ces secteurs ne doivent jamais remonter dans les Top10.
+  // On utilise la même normalisation que l'import (accents retirés, espaces normalisés)
+  // et on accepte des variantes (suffixes, pluriels, etc.) via un test "startsWith".
+  const excludedSectorPrefixes = useMemo(() => {
+    return [
+      cleanLabel('Réserve consommable vente'),
+      cleanLabel('Réserve Bar'),
+      cleanLabel('Réserve Libre'),
+    ];
+  }, []);
 
-  const costChartData = useMemo(
-    () => buildCostChartData(costByMonthFromParams, targetPercent),
-    [costByMonthFromParams, targetPercent]
-  );
+  const isExcluded = (sector?: string | null) => {
+    if (!sector) return false;
+    const s = cleanLabel(sector);
+    return excludedSectorPrefixes.some((p) => s === p || s.startsWith(p));
+  };
 
-  const withType = useMemo(() => withResolvedType(monthItems, isExcluded), [monthItems, isExcluded]);
+  const costChartData = useMemo(() => {
+    const cmMap = costByMonthFromParams ?? {};
+    return MONTHS.map((m) => ({
+      month: m.slice(0, 3),
+      actual: cmMap[m] ?? 0,
+      target: targetPercent,
+    }));
+  }, [costByMonthFromParams, targetPercent]);
 
-  const topLiquides = useMemo(() => getTopEcartsByType(withType, 'LIQUIDE'), [withType]);
 
-  const topSolides = useMemo(() => getTopEcartsByType(withType, 'SOLIDE'), [withType]);
+  const withType = useMemo(() => {
+    return monthItems
+      .filter(i => !isExcluded(i.sector))
+      .map(i => {
+      const id = (i.id ?? '').toString();
+      // IMPORTANT:
+      // - Do NOT re-guess the type from the product label here.
+      // - The import already determines LIQUIDE/SOLIDE based on SECTEUR then FOURNISSEUR.
+      //   (and only falls back to heuristics if neither exists).
+      const t = (i.type ?? determineType({ sector: i.sector, supplier: i.supplier, cleanName: id }).type);
+      return { ...i, id, _type: t } as (EcartItem & { _type: 'LIQUIDE' | 'SOLIDE' });
+    });
+  }, [monthItems, excludedSectorPrefixes]);
+
+  const topLiquides = useMemo(() => {
+    return withType
+      .filter(i => i._type === 'LIQUIDE')
+      .slice()
+      .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+      .slice(0, 10);
+  }, [withType]);
+
+  const topSolides = useMemo(() => {
+    return withType
+      .filter(i => i._type === 'SOLIDE')
+      .slice()
+      .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+      .slice(0, 10);
+  }, [withType]);
 
   const currentPeriod: PeriodKey = selectedMonth;
 
   const createFollowUpFromTop10 = () => {
-    const next = buildFollowUpsFromTop10(currentPeriod, followUps, topLiquides, topSolides);
-    if (next.length === 0) {
+    // Prépare une feuille de suivi journalière à partir des Top10 (liquides + solides)
+    const now = new Date().toISOString();
+    const existingIds = new Set(
+      followUps.filter(f => f.period === currentPeriod).map(f => f.id)
+    );
+    const merged = [...topLiquides, ...topSolides]
+      .filter(it => !!it.id)
+      .filter(it => !existingIds.has(it.id));
+
+    if (merged.length === 0) {
       setIsFollowUpOpen(true);
       return;
     }
 
-    setFollowUps((prev) => [...next, ...prev]);
+    const next: FollowUpItem[] = merged.map(it => ({
+      id: it.id,
+      name: it.name,
+      type: it._type,
+      sector: it.sector,
+      supplier: it.supplier,
+      status: 'À faire',
+      notes: '',
+      createdAt: now,
+      period: currentPeriod,
+    }));
+
+    setFollowUps(prev => [...next, ...prev]);
     setIsFollowUpOpen(true);
   };
 
-  const resolveUnitPriceForProduct = (id: string): number | null =>
-    getUnitPriceForProduct(id, isAnnual, selectedMonth, ecartByMonth);
+  const getUnitPriceForProduct = (id: string): number | null => {
+    // Priorité : la période sélectionnée, sinon n'importe quel mois importé.
+    if (!id) return null;
+    const candidates: (EcartItem | undefined)[] = [];
+    if (!isAnnual) {
+      candidates.push((ecartByMonth[selectedMonth as MonthKey] ?? []).find(x => x.id === id));
+    }
+    for (const m of MONTHS) {
+      candidates.push((ecartByMonth[m] ?? []).find(x => x.id === id));
+    }
+    for (const c of candidates) {
+      const pu = c?.unitPrice;
+      if (pu != null && Number.isFinite(pu) && pu !== 0) return pu;
+    }
+    return null;
+  };
 
   const currentDailySheet = useMemo(() => {
     return dailySheets.find(s => s.dateKey === dailyDateKey && s.period === currentPeriod) ?? null;
@@ -169,21 +309,51 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
     });
   };
 
-  const ensureDailySheetExists = () =>
-    ensureDailySheet(currentDailySheet, dailyDateKey, currentPeriod, upsertDailySheet);
+  const ensureDailySheetExists = () => {
+    if (currentDailySheet) return currentDailySheet;
+    const now = new Date().toISOString();
+    const sheet: DailySheet = {
+      dateKey: dailyDateKey,
+      period: currentPeriod,
+      rows: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    upsertDailySheet(sheet);
+    return sheet;
+  };
 
   const generateDailyFromTop10 = () => {
     const nowIso = new Date().toISOString();
     const base = ensureDailySheetExists();
+    const existing = new Map(base.rows.map(r => [r.id, r]));
+    const merged = [...topLiquides, ...topSolides].filter(it => !!it.id);
+
+    const nextRows: DailyRow[] = merged.map(it => {
+      const prev = existing.get(it.id);
+      return {
+        id: it.id,
+        name: it.name,
+        type: it._type,
+        sector: it.sector,
+        supplier: it.supplier,
+        unitPrice: prev?.unitPrice ?? getUnitPriceForProduct(it.id),
+        stockPrev: prev?.stockPrev ?? null,
+        salesPrev: prev?.salesPrev ?? null,
+        stockToday: prev?.stockToday ?? null,
+        perso: prev?.perso ?? null,
+        loss: prev?.loss ?? null,
+      };
+    });
 
     const sheet: DailySheet = {
       ...base,
-      rows: buildDailyRowsFromTop10(base, topLiquides, topSolides, resolveUnitPriceForProduct),
+      rows: nextRows,
       updatedAt: nowIso,
     };
     upsertDailySheet(sheet);
     setDailySelectedIds([]);
-    setDailyMode('page');
+    setIsDailyOpen(true);
   };
 
   const addSelectedToFollowUp = () => {
@@ -225,7 +395,7 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
       type: (hit?._type ?? 'SOLIDE'),
       sector: hit?.sector,
       supplier: hit?.supplier,
-      unitPrice: resolveUnitPriceForProduct(selectedProduct.id),
+      unitPrice: getUnitPriceForProduct(selectedProduct.id),
       stockPrev: null,
       salesPrev: null,
       stockToday: null,
@@ -241,10 +411,22 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
   };
 
   const ecartTotal = useMemo(() => {
-    return monthItems.filter((item) => !isExcluded(item.sector)).reduce((acc, item) => acc + (item.value ?? 0), 0);
-  }, [monthItems, isExcluded]);
+    return monthItems.filter(i => !isExcluded(i.sector)).reduce((acc, it) => acc + (it.value ?? 0), 0);
+  }, [monthItems, excludedSectorPrefixes]);
 
-  const allProducts = useMemo(() => collectProducts(ecartByMonth), [ecartByMonth]);
+  const allProducts = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of MONTHS) {
+      const items = ecartByMonth[m] ?? [];
+      for (const it of items) {
+        if (!it.id) continue;
+        if (!map.has(it.id)) map.set(it.id, it.name);
+      }
+    }
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  }, [ecartByMonth]);
 
   const importedMonthsCount = useMemo(() => {
     return MONTHS.filter((m) => (ecartByMonth[m]?.length ?? 0) > 0).length;
@@ -262,10 +444,21 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
     return exact ?? null;
   }, [focusId, allProducts, searchText]);
 
-  const trendData: ProductSeriesPoint[] = useMemo(
-    () => buildTrendData(selectedProduct?.id, ecartByMonth),
-    [selectedProduct, ecartByMonth]
-  );
+  const trendData: ProductSeriesPoint[] = useMemo(() => {
+    const id = selectedProduct?.id;
+    if (!id) {
+      return MONTHS.map(m => ({ month: m.slice(0, 3), euro: 0, qty: 0 }));
+    }
+    return MONTHS.map(m => {
+      const items = ecartByMonth[m] ?? [];
+      const hit = items.find(x => x.id === id);
+      return {
+        month: m.slice(0, 3),
+        euro: hit?.value ?? 0,
+        qty: hit?.quantity ?? 0,
+      };
+    });
+  }, [selectedProduct, ecartByMonth]);
 
   const focusTitle = selectedProduct?.name ?? (searchText.trim() ? searchText.trim() : 'Sélectionne un produit');
 
