@@ -6,7 +6,8 @@
 // =============================================================
 
 import React, { useState } from 'react';
-import * as XLSX from 'xlsx';
+import { readFileAsCSV } from '../utils/csvHelpers';
+import { useToast } from '../components/Toast';
 import { View, MONTHS_DISPLAY_CONFIG } from '../constants';
 import { ImportModal } from '../components/Modals';
 
@@ -45,34 +46,21 @@ const StatsPage: React.FC<StatsPageProps> = ({
     return requestedMonth;
   };
 
+  const { showToast } = useToast();
 
-  // Lecture du fichier importé (CSV ou XLSX) et stockage en mémoire
+  // Lecture du fichier importé (CSV ou XLSX) via PapaParse
+  // ✅ Gère automatiquement : encodages, \r\n Windows, virgules dans les valeurs
   const handleFile = async (file: File) => {
     if (!modalState) return;
-    const reader = new FileReader();
-
-    reader.onload = (e) => {
-      const data = e.target?.result;
-      if (!data) return;
-
-      let content = '';
-      if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-        const wb  = XLSX.read(data, { type: 'array' });
-        content   = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]);
-      } else {
-        content = data as string;
-      }
-
+    try {
+      const content = await readFileAsCSV(file);
       const targetMonth = resolveImportTargetMonth(modalState.month);
       setDetailedInventory(prev => ({ ...prev, [targetMonth]: content }));
+      const monthLabel = targetMonth.toUpperCase();
+      showToast(`Import ${monthLabel} réussi ✓`, 'success');
       setModalState(null);
-    };
-
-    // XLSX nécessite un ArrayBuffer, CSV/TXT un texte brut
-    if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-      reader.readAsArrayBuffer(file);
-    } else {
-      reader.readAsText(file);
+    } catch (err) {
+      showToast('Erreur lors de la lecture du fichier : ' + (err as Error).message, 'error');
     }
   };
 
@@ -86,7 +74,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
   };
 
   return (
-    <div className="h-screen bg-[#2c1810] p-6 flex gap-8 font-sans overflow-hidden">
+    <div className="min-h-screen bg-[#2c1810] p-3 sm:p-4 lg:p-6 flex flex-col lg:flex-row gap-4 lg:gap-8 font-sans overflow-x-hidden overflow-y-auto">
 
       {/* Modale d'import */}
       {modalState && (
@@ -99,7 +87,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
       )}
 
       {/* Colonne gauche : navigation */}
-      <div className="w-72 flex flex-col gap-4 shrink-0 h-full py-2">
+      <div className="w-full lg:w-72 flex flex-col gap-3 sm:gap-4 shrink-0 lg:h-full py-1 lg:py-2">
         <button
           onClick={() => setView('home')}
           className="bg-[#ffd700] hover:bg-[#ffed4a] text-[#2c1810] py-6 rounded-2xl font-black uppercase text-sm tracking-widest shadow-[0_4px_0_#b39700] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-3"
@@ -110,7 +98,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
           Retour Accueil
         </button>
 
-        <div className="flex-1" />
+        <div className="hidden lg:block flex-1" />
 
         <div className="space-y-4">
           <button
@@ -129,11 +117,11 @@ const StatsPage: React.FC<StatsPageProps> = ({
       </div>
 
       {/* Grille principale : 4 colonnes */}
-      <div className="flex-1 h-full flex justify-center">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full w-full max-w-[1800px]">
+      <div className="flex-1 lg:h-full flex justify-center min-w-0">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6 w-full max-w-[1800px] lg:h-full">
 
           {/* --- Inventaire Détaillé --- */}
-          <div className="flex flex-col h-full rounded-[30px] overflow-hidden shadow-2xl border-4 border-[#f6b26b] bg-[#f9cb9c]">
+          <div className="flex flex-col rounded-[24px] lg:rounded-[30px] overflow-hidden shadow-2xl border-4 border-[#f6b26b] bg-[#f9cb9c] min-h-[420px] md:min-h-[480px] xl:min-h-0">
             <div className="bg-[#f6b26b] py-5 flex items-center justify-center shadow-md z-10">
               <h2 className="font-black text-[#783f04] uppercase text-lg tracking-widest">Inventaire Détaillé</h2>
             </div>
@@ -181,19 +169,19 @@ const StatsPage: React.FC<StatsPageProps> = ({
           </div>
 
           {/* --- Couverts Réalisés --- */}
-          <div className="flex flex-col h-full rounded-[30px] overflow-hidden shadow-2xl border-4 border-[#ffd966] bg-[#fff2cc]">
+          <div className="flex flex-col rounded-[24px] lg:rounded-[30px] overflow-hidden shadow-2xl border-4 border-[#ffd966] bg-[#fff2cc] min-h-[420px] md:min-h-[480px] xl:min-h-0">
             <div className="bg-[#ffd966] py-5 flex items-center justify-center shadow-md z-10">
               <h2 className="font-black text-[#7f6000] uppercase text-lg tracking-widest">Couverts Réalisés</h2>
             </div>
             <div className="flex-1 flex flex-col overflow-hidden">
               {MONTHS_DISPLAY_CONFIG.map(m => (
-                <div key={m.key} className="flex-1 flex items-center justify-between px-8 border-b border-[#ffd966]/50 last:border-0 hover:bg-[#ffe599] transition-colors">
+                <div key={m.key} className="flex-1 flex items-center justify-between px-4 sm:px-6 lg:px-8 border-b border-[#ffd966]/50 last:border-0 hover:bg-[#ffe599] transition-colors gap-3">
                   <span className="font-black text-[#7f6000] uppercase text-sm">{m.label}</span>
                   <input
                     type="number"
                     value={covers[m.key] || ''}
                     onChange={e => setCovers(p => ({ ...p, [m.key]: Number(e.target.value) }))}
-                    className="w-24 bg-white border-2 border-[#bf9000] rounded-xl text-center font-black text-[#7f6000] outline-none focus:scale-110 focus:shadow-lg transition-all h-10 text-lg"
+                    className="w-24 sm:w-28 bg-white border-2 border-[#bf9000] rounded-xl text-center font-black text-[#7f6000] outline-none focus:scale-105 focus:shadow-lg transition-all h-10 text-base sm:text-lg"
                     placeholder="-"
                   />
                 </div>
@@ -202,15 +190,15 @@ const StatsPage: React.FC<StatsPageProps> = ({
           </div>
 
           {/* --- Coût Matière (%) --- */}
-          <div className="flex flex-col h-full rounded-[30px] overflow-hidden shadow-2xl border-4 border-[#f4cccc] bg-[#fff1f1]">
+          <div className="flex flex-col rounded-[24px] lg:rounded-[30px] overflow-hidden shadow-2xl border-4 border-[#f4cccc] bg-[#fff1f1] min-h-[420px] md:min-h-[480px] xl:min-h-0">
             <div className="bg-[#ea9999] py-5 flex items-center justify-center shadow-md z-10">
               <h2 className="font-black text-[#7a1f1f] uppercase text-lg tracking-widest">CM (%)</h2>
             </div>
             <div className="flex-1 flex flex-col overflow-hidden">
               {MONTHS_DISPLAY_CONFIG.map(m => (
-                <div key={m.key} className="flex-1 flex items-center justify-between px-8 border-b border-[#ea9999]/35 last:border-0 hover:bg-[#ffe5e5] transition-colors gap-3">
+                <div key={m.key} className="flex-1 flex items-center justify-between px-4 sm:px-6 lg:px-8 border-b border-[#ea9999]/35 last:border-0 hover:bg-[#ffe5e5] transition-colors gap-3">
                   <span className="font-black text-[#7a1f1f] uppercase text-sm w-28 shrink-0">{m.label}</span>
-                  <div className="w-40 flex items-center justify-end">
+                  <div className="w-auto sm:w-40 flex items-center justify-end">
                     <input
                       type="number"
                       step="0.01"
@@ -218,7 +206,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
                       onChange={e => setCostMatterByMonth(p => ({
                         ...p, [m.key]: e.target.value === '' ? 0 : Number(e.target.value),
                       }))}
-                      className="w-24 h-10 bg-white border-2 border-[#e06666] rounded-xl text-center font-black text-[#7a1f1f] outline-none focus:scale-105 focus:shadow-lg transition-all text-lg"
+                      className="w-24 sm:w-28 h-10 bg-white border-2 border-[#e06666] rounded-xl text-center font-black text-[#7a1f1f] outline-none focus:scale-105 focus:shadow-lg transition-all text-base sm:text-lg"
                       placeholder="-"
                       title="Coût matière (%)"
                     />
@@ -229,15 +217,15 @@ const StatsPage: React.FC<StatsPageProps> = ({
           </div>
 
           {/* --- CA HT (€) --- */}
-          <div className="flex flex-col h-full rounded-[30px] overflow-hidden shadow-2xl border-4 border-[#a4c2f4] bg-[#d9eaff]">
+          <div className="flex flex-col rounded-[24px] lg:rounded-[30px] overflow-hidden shadow-2xl border-4 border-[#a4c2f4] bg-[#d9eaff] min-h-[420px] md:min-h-[480px] xl:min-h-0">
             <div className="bg-[#9fc5f8] py-5 flex items-center justify-center shadow-md z-10">
               <h2 className="font-black text-[#073763] uppercase text-lg tracking-widest">CA HT (€)</h2>
             </div>
             <div className="flex-1 flex flex-col overflow-hidden">
               {MONTHS_DISPLAY_CONFIG.map(m => (
-                <div key={m.key} className="flex-1 flex items-center justify-between px-8 border-b border-[#9fc5f8]/40 last:border-0 hover:bg-[#cfe2ff] transition-colors gap-3">
+                <div key={m.key} className="flex-1 flex items-center justify-between px-4 sm:px-6 lg:px-8 border-b border-[#9fc5f8]/40 last:border-0 hover:bg-[#cfe2ff] transition-colors gap-3">
                   <span className="font-black text-[#073763] uppercase text-sm w-28 shrink-0">{m.label}</span>
-                  <div className="w-40 flex items-center justify-end">
+                  <div className="w-auto sm:w-40 flex items-center justify-end">
                     <input
                       type="number"
                       step="0.01"
@@ -245,7 +233,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
                       onChange={e => setSalesHtByMonth(p => ({
                         ...p, [m.key]: e.target.value === '' ? 0 : Number(e.target.value),
                       }))}
-                      className="w-24 h-10 bg-white border-2 border-[#6fa8dc] rounded-xl text-center font-black text-[#073763] outline-none focus:scale-105 focus:shadow-lg transition-all text-lg"
+                      className="w-24 sm:w-28 h-10 bg-white border-2 border-[#6fa8dc] rounded-xl text-center font-black text-[#073763] outline-none focus:scale-105 focus:shadow-lg transition-all text-base sm:text-lg"
                       placeholder="-"
                       title="Chiffre d'affaires HT"
                     />

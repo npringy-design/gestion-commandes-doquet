@@ -1,68 +1,74 @@
 // =============================================================
 // utils/calculations.ts
 // Fonctions de calcul métier (commandes, stocks, ratios)
-// Extraites de App.tsx — aucune dépendance React
+//
+// ✅ Signatures mises à jour : number | '' au lieu de number | string
+//    toNumber() convertit '' en 0 avant tout calcul
 // =============================================================
 
 import { Calculations } from '../types';
 
 // -----------------------------------------------------------
-// Normalise un nombre : retourne 0 si la valeur est vide/NaN
+// toNumber
+// Normalise une valeur d'input : '' ou undefined → 0, sinon Number()
+// Utilisé pour sécuriser tous les calculs avant qu'ils arrivent.
 // -----------------------------------------------------------
-export const toNumber = (val: number | string | undefined): number => {
+export const toNumber = (val: number | '' | undefined | null): number => {
   if (val === '' || val === undefined || val === null) return 0;
   const n = Number(val);
   return isNaN(n) ? 0 : n;
 };
 
 // -----------------------------------------------------------
-// Calcul mode MARGE DE SÉCURITÉ
+// calculateOrder — Mode MARGE DE SÉCURITÉ
 // Calcule combien de colis commander en tenant compte d'une
 // marge de sécurité (%) et du conditionnement.
 // -----------------------------------------------------------
 export const calculateOrder = (
   theoNeed: number,
   upcoming: number,
-  stock: number,
-  margin: number,
-  pkg: number | string
+  stock:    number,
+  margin:   number,
+  pkg:      number | ''
 ): Calculations => {
-  const netGap    = Math.max(0, theoNeed - upcoming - stock);
-  const withSecu  = Math.ceil(netGap * (1 + margin / 100));
-  const pkgVal    = Number(pkg);
-  const safePkg   = pkgVal > 0 ? pkgVal : 1;
-  const packs     = pkgVal > 0 ? Math.ceil(withSecu / safePkg) : 0;
+  const pkgVal  = toNumber(pkg);
+  const safePkg = pkgVal > 0 ? pkgVal : 1;
+
+  const netGap   = Math.max(0, theoNeed - upcoming - stock);
+  const withSecu = Math.ceil(netGap * (1 + margin / 100));
+  const packs    = pkgVal > 0 ? Math.ceil(withSecu / safePkg) : 0;
 
   return {
-    net:           netGap,
+    net:            netGap,
     needWithMargin: withSecu,
-    realNeed:      packs * safePkg,
-    toOrder:       packs,
+    realNeed:       packs * safePkg,
+    toOrder:        packs,
   };
 };
 
 // -----------------------------------------------------------
-// Calcul mode STOCK CIBLE
+// calculateTargetOrder — Mode STOCK CIBLE
 // Calcule combien commander pour atteindre un stock cible,
 // en tenant compte de la consommation estimée avant livraison.
 // -----------------------------------------------------------
 export const calculateTargetOrder = (
   targetStockUnits: number,
-  currentStockVal:  number | string | undefined,
+  currentStockVal:  number | '' | undefined,
   consumption:      number,
-  pkg:              number | string
+  pkg:              number | ''
 ): { projectedStock: number; missing: number; toOrder: number } => {
+  // Champ vide = on ne peut pas calculer
   if (currentStockVal === '' || currentStockVal === undefined) {
     return { projectedStock: 0, missing: 0, toOrder: 0 };
   }
 
-  const stock    = Number(currentStockVal);
-  const pkgVal   = Number(pkg);
-  const safePkg  = pkgVal > 0 ? pkgVal : 1;
+  const stock   = toNumber(currentStockVal);
+  const pkgVal  = toNumber(pkg);
+  const safePkg = pkgVal > 0 ? pkgVal : 1;
 
-  const targetCases          = pkgVal > 0 ? Math.ceil(targetStockUnits / safePkg) : 0;
-  const remainingAfterConso  = stock - consumption;
-  const isCritical           = remainingAfterConso <= 0;
+  const targetCases         = pkgVal > 0 ? Math.ceil(targetStockUnits / safePkg) : 0;
+  const remainingAfterConso = stock - consumption;
+  const isCritical          = remainingAfterConso <= 0;
 
   let rawCases = 0;
   let cap      = targetCases;
@@ -84,6 +90,7 @@ export const calculateTargetOrder = (
 };
 
 // -----------------------------------------------------------
+// capitalizeFirstLetter
 // Met en majuscule la première lettre d'une chaîne
 // -----------------------------------------------------------
 export const capitalizeFirstLetter = (str: string): string => {

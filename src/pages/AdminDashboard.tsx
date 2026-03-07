@@ -12,7 +12,7 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ setView }) => (
-  <div className="min-h-screen bg-[#1a0f0a] p-12 relative overflow-hidden">
+  <div className="min-h-screen bg-[#1a0f0a] p-4 sm:p-8 lg:p-12 relative overflow-hidden">
     <div className="max-w-6xl mx-auto relative z-10">
       <div className="flex justify-between items-center mb-16">
         <h1 className="text-[#ffd700] text-6xl font-black uppercase tracking-tighter leading-none">
