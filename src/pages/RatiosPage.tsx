@@ -336,11 +336,11 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
           VUE PC  (>= lg = >= 1024px)
           Tableau original inchangé
       ══════════════════════════════════════════════════════ */}
-      <div className="hidden lg:block">
+      <div className="hidden lg:block relative">
         <div
           ref={ratiosScrollRef}
           onScroll={() => syncRatiosScroll('main')}
-          className="bg-white border border-slate-200 rounded-[40px] shadow-2xl overflow-x-auto overflow-y-visible custom-scrollbar"
+          className="bg-white border border-slate-200 rounded-[40px] shadow-2xl overflow-x-auto overflow-y-visible [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           <table className="border-collapse min-w-[3400px]">
             <thead>
@@ -360,7 +360,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                 <th className="border-r border-slate-700 p-5 text-left w-[420px] sticky left-16 z-30 bg-slate-900 font-black text-sm" rowSpan={3}>
                   Produit Hippopotamus
                 </th>
-                <th className="border-r border-slate-700 p-5 text-left w-64 sticky left-[31.5rem] z-30 bg-slate-900 font-black text-sm shadow-2xl" rowSpan={3}>
+                <th className="border-r border-slate-700 p-5 text-left w-64 sticky left-[calc(4rem+420px)] z-30 bg-slate-900 font-black text-sm" rowSpan={3}>
                   Mapping Import
                 </th>
                 <th className="border-r border-slate-700 p-5 text-center w-40 bg-slate-900 font-black text-sm" rowSpan={3}>
@@ -446,7 +446,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                       </div>
                     </td>
 
-                    <td className={`border-r border-slate-200 p-0 sticky left-[31.5rem] shadow-2xl ${state.activeMappingId === p.id ? 'z-[9999]' : 'z-20'} ${selectedProductIds.has(p.id) ? 'bg-indigo-50' : 'bg-white'}`}>
+                    <td className={`border-r border-slate-200 p-0 sticky left-[calc(4rem+420px)] ${state.activeMappingId === p.id ? 'z-[9999]' : 'z-20'} ${selectedProductIds.has(p.id) ? 'bg-indigo-50' : 'bg-white'}`}>
                       <div className="w-full h-full flex items-center px-4 relative">
                         <input
                           className={`flex-1 h-full bg-transparent outline-none font-bold italic text-[11px] ${alert ? 'text-amber-600' : 'text-slate-500'}`}
@@ -503,7 +503,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
         <div
           ref={ratiosBottomScrollRef}
           onScroll={() => syncRatiosScroll('bottom')}
-          className="fixed bottom-2 left-4 right-4 h-5 overflow-x-auto overflow-y-hidden bg-white/85 backdrop-blur border border-slate-200 rounded-full shadow-lg z-[9999]"
+          className="sticky bottom-2 mt-2 h-5 overflow-x-auto overflow-y-hidden bg-white/90 backdrop-blur border border-slate-200 rounded-full shadow-lg z-50 custom-scrollbar"
         >
           <div style={{ width: ratiosScrollWidth }} />
         </div>
