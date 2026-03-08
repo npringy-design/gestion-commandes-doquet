@@ -1,4 +1,4 @@
-import { supabaseAdmin } from './supabaseAdmin';
+import { supabaseAdmin } from './supabaseAdmin.js';
 
 const readBearerToken = (req: any): string | null => {
   const header = req.headers?.authorization || req.headers?.Authorization;
