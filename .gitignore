@@ -1,0 +1,12 @@
+# dependencies
+node_modules/
+
+# build outputs
+dist/
+
+# local/dev
+.vercel/
+.env
+.env.*
+!.env.example
+.DS_Store
