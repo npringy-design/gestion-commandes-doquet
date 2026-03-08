@@ -191,16 +191,10 @@ const AppRouter: React.FC<AppRouterProps> = ({
   }
 
   if (view === 'user_management') {
-if (view === 'user_management') {
-  if (!isAdmin) {
-    return renderWithShell(<AccessDenied />);
-  }
+    if (!isAdmin) {
+      return renderWithShell(<AccessDenied />);
+    }
 
-  return renderLazyPage(
-    <UserManagementPage setView={setView} />,
-    'Chargement des utilisateurs…'
-  );
-}
     return renderLazyPage(
       <UserManagementPage setView={setView} />,
       'Chargement des utilisateurs…'

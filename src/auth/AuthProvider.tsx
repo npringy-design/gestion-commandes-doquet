@@ -21,6 +21,20 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+const AUTH_TIMEOUT_MS = 7000;
+
+async function withTimeout<T>(promise: Promise<T>, label: string, timeoutMs = AUTH_TIMEOUT_MS): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(`${label} a dépassé ${timeoutMs} ms.`)), timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
@@ -38,9 +52,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     let mounted = true;
+    const releaseTimer = setTimeout(() => {
+      if (!mounted) return;
+      console.warn('[auth] Déblocage forcé du chargement.');
+      setLoadingSession(false);
+      setLoadingProfile(false);
+    }, AUTH_TIMEOUT_MS + 1000);
 
     const loadProfile = async (userId: string | null) => {
       if (!mounted) return;
+
       if (!userId) {
         setProfile(null);
         setLoadingProfile(false);
@@ -48,38 +69,73 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       setLoadingProfile(true);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, role, is_active, full_name, email')
-        .eq('id', userId)
-        .single();
 
-      if (!mounted) return;
+      try {
+        const { data, error } = await withTimeout(
+          supabase
+            .from('profiles')
+            .select('id, role, is_active, full_name, email')
+            .eq('id', userId)
+            .maybeSingle(),
+          'Chargement du profil'
+        );
 
-      if (error || !data) {
-        setProfile(null);
-      } else {
-        setProfile(data as AppProfile);
+        if (!mounted) return;
+
+        if (error || !data) {
+          if (error) console.warn('[auth] Profil indisponible:', error.message);
+          setProfile(null);
+        } else {
+          setProfile(data as AppProfile);
+        }
+      } catch (error) {
+        console.warn('[auth] Erreur lors du chargement du profil:', error);
+        if (mounted) setProfile(null);
+      } finally {
+        if (mounted) setLoadingProfile(false);
       }
-      setLoadingProfile(false);
     };
 
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!mounted) return;
-      const nextSession = data.session ?? null;
-      setSession(nextSession);
-      setLoadingSession(false);
-      await loadProfile(nextSession?.user?.id ?? null);
-    })();
+    const bootstrap = async () => {
+      try {
+        const { data, error } = await withTimeout(supabase.auth.getSession(), 'Chargement de la session');
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+        if (!mounted) return;
+
+        if (error) {
+          console.warn('[auth] getSession:', error.message);
+          setSession(null);
+          setLoadingSession(false);
+          setLoadingProfile(false);
+          return;
+        }
+
+        const nextSession = data.session ?? null;
+        setSession(nextSession);
+        setLoadingSession(false);
+        await loadProfile(nextSession?.user?.id ?? null);
+      } catch (error) {
+        console.warn('[auth] Impossible de récupérer la session:', error);
+        if (!mounted) return;
+        setSession(null);
+        setProfile(null);
+        setLoadingSession(false);
+        setLoadingProfile(false);
+      }
+    };
+
+    void bootstrap();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      if (!mounted) return;
       setSession(newSession ?? null);
-      await loadProfile(newSession?.user?.id ?? null);
+      setLoadingSession(false);
+      void loadProfile(newSession?.user?.id ?? null);
     });
 
     return () => {
       mounted = false;
+      clearTimeout(releaseTimer);
       sub.subscription.unsubscribe();
     };
   }, []);
