@@ -41,7 +41,7 @@ const formatDate = (value?: string | null) => {
 };
 
 const UserManagementPage: React.FC<UserManagementPageProps> = ({ setView }) => {
-  const { session } = useAuth();
+const { session, isAdmin } = useAuth();
   const { showToast } = useToast();
 
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -50,6 +50,7 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({ setView }) => {
   const [createOpen, setCreateOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [createLoading, setCreateLoading] = useState(false);
+const [loadError, setLoadError] = useState<string | null>(null);
 
   const [formEmail, setFormEmail] = useState('');
   const [formFullName, setFormFullName] = useState('');
@@ -94,16 +95,22 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({ setView }) => {
   const loadUsers = useCallback(async () => {
     if (!bearer) {
       setLoading(false);
-      showToast('Session absente. Reconnectez-vous.', 'error');
+const msg = 'Session absente. Reconnectez-vous.';
+setLoadError(msg);
+showToast(msg, 'error');
+return;
       return;
     }
 
     setLoading(true);
+setLoadError(null);
     try {
       const data = (await request('/api/admin/users/list?page=1&perPage=200')) as ListResponse;
       setUsers(data.users || []);
     } catch (error: any) {
-      showToast(error?.message || 'Impossible de charger les utilisateurs.', 'error');
+const msg = error?.message || 'Impossible de charger les utilisateurs.';
+showToast(msg, 'error');
+setLoadError(msg);
       setUsers([]);
     } finally {
       setLoading(false);
@@ -201,6 +208,24 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({ setView }) => {
     }
   };
 
+if (!isAdmin) {
+  return (
+    <div className="min-h-screen bg-[#f1f5f9] p-3 lg:p-6 pb-20">
+      <div className="max-w-3xl mx-auto bg-white border border-slate-200 rounded-[30px] shadow-xl p-6 text-center">
+        <h1 className="text-2xl font-black uppercase text-slate-800">Accès refusé</h1>
+        <p className="text-slate-500 font-semibold mt-2">
+          Cette section est réservée aux administrateurs actifs.
+        </p>
+        <button
+          onClick={() => setView('admin_dashboard')}
+          className="mt-5 h-10 px-4 rounded-xl bg-slate-900 text-white font-black uppercase text-[11px]"
+        >
+          Retour Dashboard
+        </button>
+      </div>
+    </div>
+  );
+}
   return (
     <div className="min-h-screen bg-[#f1f5f9] p-3 lg:p-6 pb-20">
       <div className="max-w-[1400px] mx-auto">
@@ -257,7 +282,23 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({ setView }) => {
                   </tr>
                 )}
 
-                {!loading && users.length === 0 && (
+{!loading && loadError && (
+  <tr>
+    <td colSpan={6} className="p-6 text-center">
+      <div className="inline-flex flex-col items-center gap-3">
+        <p className="text-red-600 font-bold">{loadError}</p>
+        <button
+          onClick={() => void loadUsers()}
+          className="h-9 px-3 rounded-lg bg-slate-900 text-white text-[11px] font-black uppercase"
+        >
+          Réessayer
+        </button>
+      </div>
+    </td>
+  </tr>
+)}
+
+{!loading && !loadError && users.length === 0 && (
                   <tr>
                     <td colSpan={6} className="p-10 text-center text-slate-400 font-bold">
                       Aucun utilisateur à afficher.
@@ -265,7 +306,7 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({ setView }) => {
                   </tr>
                 )}
 
-                {!loading &&
+{!loading && !loadError &&
                   users.map((u) => {
                     const busy = actionId === u.id;
                     return (

@@ -17,6 +17,15 @@ export default async function handler(req: any, res: any) {
     const id = String(req.body?.id ?? '').trim();
     if (!id) return badRequest(res, 'Identifiant utilisateur (id) requis.');
 
+if (id === auth.user.id) {
+  return badRequest(res, 'Vous ne pouvez pas désactiver votre propre compte.');
+}
+
+const { data: existing, error: existingErr } = await supabaseAdmin
+  .from('profiles')
+  .select('id, is_active')
+  .eq('id', id)
+  .single()
     const { data: existing, error: existingErr } = await supabaseAdmin
       .from('profiles')
       .select('id, is_active')
