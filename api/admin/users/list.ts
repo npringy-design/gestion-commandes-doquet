@@ -54,7 +54,7 @@ export default async function handler(req: any, res: any) {
       ok: true,
       page,
       perPage,
-      total: data?.total ?? users.length,
+      total: users.length,
       users,
     });
   } catch (error: any) {
