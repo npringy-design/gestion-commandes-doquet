@@ -1,6 +1,6 @@
-import { requireAdmin } from '../../_lib/auth';
-import { assertServerEnv, supabaseAdmin } from '../../_lib/supabaseAdmin';
-import { badRequest, forbidden, methodNotAllowed, sendJson, serverError, unauthorized } from '../../_lib/http';
+import { requireAdmin } from '../../_lib/auth.js';
+import { assertServerEnv, supabaseAdmin } from '../../_lib/supabaseAdmin.js';
+import { badRequest, forbidden, methodNotAllowed, sendJson, serverError, unauthorized } from '../../_lib/http.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'PATCH') return methodNotAllowed(res, ['PATCH']);
