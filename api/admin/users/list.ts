@@ -1,6 +1,6 @@
-import { assertServerEnv, supabaseAdmin } from '../../_lib/supabaseAdmin';
-import { forbidden, methodNotAllowed, sendJson, serverError, unauthorized } from '../../_lib/http';
-import { requireAdmin } from '../../_lib/auth';
+import { assertServerEnv, supabaseAdmin } from '../../_lib/supabaseAdmin.js';
+import { forbidden, methodNotAllowed, sendJson, serverError, unauthorized } from '../../_lib/http.js';
+import { requireAdmin } from '../../_lib/auth.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'GET') return methodNotAllowed(res, ['GET']);
