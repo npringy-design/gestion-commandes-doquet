@@ -503,6 +503,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
         <div
           ref={ratiosBottomScrollRef}
           onScroll={() => syncRatiosScroll('bottom')}
+          className="fixed bottom-2 left-4 right-4 h-6 overflow-x-auto overflow-y-hidden bg-white/95 backdrop-blur border border-slate-200 rounded-full shadow-lg z-[9999] custom-scrollbar"
           className="fixed bottom-2 left-4 right-4 h-5 overflow-x-auto overflow-y-hidden bg-white/90 backdrop-blur border border-slate-200 rounded-full shadow-lg z-[9999] custom-scrollbar"
           className="sticky bottom-2 mt-2 h-5 overflow-x-auto overflow-y-hidden bg-white/90 backdrop-blur border border-slate-200 rounded-full shadow-lg z-50 custom-scrollbar"
         >
