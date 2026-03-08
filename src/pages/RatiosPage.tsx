@@ -340,7 +340,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
         <div
           ref={ratiosScrollRef}
           onScroll={() => syncRatiosScroll('main')}
-          className="bg-white border border-slate-200 rounded-[40px] shadow-2xl overflow-x-auto overflow-y-visible custom-scrollbar"
+          className="bg-white border border-slate-200 rounded-[40px] shadow-2xl overflow-x-auto overflow-y-visible [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           <table className="border-collapse min-w-[3400px]">
             <thead>
