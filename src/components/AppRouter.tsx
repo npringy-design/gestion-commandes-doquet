@@ -14,6 +14,7 @@ const DailyForecastPage = lazy(() => import('../pages/DailyForecastPage'));
 const SupplierSettingsPage = lazy(() => import('../pages/SupplierSettingsPage'));
 const SupplierOrderPage = lazy(() => import('../pages/SupplierOrderPage'));
 const RatiosPage = lazy(() => import('../pages/RatiosPage'));
+const UserManagementPage = lazy(() => import('../pages/UserManagementPage'));
 
 type ScrollSyncSource = 'main' | 'bottom';
 
@@ -42,7 +43,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
   syncRatiosScroll,
 }) => {
   const { view, setView } = state;
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
 
   const [isMobile, setIsMobile] = React.useState(false);
   React.useEffect(() => {
@@ -109,7 +110,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
   if (view === 'home') return renderWithShell(<HomePage setView={setView} />);
 
   if (view === 'admin_dashboard') {
-    return renderLazyPage(<AdminDashboard setView={setView} />, 'Chargement du tableau de bord…');
+    return renderLazyPage(<AdminDashboard setView={setView} isAdmin={isAdmin} />, 'Chargement du tableau de bord…');
   }
 
   if (view === 'cost_analysis') {
@@ -168,6 +169,17 @@ const AppRouter: React.FC<AppRouterProps> = ({
         setConfigs={state.setSupplierConfigs}
       />,
       'Chargement des fournisseurs…'
+    );
+  }
+
+  if (view === 'user_management') {
+    if (!isAdmin) {
+      return renderWithShell(<MobileBlocked title="Accès refusé" />);
+    }
+
+    return renderLazyPage(
+      <UserManagementPage setView={setView} />,
+      'Chargement des utilisateurs…'
     );
   }
 

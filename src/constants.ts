@@ -59,6 +59,7 @@ export type View =
   | 'daily_forecast'
   | 'admin_dashboard'
   | 'supplier_settings'
+  | 'user_management'
   | 'cost_analysis';
 
 // IDs des fournisseurs
