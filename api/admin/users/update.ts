@@ -23,6 +23,10 @@ export default async function handler(req: any, res: any) {
 
     if (!id) return badRequest(res, 'Identifiant utilisateur (id) requis.');
 
+    if (id === auth.user.id && (req.body?.is_active === false || req.body?.role && String(req.body?.role) !== 'admin')) {
+      return badRequest(res, 'Vous ne pouvez pas vous retirer vos propres droits admin ni vous désactiver.');
+    }
+
     const patch: Record<string, unknown> = {};
 
     if (role !== undefined) {

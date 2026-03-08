@@ -89,6 +89,24 @@ const AppRouter: React.FC<AppRouterProps> = ({
     </button>
   ) : null;
 
+
+  const AccessDenied: React.FC<{ title?: string; message?: string }> = ({
+    title = 'Accès refusé',
+    message = 'Cette section est réservée aux administrateurs actifs.',
+  }) => (
+    <div className="min-h-screen bg-[#1a0f0a] flex flex-col items-center justify-center p-6 text-center">
+      <div className="max-w-md bg-white rounded-3xl p-6 shadow-2xl border-4 border-red-600">
+        <h2 className="text-2xl font-black uppercase tracking-tight text-slate-800 mb-2">{title}</h2>
+        <p className="text-slate-600 text-sm font-semibold">{message}</p>
+        <button
+          onClick={() => setView('home')}
+          className="mt-5 w-full bg-red-600 text-white font-black uppercase tracking-widest text-sm py-3 rounded-2xl hover:opacity-95"
+        >
+          Retour à l’accueil
+        </button>
+      </div>
+    </div>
+  );
   const MobileBlocked: React.FC<{ title: string }> = ({ title }) => (
     <div className="min-h-screen bg-[#1a0f0a] flex flex-col items-center justify-center p-6 text-center">
       <div className="max-w-md bg-white rounded-3xl p-6 shadow-2xl border-4 border-red-600">
@@ -174,7 +192,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
 
   if (view === 'user_management') {
     if (!isAdmin) {
-      return renderWithShell(<MobileBlocked title="Accès refusé" />);
+      return renderWithShell(<AccessDenied />);
     }
 
     return renderLazyPage(
