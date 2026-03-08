@@ -14,6 +14,7 @@ const DailyForecastPage = lazy(() => import('../pages/DailyForecastPage'));
 const SupplierSettingsPage = lazy(() => import('../pages/SupplierSettingsPage'));
 const SupplierOrderPage = lazy(() => import('../pages/SupplierOrderPage'));
 const RatiosPage = lazy(() => import('../pages/RatiosPage'));
+const UserManagementPage = lazy(() => import('../pages/UserManagementPage'));
 
 type ScrollSyncSource = 'main' | 'bottom';
 
@@ -168,6 +169,13 @@ const AppRouter: React.FC<AppRouterProps> = ({
         setConfigs={state.setSupplierConfigs}
       />,
       'Chargement des fournisseurs…'
+    );
+  }
+
+  if (view === 'user_management') {
+    return renderLazyPage(
+      <UserManagementPage setView={setView} />,
+      'Chargement des utilisateurs…'
     );
   }
 
