@@ -37,6 +37,10 @@ export default async function handler(req: any, res: any) {
       email_confirm: true,
       user_metadata: {
         full_name: fullName ?? undefined,
+        role,
+      },
+      app_metadata: {
+        role,
       },
     });
 
@@ -51,7 +55,7 @@ export default async function handler(req: any, res: any) {
     const user = created.user;
     if (!user) return serverError(res, 'Utilisateur créé mais réponse incomplète (user manquant).');
 
-    const { error: profileErr } = await supabaseAdmin
+    const { data: profile, error: profileErr } = await supabaseAdmin
       .from('profiles')
       .upsert(
         {
@@ -64,22 +68,18 @@ export default async function handler(req: any, res: any) {
           protected_user: false,
         },
         { onConflict: 'id' }
-      );
+      )
+      .select('id, email, full_name, role, is_active, access_scope, protected_user, created_at, updated_at')
+      .single();
 
-    if (profileErr) {
-      return serverError(res, `Utilisateur Auth créé mais synchronisation profil échouée: ${profileErr.message}`);
+    if (profileErr || !profile) {
+      return serverError(res, `Utilisateur Auth créé mais synchronisation profil échouée: ${profileErr?.message || 'profil non relu'}`);
     }
 
     return sendJson(res, 201, {
       ok: true,
       message: 'Utilisateur créé avec succès.',
-      user: {
-        id: user.id,
-        email,
-        full_name: fullName,
-        role,
-        is_active: true,
-      },
+      user: profile,
     });
   } catch (error: any) {
     return serverError(res, error?.message || 'Erreur inattendue lors de la création utilisateur.');

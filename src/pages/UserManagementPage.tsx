@@ -174,13 +174,29 @@ setLoadError(msg);
   const updateRole = async (id: string, role: Role) => {
     setActionId(id);
     try {
-      await request('/api/admin/users/update', {
+      const data = await request('/api/admin/users/update', {
         method: 'PATCH',
         body: JSON.stringify({ id, role }),
       });
-      setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, role } : u)));
+      const updatedUser = data?.user as Partial<UserRow> | undefined;
+      if (updatedUser) {
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === id
+              ? {
+                  ...u,
+                  ...updatedUser,
+                  role: (updatedUser.role as Role | undefined) ?? role,
+                }
+              : u
+          )
+        );
+      } else {
+        await loadUsers();
+      }
       showToast('Rôle mis à jour.', 'success');
     } catch (error: any) {
+      await loadUsers();
       showToast(error?.message || 'Impossible de modifier le rôle.', 'error');
     } finally {
       setActionId(null);

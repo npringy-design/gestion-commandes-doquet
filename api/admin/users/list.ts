@@ -1,6 +1,7 @@
 import { assertServerEnv, supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { forbidden, methodNotAllowed, sendJson, serverError, unauthorized } from '../../_lib/http.js';
 import { requireAdmin } from '../../_lib/auth.js';
+import { ensureProfilesExist } from '../../_lib/profileProvisioning.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'GET') return methodNotAllowed(res, ['GET']);
@@ -21,20 +22,7 @@ export default async function handler(req: any, res: any) {
     if (error) return serverError(res, `Impossible de lister les utilisateurs: ${error.message}`);
 
     const ids = (data?.users ?? []).map((u) => u.id);
-    const profilesMap = new Map<string, any>();
-
-    if (ids.length > 0) {
-      const { data: profiles, error: profileErr } = await supabaseAdmin
-        .from('profiles')
-        .select('id, email, full_name, role, is_active, access_scope, protected_user, created_at, updated_at')
-        .in('id', ids);
-
-      if (profileErr) {
-        return serverError(res, `Impossible de lire les profils: ${profileErr.message}`);
-      }
-
-      (profiles ?? []).forEach((p) => profilesMap.set(p.id, p));
-    }
+    const profilesMap = await ensureProfilesExist(ids);
 
     const users = (data?.users ?? []).map((u) => {
       const p = profilesMap.get(u.id);

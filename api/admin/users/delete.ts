@@ -2,6 +2,7 @@ import { requireAdmin } from '../../_lib/auth.js';
 import { assertServerEnv, supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { badRequest, forbidden, methodNotAllowed, sendJson, serverError, unauthorized } from '../../_lib/http.js';
 import { canManageTarget } from '../../_lib/permissions.js';
+import { ensureProfileExists } from '../../_lib/profileProvisioning.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'DELETE') return methodNotAllowed(res, ['DELETE']);
@@ -18,14 +19,11 @@ export default async function handler(req: any, res: any) {
     const id = String(req.body?.id ?? req.query?.id ?? '').trim();
     if (!id) return badRequest(res, 'Identifiant utilisateur (id) requis.');
 
-    const { data: target, error: targetError } = await supabaseAdmin
-      .from('profiles')
-      .select('id, role, protected_user')
-      .eq('id', id)
-      .single();
-
-    if (targetError || !target) {
-      return sendJson(res, 404, { ok: false, error: 'Profil utilisateur introuvable.' });
+    let target: any;
+    try {
+      target = await ensureProfileExists(id);
+    } catch (error: any) {
+      return sendJson(res, 404, { ok: false, error: error?.message || 'Profil utilisateur introuvable.' });
     }
 
     const permission = canManageTarget(auth.profile, target);

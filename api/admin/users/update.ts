@@ -2,6 +2,7 @@ import { requireAdmin } from '../../_lib/auth.js';
 import { assertServerEnv, supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { badRequest, forbidden, methodNotAllowed, sendJson, serverError, unauthorized } from '../../_lib/http.js';
 import { canManageTarget, MANAGEABLE_ROLES } from '../../_lib/permissions.js';
+import { ensureProfileExists } from '../../_lib/profileProvisioning.js';
 
 const ALLOWED_ROLES = new Set(MANAGEABLE_ROLES);
 
@@ -24,14 +25,11 @@ export default async function handler(req: any, res: any) {
 
     if (!id) return badRequest(res, 'Identifiant utilisateur (id) requis.');
 
-    const { data: target, error: targetError } = await supabaseAdmin
-      .from('profiles')
-      .select('id, role, is_active, protected_user')
-      .eq('id', id)
-      .single();
-
-    if (targetError || !target) {
-      return sendJson(res, 404, { ok: false, error: 'Profil utilisateur introuvable.' });
+    let target: any;
+    try {
+      target = await ensureProfileExists(id);
+    } catch (error: any) {
+      return sendJson(res, 404, { ok: false, error: error?.message || 'Profil utilisateur introuvable.' });
     }
 
     const permission = canManageTarget(auth.profile, target);
@@ -68,24 +66,32 @@ export default async function handler(req: any, res: any) {
       return badRequest(res, 'Aucune propriété à mettre à jour (role, is_active, full_name).');
     }
 
+    const { error: updateError } = await supabaseAdmin
+      .from('profiles')
+      .update({
+        ...patch,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+
+    if (updateError) {
+      return serverError(res, `Mise à jour impossible: ${updateError.message}`);
+    }
+
     const { data, error } = await supabaseAdmin
       .from('profiles')
-      .update(patch)
-      .eq('id', id)
       .select('id, email, full_name, role, is_active, access_scope, protected_user, created_at, updated_at')
-      .single();
+      .eq('id', id)
+      .maybeSingle();
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        return sendJson(res, 404, { ok: false, error: 'Profil utilisateur introuvable.' });
-      }
-      return serverError(res, `Mise à jour impossible: ${error.message}`);
+      return serverError(res, `Relecture du profil impossible après mise à jour: ${error.message}`);
     }
 
     return sendJson(res, 200, {
       ok: true,
       message: 'Profil mis à jour avec succès.',
-      user: data,
+      user: data ?? { id, ...target, ...patch },
     });
   } catch (error: any) {
     return serverError(res, error?.message || 'Erreur inattendue lors de la mise à jour.');
