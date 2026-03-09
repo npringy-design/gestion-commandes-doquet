@@ -1,7 +1,7 @@
 import { requireAdmin } from '../../_lib/auth.js';
 import { assertServerEnv, supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { badRequest, forbidden, methodNotAllowed, sendJson, serverError, unauthorized } from '../../_lib/http.js';
-import { canManageTarget, MANAGEABLE_ROLES } from '../../_lib/permissions.js';
+import { canAssignRole, canManageTarget, MANAGEABLE_ROLES } from '../../_lib/permissions.js';
 import { ensureProfileExists } from '../../_lib/profileProvisioning.js';
 
 const ALLOWED_ROLES = new Set(MANAGEABLE_ROLES);
