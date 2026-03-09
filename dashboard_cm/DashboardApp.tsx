@@ -26,7 +26,7 @@ import {
   withResolvedType,
 } from './utils/dashboardHelpers';
 
-const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromParams?: Record<string, number | null>; costByMonthFromParams?: Record<string, number | null>; salesByMonthFromParams?: Record<string, number | null>; onBackHome?: () => void; onOpenParams?: () => void; }> = ({ csvByMonth, coversByMonthFromParams, costByMonthFromParams, salesByMonthFromParams, onBackHome, onOpenParams }) => {
+const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromParams?: Record<string, number | null>; costByMonthFromParams?: Record<string, number | null>; salesByMonthFromParams?: Record<string, number | null>; onBackHome?: () => void; onOpenParams?: () => void; readOnlyAnalyse?: boolean; }> = ({ csvByMonth, coversByMonthFromParams, costByMonthFromParams, salesByMonthFromParams, onBackHome, onOpenParams, readOnlyAnalyse = false }) => {
   const [selectedMonth, setSelectedMonth] = useState<PeriodKey>('Janvier');
   const [mobileTopTab, setMobileTopTab] = useState<'liquides' | 'solides'>('liquides');
   const [mobileTerrainMode, setMobileTerrainMode] = useState(true);
@@ -51,6 +51,10 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
   const todayKey = useMemo(() => getTodayKey(), []);
   const [dailyDateKey, setDailyDateKey] = useState<string>(todayKey);
   const [dailySheets, setDailySheets] = useState<DailySheet[]>(() => loadJSON(DAILY_STORAGE_KEY, [] as DailySheet[]));
+
+  useEffect(() => {
+    if (readOnlyAnalyse && dailyMode === 'page') setDailyMode(null);
+  }, [readOnlyAnalyse, dailyMode]);
 
   const [followUps, setFollowUps] = useState<FollowUpItem[]>(() => loadJSON(FOLLOWUP_STORAGE_KEY, [] as FollowUpItem[]));
 
@@ -211,6 +215,7 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
   };
 
   const addSelectedToDaily = () => {
+    if (readOnlyAnalyse) return;
     if (!selectedProduct?.id) return;
     const base = ensureDailySheetExists();
     const exists = base.rows.some(r => r.id === selectedProduct.id);
@@ -336,12 +341,14 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
                 Focus produit
               </button>
             )}
-            <button
-              onClick={() => { ensureDailySheetExists(); setDailyMode('page'); }}
-              className="text-[11px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl px-3 py-1.5 transition-colors"
-            >
-              Journalier
-            </button>
+            {!readOnlyAnalyse && (
+              <button
+                onClick={() => { ensureDailySheetExists(); setDailyMode('page'); }}
+                className="text-[11px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl px-3 py-1.5 transition-colors"
+              >
+                Journalier
+              </button>
+            )}
 
           </div>
         </div>
@@ -484,14 +491,16 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
     >
       Détail
     </button>
-    <button
-      onClick={addSelectedToDaily}
-      className="px-2 py-1 rounded-lg bg-amber-500/90 hover:bg-amber-400 text-white text-[10px] font-extrabold"
-      title="Ajouter ce produit au suivi journalier"
-      type="button"
-    >
-      + Jour
-    </button>
+    {!readOnlyAnalyse && (
+      <button
+        onClick={addSelectedToDaily}
+        className="px-2 py-1 rounded-lg bg-amber-500/90 hover:bg-amber-400 text-white text-[10px] font-extrabold"
+        title="Ajouter ce produit au suivi journalier"
+        type="button"
+      >
+        + Jour
+      </button>
+    )}
   </div>
 </div>
                 </div>
@@ -520,11 +529,13 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
     type="button">
     Détail produit
   </button>
-  <button onClick={addSelectedToDaily}
-    className="bg-amber-500/80 hover:bg-amber-400 text-white text-[10px] font-extrabold py-2 rounded-xl transition-colors"
-    type="button">
-    + Journalier
-  </button>
+  {!readOnlyAnalyse && (
+    <button onClick={addSelectedToDaily}
+      className="bg-amber-500/80 hover:bg-amber-400 text-white text-[10px] font-extrabold py-2 rounded-xl transition-colors"
+      type="button">
+      + Journalier
+    </button>
+  )}
 </div>
               </div>
             )}
@@ -537,8 +548,10 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
           <div className="grid grid-cols-2 gap-2">
             <button onClick={() => setIsMobileFocusOpen(true)}
               className="min-h-[46px] rounded-xl bg-slate-900 text-white text-xs font-extrabold">Focus produit</button>
-            <button onClick={() => { ensureDailySheetExists(); setDailyMode('page'); }}
-              className="min-h-[46px] rounded-xl bg-amber-500 text-white text-xs font-extrabold">Journalier</button>
+            {!readOnlyAnalyse && (
+              <button onClick={() => { ensureDailySheetExists(); setDailyMode('page'); }}
+                className="min-h-[46px] rounded-xl bg-amber-500 text-white text-xs font-extrabold">Journalier</button>
+            )}
 </div>
           {!mobileTerrainMode && (
             <div className="h-[180px]"><FoodCostChart data={costChartData} /></div>
@@ -593,7 +606,9 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <button onClick={() => { setIsDetailOpen(true); setIsMobileFocusOpen(false); }} className="min-h-[44px] bg-indigo-600 text-white text-xs font-extrabold rounded-xl">Détail</button>
-                  <button onClick={addSelectedToDaily} className="min-h-[44px] bg-amber-500/90 text-white text-xs font-extrabold rounded-xl">+ Journalier</button>
+                  {!readOnlyAnalyse && (
+                    <button onClick={addSelectedToDaily} className="min-h-[44px] bg-amber-500/90 text-white text-xs font-extrabold rounded-xl">+ Journalier</button>
+                  )}
                 </div>
               </div>
             </div>
@@ -681,13 +696,15 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
                 </div>
 
                 <div className="p-4 border-t border-slate-200 grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => { addSelectedToDaily(); setIsDetailOpen(false); }}
-                    className="bg-amber-500/90 hover:bg-amber-400 text-white text-xs font-extrabold py-2 rounded-xl shadow-sm"
-                    title="Ajouter ce produit au suivi journalier"
-                  >
-                    + Journalier
-                  </button>
+                  {!readOnlyAnalyse && (
+                    <button
+                      onClick={() => { addSelectedToDaily(); setIsDetailOpen(false); }}
+                      className="bg-amber-500/90 hover:bg-amber-400 text-white text-xs font-extrabold py-2 rounded-xl shadow-sm"
+                      title="Ajouter ce produit au suivi journalier"
+                    >
+                      + Journalier
+                    </button>
+                  )}
                   <button
                     onClick={() => setIsDetailOpen(false)}
                     className="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-extrabold py-2 rounded-xl"

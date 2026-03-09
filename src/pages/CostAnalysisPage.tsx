@@ -7,6 +7,8 @@
 
 import React, { Suspense, lazy, useMemo } from 'react';
 import { View, MONTH_KEY_TO_NAME } from '../constants';
+import { useAuth } from '../auth/AuthProvider';
+import { isReadOnlyAnalyse } from '../lib/permissions';
 
 const DashboardApp = lazy(() => import('../../dashboard_cm/DashboardApp'));
 
@@ -47,6 +49,9 @@ const CostAnalysisPage: React.FC<CostAnalysisPageProps> = ({
   costMatterByMonth,
   salesHtByMonth,
 }) => {
+  const { profile } = useAuth();
+  const readOnlyAnalyse = isReadOnlyAnalyse(profile);
+
   const csvByMonth = useMemo(
     () => convertMonthKeys(detailedInventory, value => (value ? value : null)) as Record<string, string>,
     [detailedInventory]
@@ -81,6 +86,7 @@ const CostAnalysisPage: React.FC<CostAnalysisPageProps> = ({
           salesByMonthFromParams={salesByMonthFromParams}
           onBackHome={() => setView('home')}
           onOpenParams={() => setView('stats')}
+          readOnlyAnalyse={readOnlyAnalyse}
         />
       </div>
     </Suspense>

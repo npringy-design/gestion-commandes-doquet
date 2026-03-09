@@ -19,6 +19,8 @@ import {
 } from '../data';
 import { SupplierConfig } from '../types';
 import { useAppState } from '../hooks/useAppState';
+import { useAuth } from '../auth/AuthProvider';
+import { isCommandeRole } from '../lib/permissions';
 
 type AppState = ReturnType<typeof useAppState>;
 interface SupplierOrderPageProps { state: AppState; }
@@ -64,6 +66,8 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
   } = state;
 
   const [activeNextCalendar, setActiveNextCalendar] = React.useState(false);
+  const { profile } = useAuth();
+  const commandeOnly = isCommandeRole(profile);
 
   React.useEffect(() => {
     if (calculationMode === 'target') setActiveNextCalendar(false);
@@ -526,7 +530,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                           onKeyDown={e => handleEnterKey(e, TAB_UPCOMING, rowIdx)}
                           enterKeyHint="next"
                           inputMode="numeric"
-                          className="w-14 lg:w-full h-9 lg:h-10 rounded-lg border border-emerald-200/50 bg-white text-center font-black text-emerald-700 text-sm outline-none focus:border-emerald-400 transition-all shadow-sm"
+                          className="w-14 lg:w-full h-9 lg:h-10 rounded-lg border border-emerald-200/50 bg-white text-emerald-700 text-center font-black text-sm outline-none focus:border-emerald-400 transition-all shadow-sm"
                           placeholder="-" />
                       </td>
 
@@ -553,16 +557,17 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                       </td>
 
                       <td className="p-2 text-center bg-[#FFE8CC]">
-                        <input type="number" value={p.packaging}
+                        <input type="number" value={p.packaging} disabled={commandeOnly}
                           onChange={e => updateProductValue(p.id, 'packaging', e.target.value)}
-                          className="w-12 lg:w-16 text-center bg-white/50 border border-slate-200 rounded-lg font-bold text-slate-600 text-sm outline-none py-1" />
+                          className={`w-12 lg:w-16 text-center border border-slate-200 rounded-lg font-bold text-sm outline-none py-1 ${commandeOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/50 text-slate-600'}`} />
                       </td>
 
                       <td className="p-2 text-center bg-[#FFE8CC]">
                         <select
                           value={orderStates[p.id]?.margin ?? 30}
+                          disabled={commandeOnly}
                           onChange={e => setOrderStates(pv => ({ ...pv, [p.id]: { ...pv[p.id], margin: Number(e.target.value) } }))}
-                          className="bg-white/80 border border-slate-300 text-slate-700 font-bold text-xs py-1 px-1 rounded-lg outline-none cursor-pointer shadow-sm"
+                          className={`border border-slate-300 font-bold text-xs py-1 px-1 rounded-lg outline-none shadow-sm ${commandeOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/80 text-slate-700 cursor-pointer'}`}
                         >
                           {[0,5,10,15,20,25,30,35,40,45,50].map(o => <option key={o} value={o}>{o}%</option>)}
                         </select>
@@ -570,9 +575,9 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
 
                     </>) : (<>
                       <td className="p-2 relative bg-blue-50/20">
-                        <input type="number" value={p.targetStock}
+                        <input type="number" value={p.targetStock} disabled={commandeOnly}
                           onChange={e => updateProductValue(p.id, 'targetStock', e.target.value)}
-                          className="w-14 lg:w-full h-9 lg:h-10 rounded-lg border border-blue-200/50 bg-white text-center font-black text-blue-700 text-sm outline-none focus:border-blue-400 transition-all shadow-sm"
+                          className={`w-14 lg:w-full h-9 lg:h-10 rounded-lg border border-blue-200/50 text-center font-black text-sm outline-none transition-all shadow-sm ${commandeOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white text-blue-700 focus:border-blue-400'}`}
                           placeholder="-" />
                         {toNumber(p.packaging) > 1 && targetSafe > 0 && (
                           <div className="absolute top-2 right-2 text-[8px] font-bold text-blue-400 bg-blue-50 px-1 py-0.5 rounded pointer-events-none hidden lg:block">
@@ -588,7 +593,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                           onKeyDown={e => handleEnterKey(e, TAB_UPCOMING, rowIdx)}
                           enterKeyHint="next"
                           inputMode="numeric"
-                          className="w-14 lg:w-full h-9 lg:h-10 rounded-lg border border-emerald-200/50 bg-white text-center font-black text-emerald-700 text-sm outline-none focus:border-emerald-400 transition-all shadow-sm"
+                          className="w-14 lg:w-full h-9 lg:h-10 rounded-lg border border-emerald-200/50 bg-white text-emerald-700 text-center font-black text-sm outline-none focus:border-emerald-400 transition-all shadow-sm"
                           placeholder="-" />
                       </td>
 
@@ -627,9 +632,9 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                       </td>
 
                       <td className="p-2 text-center bg-[#FFE8CC]">
-                        <input type="number" value={p.packaging}
+                        <input type="number" value={p.packaging} disabled={commandeOnly}
                           onChange={e => updateProductValue(p.id, 'packaging', e.target.value)}
-                          className="w-12 lg:w-16 text-center bg-white/50 border border-slate-200 rounded-lg font-bold text-slate-600 text-sm outline-none py-1" />
+                          className={`w-12 lg:w-16 text-center border border-slate-200 rounded-lg font-bold text-sm outline-none py-1 ${commandeOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/50 text-slate-600'}`} />
                       </td>
                     </>)}
 

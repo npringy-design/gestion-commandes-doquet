@@ -57,24 +57,20 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
             </div>
             <span className="text-2xl font-black uppercase text-slate-800 tracking-tighter">Commandes</span>
           </button>
-          {!isMobile && (
-
-
-          <button
-            onClick={() => setView('stats')}
-            disabled={!canAccessStatsPage(profile)}
-            className={`group bg-white p-4 sm:p-6 lg:p-8 rounded-[40px] shadow-2xl transition-all border-4 ${canAccessStatsPage(profile) ? 'hover:scale-105 border-transparent hover:border-amber-500' : 'opacity-50 cursor-not-allowed border-slate-200'}`}
-            title={canAccessStatsPage(profile) ? 'Paramètres' : 'Accès réservé à Super Admin, Global Admin, Director, Manager+ et Manager'}
-          >
-            <div className="w-16 h-16 bg-amber-100 rounded-3xl flex items-center justify-center mb-4 mx-auto group-hover:bg-amber-500 transition-colors">
-              <svg className="w-8 h-8 text-amber-600 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-              </svg>
-            </div>
-            <span className="text-2xl font-black uppercase text-slate-800 tracking-tighter">Paramètres</span>
-          </button>
-
-                    )}
+          {!isMobile && canAccessStatsPage(profile) && (
+            <button
+              onClick={() => setView('stats')}
+              className="group bg-white p-4 sm:p-6 lg:p-8 rounded-[40px] shadow-2xl transition-all border-4 border-transparent hover:scale-105 hover:border-amber-500"
+              title="Paramètres"
+            >
+              <div className="w-16 h-16 bg-amber-100 rounded-3xl flex items-center justify-center mb-4 mx-auto group-hover:bg-amber-500 transition-colors">
+                <svg className="w-8 h-8 text-amber-600 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+              </div>
+              <span className="text-2xl font-black uppercase text-slate-800 tracking-tighter">Paramètres</span>
+            </button>
+          )}
 <button
             onClick={() => setView('cost_analysis')}
             className="group bg-white p-4 sm:p-6 lg:p-8 rounded-[40px] shadow-2xl hover:scale-105 transition-all border-4 border-transparent hover:border-orange-600"
