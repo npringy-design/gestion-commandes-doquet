@@ -1,7 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { isSupabaseConfigured as isAuthConfigured } from '../lib/supabaseClient';
 import { useAuth } from '../auth/AuthProvider';
-import { canAccessAdminDashboard, canAccessStatsPage, canAccessSupplierSettings, canAccessUserManagement } from '../lib/permissions';
+import { canAccessAdminDashboard, canAccessDailyForecast, canAccessRatiosPage, canAccessStatsPage, canAccessSupplierSettings, canAccessUserManagement } from '../lib/permissions';
 import type { View } from '../constants';
 import type { AppState } from '../hooks/useAppState';
 
@@ -172,6 +172,9 @@ const AppRouter: React.FC<AppRouterProps> = ({
   }
 
   if (view === 'daily_forecast') {
+    if (!canAccessDailyForecast(profile)) {
+      return renderWithShell(<AccessDenied message="Cette section est réservée aux rôles autorisés pour ce module." />);
+    }
     return renderLazyPage(
       <DailyForecastPage
         setView={setView}
@@ -218,6 +221,9 @@ const AppRouter: React.FC<AppRouterProps> = ({
   }
 
   if (view === 'ratios') {
+    if (!canAccessRatiosPage(profile)) {
+      return renderWithShell(<AccessDenied message="Cette section est réservée aux rôles autorisés pour ce module." />);
+    }
     return renderLazyPage(
       <RatiosPage
         state={state}

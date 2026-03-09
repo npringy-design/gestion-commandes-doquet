@@ -10,7 +10,7 @@ import { useToast } from '../components/Toast';
 import { View, MONTHS_DISPLAY_CONFIG } from '../constants';
 import { ImportModal } from '../components/Modals';
 import { useAuth } from '../auth/AuthProvider';
-import { canDeleteImport, canEditSettingsFields, canImportData } from '../lib/permissions';
+import { canAccessDailyForecast, canAccessRatiosPage, canDeleteImport, canEditSettingsFields, canImportData } from '../lib/permissions';
 
 interface StatsPageProps {
   setView:               (v: View) => void;
@@ -37,6 +37,8 @@ const StatsPage: React.FC<StatsPageProps> = ({
   const canImport = canImportData(profile);
   const canRemoveImport = canDeleteImport(profile);
   const canEditFields = canEditSettingsFields(profile);
+  const canOpenDailyForecast = canAccessDailyForecast(profile);
+  const canOpenRatios = canAccessRatiosPage(profile);
   const [modalState, setModalState] = useState<{ month: string } | null>(null);
   const { showToast } = useToast();
 
@@ -99,18 +101,22 @@ const StatsPage: React.FC<StatsPageProps> = ({
         <div className="hidden lg:block flex-1" />
 
         <div className="space-y-4">
-          <button
-            onClick={() => setView('daily_forecast')}
-            className="w-full bg-[#93c47d] hover:bg-[#76a560] text-white py-6 rounded-2xl font-black uppercase text-xs tracking-widest shadow-[0_4px_0_#38761d] active:translate-y-1 active:shadow-none transition-all"
-          >
-            Prévisionnel<br/>Couverts
-          </button>
-          <button
-            onClick={() => setView('ratios')}
-            className="w-full bg-[#3d85c6] hover:bg-[#2b6ca8] text-white py-6 rounded-2xl font-black uppercase text-xs tracking-widest shadow-[0_4px_0_#073763] active:translate-y-1 active:shadow-none transition-all"
-          >
-            Calcul<br/>Vente Ratio
-          </button>
+          {canOpenDailyForecast && (
+            <button
+              onClick={() => setView('daily_forecast')}
+              className="w-full bg-[#93c47d] hover:bg-[#76a560] text-white py-6 rounded-2xl font-black uppercase text-xs tracking-widest shadow-[0_4px_0_#38761d] active:translate-y-1 active:shadow-none transition-all"
+            >
+              Prévisionnel<br/>Couverts
+            </button>
+          )}
+          {canOpenRatios && (
+            <button
+              onClick={() => setView('ratios')}
+              className="w-full bg-[#3d85c6] hover:bg-[#2b6ca8] text-white py-6 rounded-2xl font-black uppercase text-xs tracking-widest shadow-[0_4px_0_#073763] active:translate-y-1 active:shadow-none transition-all"
+            >
+              Calcul<br/>Vente Ratio
+            </button>
+          )}
         </div>
       </div>
 
