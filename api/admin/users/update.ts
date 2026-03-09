@@ -1,7 +1,7 @@
 import { requireAdmin } from '../../_lib/auth.js';
 import { assertServerEnv, supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { badRequest, forbidden, methodNotAllowed, sendJson, serverError, unauthorized } from '../../_lib/http.js';
-import { canAssignRole, canManageTarget, MANAGEABLE_ROLES } from '../../_lib/permissions.js';
+import { canAssignRole, canManageTarget, canUpdateUsers, MANAGEABLE_ROLES } from '../../_lib/permissions.js';
 import { ensureProfileExists } from '../../_lib/profileProvisioning.js';
 
 const ALLOWED_ROLES = new Set(MANAGEABLE_ROLES);
@@ -16,6 +16,10 @@ export default async function handler(req: any, res: any) {
     if (!auth.ok) {
       if (auth.status === 401) return unauthorized(res, auth.error);
       return forbidden(res, auth.error);
+    }
+
+    if (!canUpdateUsers(auth.profile.role)) {
+      return forbidden(res, 'Votre rôle ne peut pas modifier les utilisateurs.');
     }
 
     const id = String(req.body?.id ?? '').trim();

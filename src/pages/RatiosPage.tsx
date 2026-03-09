@@ -47,7 +47,8 @@ const ProductCard: React.FC<{
   idx: number;
   total: number;
   state: AppState;
-}> = ({ p, idx, total, state }) => {
+  canEdit: boolean;
+}> = ({ p, idx, total, state, canEdit }) => {
   const [expanded, setExpanded] = useState(false);
   const {
     selectedProductIds, toggleProductSelection,

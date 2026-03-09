@@ -1,7 +1,7 @@
 import { requireAdmin } from '../../_lib/auth.js';
 import { assertServerEnv, supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { badRequest, forbidden, methodNotAllowed, sendJson, serverError, unauthorized } from '../../_lib/http.js';
-import { canAssignRole, MANAGEABLE_ROLES } from '../../_lib/permissions.js';
+import { canAssignRole, canCreateUsers, MANAGEABLE_ROLES } from '../../_lib/permissions.js';
 
 const ALLOWED_ROLES = new Set(MANAGEABLE_ROLES);
 
@@ -26,6 +26,9 @@ export default async function handler(req: any, res: any) {
     if (!email) return badRequest(res, 'Email requis.');
     if (!tempPassword || tempPassword.length < 8) {
       return badRequest(res, 'Mot de passe temporaire requis (minimum 8 caractères).');
+    }
+    if (!canCreateUsers(auth.profile.role)) {
+      return forbidden(res, 'Votre rôle peut uniquement consulter ou créer selon ses droits.');
     }
     if (!ALLOWED_ROLES.has(role)) {
       return badRequest(res, 'Rôle invalide. Valeurs autorisées: global_admin, director, manager_plus, manager, commande.');

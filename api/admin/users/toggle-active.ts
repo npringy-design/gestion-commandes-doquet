@@ -1,7 +1,7 @@
 import { requireAdmin } from '../../_lib/auth.js';
 import { assertServerEnv, supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { badRequest, forbidden, methodNotAllowed, sendJson, serverError, unauthorized } from '../../_lib/http.js';
-import { canManageTarget } from '../../_lib/permissions.js';
+import { canManageTarget, canToggleUsers } from '../../_lib/permissions.js';
 import { ensureProfileExists } from '../../_lib/profileProvisioning.js';
 
 export default async function handler(req: any, res: any) {
@@ -14,6 +14,10 @@ export default async function handler(req: any, res: any) {
     if (!auth.ok) {
       if (auth.status === 401) return unauthorized(res, auth.error);
       return forbidden(res, auth.error);
+    }
+
+    if (!canToggleUsers(auth.profile.role)) {
+      return forbidden(res, 'Votre rôle ne peut pas activer ou désactiver les utilisateurs.');
     }
 
     const id = String(req.body?.id ?? '').trim();

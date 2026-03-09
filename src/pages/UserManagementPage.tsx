@@ -128,6 +128,7 @@ setLoadError(msg);
   const currentUserRole = profile?.role ?? null;
   const isSuperAdmin = currentUserRole === 'super_admin';
   const creatableRoles = getCreatableRoles(profile) as Role[];
+  const isCreateOnlyUserManagement = currentUserRole === 'manager_plus';
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -336,9 +337,9 @@ if (!canAccessUserManagement(profile)) {
                     const isProtected = Boolean(u.protected_user);
                     const isSuperAdminRow = u.role === 'super_admin';
                     const canManageRow = canManageTargetUi(profile, u);
-                    const canEditRole = !busy && canManageRow;
-                    const canToggleStatus = !busy && canManageRow;
-                    const canDelete = !busy && canManageRow;
+                    const canEditRole = !busy && canManageRow && !isCreateOnlyUserManagement;
+                    const canToggleStatus = !busy && canManageRow && !isCreateOnlyUserManagement;
+                    const canDelete = !busy && canManageRow && !isCreateOnlyUserManagement;
                     const availableRoleOptions = ((u.role === 'super_admin' ? ['super_admin'] : getAssignableRoleOptions(profile, u)) as Role[]).length
                       ? ((u.role === 'super_admin' ? ['super_admin'] : getAssignableRoleOptions(profile, u)) as Role[])
                       : [u.role];
@@ -400,6 +401,10 @@ if (!canAccessUserManagement(profile)) {
                               >
                                 Supprimer
                               </button>
+                            ) : !canToggleStatus && !canDelete && isCreateOnlyUserManagement ? (
+                              <span className="inline-flex items-center h-9 px-3 rounded-lg bg-slate-100 text-slate-500 text-[11px] font-black uppercase">
+                                Création uniquement
+                              </span>
                             ) : null}
                           </div>
                         </td>
