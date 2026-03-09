@@ -20,7 +20,7 @@ export const requireAdmin = async (req: any) => {
 
   const { data: profile, error: profileError } = await supabaseAdmin
     .from('profiles')
-    .select('id, role, is_active')
+    .select('id, role, is_active, access_scope, protected_user')
     .eq('id', userData.user.id)
     .single();
 
@@ -32,7 +32,7 @@ export const requireAdmin = async (req: any) => {
     return { ok: false as const, status: 403, error: 'Compte administrateur inactif.' };
   }
 
-  if (profile.role !== 'admin') {
+  if (!['super_admin', 'global_admin'].includes(profile.role)) {
     return { ok: false as const, status: 403, error: 'Droits administrateur requis.' };
   }
 

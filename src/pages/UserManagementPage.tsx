@@ -3,7 +3,7 @@ import { View } from '../constants';
 import { useAuth } from '../auth/AuthProvider';
 import { useToast } from '../components/Toast';
 
-type Role = 'admin' | 'manager' | 'viewer';
+type Role = 'super_admin' | 'global_admin' | 'director' | 'chef' | 'manager' | 'viewer';
 
 type UserRow = {
   id: string;
@@ -11,6 +11,8 @@ type UserRow = {
   full_name: string | null;
   role: Role;
   is_active: boolean;
+  access_scope?: 'all' | 'current_site';
+  protected_user?: boolean;
   created_at: string;
   updated_at?: string;
   last_sign_in_at?: string | null;
@@ -27,7 +29,7 @@ interface UserManagementPageProps {
   setView: (v: View) => void;
 }
 
-const ROLE_OPTIONS: Role[] = ['admin', 'manager', 'viewer'];
+const ROLE_OPTIONS: Role[] = ['global_admin', 'director', 'chef', 'manager', 'viewer'];
 
 const formatDate = (value?: string | null) => {
   if (!value) return '—';
@@ -41,7 +43,7 @@ const formatDate = (value?: string | null) => {
 };
 
 const UserManagementPage: React.FC<UserManagementPageProps> = ({ setView }) => {
-const { session, isAdmin } = useAuth();
+const { session, isAdmin, profile } = useAuth();
   const { showToast } = useToast();
 
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -309,6 +311,9 @@ if (!isAdmin) {
 {!loading && !loadError &&
                   users.map((u) => {
                     const busy = actionId === u.id;
+                    const isCurrentUser = profile?.id === u.id;
+                    const isProtected = Boolean(u.protected_user);
+                    const canEditRow = !busy && !isCurrentUser && !isProtected;
                     return (
                       <tr key={u.id} className="border-t border-slate-100 hover:bg-slate-50/80 transition-colors">
                         <td className="p-3 text-sm font-bold text-slate-700">{u.email || '—'}</td>
@@ -317,7 +322,7 @@ if (!isAdmin) {
                           <select
                             value={u.role}
                             onChange={(e) => void updateRole(u.id, e.target.value as Role)}
-                            disabled={busy}
+                            disabled={!canEditRow}
                             className="h-9 px-3 rounded-lg border border-slate-300 bg-white text-sm font-bold text-slate-700 disabled:opacity-50"
                           >
                             {ROLE_OPTIONS.map((r) => (
@@ -328,13 +333,20 @@ if (!isAdmin) {
                           </select>
                         </td>
                         <td className="p-3">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider ${
-                              u.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                            }`}
-                          >
-                            {u.is_active ? 'Actif' : 'Inactif'}
-                          </span>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider ${
+                                u.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                              }`}
+                            >
+                              {u.is_active ? 'Actif' : 'Inactif'}
+                            </span>
+                            {u.protected_user && (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-amber-100 text-amber-700">
+                                Protégé
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="p-3 text-sm font-semibold text-slate-500">{formatDate(u.created_at)}</td>
                         <td className="p-3">

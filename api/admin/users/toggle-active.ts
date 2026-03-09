@@ -1,6 +1,7 @@
 import { requireAdmin } from '../../_lib/auth.js';
 import { assertServerEnv, supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { badRequest, forbidden, methodNotAllowed, sendJson, serverError, unauthorized } from '../../_lib/http.js';
+import { canManageTarget } from '../../_lib/permissions.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'PATCH') return methodNotAllowed(res, ['PATCH']);
@@ -17,18 +18,19 @@ export default async function handler(req: any, res: any) {
     const id = String(req.body?.id ?? '').trim();
     if (!id) return badRequest(res, 'Identifiant utilisateur (id) requis.');
 
-    if (id === auth.user.id) {
-      return badRequest(res, 'Vous ne pouvez pas désactiver votre propre compte.');
-    }
-
     const { data: existing, error: existingErr } = await supabaseAdmin
       .from('profiles')
-      .select('id, is_active')
+      .select('id, role, is_active, protected_user')
       .eq('id', id)
       .single();
 
     if (existingErr || !existing) {
       return sendJson(res, 404, { ok: false, error: 'Profil utilisateur introuvable.' });
+    }
+
+    const permission = canManageTarget(auth.profile, existing);
+    if (!permission.ok) {
+      return forbidden(res, permission.error);
     }
 
     const nextActive = !existing.is_active;
@@ -37,7 +39,7 @@ export default async function handler(req: any, res: any) {
       .from('profiles')
       .update({ is_active: nextActive })
       .eq('id', id)
-      .select('id, email, full_name, role, is_active, created_at, updated_at')
+      .select('id, email, full_name, role, is_active, access_scope, protected_user, created_at, updated_at')
       .single();
 
     if (error) {

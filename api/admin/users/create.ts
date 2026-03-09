@@ -1,8 +1,9 @@
 import { requireAdmin } from '../../_lib/auth.js';
 import { assertServerEnv, supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { badRequest, forbidden, methodNotAllowed, sendJson, serverError, unauthorized } from '../../_lib/http.js';
+import { MANAGEABLE_ROLES } from '../../_lib/permissions.js';
 
-const ALLOWED_ROLES = new Set(['admin', 'manager', 'viewer']);
+const ALLOWED_ROLES = new Set(MANAGEABLE_ROLES);
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return methodNotAllowed(res, ['POST']);
@@ -27,7 +28,7 @@ export default async function handler(req: any, res: any) {
       return badRequest(res, 'Mot de passe temporaire requis (minimum 8 caractères).');
     }
     if (!ALLOWED_ROLES.has(role)) {
-      return badRequest(res, 'Rôle invalide. Valeurs autorisées: admin, manager, viewer.');
+      return badRequest(res, 'Rôle invalide. Valeurs autorisées: global_admin, director, chef, manager, viewer.');
     }
 
     const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -59,6 +60,8 @@ export default async function handler(req: any, res: any) {
           full_name: fullName,
           role,
           is_active: true,
+          access_scope: role === 'global_admin' ? 'all' : 'current_site',
+          protected_user: false,
         },
         { onConflict: 'id' }
       );

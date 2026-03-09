@@ -1,6 +1,7 @@
 import { requireAdmin } from '../../_lib/auth.js';
 import { assertServerEnv, supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { badRequest, forbidden, methodNotAllowed, sendJson, serverError, unauthorized } from '../../_lib/http.js';
+import { canManageTarget } from '../../_lib/permissions.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'DELETE') return methodNotAllowed(res, ['DELETE']);
@@ -17,8 +18,19 @@ export default async function handler(req: any, res: any) {
     const id = String(req.body?.id ?? req.query?.id ?? '').trim();
     if (!id) return badRequest(res, 'Identifiant utilisateur (id) requis.');
 
-    if (id === auth.user.id) {
-      return badRequest(res, 'Un admin ne peut pas supprimer son propre compte via cet endpoint.');
+    const { data: target, error: targetError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, role, protected_user')
+      .eq('id', id)
+      .single();
+
+    if (targetError || !target) {
+      return sendJson(res, 404, { ok: false, error: 'Profil utilisateur introuvable.' });
+    }
+
+    const permission = canManageTarget(auth.profile, target);
+    if (!permission.ok) {
+      return forbidden(res, permission.error);
     }
 
     const { error } = await supabaseAdmin.auth.admin.deleteUser(id, false);

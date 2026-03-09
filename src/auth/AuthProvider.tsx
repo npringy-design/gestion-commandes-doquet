@@ -2,12 +2,22 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 
-type AppProfile = {
+export type AppRole =
+  | 'super_admin'
+  | 'global_admin'
+  | 'director'
+  | 'chef'
+  | 'manager'
+  | 'viewer';
+
+export type AppProfile = {
   id: string;
-  role: 'admin' | 'manager' | 'viewer';
+  role: AppRole;
   is_active: boolean;
   full_name?: string | null;
   email?: string | null;
+  access_scope?: 'all' | 'current_site' | null;
+  protected_user?: boolean;
 };
 
 type AuthContextValue = {
@@ -74,7 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data, error } = await withTimeout(
           supabase
             .from('profiles')
-            .select('id, role, is_active, full_name, email')
+            .select('id, role, is_active, full_name, email, access_scope, protected_user')
             .eq('id', userId)
             .maybeSingle(),
           'Chargement du profil'
@@ -142,7 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const value = useMemo<AuthContextValue>(() => {
     const isActive = profile?.is_active ?? true;
-    const isAdmin = profile?.role === 'admin' && isActive;
+    const isAdmin = ['super_admin', 'global_admin'].includes(profile?.role ?? '') && isActive;
 
     return {
       session,

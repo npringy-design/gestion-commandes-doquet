@@ -26,7 +26,7 @@ export default async function handler(req: any, res: any) {
     if (ids.length > 0) {
       const { data: profiles, error: profileErr } = await supabaseAdmin
         .from('profiles')
-        .select('id, email, full_name, role, is_active, created_at, updated_at')
+        .select('id, email, full_name, role, is_active, access_scope, protected_user, created_at, updated_at')
         .in('id', ids);
 
       if (profileErr) {
@@ -44,6 +44,8 @@ export default async function handler(req: any, res: any) {
         full_name: p?.full_name ?? u.user_metadata?.full_name ?? u.user_metadata?.name ?? null,
         role: p?.role ?? 'viewer',
         is_active: p?.is_active ?? true,
+        access_scope: p?.access_scope ?? 'current_site',
+        protected_user: p?.protected_user ?? false,
         created_at: p?.created_at ?? u.created_at,
         updated_at: p?.updated_at ?? u.updated_at,
         last_sign_in_at: u.last_sign_in_at ?? null,

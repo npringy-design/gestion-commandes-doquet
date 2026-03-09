@@ -1,7 +1,9 @@
 import { requireAdmin } from '../../_lib/auth.js';
 import { assertServerEnv, supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { badRequest, forbidden, methodNotAllowed, sendJson, serverError, unauthorized } from '../../_lib/http.js';
-const ALLOWED_ROLES = new Set(['admin', 'manager', 'viewer']);
+import { canManageTarget, MANAGEABLE_ROLES } from '../../_lib/permissions.js';
+
+const ALLOWED_ROLES = new Set(MANAGEABLE_ROLES);
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'PATCH') return methodNotAllowed(res, ['PATCH']);
@@ -22,14 +24,19 @@ export default async function handler(req: any, res: any) {
 
     if (!id) return badRequest(res, 'Identifiant utilisateur (id) requis.');
 
-    if (
-      id === auth.user.id &&
-      (req.body?.is_active === false || (req.body?.role && String(req.body?.role) !== 'admin'))
-    ) {
-      return badRequest(
-        res,
-        'Vous ne pouvez pas vous retirer vos propres droits admin ni vous désactiver.'
-      );
+    const { data: target, error: targetError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, role, is_active, protected_user')
+      .eq('id', id)
+      .single();
+
+    if (targetError || !target) {
+      return sendJson(res, 404, { ok: false, error: 'Profil utilisateur introuvable.' });
+    }
+
+    const permission = canManageTarget(auth.profile, target);
+    if (!permission.ok) {
+      return forbidden(res, permission.error);
     }
 
     const patch: Record<string, unknown> = {};
@@ -37,9 +44,10 @@ export default async function handler(req: any, res: any) {
     if (role !== undefined) {
       const nextRole = String(role);
       if (!ALLOWED_ROLES.has(nextRole)) {
-        return badRequest(res, 'Rôle invalide. Valeurs autorisées: admin, manager, viewer.');
+        return badRequest(res, 'Rôle invalide. Valeurs autorisées: global_admin, director, chef, manager, viewer.');
       }
       patch.role = nextRole;
+      patch.access_scope = nextRole === 'global_admin' ? 'all' : 'current_site';
     }
 
     if (isActive !== undefined) {
@@ -64,7 +72,7 @@ export default async function handler(req: any, res: any) {
       .from('profiles')
       .update(patch)
       .eq('id', id)
-      .select('id, email, full_name, role, is_active, created_at, updated_at')
+      .select('id, email, full_name, role, is_active, access_scope, protected_user, created_at, updated_at')
       .single();
 
     if (error) {
