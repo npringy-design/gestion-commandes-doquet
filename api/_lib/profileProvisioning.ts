@@ -1,10 +1,10 @@
 import { supabaseAdmin } from './supabaseAdmin.js';
 
 const normalizeRole = (value: unknown): string => {
-  const role = typeof value === 'string' ? value : 'viewer';
-  return ['super_admin', 'global_admin', 'director', 'chef', 'manager', 'viewer'].includes(role)
+  const role = typeof value === 'string' ? value : 'commande';
+  return ['super_admin', 'global_admin', 'director', 'manager_plus', 'manager', 'commande'].includes(role)
     ? role
-    : 'viewer';
+    : 'commande';
 };
 
 const scopeFromRole = (role: string): 'all' | 'current_site' =>

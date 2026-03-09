@@ -42,7 +42,10 @@ export default async function handler(req: any, res: any) {
     if (role !== undefined) {
       const nextRole = String(role);
       if (!ALLOWED_ROLES.has(nextRole)) {
-        return badRequest(res, 'Rôle invalide. Valeurs autorisées: global_admin, director, chef, manager, viewer.');
+        return badRequest(res, 'Rôle invalide. Valeurs autorisées: global_admin, director, manager_plus, manager, commande.');
+      }
+      if (!canAssignRole(auth.profile.role, nextRole)) {
+        return forbidden(res, 'Vous ne pouvez pas attribuer ce rôle.');
       }
       patch.role = nextRole;
       patch.access_scope = nextRole === 'global_admin' ? 'all' : 'current_site';

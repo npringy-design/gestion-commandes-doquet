@@ -7,6 +7,8 @@
 import React, { useState } from 'react';
 import { View } from '../constants';
 import { PasswordModal } from '../components/Modals';
+import { useAuth } from '../auth/AuthProvider';
+import { canAccessAdminDashboard, canAccessStatsPage } from '../lib/permissions';
 
 interface HomePageProps {
   setView: (v: View) => void;
@@ -14,6 +16,7 @@ interface HomePageProps {
 
 const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   const [showPassword, setShowPassword] = useState(false);
+  const { profile } = useAuth();
 
   const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches;
 
@@ -59,7 +62,9 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
 
           <button
             onClick={() => setView('stats')}
-            className="group bg-white p-4 sm:p-6 lg:p-8 rounded-[40px] shadow-2xl hover:scale-105 transition-all border-4 border-transparent hover:border-amber-500"
+            disabled={!canAccessStatsPage(profile)}
+            className={`group bg-white p-4 sm:p-6 lg:p-8 rounded-[40px] shadow-2xl transition-all border-4 ${canAccessStatsPage(profile) ? 'hover:scale-105 border-transparent hover:border-amber-500' : 'opacity-50 cursor-not-allowed border-slate-200'}`}
+            title={canAccessStatsPage(profile) ? 'Paramètres' : 'Accès réservé à Super Admin, Global Admin, Director, Manager+ et Manager'}
           >
             <div className="w-16 h-16 bg-amber-100 rounded-3xl flex items-center justify-center mb-4 mx-auto group-hover:bg-amber-500 transition-colors">
               <svg className="w-8 h-8 text-amber-600 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -85,7 +90,13 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
 
         {/* Accès admin discret */}
         <button
-          onClick={() => setShowPassword(true)}
+          onClick={() => {
+            if (canAccessAdminDashboard(profile)) {
+              setView('admin_dashboard');
+              return;
+            }
+            setShowPassword(true);
+          }}
           className="flex items-center gap-4 mx-auto text-white/20 hover:text-[#ffd700] transition-colors"
         >
           <span className="font-black uppercase text-[11px] tracking-widest">Accès Dashboard Admin</span>

@@ -1,7 +1,7 @@
 import { requireAdmin } from '../../_lib/auth.js';
 import { assertServerEnv, supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { badRequest, forbidden, methodNotAllowed, sendJson, serverError, unauthorized } from '../../_lib/http.js';
-import { MANAGEABLE_ROLES } from '../../_lib/permissions.js';
+import { canAssignRole, MANAGEABLE_ROLES } from '../../_lib/permissions.js';
 
 const ALLOWED_ROLES = new Set(MANAGEABLE_ROLES);
 
@@ -19,7 +19,7 @@ export default async function handler(req: any, res: any) {
 
     const email = String(req.body?.email ?? '').trim().toLowerCase();
     const tempPassword = String(req.body?.tempPassword ?? '');
-    const role = String(req.body?.role ?? 'viewer');
+    const role = String(req.body?.role ?? 'commande');
     const fullNameRaw = req.body?.fullName;
     const fullName = typeof fullNameRaw === 'string' ? fullNameRaw.trim() : null;
 
@@ -28,7 +28,10 @@ export default async function handler(req: any, res: any) {
       return badRequest(res, 'Mot de passe temporaire requis (minimum 8 caractères).');
     }
     if (!ALLOWED_ROLES.has(role)) {
-      return badRequest(res, 'Rôle invalide. Valeurs autorisées: global_admin, director, chef, manager, viewer.');
+      return badRequest(res, 'Rôle invalide. Valeurs autorisées: global_admin, director, manager_plus, manager, commande.');
+    }
+    if (!canAssignRole(auth.profile.role, role)) {
+      return forbidden(res, 'Vous ne pouvez pas attribuer ce rôle.');
     }
 
     const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({

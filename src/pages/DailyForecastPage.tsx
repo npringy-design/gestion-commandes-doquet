@@ -7,6 +7,8 @@
 import React, { useMemo, useState } from 'react';
 import { View, MONTHS_DISPLAY_CONFIG } from '../constants';
 import { DailyCoversState } from '../utils/dateHelpers';
+import { useAuth } from '../auth/AuthProvider';
+import { canEditPreviCouverts } from '../lib/permissions';
 
 interface DailyForecastPageProps {
   setView:        (v: View) => void;
@@ -18,6 +20,8 @@ const DailyForecastPage: React.FC<DailyForecastPageProps> = ({
   setView, dailyCovers, setDailyCovers,
 }) => {
   const [selectedMonth, setSelectedMonth] = useState('jan');
+  const { profile } = useAuth();
+  const canEdit = canEditPreviCouverts(profile);
   const monthData = dailyCovers[selectedMonth] || [];
   const monthTotal = useMemo(() => monthData.reduce((acc, d) => acc + Number(d?.midi || 0) + Number(d?.soir || 0), 0), [monthData]);
 
@@ -44,6 +48,12 @@ const DailyForecastPage: React.FC<DailyForecastPageProps> = ({
             Retour
           </button>
         </div>
+
+        {!canEdit && (
+          <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+            Lecture seule pour votre rôle sur les prévisions couverts.
+          </div>
+        )}
 
         <div className="mb-4 sm:mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="sm:col-span-2 bg-white rounded-2xl border border-slate-200 px-4 py-3 shadow-sm">
@@ -96,7 +106,8 @@ const DailyForecastPage: React.FC<DailyForecastPageProps> = ({
                       type="number" inputMode="numeric"
                       value={d.midi}
                       onChange={e => updateDay(i, 'midi', e.target.value)}
-                      className="w-full bg-slate-50 rounded-lg p-1.5 font-black text-center text-slate-700 text-sm outline-none focus:bg-emerald-50 focus:text-emerald-700 transition-colors"
+                      disabled={!canEdit}
+                      className="w-full bg-slate-50 rounded-lg p-1.5 font-black text-center text-slate-700 text-sm outline-none focus:bg-emerald-50 focus:text-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                   <div className="flex items-center gap-2">
@@ -105,7 +116,8 @@ const DailyForecastPage: React.FC<DailyForecastPageProps> = ({
                       type="number" inputMode="numeric"
                       value={d.soir}
                       onChange={e => updateDay(i, 'soir', e.target.value)}
-                      className="w-full bg-slate-50 rounded-lg p-1.5 font-black text-center text-slate-700 text-sm outline-none focus:bg-emerald-50 focus:text-emerald-700 transition-colors"
+                      disabled={!canEdit}
+                      className="w-full bg-slate-50 rounded-lg p-1.5 font-black text-center text-slate-700 text-sm outline-none focus:bg-emerald-50 focus:text-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>

@@ -11,6 +11,8 @@ import React, { useState } from 'react';
 import { MONTHS_ORDER, SupplierId } from '../constants';
 import MappingPopover from '../components/MappingPopover';
 import { useAppState } from '../hooks/useAppState';
+import { useAuth } from '../auth/AuthProvider';
+import { canEditRatios } from '../lib/permissions';
 
 type AppState = ReturnType<typeof useAppState>;
 
@@ -73,6 +75,7 @@ const ProductCard: React.FC<{
           type="checkbox"
           checked={selected}
           onChange={() => toggleProductSelection(p.id)}
+          disabled={!canEdit}
           className="w-5 h-5 accent-indigo-600 cursor-pointer shrink-0"
         />
 
@@ -82,6 +85,7 @@ const ProductCard: React.FC<{
           value={p.name}
           placeholder="NOM PRODUIT..."
           onChange={e => handleNameChange(p.id, e.target.value)}
+          disabled={!canEdit}
         />
 
         {/* Ratio moyen */}
@@ -131,7 +135,7 @@ const ProductCard: React.FC<{
                       orphanNames={Array.from(allAvailableImportNames).filter(
                         n => !products.some(pr => pr.searchName === n)
                       )}
-                      onSelect={n => { updateSearchName(p.id, n); setActiveMappingId(null); }}
+                      onSelect={n => { if (!canEdit) return; updateSearchName(p.id, n); setActiveMappingId(null); }}
                       onClose={() => setActiveMappingId(null)}
                     />
                   </div>
@@ -145,6 +149,7 @@ const ProductCard: React.FC<{
                 type="number"
                 value={p.importDivisor ?? ''}
                 onChange={e => updateImportDivisor(p.id, e.target.value)}
+                disabled={!canEdit}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-2 text-center font-black text-slate-700 outline-none focus:border-indigo-400 text-sm"
               />
             </div>
@@ -164,7 +169,8 @@ const ProductCard: React.FC<{
                   {/* Bouton figé/valider */}
                   <button
                     onClick={() => toggleValidateMonth(m)}
-                    className={`mt-0.5 w-full text-[7px] font-black rounded py-0.5 uppercase ${validatedMonths[m] ? 'bg-indigo-500 text-white' : 'bg-slate-200 text-slate-500'}`}
+                    disabled={!canEdit}
+                    className={`mt-0.5 w-full text-[7px] font-black rounded py-0.5 uppercase disabled:opacity-50 disabled:cursor-not-allowed ${validatedMonths[m] ? 'bg-indigo-500 text-white' : 'bg-slate-200 text-slate-500'}`}
                   >
                     {validatedMonths[m] ? 'Figé' : 'Val.'}
                   </button>
@@ -179,7 +185,8 @@ const ProductCard: React.FC<{
             <div className="flex gap-2">
               <button
                 onClick={() => moveProduct(p.id, 'up')}
-                disabled={idx === 0}
+                disabled={!canEdit || idx === 0}
+
                 className="w-9 h-9 rounded-xl bg-slate-900 text-[#ffd700] flex items-center justify-center disabled:opacity-20"
               >
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -188,7 +195,8 @@ const ProductCard: React.FC<{
               </button>
               <button
                 onClick={() => moveProduct(p.id, 'down')}
-                disabled={idx === total - 1}
+                disabled={!canEdit || idx === total - 1}
+
                 className="w-9 h-9 rounded-xl bg-slate-900 text-[#ffd700] flex items-center justify-center disabled:opacity-20"
               >
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -212,6 +220,9 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
   ratiosScrollWidth,
   syncRatiosScroll,
 }) => {
+  const { profile } = useAuth();
+  const canEdit = canEditRatios(profile);
+
   const {
     setView,
     ratioTab, setRatioTab,
@@ -240,7 +251,8 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
           </button>
           <button
             onClick={addNewProduct}
-            className="bg-indigo-600 text-white px-3 lg:px-8 py-2.5 lg:py-3 rounded-xl lg:rounded-2xl font-black uppercase text-[10px] lg:text-[11px] hover:bg-indigo-700 shadow-lg flex items-center gap-2"
+            disabled={!canEdit}
+            className="bg-indigo-600 text-white px-3 lg:px-8 py-2.5 lg:py-3 rounded-xl lg:rounded-2xl font-black uppercase text-[10px] lg:text-[11px] hover:bg-indigo-700 shadow-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"/>
@@ -250,7 +262,8 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
           {selectedProductIds.size > 0 && (
             <button
               onClick={deleteSelectedProducts}
-              className="bg-red-600 text-white px-3 lg:px-8 py-2.5 lg:py-3 rounded-xl lg:rounded-2xl font-black uppercase text-[10px] lg:text-[11px] hover:bg-red-700 shadow-lg flex items-center gap-2"
+              disabled={!canEdit}
+              className="bg-red-600 text-white px-3 lg:px-8 py-2.5 lg:py-3 rounded-xl lg:rounded-2xl font-black uppercase text-[10px] lg:text-[11px] hover:bg-red-700 shadow-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
@@ -290,6 +303,12 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
 
       {Header}
 
+      {!canEdit && (
+        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+          Lecture seule sur les ratios pour votre rôle.
+        </div>
+      )}
+
       {/* ══════════════════════════════════════════════════════
           VUE MOBILE / TABLETTE  (< lg = < 1024px)
           Cartes empilées, pas de tableau
@@ -303,6 +322,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
               type="checkbox"
               className="w-5 h-5 accent-indigo-600 cursor-pointer"
               checked={selectedProductIds.size === displayedRatioProducts.length}
+              disabled={!canEdit}
               onChange={() => setSelectedProductIds(
                 selectedProductIds.size === displayedRatioProducts.length
                   ? new Set()
@@ -350,6 +370,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                     type="checkbox"
                     className="w-5 h-5 accent-indigo-500 cursor-pointer"
                     checked={displayedRatioProducts.length > 0 && selectedProductIds.size === displayedRatioProducts.length}
+                    disabled={!canEdit}
                     onChange={() => setSelectedProductIds(
                       selectedProductIds.size === displayedRatioProducts.length
                         ? new Set()
@@ -393,7 +414,8 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                   <th key={m + 'b'} className={`border-r border-slate-600 p-2 ${validatedMonths[m] ? 'bg-indigo-800' : ''}`}>
                     <button
                       onClick={() => state.toggleValidateMonth(m)}
-                      className={`w-full py-2 px-3 rounded-lg font-black text-[9px] uppercase ${validatedMonths[m] ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'}`}
+                    disabled={!canEdit}
+                      className={`w-full py-2 px-3 rounded-lg font-black text-[9px] uppercase disabled:opacity-50 disabled:cursor-not-allowed ${validatedMonths[m] ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'}`}
                     >
                       {validatedMonths[m] ? 'Figé' : 'Valider'}
                     </button>
@@ -422,6 +444,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                       <input type="checkbox" className="w-5 h-5 accent-indigo-600 cursor-pointer"
                         checked={selectedProductIds.has(p.id)}
                         onChange={() => state.toggleProductSelection(p.id)}
+                        disabled={!canEdit}
                       />
                     </td>
 
@@ -432,13 +455,14 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                           value={p.name}
                           placeholder="NOM PRODUIT..."
                           onChange={e => state.handleNameChange(p.id, e.target.value)}
+                          disabled={!canEdit}
                         />
                         <div className="flex flex-col items-center justify-center gap-1 opacity-20 group-hover:opacity-100 transition-opacity pr-2">
-                          <button onClick={() => state.moveProduct(p.id, 'up')} disabled={idx === 0}
+                          <button onClick={() => state.moveProduct(p.id, 'up')} disabled={!canEdit || idx === 0}
                             className="text-[#ffd700] hover:text-white disabled:opacity-0 active:scale-110 p-1 bg-slate-900 rounded shadow-md border border-[#ffd700]/20">
                             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"/></svg>
                           </button>
-                          <button onClick={() => state.moveProduct(p.id, 'down')} disabled={idx === displayedRatioProducts.length - 1}
+                          <button onClick={() => state.moveProduct(p.id, 'down')} disabled={!canEdit || idx === displayedRatioProducts.length - 1}
                             className="text-[#ffd700] hover:text-white disabled:opacity-0 active:scale-110 p-1 bg-slate-900 rounded shadow-md border border-[#ffd700]/20">
                             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
                           </button>
@@ -452,8 +476,9 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                           className={`flex-1 h-full bg-transparent outline-none font-bold italic text-[11px] ${alert ? 'text-amber-600' : 'text-slate-500'}`}
                           value={p.searchName}
                           onChange={e => state.updateSearchName(p.id, e.target.value)}
+                          disabled={!canEdit}
                         />
-                        <button onClick={() => state.setActiveMappingId(state.activeMappingId === p.id ? null : p.id)}
+                        <button onClick={() => canEdit && state.setActiveMappingId(state.activeMappingId === p.id ? null : p.id)} disabled={!canEdit}
                           className={`w-7 h-7 rounded-full flex items-center justify-center ml-2 ${alert ? 'bg-amber-100 hover:bg-amber-200 text-amber-600' : 'bg-slate-100 hover:bg-slate-200 text-slate-500'}`}
                           title="Rechercher un mapping">
                           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"/></svg>
@@ -461,7 +486,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                         {state.activeMappingId === p.id && (
                           <MappingPopover
                             orphanNames={Array.from(state.allAvailableImportNames).filter(n => !state.products.some(pr => pr.searchName === n))}
-                            onSelect={n => { state.updateSearchName(p.id, n); state.setActiveMappingId(null); }}
+                            onSelect={n => { if (!canEdit) return; state.updateSearchName(p.id, n); state.setActiveMappingId(null); }}
                             onClose={() => state.setActiveMappingId(null)}
                           />
                         )}
@@ -472,6 +497,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                       <div className="w-full h-full flex items-center justify-center px-2">
                         <input type="number" value={p.importDivisor ?? ''}
                           onChange={e => state.updateImportDivisor(p.id, e.target.value)}
+                          disabled={!canEdit}
                           className="w-24 h-10 bg-white/70 border border-slate-200 rounded-xl text-center font-black text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all text-[11px]"
                         />
                       </div>

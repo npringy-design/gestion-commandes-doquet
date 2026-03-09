@@ -30,7 +30,7 @@ export default async function handler(req: any, res: any) {
         id: u.id,
         email: p?.email ?? u.email ?? null,
         full_name: p?.full_name ?? u.user_metadata?.full_name ?? u.user_metadata?.name ?? null,
-        role: p?.role ?? 'viewer',
+        role: p?.role ?? 'commande',
         is_active: p?.is_active ?? true,
         access_scope: p?.access_scope ?? 'current_site',
         protected_user: p?.protected_user ?? false,

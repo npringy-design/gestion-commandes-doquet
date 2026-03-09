@@ -34,7 +34,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ setView, isAdmin = fals
         >
           <h3 className="text-white text-2xl font-black uppercase mb-2">Rotations Fournisseurs</h3>
           <p className="text-white/40 font-bold uppercase text-[9px] tracking-widest">
-            Jours de cut-off et livraisons
+Jours de cut-off et livraisons
           </p>
         </button>
 

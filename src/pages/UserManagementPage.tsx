@@ -2,8 +2,9 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { View } from '../constants';
 import { useAuth } from '../auth/AuthProvider';
 import { useToast } from '../components/Toast';
+import { ROLE_LABELS, canAccessUserManagement, canManageTarget as canManageTargetUi, getAssignableRoleOptions, getCreatableRoles } from '../lib/permissions';
 
-type Role = 'super_admin' | 'global_admin' | 'director' | 'chef' | 'manager' | 'viewer';
+type Role = 'super_admin' | 'global_admin' | 'director' | 'manager_plus' | 'manager' | 'commande';
 
 type UserRow = {
   id: string;
@@ -29,16 +30,6 @@ interface UserManagementPageProps {
   setView: (v: View) => void;
 }
 
-const ROLE_OPTIONS: Role[] = ['global_admin', 'director', 'chef', 'manager', 'viewer'];
-
-const ROLE_LABELS: Record<Role, string> = {
-  super_admin: 'SUPER_ADMIN',
-  global_admin: 'GLOBAL_ADMIN',
-  director: 'DIRECTOR',
-  chef: 'CHEF',
-  manager: 'MANAGER',
-  viewer: 'VIEWER',
-};
 
 const formatDate = (value?: string | null) => {
   if (!value) return '—';
@@ -52,7 +43,7 @@ const formatDate = (value?: string | null) => {
 };
 
 const UserManagementPage: React.FC<UserManagementPageProps> = ({ setView }) => {
-const { session, isAdmin, profile } = useAuth();
+const { session, profile } = useAuth();
   const { showToast } = useToast();
 
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -66,7 +57,7 @@ const [loadError, setLoadError] = useState<string | null>(null);
   const [formEmail, setFormEmail] = useState('');
   const [formFullName, setFormFullName] = useState('');
   const [formTempPassword, setFormTempPassword] = useState('');
-  const [formRole, setFormRole] = useState<Role>('viewer');
+  const [formRole, setFormRole] = useState<Role>('commande');
 
   const bearer = session?.access_token;
 
@@ -136,6 +127,7 @@ setLoadError(msg);
   const currentUserId = profile?.id ?? null;
   const currentUserRole = profile?.role ?? null;
   const isSuperAdmin = currentUserRole === 'super_admin';
+  const creatableRoles = getCreatableRoles(profile) as Role[];
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,7 +154,7 @@ setLoadError(msg);
       setFormEmail('');
       setFormFullName('');
       setFormTempPassword('');
-      setFormRole('viewer');
+      setFormRole('commande');
       await loadUsers();
     } catch (error: any) {
       showToast(error?.message || 'Erreur lors de la création.', 'error');
@@ -238,7 +230,7 @@ setLoadError(msg);
     }
   };
 
-if (!isAdmin) {
+if (!canAccessUserManagement(profile)) {
   return (
     <div className="min-h-screen bg-[#f1f5f9] p-3 lg:p-6 pb-20">
       <div className="max-w-3xl mx-auto bg-white border border-slate-200 rounded-[30px] shadow-xl p-6 text-center">
@@ -279,7 +271,7 @@ if (!isAdmin) {
               <button
                 onClick={() => setCreateOpen(true)}
                 className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-black uppercase text-[11px] tracking-wider"
-                title={isSuperAdmin ? 'Création autorisée en tant que super admin' : "Création autorisée en tant qu'administrateur global"}
+                title="Créer un utilisateur autorisé par votre rôle"
               >
                 + Créer un utilisateur
               </button>
@@ -343,10 +335,13 @@ if (!isAdmin) {
                     const isCurrentUser = currentUserId === u.id;
                     const isProtected = Boolean(u.protected_user);
                     const isSuperAdminRow = u.role === 'super_admin';
-                    const canEditRole = !busy && !isCurrentUser && !isProtected && !isSuperAdminRow;
-                    const canToggleStatus = !busy && !isCurrentUser && !isProtected && !isSuperAdminRow;
-                    const canDelete = !busy && !isCurrentUser && !isProtected && !isSuperAdminRow;
-                    const availableRoleOptions = u.role === 'super_admin' ? ['super_admin', ...ROLE_OPTIONS] : ROLE_OPTIONS;
+                    const canManageRow = canManageTargetUi(profile, u);
+                    const canEditRole = !busy && canManageRow;
+                    const canToggleStatus = !busy && canManageRow;
+                    const canDelete = !busy && canManageRow;
+                    const availableRoleOptions = ((u.role === 'super_admin' ? ['super_admin'] : getAssignableRoleOptions(profile, u)) as Role[]).length
+                      ? ((u.role === 'super_admin' ? ['super_admin'] : getAssignableRoleOptions(profile, u)) as Role[])
+                      : [u.role];
                     return (
                       <tr key={u.id} className="border-t border-slate-100 hover:bg-slate-50/80 transition-colors">
                         <td className="p-3 text-sm font-bold text-slate-700">{u.email || '—'}</td>
@@ -459,7 +454,7 @@ if (!isAdmin) {
                 onChange={(e) => setFormRole(e.target.value as Role)}
                 className="w-full h-11 px-3 rounded-xl border border-slate-300 font-bold"
               >
-                {ROLE_OPTIONS.map((r) => (
+                {creatableRoles.map((r) => (
                   <option key={r} value={r}>
                     {ROLE_LABELS[r]}
                   </option>

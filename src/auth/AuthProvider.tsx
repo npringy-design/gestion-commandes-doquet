@@ -6,9 +6,9 @@ export type AppRole =
   | 'super_admin'
   | 'global_admin'
   | 'director'
-  | 'chef'
+  | 'manager_plus'
   | 'manager'
-  | 'viewer';
+  | 'commande';
 
 export type AppProfile = {
   id: string;
@@ -152,7 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const value = useMemo<AuthContextValue>(() => {
     const isActive = profile?.is_active ?? true;
-    const isAdmin = ['super_admin', 'global_admin'].includes(profile?.role ?? '') && isActive;
+    const isAdmin = ['super_admin', 'global_admin', 'director'].includes(profile?.role ?? '') && isActive;
 
     return {
       session,

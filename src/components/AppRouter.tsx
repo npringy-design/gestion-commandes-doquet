@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { isSupabaseConfigured as isAuthConfigured } from '../lib/supabaseClient';
 import { useAuth } from '../auth/AuthProvider';
+import { canAccessAdminDashboard, canAccessStatsPage, canAccessSupplierSettings, canAccessUserManagement } from '../lib/permissions';
 import type { View } from '../constants';
 import type { AppState } from '../hooks/useAppState';
 
@@ -43,7 +44,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
   syncRatiosScroll,
 }) => {
   const { view, setView } = state;
-  const { user, signOut, isAdmin } = useAuth();
+  const { user, signOut, isAdmin, profile } = useAuth();
 
   const [isMobile, setIsMobile] = React.useState(false);
   React.useEffect(() => {
@@ -128,6 +129,9 @@ const AppRouter: React.FC<AppRouterProps> = ({
   if (view === 'home') return renderWithShell(<HomePage setView={setView} />);
 
   if (view === 'admin_dashboard') {
+    if (!canAccessAdminDashboard(profile)) {
+      return renderWithShell(<AccessDenied message="Cette section est réservée aux rôles autorisés pour ce module." />);
+    }
     return renderLazyPage(<AdminDashboard setView={setView} isAdmin={isAdmin} />, 'Chargement du tableau de bord…');
   }
 
@@ -147,6 +151,9 @@ const AppRouter: React.FC<AppRouterProps> = ({
   if (view === 'stats' && isMobile) return renderWithShell(<MobileBlocked title="Paramètres" />);
 
   if (view === 'stats') {
+    if (!canAccessStatsPage(profile)) {
+      return renderWithShell(<AccessDenied message="Cette section est réservée aux rôles autorisés pour ce module." />);
+    }
     return renderLazyPage(
       <StatsPage
         setView={setView}
@@ -180,6 +187,9 @@ const AppRouter: React.FC<AppRouterProps> = ({
   }
 
   if (view === 'supplier_settings') {
+    if (!canAccessSupplierSettings(profile)) {
+      return renderWithShell(<AccessDenied message="Cette section est réservée aux rôles autorisés pour ce module." />);
+    }
     return renderLazyPage(
       <SupplierSettingsPage
         setView={setView}
@@ -191,8 +201,8 @@ const AppRouter: React.FC<AppRouterProps> = ({
   }
 
   if (view === 'user_management') {
-    if (!isAdmin) {
-      return renderWithShell(<AccessDenied />);
+    if (!canAccessUserManagement(profile)) {
+      return renderWithShell(<AccessDenied message="Cette section est réservée aux rôles autorisés de gestion utilisateurs." />);
     }
 
     return renderLazyPage(

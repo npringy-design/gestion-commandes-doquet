@@ -1,3 +1,4 @@
+import { canAccessUserManagement } from './permissions.js';
 import { supabaseAdmin } from './supabaseAdmin.js';
 
 const readBearerToken = (req: any): string | null => {
@@ -32,8 +33,8 @@ export const requireAdmin = async (req: any) => {
     return { ok: false as const, status: 403, error: 'Compte administrateur inactif.' };
   }
 
-  if (!['super_admin', 'global_admin'].includes(profile.role)) {
-    return { ok: false as const, status: 403, error: 'Droits administrateur requis.' };
+  if (!canAccessUserManagement(profile.role)) {
+    return { ok: false as const, status: 403, error: 'Droits de gestion utilisateurs requis.' };
   }
 
   return { ok: true as const, user: userData.user, profile };
