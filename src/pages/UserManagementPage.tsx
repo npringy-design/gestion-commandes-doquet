@@ -31,6 +31,15 @@ interface UserManagementPageProps {
 
 const ROLE_OPTIONS: Role[] = ['global_admin', 'director', 'chef', 'manager', 'viewer'];
 
+const ROLE_LABELS: Record<Role, string> = {
+  super_admin: 'SUPER_ADMIN',
+  global_admin: 'GLOBAL_ADMIN',
+  director: 'DIRECTOR',
+  chef: 'CHEF',
+  manager: 'MANAGER',
+  viewer: 'VIEWER',
+};
+
 const formatDate = (value?: string | null) => {
   if (!value) return '—';
   const d = new Date(value);
@@ -124,6 +133,9 @@ setLoadError(msg);
   }, [loadUsers]);
 
   const usersCount = useMemo(() => users.length, [users]);
+  const currentUserId = profile?.id ?? null;
+  const currentUserRole = profile?.role ?? null;
+  const isSuperAdmin = currentUserRole === 'super_admin';
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -251,6 +263,7 @@ if (!isAdmin) {
               <button
                 onClick={() => setCreateOpen(true)}
                 className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-black uppercase text-[11px] tracking-wider"
+                title={isSuperAdmin ? 'Création autorisée en tant que super admin' : 'Création autorisée en tant qu'administrateur global'}
               >
                 + Créer un utilisateur
               </button>
@@ -311,9 +324,13 @@ if (!isAdmin) {
 {!loading && !loadError &&
                   users.map((u) => {
                     const busy = actionId === u.id;
-                    const isCurrentUser = profile?.id === u.id;
+                    const isCurrentUser = currentUserId === u.id;
                     const isProtected = Boolean(u.protected_user);
-                    const canEditRow = !busy && !isCurrentUser && !isProtected;
+                    const isSuperAdminRow = u.role === 'super_admin';
+                    const canEditRole = !busy && !isCurrentUser && !isProtected && !isSuperAdminRow;
+                    const canToggleStatus = !busy && !isCurrentUser && !isProtected && !isSuperAdminRow;
+                    const canDelete = !busy && !isCurrentUser && !isProtected && !isSuperAdminRow;
+                    const availableRoleOptions = u.role === 'super_admin' ? ['super_admin', ...ROLE_OPTIONS] : ROLE_OPTIONS;
                     return (
                       <tr key={u.id} className="border-t border-slate-100 hover:bg-slate-50/80 transition-colors">
                         <td className="p-3 text-sm font-bold text-slate-700">{u.email || '—'}</td>
@@ -322,12 +339,12 @@ if (!isAdmin) {
                           <select
                             value={u.role}
                             onChange={(e) => void updateRole(u.id, e.target.value as Role)}
-                            disabled={!canEditRow}
-                            className="h-9 px-3 rounded-lg border border-slate-300 bg-white text-sm font-bold text-slate-700 disabled:opacity-50"
+                            disabled={!canEditRole}
+                            className="h-9 px-3 rounded-lg border border-slate-300 bg-white text-sm font-bold text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            {ROLE_OPTIONS.map((r) => (
+                            {availableRoleOptions.map((r) => (
                               <option key={r} value={r}>
-                                {r.toUpperCase()}
+                                {ROLE_LABELS[r]}
                               </option>
                             ))}
                           </select>
@@ -351,20 +368,28 @@ if (!isAdmin) {
                         <td className="p-3 text-sm font-semibold text-slate-500">{formatDate(u.created_at)}</td>
                         <td className="p-3">
                           <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => void toggleActive(u.id)}
-                              disabled={busy}
-                              className="h-9 px-3 rounded-lg bg-slate-900 text-white text-[11px] font-black uppercase disabled:opacity-50"
-                            >
-                              {busy ? '...' : u.is_active ? 'Désactiver' : 'Réactiver'}
-                            </button>
-                            <button
-                              onClick={() => setConfirmDeleteId(u.id)}
-                              disabled={busy}
-                              className="h-9 px-3 rounded-lg bg-red-600 text-white text-[11px] font-black uppercase disabled:opacity-50"
-                            >
-                              Supprimer
-                            </button>
+                            {canToggleStatus ? (
+                              <button
+                                onClick={() => void toggleActive(u.id)}
+                                disabled={!canToggleStatus}
+                                className="h-9 px-3 rounded-lg bg-slate-900 text-white text-[11px] font-black uppercase disabled:opacity-50"
+                              >
+                                {busy ? '...' : u.is_active ? 'Désactiver' : 'Réactiver'}
+                              </button>
+                            ) : (
+                              <span className="inline-flex items-center h-9 px-3 rounded-lg bg-slate-100 text-slate-500 text-[11px] font-black uppercase">
+                                {isCurrentUser ? 'Compte courant' : isProtected || isSuperAdminRow ? 'Compte protégé' : 'Action bloquée'}
+                              </span>
+                            )}
+                            {canDelete ? (
+                              <button
+                                onClick={() => setConfirmDeleteId(u.id)}
+                                disabled={!canDelete}
+                                className="h-9 px-3 rounded-lg bg-red-600 text-white text-[11px] font-black uppercase disabled:opacity-50"
+                              >
+                                Supprimer
+                              </button>
+                            ) : null}
                           </div>
                         </td>
                       </tr>
@@ -420,7 +445,7 @@ if (!isAdmin) {
               >
                 {ROLE_OPTIONS.map((r) => (
                   <option key={r} value={r}>
-                    {r.toUpperCase()}
+                    {ROLE_LABELS[r]}
                   </option>
                 ))}
               </select>
