@@ -263,7 +263,7 @@ if (!isAdmin) {
               <button
                 onClick={() => setCreateOpen(true)}
                 className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-black uppercase text-[11px] tracking-wider"
-                title={isSuperAdmin ? 'Création autorisée en tant que super admin' : 'Création autorisée en tant qu'administrateur global'}
+                title={isSuperAdmin ? 'Création autorisée en tant que super admin' : "Création autorisée en tant qu'administrateur global"}
               >
                 + Créer un utilisateur
               </button>
