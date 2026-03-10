@@ -145,6 +145,8 @@ export interface ProductWithHistory extends Product {
 export const DOQUET_CONFIG: SupplierConfig = {
   id: 'doquet',
   name: 'Doquet',
+  subtitle: 'Softs • Jus • Cocktails',
+  visualKey: 'amber-wave',
   deliveryDay: 3,    // Mercredi
   cutoffDay: 2,      // Mardi avant 10h
   cutoffTime: '10:00',
@@ -156,6 +158,8 @@ export const DOQUET_CONFIG: SupplierConfig = {
 export const VINS_CONFIG: SupplierConfig = {
   id: 'vins',
   name: 'Richard Vins',
+  subtitle: 'Cave • Alcools',
+  visualKey: 'wine-cellar',
   deliveryDay: 5,    // Vendredi
   cutoffDay: 2,      // Mardi avant 10h
   cutoffTime: '10:00',
@@ -167,6 +171,8 @@ export const VINS_CONFIG: SupplierConfig = {
 export const VIANDES_CONFIG: SupplierConfig = {
   id: 'viandes',
   name: 'Plaine Maison',
+  subtitle: 'Boucherie • Grill',
+  visualKey: 'grill-fire',
   deliveryDay: 1,
   cutoffDay: 5,      // Vendredi avant 10h pour livraison lundi
   cutoffTime: '10:00',
@@ -176,6 +182,8 @@ export const VIANDES_CONFIG: SupplierConfig = {
 export const DOMAFRAIS_CONFIG: SupplierConfig = {
   id: 'domafrais',
   name: 'Domafrais Viandes',
+  subtitle: 'Viandes • Volailles',
+  visualKey: 'farm-fresh',
   deliveryDay: 3,
   cutoffDay: 1,
   cutoffTime: '10:00',
@@ -188,6 +196,8 @@ export const DOMAFRAIS_CONFIG: SupplierConfig = {
 export const DOMAFRAIS_BOF_CONFIG: SupplierConfig = {
   id: 'domafrais_bof',
   name: 'Domafrais B.O.F',
+  subtitle: 'Crémerie • Fromages',
+  visualKey: 'farm-fresh',
   deliveryDay: 3,
   cutoffDay: 1,
   cutoffTime: '10:00',
@@ -200,6 +210,8 @@ export const DOMAFRAIS_BOF_CONFIG: SupplierConfig = {
 export const DOMAFRAIS_SURGELE_CONFIG: SupplierConfig = {
   id: 'domafrais_surgele',
   name: 'Domafrais Surgelé',
+  subtitle: 'Surgelés • Glaces',
+  visualKey: 'ice-blue',
   deliveryDay: 3,   // Mercredi
   cutoffDay: 2,     // Mardi
   cutoffTime: '10:00'
@@ -209,6 +221,8 @@ export const DOMAFRAIS_SURGELE_CONFIG: SupplierConfig = {
 export const POMONA_TERRE_AZUR_CONFIG: SupplierConfig = {
   id: 'pomona_terre_azur',
   name: 'Pomona Terre Azur',
+  subtitle: 'Fruits • Légumes',
+  visualKey: 'market-green',
   deliveryDay: 1,
   cutoffDay: 5,
   cutoffTime: '10:00',
@@ -218,6 +232,8 @@ export const POMONA_TERRE_AZUR_CONFIG: SupplierConfig = {
 export const POMONA_EPISAVEURS_CONFIG: SupplierConfig = {
   id: 'pomona_episaveurs',
   name: 'Pomona Episaveurs',
+  subtitle: 'Épicerie • Aides culinaires',
+  visualKey: 'spice-gold',
   deliveryDay: 5,    // Vendredi
   cutoffDay: 2,      // Mardi avant 10h
   cutoffTime: '10:00',

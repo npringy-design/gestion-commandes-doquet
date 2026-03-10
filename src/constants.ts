@@ -43,9 +43,17 @@ export const MONTH_KEY_TO_NAME: Record<string, string> = {
 export const STORAGE_PREFIX = 'hippo_v6_';
 
 // Types de vues de navigation
-export type CoreView =
+export type View =
   | 'home'
   | 'suppliers'
+  | 'doquet'
+  | 'vins'
+  | 'viandes'
+  | 'domafrais'
+  | 'domafrais_bof'
+  | 'domafrais_surgele'
+  | 'pomona_terre_azur'
+  | 'pomona_episaveurs'
   | 'stats'
   | 'ratios'
   | 'daily_forecast'
@@ -54,12 +62,10 @@ export type CoreView =
   | 'user_management'
   | 'cost_analysis';
 
-export type View = CoreView | (string & {});
-
 // IDs des fournisseurs
-export type SupplierId = string;
+export type SupplierId = 'doquet' | 'vins' | 'viandes' | 'domafrais' | 'domafrais_bof' | 'domafrais_surgele' | 'pomona_terre_azur' | 'pomona_episaveurs';
 
-export const SUPPLIER_LABELS: Record<string, { name: string; subtitle: string }> = {
+export const SUPPLIER_LABELS: Record<SupplierId, { name: string; subtitle: string }> = {
   doquet:        { name: "DOQUET",            subtitle: "Softs • Jus • Cocktails" },
   vins:          { name: "Richard Vins",      subtitle: "Cave • Alcools"          },
   viandes:       { name: "Plaine Maison",     subtitle: "Boucherie • Grill"       },
@@ -69,25 +75,3 @@ export const SUPPLIER_LABELS: Record<string, { name: string; subtitle: string }>
   pomona_terre_azur: { name: "Pomona Terre Azur", subtitle: "Fruits • Légumes" },
   pomona_episaveurs: { name: "Pomona Episaveurs", subtitle: "Épicerie • Aides culinaires" },
 };
-
-
-export const RESERVED_VIEWS = new Set<CoreView>([
-  'home',
-  'suppliers',
-  'stats',
-  'ratios',
-  'daily_forecast',
-  'admin_dashboard',
-  'supplier_settings',
-  'user_management',
-  'cost_analysis',
-]);
-
-export const slugifySupplierId = (value: string): string =>
-  value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .replace(/_{2,}/g, '_');

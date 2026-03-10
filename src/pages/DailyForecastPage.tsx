@@ -42,7 +42,7 @@ const DailyForecastPage: React.FC<DailyForecastPageProps> = ({
             Prévisions <span className="text-emerald-600">Journalières</span>
           </h1>
           <button
-            onClick={() => setView('admin_dashboard')}
+            onClick={() => setView('stats')}
             className="w-full sm:w-auto px-4 sm:px-8 py-3 sm:py-4 bg-white border-2 border-slate-200 text-slate-500 font-black uppercase text-xs rounded-2xl hover:bg-slate-50 transition-all"
           >
             Retour

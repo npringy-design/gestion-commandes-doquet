@@ -9,7 +9,6 @@
 
 import React, { useState } from 'react';
 import { MONTHS_ORDER, SupplierId } from '../constants';
-import { SupplierConfig } from '../types';
 import MappingPopover from '../components/MappingPopover';
 import { useAppState } from '../hooks/useAppState';
 import { useAuth } from '../auth/AuthProvider';
@@ -25,6 +24,16 @@ interface RatiosPageProps {
   syncRatiosScroll:      (source: 'main' | 'bottom') => void;
 }
 
+const SUPPLIER_TABS: { id: SupplierId; label: string }[] = [
+  { id: 'doquet',        label: 'Doquet'            },
+  { id: 'vins',          label: 'Richard Vins'      },
+  { id: 'viandes',       label: 'Plaine Maison'     },
+  { id: 'domafrais',     label: 'Domafrais Viandes' },
+  { id: 'domafrais_bof', label: 'Domafrais B.O.F'   },
+  { id: 'domafrais_surgele', label: 'Domafrais Surgelé' },
+  { id: 'pomona_terre_azur', label: 'Pomona Terre Azur' },
+  { id: 'pomona_episaveurs', label: 'Pomona Episaveurs' },
+];
 
 const MONTH_LABELS: Record<string, string> = {
   jan: 'Jan', feb: 'Fév', mar: 'Mar', apr: 'Avr',
@@ -219,7 +228,6 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
     setView,
     ratioTab, setRatioTab,
     products, setProducts,
-    supplierConfigs,
     selectedProductIds, setSelectedProductIds,
     addNewProduct,
     deleteSelectedProducts,
@@ -227,19 +235,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
     getProductStats,
   } = state;
 
-  const supplierTabs: { id: SupplierId; label: string }[] = Object.values(supplierConfigs)
-    .filter((config: SupplierConfig) => !config.isArchived)
-    .map((config: SupplierConfig) => ({ id: config.id, label: config.name }));
-
-  const safeRatioTab = supplierTabs.some(tab => tab.id === ratioTab)
-    ? ratioTab
-    : (supplierTabs[0]?.id ?? 'doquet');
-
-  React.useEffect(() => {
-    if (safeRatioTab !== ratioTab) setRatioTab(safeRatioTab);
-  }, [ratioTab, safeRatioTab, setRatioTab]);
-
-  const displayedRatioProducts = products.filter(p => p.supplierId === safeRatioTab);
+  const displayedRatioProducts = products.filter(p => p.supplierId === ratioTab);
 
   // ── Header commun (PC + mobile) ──────────────────────────────
   const Header = (
@@ -280,11 +276,11 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
 
         {/* Onglets fournisseurs */}
         <div className="flex flex-wrap gap-1.5 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-          {supplierTabs.map(tab => (
+          {SUPPLIER_TABS.map(tab => (
             <button
               key={tab.id}
               onClick={() => setRatioTab(tab.id)}
-              className={`px-3 lg:px-6 py-2 rounded-xl font-black uppercase text-[10px] lg:text-[11px] transition-all whitespace-nowrap ${safeRatioTab === tab.id ? 'bg-white text-slate-900 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+              className={`px-3 lg:px-6 py-2 rounded-xl font-black uppercase text-[10px] lg:text-[11px] transition-all whitespace-nowrap ${ratioTab === tab.id ? 'bg-white text-slate-900 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
             >
               {tab.label}
             </button>
