@@ -31,15 +31,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ setView, profile = null
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {canAccessSupplierSettings(profile) && (
-          <button
-            onClick={() => setView('supplier_settings')}
-            className="bg-white/5 border border-white/10 p-10 rounded-[40px] text-left hover:border-[#ffd700] transition-all group"
-          >
-            <h3 className="text-white text-2xl font-black uppercase mb-2">Rotations Fournisseurs</h3>
-            <p className="text-white/40 font-bold uppercase text-[9px] tracking-widest">
-Jours de cut-off et livraisons
-            </p>
-          </button>
+          <>
+            <button
+              onClick={() => setView('supplier_settings')}
+              className="bg-white/5 border border-white/10 p-10 rounded-[40px] text-left hover:border-[#ffd700] transition-all group"
+            >
+              <h3 className="text-white text-2xl font-black uppercase mb-2">Paramètres Fournisseurs</h3>
+              <p className="text-white/40 font-bold uppercase text-[9px] tracking-widest">
+                Gestion fournisseurs, cut-off et livraisons
+              </p>
+            </button>
+
+            <button
+              onClick={() => setView('daily_forecast')}
+              className="bg-white/5 border border-white/10 p-10 rounded-[40px] text-left hover:border-[#93c47d] transition-all group"
+            >
+              <h3 className="text-white text-2xl font-black uppercase mb-2">Prévi couverts</h3>
+              <p className="text-white/40 font-bold uppercase text-[9px] tracking-widest">
+                Prévisionnel journalier et couverts à venir
+              </p>
+            </button>
+          </>
         )}
 
 {canAccessUserManagement(profile) && (

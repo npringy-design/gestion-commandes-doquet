@@ -1,6 +1,6 @@
 // =============================================================
 // pages/SuppliersPage.tsx
-// Page de sélection du fournisseur
+// Page de sélection du fournisseur (grille visuelle)
 // =============================================================
 
 import React from 'react';
@@ -10,42 +10,18 @@ import { getSupplierVisual } from '../lib/supplierVisuals';
 
 interface SuppliersPageProps {
   setView: (v: View) => void;
-  configs?: Record<string, SupplierConfig>;
+  supplierConfigs: Record<string, SupplierConfig>;
 }
 
-const SUPPLIER_VIEW_ORDER: View[] = [
-  'doquet',
-  'vins',
-  'viandes',
-  'domafrais',
-  'domafrais_bof',
-  'pomona_terre_azur',
-  'pomona_episaveurs',
-  'domafrais_surgele',
-];
-
-const FALLBACK_LABELS: Record<string, { name: string; subtitle: string }> = {
-  doquet: { name: 'DOQUET', subtitle: 'Softs • Jus • Cocktails' },
-  vins: { name: 'RICHARD VINS', subtitle: 'Cave • Alcools' },
-  viandes: { name: 'PLAINE MAISON', subtitle: 'Boucherie • Grill' },
-  domafrais: { name: 'DOMAFRAIS VIANDES', subtitle: 'Viandes • Volailles' },
-  domafrais_bof: { name: 'DOMAFRAIS B.O.F', subtitle: 'Crémerie • Fromages' },
-  pomona_terre_azur: { name: 'POMONA TERRE AZUR', subtitle: 'Fruits • Légumes' },
-  pomona_episaveurs: { name: 'POMONA EPISAVEURS', subtitle: 'Épicerie • Aides culinaires' },
-  domafrais_surgele: { name: 'DOMAFRAIS SURGELÉ', subtitle: 'Surgelés • Glaces' },
-};
-
-const SuppliersPage: React.FC<SuppliersPageProps> = ({ setView, configs = {} }) => {
-  const cards = SUPPLIER_VIEW_ORDER.map((view) => {
-    const config = configs[view];
-    const fallback = FALLBACK_LABELS[view];
-    return {
-      view,
-      name: (config?.name || fallback?.name || String(view)).toUpperCase(),
-      subtitle: config?.subtitle || fallback?.subtitle || '',
-      visual: getSupplierVisual(config?.visualKey),
-    };
-  });
+const SuppliersPage: React.FC<SuppliersPageProps> = ({ setView, supplierConfigs }) => {
+  const cards = Object.values(supplierConfigs)
+    .filter(card => !card.isArchived)
+    .map(card => ({
+      view: card.id as View,
+      name: card.name,
+      subtitle: card.subtitle || 'Fournisseur',
+      visual: getSupplierVisual(card.visualKey),
+    }));
 
   return (
     <div className="min-h-screen bg-[#1a0f0a] flex flex-col items-center p-4 sm:p-6 lg:p-8 overflow-x-hidden relative">
@@ -53,8 +29,8 @@ const SuppliersPage: React.FC<SuppliersPageProps> = ({ setView, configs = {} }) 
         className="absolute inset-0 z-0 opacity-30 pointer-events-none"
         style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/brick-wall.png')` }}
       />
-      <div className="w-full max-w-[1440px] z-10 flex flex-col h-full">
-        <div className="flex justify-between items-center mb-6 sm:mb-10 gap-3">
+      <div className="w-full max-w-[1400px] z-10 flex flex-col h-full">
+        <div className="flex justify-between items-center mb-6 sm:mb-12 gap-2">
           <div className="flex flex-col">
             <h2 className="text-[#ffd700] text-3xl sm:text-5xl font-black uppercase tracking-tighter leading-none mb-2">
               Fournisseurs
@@ -69,30 +45,28 @@ const SuppliersPage: React.FC<SuppliersPageProps> = ({ setView, configs = {} }) 
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6 lg:gap-7 flex-1 pb-12">
-          {cards.map((card) => (
-            <button
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:p-6 lg:p-8 flex-1 pb-12">
+          {cards.map(card => (
+            <div
               key={card.view}
               onClick={() => setView(card.view)}
-              className="group text-left focus:outline-none"
+              className="group cursor-pointer transform transition-all hover:-translate-y-3"
             >
               <div
-                className="relative h-[260px] sm:h-[360px] lg:h-[430px] w-full rounded-[30px] sm:rounded-[42px] overflow-hidden border border-white/10 shadow-[0_18px_45px_rgba(0,0,0,0.35)] transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-[0_28px_65px_rgba(0,0,0,0.45)] group-hover:border-[#ffd700]/60"
+                className="relative h-[240px] sm:h-[340px] lg:h-[420px] w-full rounded-[28px] sm:rounded-[40px] overflow-hidden border-4 border-[#ffd700]/20 group-hover:border-[#ffd700] shadow-2xl"
                 style={card.visual.cardStyle}
               >
-                <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/15 to-black/80" />
-                <div className={`absolute inset-x-0 top-0 h-24 bg-gradient-to-b ${card.visual.accentClassName}`} />
-
-                <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6 lg:p-7 z-10">
-                  <div className="inline-flex items-center rounded-full bg-black/30 border border-white/15 px-3 py-1 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.22em] text-white/85 mb-3 backdrop-blur-sm">
-                    {card.subtitle || 'Fournisseur'}
-                  </div>
-                  <h3 className="font-black text-[30px] sm:text-[38px] lg:text-[44px] leading-[0.92] uppercase tracking-[-0.04em] text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.45)] max-w-[85%]">
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/30 to-black/90 z-10" />
+                <div className="absolute inset-x-0 bottom-0 p-3 sm:p-6 lg:p-8 z-20">
+                  <h3 className="font-black text-2xl sm:text-4xl uppercase tracking-tighter text-white mb-1 sm:mb-2 leading-[0.92] break-words">
                     {card.name}
                   </h3>
+                  <p className="text-[#ffd700] font-black uppercase tracking-widest text-[9px] opacity-90">
+                    {card.subtitle}
+                  </p>
                 </div>
               </div>
-            </button>
+            </div>
           ))}
         </div>
       </div>

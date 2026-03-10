@@ -16,6 +16,8 @@
 // depuis utils/calculations.ts, qui convertit '' en 0.
 // =============================================================
 
+import type { SupplierVisualKey } from './lib/supplierVisuals';
+
 export interface Product {
   id:              string;
   name:            string;
@@ -50,8 +52,6 @@ export interface DeliveryRule {
   deliveryDay: number; // Jour de livraison correspondant
 }
 
-import type { SupplierVisualKey } from './lib/supplierVisuals';
-
 export interface SupplierConfig {
   id:               string;
   name:             string;
@@ -62,4 +62,6 @@ export interface SupplierConfig {
   cutoffTime:       string;         // Heure limite "HH:mm"
   deliveryRules?:   DeliveryRule[]; // Règles cutoff→livraison (prioritaire sur cutoffDay/deliveryDay)
   flexibleDelivery?: boolean;       // Livraison possible lun→sam (Plaine Maison)
+  isArchived?:      boolean;
+  createdAt?:       string;
 }
