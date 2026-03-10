@@ -50,13 +50,16 @@ const SuppliersPage: React.FC<SuppliersPageProps> = ({ setView, supplierConfigs 
             <div
               key={card.view}
               onClick={() => setView(card.view)}
-              className="group cursor-pointer transform transition-all hover:-translate-y-3"
+              className="group cursor-pointer transform transition-all duration-300 hover:-translate-y-3"
             >
               <div
                 className="relative h-[240px] sm:h-[340px] lg:h-[420px] w-full rounded-[28px] sm:rounded-[40px] overflow-hidden border-4 border-[#ffd700]/20 group-hover:border-[#ffd700] shadow-2xl"
-                style={card.visual.cardStyle}
-              >
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/30 to-black/90 z-10" />
+                 >
+                <div
+                  className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-[1.08]"
+                  style={card.visual.cardStyle}
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/25 to-black/90 z-10" />
                 <div className="absolute inset-x-0 bottom-0 p-3 sm:p-6 lg:p-8 z-20">
                   <h3 className="font-black text-2xl sm:text-4xl uppercase tracking-tighter text-white mb-1 sm:mb-2 leading-[0.92] break-words">
                     {card.name}
