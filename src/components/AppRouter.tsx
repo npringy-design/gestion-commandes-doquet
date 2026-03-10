@@ -54,16 +54,9 @@ const AppRouter: React.FC<AppRouterProps> = ({
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  const SupplierViews: View[] = [
-    'doquet',
-    'vins',
-    'viandes',
-    'domafrais',
-    'domafrais_bof',
-    'domafrais_surgele',
-    'pomona_terre_azur',
-    'pomona_episaveurs',
-  ];
+  const SupplierViews: View[] = Object.values(state.supplierConfigs)
+    .filter((config) => !config.isArchived)
+    .map((config) => config.id as View);
 
   const renderWithShell = (node: React.ReactNode) => (
     <>
@@ -214,7 +207,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
     );
   }
 
-  if (view === 'suppliers') return renderWithShell(<SuppliersPage setView={setView} />);
+  if (view === 'suppliers') return renderWithShell(<SuppliersPage setView={setView} supplierConfigs={state.supplierConfigs} />);
 
   if (SupplierViews.includes(view)) {
     return renderLazyPage(<SupplierOrderPage state={state} />, 'Chargement de la commande…');

@@ -8,7 +8,7 @@
 // =============================================================
 
 import React from 'react';
-import { View, SUPPLIER_LABELS, SupplierId } from '../constants';
+import { View, SupplierId } from '../constants';
 import { getDeliveryDates, getForecastForWindow } from '../utils/dateHelpers';
 import { calculateOrder, calculateTargetOrder, capitalizeFirstLetter, toNumber } from '../utils/calculations';
 import { ResetConfirmModal } from '../components/Modals';
@@ -76,11 +76,27 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
   const currentSupplierId = view as SupplierId;
   // Guard : si la config n'est pas encore chargée (Supabase en cours), utiliser le défaut du code
   const _configDefaults: Record<string, SupplierConfig> = {
-    doquet: DOQUET_CONFIG, vins: VINS_CONFIG, viandes: VIANDES_CONFIG,
-    domafrais: DOMAFRAIS_CONFIG, domafrais_bof: DOMAFRAIS_BOF_CONFIG, pomona_terre_azur: POMONA_TERRE_AZUR_CONFIG, pomona_episaveurs: POMONA_EPISAVEURS_CONFIG,
+    doquet: { ...DOQUET_CONFIG, subtitle: 'Softs • Jus • Cocktails' },
+    vins: { ...VINS_CONFIG, subtitle: 'Cave • Alcools' },
+    viandes: { ...VIANDES_CONFIG, subtitle: 'Boucherie • Grill' },
+    domafrais: { ...DOMAFRAIS_CONFIG, subtitle: 'Viandes • Volailles' },
+    domafrais_bof: { ...DOMAFRAIS_BOF_CONFIG, subtitle: 'Crémerie • Fromages' },
+    pomona_terre_azur: { ...POMONA_TERRE_AZUR_CONFIG, subtitle: 'Fruits • Légumes' },
+    pomona_episaveurs: { ...POMONA_EPISAVEURS_CONFIG, subtitle: 'Épicerie • Aides culinaires' },
   };
-  const currentConfig  = supplierConfigs[currentSupplierId] ?? _configDefaults[currentSupplierId];
-  const supplierLabel  = SUPPLIER_LABELS[currentSupplierId];
+  const currentConfig  = supplierConfigs[currentSupplierId] ?? _configDefaults[currentSupplierId] ?? {
+    id: currentSupplierId,
+    name: currentSupplierId,
+    subtitle: 'Fournisseur',
+    deliveryDay: 3,
+    cutoffDay: 2,
+    cutoffTime: '10:00',
+    deliveryRules: [{ cutoffDay: 2, deliveryDay: 3 }],
+  };
+  const supplierLabel  = {
+    name: (currentConfig.name || currentSupplierId).toUpperCase(),
+    subtitle: currentConfig.subtitle || 'Fournisseur',
+  };
   const displayedProducts = products.filter(p => p.supplierId === currentSupplierId);
 
   const dates = getDeliveryDates(currentConfig);

@@ -53,9 +53,12 @@ export interface DeliveryRule {
 export interface SupplierConfig {
   id:               string;
   name:             string;
+  subtitle?:        string;
   deliveryDay:      number;         // Jour de livraison principal (fallback)
   cutoffDay:        number;         // Cut-off principal (fallback)
   cutoffTime:       string;         // Heure limite "HH:mm"
   deliveryRules?:   DeliveryRule[]; // Règles cutoff→livraison (prioritaire sur cutoffDay/deliveryDay)
   flexibleDelivery?: boolean;       // Livraison possible lun→sam (Plaine Maison)
+  isArchived?:      boolean;
+  createdAt?:       string;
 }

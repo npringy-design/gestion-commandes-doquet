@@ -17,7 +17,7 @@ import {
   VINS_CONFIG,
   VINS_PRODUCTS,
 } from '../data';
-import { STORAGE_PREFIX, SupplierId } from '../constants';
+import { RESERVED_VIEWS, STORAGE_PREFIX, SupplierId } from '../constants';
 import { SupplierConfig } from '../types';
 
 export const nowIso = () => new Date().toISOString();
@@ -53,26 +53,34 @@ export const DEFAULT_PRODUCTS: ProductWithHistory[] = [
 ];
 
 export const DEFAULT_SUPPLIER_CONFIGS: Record<string, SupplierConfig> = {
-  doquet: DOQUET_CONFIG,
-  vins: VINS_CONFIG,
-  viandes: VIANDES_CONFIG,
-  domafrais: DOMAFRAIS_CONFIG,
-  domafrais_bof: DOMAFRAIS_BOF_CONFIG,
-  domafrais_surgele: DOMAFRAIS_SURGELE_CONFIG,
-  pomona_terre_azur: POMONA_TERRE_AZUR_CONFIG,
-  pomona_episaveurs: POMONA_EPISAVEURS_CONFIG,
+  doquet: { ...DOQUET_CONFIG, subtitle: 'Softs • Jus • Cocktails' },
+  vins: { ...VINS_CONFIG, subtitle: 'Cave • Alcools' },
+  viandes: { ...VIANDES_CONFIG, subtitle: 'Boucherie • Grill' },
+  domafrais: { ...DOMAFRAIS_CONFIG, subtitle: 'Viandes • Volailles' },
+  domafrais_bof: { ...DOMAFRAIS_BOF_CONFIG, subtitle: 'Crémerie • Fromages' },
+  domafrais_surgele: { ...DOMAFRAIS_SURGELE_CONFIG, subtitle: 'Surgelés • Glaces' },
+  pomona_terre_azur: { ...POMONA_TERRE_AZUR_CONFIG, subtitle: 'Fruits • Légumes' },
+  pomona_episaveurs: { ...POMONA_EPISAVEURS_CONFIG, subtitle: 'Épicerie • Aides culinaires' },
 };
 
 export const mergeSupplierConfigsWithDefaults = (
   incoming: Record<string, SupplierConfig> = {},
 ): Record<string, SupplierConfig> => {
   const merged: Record<string, SupplierConfig> = {};
-  Object.keys(DEFAULT_SUPPLIER_CONFIGS).forEach((id) => {
+  const allIds = Array.from(new Set([
+    ...Object.keys(DEFAULT_SUPPLIER_CONFIGS),
+    ...Object.keys(incoming),
+  ]));
+
+  allIds.forEach((id) => {
+    const base = DEFAULT_SUPPLIER_CONFIGS[id];
+    const value = incoming[id];
     merged[id] = {
-      ...incoming[id],
-      ...DEFAULT_SUPPLIER_CONFIGS[id],
+      ...(base ?? value),
+      ...(value ?? {}),
     };
   });
+
   return merged;
 };
 
@@ -98,30 +106,12 @@ export const createInitialProducts = (savedProducts: ProductWithHistory[]): Prod
   mergeAndNormalizeProducts(savedProducts);
 
 export const getSupplierIdForView = (view: string, ratioTab: SupplierId): SupplierId => {
-  const viewToSupplier: Record<string, SupplierId> = {
-    doquet: 'doquet',
-    vins: 'vins',
-    viandes: 'viandes',
-    domafrais: 'domafrais',
-    domafrais_bof: 'domafrais_bof',
-    domafrais_surgele: 'domafrais_surgele',
-    pomona_terre_azur: 'pomona_terre_azur',
-    pomona_episaveurs: 'pomona_episaveurs',
-    ratios: ratioTab,
-  };
-  return viewToSupplier[view] ?? 'doquet';
+  if (view === 'ratios') return ratioTab;
+  if (!RESERVED_VIEWS.has(view as any)) return view;
+  return 'doquet';
 };
 
 export const getSupplierIdForResetView = (view: string): string | null => {
-  const viewToSupplier: Record<string, string> = {
-    doquet: 'doquet',
-    vins: 'vins',
-    viandes: 'viandes',
-    domafrais: 'domafrais',
-    domafrais_bof: 'domafrais_bof',
-    domafrais_surgele: 'domafrais_surgele',
-    pomona_terre_azur: 'pomona_terre_azur',
-    pomona_episaveurs: 'pomona_episaveurs',
-  };
-  return viewToSupplier[view] ?? null;
+  if (!RESERVED_VIEWS.has(view as any)) return view;
+  return null;
 };
