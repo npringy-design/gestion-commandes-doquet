@@ -165,7 +165,7 @@ Cette action est irréversible.`
 
         <div className="flex flex-col gap-4 mb-10">
           <div className="flex justify-between items-center gap-4 flex-wrap">
-            <h1 className="text-[#ffd700] text-4xl font-black uppercase">Rotation Fournisseurs</h1>
+            <h1 className="text-[#ffd700] text-4xl font-black uppercase">Paramètres Fournisseurs</h1>
             <div className="flex gap-4 flex-wrap justify-end">
               <button
                 onClick={() => setShowCreate(v => !v)}

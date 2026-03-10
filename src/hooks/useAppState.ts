@@ -9,7 +9,7 @@
 // - Les pages reçoivent exactement ce dont elles ont besoin
 // =============================================================
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useToast } from '../components/Toast';
 import {
   MONTHLY_COVERS as INITIAL_COVERS,
@@ -24,6 +24,7 @@ import {
   createInitialProducts,
   loadState,
   mergeSupplierConfigsWithDefaults,
+  saveState,
 } from './appStateHelpers';
 import { useProductActions } from './useProductActions';
 import { useCloudSync } from './useCloudSync';
@@ -36,7 +37,7 @@ export const useAppState = () => {
   const { showToast } = useToast();
 
   // Navigation
-  const [view, setView] = useState<View>('home');
+  const [view, setView] = useState<View>(() => loadState<View>('currentView', 'home'));
 
   // Mode de calcul commandes (marge de sécurité ou stock cible)
   const [calculationMode, setCalculationMode] = useState<'margin' | 'target'>('margin');
@@ -92,6 +93,15 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
   const [products, setProducts] = useState<ProductWithHistory[]>(() =>
     createInitialProducts(loadState('products', [] as ProductWithHistory[]))
   );
+
+  useEffect(() => {
+    try {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    } catch (_e) {
+      window.scrollTo(0, 0);
+    }
+    saveState('currentView', view, onSaveError);
+  }, [view]);
 
   // --- Persistance automatique à chaque changement ---
   const onSaveError = (msg: string) => showToast(msg, 'error');
