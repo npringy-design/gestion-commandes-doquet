@@ -32,11 +32,28 @@ const INITIAL_FORM: CreateSupplierForm = {
   visualKey: DEFAULT_SUPPLIER_VISUAL_KEY,
 };
 
+const ChevronButton: React.FC<{ open: boolean; label?: string; onClick: () => void }> = ({ open, label = 'Ouvrir la galerie', onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="inline-flex items-center gap-2 rounded-full bg-black/30 border border-white/10 px-4 py-2 text-white/85 hover:bg-black/45 transition-all"
+  >
+    <span className="text-[11px] font-black uppercase tracking-[0.2em]">{open ? 'Masquer la galerie' : label}</span>
+    <span className={`transition-transform duration-300 ${open ? 'rotate-180' : ''}`}>
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" d="M6 9l6 6 6-6"/>
+      </svg>
+    </span>
+  </button>
+);
+
 const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
   setView, configs, setConfigs,
 }) => {
   const [showCreate, setShowCreate] = React.useState(false);
   const [showArchived, setShowArchived] = React.useState(false);
+  const [showCreateGallery, setShowCreateGallery] = React.useState(false);
+  const [openSupplierGalleries, setOpenSupplierGalleries] = React.useState<Record<string, boolean>>({});
   const [form, setForm] = React.useState<CreateSupplierForm>(INITIAL_FORM);
   const [formError, setFormError] = React.useState('');
 
@@ -52,6 +69,10 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
 
   const updateSupplier = (supplierId: string, patch: Partial<SupplierConfig>) => {
     setConfigs(prev => ({ ...prev, [supplierId]: { ...prev[supplierId], ...patch } }));
+  };
+
+  const toggleSupplierGallery = (supplierId: string) => {
+    setOpenSupplierGalleries((prev) => ({ ...prev, [supplierId]: !prev[supplierId] }));
   };
 
   const getRules = (config: SupplierConfig): DeliveryRule[] => config.deliveryRules ?? [];
@@ -151,9 +172,12 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
     }));
 
     setShowCreate(false);
+    setShowCreateGallery(false);
     setForm(INITIAL_FORM);
     setFormError('');
   };
+
+  const createVisual = getSupplierVisual(form.visualKey);
 
   return (
     <div className="min-h-screen bg-[#1a0f0a] p-4 sm:p-8 lg:p-12 relative overflow-hidden">
@@ -162,7 +186,6 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
         style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/brick-wall.png')` }}
       />
       <div className="max-w-6xl mx-auto relative z-10">
-
         <div className="flex flex-col gap-4 mb-10">
           <div className="flex justify-between items-center gap-4 flex-wrap">
             <h1 className="text-[#ffd700] text-4xl font-black uppercase">Paramètres Fournisseurs</h1>
@@ -196,80 +219,118 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
 
           {showCreate && (
             <div className="bg-white/5 border border-white/10 p-5 rounded-[32px]">
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 items-end">
-                <div className="xl:col-span-2">
-                  <label className="block text-white/70 text-xs font-black uppercase tracking-widest mb-2">Nom fournisseur</label>
-                  <input
-                    value={form.name}
-                    onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                    className="w-full bg-white/10 text-white px-4 py-3 rounded-2xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
-                    placeholder="Ex. C10"
-                  />
-                </div>
-                <div className="xl:col-span-1">
-                  <label className="block text-white/70 text-xs font-black uppercase tracking-widest mb-2">Sous-titre</label>
-                  <input
-                    value={form.subtitle}
-                    onChange={(e) => setForm((prev) => ({ ...prev, subtitle: e.target.value }))}
-                    className="w-full bg-white/10 text-white px-4 py-3 rounded-2xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
-                    placeholder="Boissons • Softs"
-                  />
-                </div>
+              <div className="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)] gap-6 xl:gap-8">
                 <div>
-                  <label className="block text-white/70 text-xs font-black uppercase tracking-widest mb-2">Cut-off jour</label>
-                  <select
-                    value={form.cutoffDay}
-                    onChange={(e) => setForm((prev) => ({ ...prev, cutoffDay: Number(e.target.value) }))}
-                    className="w-full bg-white/10 text-white px-4 py-3 rounded-2xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
+                  <div
+                    className="relative h-[240px] rounded-[28px] overflow-hidden border border-white/10 shadow-[0_18px_45px_rgba(0,0,0,0.28)]"
+                    style={createVisual.cardStyle}
                   >
-                    {DAYS_OF_WEEK.map((d, i) => (
-                      <option key={i} value={i} className="text-black">{d}</option>
-                    ))}
-                  </select>
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/15 to-black/80" />
+                    <div className="absolute inset-x-0 bottom-0 p-5 z-10">
+                      <div className="inline-flex items-center rounded-full bg-black/30 border border-white/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-white/85 mb-3 backdrop-blur-sm">
+                        {form.subtitle || 'Nouveau fournisseur'}
+                      </div>
+                      <div className="text-white text-3xl font-black uppercase leading-none tracking-[-0.04em] drop-shadow-[0_4px_12px_rgba(0,0,0,0.45)] break-words">
+                        {form.name || 'Nouveau nom'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-col items-start gap-3">
+                    <p className="text-white/55 text-xs leading-relaxed">
+                      Visuel sélectionné : <span className="text-white font-semibold">{createVisual.name}</span>
+                    </p>
+                    <ChevronButton open={showCreateGallery} onClick={() => setShowCreateGallery((v) => !v)} />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-white/70 text-xs font-black uppercase tracking-widest mb-2">Livraison jour</label>
-                  <select
-                    value={form.deliveryDay}
-                    onChange={(e) => setForm((prev) => ({ ...prev, deliveryDay: Number(e.target.value) }))}
-                    className="w-full bg-white/10 text-white px-4 py-3 rounded-2xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
-                  >
-                    {DAYS_OF_WEEK.map((d, i) => (
-                      <option key={i} value={i} className="text-black">{d}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-white/70 text-xs font-black uppercase tracking-widest mb-2">Heure cut-off</label>
-                  <input
-                    type="time"
-                    value={form.cutoffTime}
-                    onChange={(e) => setForm((prev) => ({ ...prev, cutoffTime: e.target.value }))}
-                    className="w-full bg-white/10 text-white px-4 py-3 rounded-2xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
-                  />
-                </div>
-              </div>
 
-              <div className="mt-5">
-                <div className="text-white/70 text-xs font-black uppercase tracking-widest mb-3">Visuel de la carte</div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {SUPPLIER_VISUAL_PRESETS.map((preset) => {
-                    const active = form.visualKey === preset.key;
-                    return (
-                      <button
-                        key={preset.key}
-                        type="button"
-                        onClick={() => setForm((prev) => ({ ...prev, visualKey: preset.key }))}
-                        className={`rounded-[22px] overflow-hidden border text-left transition-all ${active ? 'border-[#ffd700] shadow-[0_0_0_1px_rgba(255,215,0,0.35)]' : 'border-white/10 hover:border-white/25'}`}
+                <div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 items-end">
+                    <div className="xl:col-span-2">
+                      <label className="block text-white/70 text-xs font-black uppercase tracking-widest mb-2">Nom fournisseur</label>
+                      <input
+                        value={form.name}
+                        onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                        className="w-full bg-white/10 text-white px-4 py-3 rounded-2xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
+                        placeholder="Ex. C10"
+                      />
+                    </div>
+                    <div className="xl:col-span-1">
+                      <label className="block text-white/70 text-xs font-black uppercase tracking-widest mb-2">Sous-titre</label>
+                      <input
+                        value={form.subtitle}
+                        onChange={(e) => setForm((prev) => ({ ...prev, subtitle: e.target.value }))}
+                        className="w-full bg-white/10 text-white px-4 py-3 rounded-2xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
+                        placeholder="Boissons • Softs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-white/70 text-xs font-black uppercase tracking-widest mb-2">Cut-off jour</label>
+                      <select
+                        value={form.cutoffDay}
+                        onChange={(e) => setForm((prev) => ({ ...prev, cutoffDay: Number(e.target.value) }))}
+                        className="w-full bg-white/10 text-white px-4 py-3 rounded-2xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
                       >
-                        <div className="h-24" style={preset.thumbStyle} />
-                        <div className="bg-black/35 px-3 py-3">
-                          <div className="text-white text-sm font-black leading-tight">{preset.name}</div>
-                          <div className="text-white/55 text-[11px] leading-snug mt-1">{preset.description}</div>
+                        {DAYS_OF_WEEK.map((d, i) => (
+                          <option key={i} value={i} className="text-black">{d}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-white/70 text-xs font-black uppercase tracking-widest mb-2">Livraison jour</label>
+                      <select
+                        value={form.deliveryDay}
+                        onChange={(e) => setForm((prev) => ({ ...prev, deliveryDay: Number(e.target.value) }))}
+                        className="w-full bg-white/10 text-white px-4 py-3 rounded-2xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
+                      >
+                        {DAYS_OF_WEEK.map((d, i) => (
+                          <option key={i} value={i} className="text-black">{d}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-white/70 text-xs font-black uppercase tracking-widest mb-2">Heure cut-off</label>
+                      <input
+                        type="time"
+                        value={form.cutoffTime}
+                        onChange={(e) => setForm((prev) => ({ ...prev, cutoffTime: e.target.value }))}
+                        className="w-full bg-white/10 text-white px-4 py-3 rounded-2xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  {showCreateGallery && (
+                    <div className="mt-5 rounded-[28px] border border-white/10 bg-black/15 p-4">
+                      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                        <div>
+                          <div className="text-[#ffd700] font-black uppercase text-sm tracking-widest">Galerie des visuels</div>
+                          <div className="text-white/50 text-xs mt-1">Choisis une image librement parmi la bibliothèque.</div>
                         </div>
-                      </button>
-                    );
-                  })}
+                        <div className="text-white/45 text-[11px] uppercase tracking-[0.18em]">{SUPPLIER_VISUAL_PRESETS.length} visuels</div>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[460px] overflow-y-auto pr-1">
+                        {SUPPLIER_VISUAL_PRESETS.map((preset) => {
+                          const active = form.visualKey === preset.key;
+                          return (
+                            <button
+                              key={preset.key}
+                              type="button"
+                              onClick={() => setForm((prev) => ({ ...prev, visualKey: preset.key }))}
+                              className={`rounded-[22px] overflow-hidden border text-left transition-all ${active ? 'border-[#ffd700] shadow-[0_0_0_1px_rgba(255,215,0,0.35)] scale-[1.01]' : 'border-white/10 hover:border-white/25'}`}
+                            >
+                              <div className="h-28" style={preset.thumbStyle} />
+                              <div className="bg-black/35 px-3 py-3">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="text-white text-sm font-black leading-tight">{preset.name}</div>
+                                  <span className="text-[10px] uppercase tracking-[0.18em] text-[#ffd700]/85">{preset.category}</span>
+                                </div>
+                                <div className="text-white/55 text-[11px] leading-snug mt-1">{preset.description}</div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -277,7 +338,7 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
 
               <div className="mt-4 flex justify-end gap-3">
                 <button
-                  onClick={() => { setShowCreate(false); setForm(INITIAL_FORM); setFormError(''); }}
+                  onClick={() => { setShowCreate(false); setShowCreateGallery(false); setForm(INITIAL_FORM); setFormError(''); }}
                   className="px-4 py-2 rounded-xl bg-white/10 text-white font-black uppercase text-xs tracking-widest"
                 >
                   Annuler
@@ -297,6 +358,7 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
           {visibleConfigs.map((config: SupplierConfig) => {
             const rules = getRules(config);
             const visual = getSupplierVisual(config.visualKey);
+            const galleryOpen = Boolean(openSupplierGalleries[config.id]);
             return (
               <div key={config.id} className="bg-white/5 border border-white/10 p-4 sm:p-6 lg:p-8 rounded-[40px]">
                 <div className="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)] gap-6 xl:gap-8">
@@ -315,9 +377,12 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                         </div>
                       </div>
                     </div>
-                    <p className="text-white/55 text-xs mt-3 leading-relaxed">
-                      Visuel sélectionné : <span className="text-white font-semibold">{visual.name}</span>
-                    </p>
+                    <div className="mt-3 flex flex-col items-start gap-3">
+                      <p className="text-white/55 text-xs leading-relaxed">
+                        Visuel sélectionné : <span className="text-white font-semibold">{visual.name}</span>
+                      </p>
+                      <ChevronButton open={galleryOpen} onClick={() => toggleSupplierGallery(config.id)} />
+                    </div>
                   </div>
 
                   <div className="space-y-6">
@@ -357,31 +422,39 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                       </div>
                     </div>
 
-                    <div>
-                      <div className="flex items-center justify-between gap-3 mb-3">
-                        <span className="text-[#ffd700] font-black uppercase text-sm tracking-widest">Visuel de la carte</span>
-                        <span className="text-white/45 text-[11px] uppercase tracking-[0.18em]">Choix affiché sur la page fournisseurs</span>
+                    {galleryOpen && (
+                      <div className="rounded-[28px] border border-white/10 bg-black/15 p-4">
+                        <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                          <div>
+                            <div className="text-[#ffd700] font-black uppercase text-sm tracking-widest">Galerie des visuels</div>
+                            <div className="text-white/50 text-xs mt-1">Clique sur une miniature pour changer l'image de la carte.</div>
+                          </div>
+                          <div className="text-white/45 text-[11px] uppercase tracking-[0.18em]">{SUPPLIER_VISUAL_PRESETS.length} visuels</div>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[460px] overflow-y-auto pr-1">
+                          {SUPPLIER_VISUAL_PRESETS.map((preset) => {
+                            const active = preset.key === (config.visualKey || DEFAULT_SUPPLIER_VISUAL_KEY);
+                            return (
+                              <button
+                                type="button"
+                                key={preset.key}
+                                onClick={() => updateSupplier(config.id, { visualKey: preset.key })}
+                                className={`rounded-[22px] overflow-hidden border transition-all text-left ${active ? 'border-[#ffd700] shadow-[0_0_0_1px_rgba(255,215,0,0.35)] scale-[1.01]' : 'border-white/10 hover:border-white/25'}`}
+                              >
+                                <div className="h-28" style={preset.thumbStyle} />
+                                <div className="bg-black/35 px-3 py-3">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="text-white text-sm font-black leading-tight">{preset.name}</div>
+                                    <span className="text-[10px] uppercase tracking-[0.18em] text-[#ffd700]/85">{preset.category}</span>
+                                  </div>
+                                  <div className="text-white/55 text-[11px] leading-snug mt-1">{preset.description}</div>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        {SUPPLIER_VISUAL_PRESETS.map((preset) => {
-                          const active = preset.key === (config.visualKey || DEFAULT_SUPPLIER_VISUAL_KEY);
-                          return (
-                            <button
-                              type="button"
-                              key={preset.key}
-                              onClick={() => updateSupplier(config.id, { visualKey: preset.key })}
-                              className={`rounded-[22px] overflow-hidden border transition-all text-left ${active ? 'border-[#ffd700] shadow-[0_0_0_1px_rgba(255,215,0,0.35)]' : 'border-white/10 hover:border-white/25'}`}
-                            >
-                              <div className="h-24" style={preset.thumbStyle} />
-                              <div className="bg-black/35 px-3 py-3">
-                                <div className="text-white text-sm font-black leading-tight">{preset.name}</div>
-                                <div className="text-white/55 text-[11px] leading-snug mt-1">{preset.description}</div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+                    )}
 
                     <div className="overflow-x-auto rounded-2xl border border-white/10">
                       <table className="w-full min-w-[640px] text-sm">
