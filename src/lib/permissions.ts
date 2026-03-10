@@ -28,7 +28,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
 };
 
 export function canAccessAdminDashboard(profile: AppProfile | null) {
-  return [ROLES.SUPER_ADMIN, ROLES.GLOBAL_ADMIN, ROLES.DIRECTOR].includes((profile?.role ?? '') as AppRole);
+  return [ROLES.SUPER_ADMIN, ROLES.GLOBAL_ADMIN, ROLES.DIRECTOR, ROLES.MANAGER_PLUS].includes((profile?.role ?? '') as AppRole);
 }
 
 export function canAccessUserManagement(profile: AppProfile | null) {
@@ -36,7 +36,7 @@ export function canAccessUserManagement(profile: AppProfile | null) {
 }
 
 export function canAccessSupplierSettings(profile: AppProfile | null) {
-  return [ROLES.SUPER_ADMIN, ROLES.GLOBAL_ADMIN, ROLES.DIRECTOR].includes((profile?.role ?? '') as AppRole);
+  return [ROLES.SUPER_ADMIN, ROLES.GLOBAL_ADMIN, ROLES.DIRECTOR, ROLES.MANAGER_PLUS].includes((profile?.role ?? '') as AppRole);
 }
 
 export function canAccessStatsPage(profile: AppProfile | null) {
@@ -48,7 +48,7 @@ export function canEditRatios(profile: AppProfile | null) {
 }
 
 export function canEditPreviCouverts(profile: AppProfile | null) {
-  return [ROLES.SUPER_ADMIN, ROLES.GLOBAL_ADMIN, ROLES.DIRECTOR].includes((profile?.role ?? '') as AppRole);
+  return [ROLES.SUPER_ADMIN, ROLES.GLOBAL_ADMIN, ROLES.DIRECTOR, ROLES.MANAGER_PLUS].includes((profile?.role ?? '') as AppRole);
 }
 
 export function canAccessDailyForecast(profile: AppProfile | null) {

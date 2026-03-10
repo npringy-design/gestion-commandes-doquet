@@ -132,7 +132,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
     if (!canAccessAdminDashboard(profile)) {
       return renderWithShell(<AccessDenied message="Cette section est réservée aux rôles autorisés pour ce module." />);
     }
-    return renderLazyPage(<AdminDashboard setView={setView} isAdmin={isAdmin} />, 'Chargement du tableau de bord…');
+    return renderLazyPage(<AdminDashboard setView={setView} profile={profile} />, 'Chargement du tableau de bord…');
   }
 
   if (view === 'cost_analysis') {
