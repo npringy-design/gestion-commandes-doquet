@@ -33,6 +33,7 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
   setView, configs, setConfigs,
 }) => {
   const [showCreate, setShowCreate] = React.useState(false);
+  const [showArchived, setShowArchived] = React.useState(false);
   const [form, setForm] = React.useState<CreateSupplierForm>(INITIAL_FORM);
   const [formError, setFormError] = React.useState('');
 
@@ -41,22 +42,27 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
     [configs],
   );
 
+  const archivedConfigs = React.useMemo(
+    () => Object.values(configs).filter((config) => config.isArchived),
+    [configs],
+  );
+
   const updateSupplier = (supplierId: string, patch: Partial<SupplierConfig>) => {
     setConfigs(prev => ({ ...prev, [supplierId]: { ...prev[supplierId], ...patch } }));
   };
 
   const getRules = (config: SupplierConfig): DeliveryRule[] => {
-    if (config.deliveryRules && config.deliveryRules.length > 0) return config.deliveryRules;
-    return [{ cutoffDay: config.cutoffDay, deliveryDay: config.deliveryDay }];
+    return config.deliveryRules ?? [];
   };
 
   const updateRule = (config: SupplierConfig, idx: number, patch: Partial<DeliveryRule>) => {
     const rules = [...getRules(config)];
+    if (!rules[idx]) return;
     rules[idx] = { ...rules[idx], ...patch };
     updateSupplier(config.id, {
       deliveryRules: rules,
-      cutoffDay: rules[0].cutoffDay,
-      deliveryDay: rules[0].deliveryDay,
+      cutoffDay: rules[0]?.cutoffDay ?? config.cutoffDay,
+      deliveryDay: rules[0]?.deliveryDay ?? config.deliveryDay,
     });
   };
 
@@ -64,24 +70,49 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
     const rules = [...getRules(config)];
     const last = rules[rules.length - 1] ?? { cutoffDay: config.cutoffDay, deliveryDay: config.deliveryDay };
     rules.push({ ...last });
-    updateSupplier(config.id, { deliveryRules: rules, cutoffDay: rules[0].cutoffDay, deliveryDay: rules[0].deliveryDay });
+    updateSupplier(config.id, {
+      deliveryRules: rules,
+      cutoffDay: rules[0]?.cutoffDay ?? config.cutoffDay,
+      deliveryDay: rules[0]?.deliveryDay ?? config.deliveryDay,
+    });
   };
 
   const removeRule = (config: SupplierConfig, idx: number) => {
     const rules = [...getRules(config)];
+    if (!rules[idx]) return;
     rules.splice(idx, 1);
-    const safe = rules.length > 0 ? rules : [{ cutoffDay: config.cutoffDay, deliveryDay: config.deliveryDay }];
     updateSupplier(config.id, {
-      deliveryRules: safe,
-      cutoffDay: safe[0].cutoffDay,
-      deliveryDay: safe[0].deliveryDay,
+      deliveryRules: rules,
+      cutoffDay: rules[0]?.cutoffDay ?? config.cutoffDay,
+      deliveryDay: rules[0]?.deliveryDay ?? config.deliveryDay,
     });
   };
 
   const archiveSupplier = (config: SupplierConfig) => {
-    const confirmation = window.confirm(`Archiver le fournisseur "${config.name}" ?\n\nIl disparaîtra des pages Commande et Calcul ratio, mais l'historique restera en base applicative.`);
+    const confirmation = window.confirm(
+      `Archiver le fournisseur "${config.name}" ?\n\nIl disparaîtra des pages Commande et Calcul ratio, mais restera récupérable depuis la section Archives.`
+    );
     if (!confirmation) return;
     updateSupplier(config.id, { isArchived: true });
+  };
+
+  const restoreSupplier = (config: SupplierConfig) => {
+    updateSupplier(config.id, { isArchived: false });
+  };
+
+  const deleteSupplierPermanently = (config: SupplierConfig) => {
+    const confirmation = window.confirm(
+      `Supprimer définitivement le fournisseur "${config.name}" ?
+
+Cette action est irréversible.`
+    );
+    if (!confirmation) return;
+
+    setConfigs((prev) => {
+      const next = { ...prev };
+      delete next[config.id];
+      return next;
+    });
   };
 
   const createSupplier = () => {
@@ -247,10 +278,24 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                 key={config.id}
                 className="bg-white/5 border border-white/10 p-4 sm:p-6 lg:p-8 rounded-[40px]"
               >
-                <div className="flex items-center justify-between gap-4 mb-5 flex-wrap">
-                  <div>
-                    <span className="text-[#ffd700] font-black uppercase text-2xl">{config.name}</span>
-                    <div className="mt-1 text-white/50 text-xs font-black uppercase tracking-widest">{config.subtitle || 'Fournisseur'}</div>
+                <div className="flex items-start justify-between gap-4 mb-5 flex-wrap">
+                  <div className="flex-1 min-w-[280px] max-w-xl">
+                    <label className="block text-white/70 text-xs font-black uppercase tracking-widest mb-2">Nom fournisseur</label>
+                    <input
+                      value={config.name}
+                      onChange={e => updateSupplier(config.id, { name: e.target.value })}
+                      className="w-full bg-white/10 text-[#ffd700] px-4 py-3 rounded-2xl border border-white/10 outline-none focus:border-[#ffd700] font-black uppercase text-xl"
+                      placeholder="Nom du fournisseur"
+                    />
+                    <div className="mt-3">
+                      <label className="block text-white/50 text-[11px] font-black uppercase tracking-widest mb-2">Sous-titre</label>
+                      <input
+                        value={config.subtitle || ''}
+                        onChange={e => updateSupplier(config.id, { subtitle: e.target.value })}
+                        className="w-full bg-white/10 text-white px-4 py-2.5 rounded-2xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
+                        placeholder="Ex. Boissons • Softs"
+                      />
+                    </div>
                   </div>
                   <div className="flex items-center gap-3 flex-wrap justify-end">
                     <label className="text-white/70 text-xs font-black uppercase tracking-widest">Heure cut-off</label>
@@ -280,49 +325,56 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                       </tr>
                     </thead>
                     <tbody>
-                      {rules.map((rule, idx) => (
-                        <tr key={`${config.id}-${idx}`} className="border-t border-white/10">
-                          <td className="px-4 py-3">
-                            <select
-                              value={rule.cutoffDay}
-                              onChange={e => updateRule(config, idx, { cutoffDay: Number(e.target.value) })}
-                              className="w-full bg-white/10 text-white p-2 rounded-xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
-                            >
-                              {DAYS_OF_WEEK.map((d, i) => (
-                                <option key={i} value={i} className="text-black">{d}</option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="px-4 py-3">
-                            <input
-                              type="time"
-                              value={config.cutoffTime}
-                              onChange={e => updateSupplier(config.id, { cutoffTime: e.target.value })}
-                              className="w-full bg-white/10 text-white p-2 rounded-xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <select
-                              value={rule.deliveryDay}
-                              onChange={e => updateRule(config, idx, { deliveryDay: Number(e.target.value) })}
-                              className="w-full bg-white/10 text-white p-2 rounded-xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
-                            >
-                              {DAYS_OF_WEEK.map((d, i) => (
-                                <option key={i} value={i} className="text-black">{d}</option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <button
-                              onClick={() => removeRule(config, idx)}
-                              className="px-3 py-1.5 rounded-lg bg-red-500/20 text-red-200 border border-red-300/20 text-xs font-black uppercase tracking-wide hover:bg-red-500/30"
-                              disabled={rules.length === 1}
-                            >
-                              Suppr.
-                            </button>
+                      {rules.length === 0 ? (
+                        <tr className="border-t border-white/10">
+                          <td colSpan={4} className="px-4 py-5 text-center text-white/55 font-semibold">
+                            Aucune règle pour ce fournisseur. Clique sur <span className="text-[#ffd700]">+ Ajouter une règle</span>.
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        rules.map((rule, idx) => (
+                          <tr key={`${config.id}-${idx}`} className="border-t border-white/10">
+                            <td className="px-4 py-3">
+                              <select
+                                value={rule.cutoffDay}
+                                onChange={e => updateRule(config, idx, { cutoffDay: Number(e.target.value) })}
+                                className="w-full bg-white/10 text-white p-2 rounded-xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
+                              >
+                                {DAYS_OF_WEEK.map((d, i) => (
+                                  <option key={i} value={i} className="text-black">{d}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="time"
+                                value={config.cutoffTime}
+                                onChange={e => updateSupplier(config.id, { cutoffTime: e.target.value })}
+                                className="w-full bg-white/10 text-white p-2 rounded-xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <select
+                                value={rule.deliveryDay}
+                                onChange={e => updateRule(config, idx, { deliveryDay: Number(e.target.value) })}
+                                className="w-full bg-white/10 text-white p-2 rounded-xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
+                              >
+                                {DAYS_OF_WEEK.map((d, i) => (
+                                  <option key={i} value={i} className="text-black">{d}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <button
+                                onClick={() => removeRule(config, idx)}
+                                className="px-3 py-1.5 rounded-lg bg-red-500/20 text-red-200 border border-red-300/20 text-xs font-black uppercase tracking-wide hover:bg-red-500/30"
+                              >
+                                Suppr.
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -338,6 +390,53 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
               </div>
             );
           })}
+        </div>
+
+        <div className="mt-10 bg-white/5 border border-white/10 rounded-[32px] p-5 sm:p-6">
+          <button
+            onClick={() => setShowArchived((v) => !v)}
+            className="w-full flex items-center justify-between gap-3 text-left"
+          >
+            <div>
+              <div className="text-white font-black uppercase tracking-widest text-sm">Archives fournisseurs</div>
+              <div className="text-white/55 text-sm mt-1">
+                {archivedConfigs.length > 0
+                  ? `${archivedConfigs.length} fournisseur${archivedConfigs.length > 1 ? 's' : ''} archivé${archivedConfigs.length > 1 ? 's' : ''}`
+                  : 'Aucun fournisseur archivé'}
+              </div>
+            </div>
+            <div className="text-[#ffd700] font-black text-xl">{showArchived ? '−' : '+'}</div>
+          </button>
+
+          {showArchived && archivedConfigs.length > 0 && (
+            <div className="mt-5 space-y-4">
+              {archivedConfigs.map((config) => (
+                <div
+                  key={config.id}
+                  className="rounded-2xl border border-white/10 bg-black/10 px-4 py-4 flex items-center justify-between gap-4 flex-wrap"
+                >
+                  <div>
+                    <div className="text-[#ffd700] font-black uppercase text-lg">{config.name}</div>
+                    <div className="text-white/60 text-sm font-semibold">{config.subtitle || 'Fournisseur archivé'}</div>
+                  </div>
+                  <div className="flex items-center gap-3 flex-wrap justify-end">
+                    <button
+                      onClick={() => restoreSupplier(config)}
+                      className="px-4 py-2 rounded-xl bg-[#ffd700] text-[#1a0f0a] font-black uppercase text-xs tracking-widest hover:bg-[#ffed4a]"
+                    >
+                      Restaurer
+                    </button>
+                    <button
+                      onClick={() => deleteSupplierPermanently(config)}
+                      className="px-4 py-2 rounded-xl bg-red-500/20 text-red-200 border border-red-300/20 text-xs font-black uppercase tracking-wide hover:bg-red-500/30"
+                    >
+                      Supprimer définitivement
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
