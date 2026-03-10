@@ -53,14 +53,14 @@ export const DEFAULT_PRODUCTS: ProductWithHistory[] = [
 ];
 
 export const DEFAULT_SUPPLIER_CONFIGS: Record<string, SupplierConfig> = {
-  doquet: { ...DOQUET_CONFIG, subtitle: 'Softs • Jus • Cocktails', visualKey: 'amber-wave' },
-  vins: { ...VINS_CONFIG, subtitle: 'Cave • Alcools', visualKey: 'wine-cellar' },
-  viandes: { ...VIANDES_CONFIG, subtitle: 'Boucherie • Grill', visualKey: 'grill-fire' },
-  domafrais: { ...DOMAFRAIS_CONFIG, subtitle: 'Viandes • Volailles', visualKey: 'farm-fresh' },
-  domafrais_bof: { ...DOMAFRAIS_BOF_CONFIG, subtitle: 'Crémerie • Fromages', visualKey: 'farm-fresh' },
-  domafrais_surgele: { ...DOMAFRAIS_SURGELE_CONFIG, subtitle: 'Surgelés • Glaces', visualKey: 'ice-blue' },
-  pomona_terre_azur: { ...POMONA_TERRE_AZUR_CONFIG, subtitle: 'Fruits • Légumes', visualKey: 'market-green' },
-  pomona_episaveurs: { ...POMONA_EPISAVEURS_CONFIG, subtitle: 'Épicerie • Aides culinaires', visualKey: 'spice-gold' },
+  doquet: { ...DOQUET_CONFIG, subtitle: 'Softs • Jus • Cocktails', visualKey: 'soft-cocktails' },
+  vins: { ...VINS_CONFIG, subtitle: 'Cave • Alcools', visualKey: 'cave-vins' },
+  viandes: { ...VIANDES_CONFIG, subtitle: 'Boucherie • Grill', visualKey: 'boucherie-grill' },
+  domafrais: { ...DOMAFRAIS_CONFIG, subtitle: 'Viandes • Volailles', visualKey: 'frais-marche' },
+  domafrais_bof: { ...DOMAFRAIS_BOF_CONFIG, subtitle: 'Crémerie • Fromages', visualKey: 'frais-marche' },
+  domafrais_surgele: { ...DOMAFRAIS_SURGELE_CONFIG, subtitle: 'Surgelés • Glaces', visualKey: 'premium-dark' },
+  pomona_terre_azur: { ...POMONA_TERRE_AZUR_CONFIG, subtitle: 'Fruits • Légumes', visualKey: 'frais-marche' },
+  pomona_episaveurs: { ...POMONA_EPISAVEURS_CONFIG, subtitle: 'Épicerie • Aides culinaires', visualKey: 'soft-amber' },
 };
 
 export const mergeSupplierConfigsWithDefaults = (
