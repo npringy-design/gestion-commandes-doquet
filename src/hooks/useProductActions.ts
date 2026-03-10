@@ -125,8 +125,26 @@ export const useProductActions = ({
   }, [jumpProductTo, products.length, setProducts]);
 
   const updateSearchName = useCallback((id: string, searchName: string) => {
-    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, searchName } : p)));
-  }, [setProducts]);
+    const normalizedSearchName = searchName.trim().toLowerCase();
+
+    setProducts((prev) => {
+      const currentProduct = prev.find((p) => p.id === id);
+      if (!currentProduct) return prev;
+
+      const duplicateOnSameSupplier = normalizedSearchName.length > 0 && prev.some((p) => (
+        p.id !== id &&
+        p.supplierId === currentProduct.supplierId &&
+        p.searchName.trim().toLowerCase() === normalizedSearchName
+      ));
+
+      if (duplicateOnSameSupplier) {
+        showToast('Ce mapping existe déjà pour ce fournisseur.', 'info');
+        return prev;
+      }
+
+      return prev.map((p) => (p.id === id ? { ...p, searchName } : p));
+    });
+  }, [setProducts, showToast]);
 
   const updateImportDivisor = useCallback((id: string, val: string) => {
     const normalized: number | '' = val === '' ? '' : Number(val);

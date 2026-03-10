@@ -47,6 +47,33 @@ const ChevronButton: React.FC<{ open: boolean; label?: string; onClick: () => vo
   </button>
 );
 
+
+const VisualThumbnailGallery: React.FC<{
+  selectedKey: string;
+  onSelect: (key: string) => void;
+}> = ({ selectedKey, onSelect }) => (
+  <div className="rounded-[24px] border border-white/10 bg-black/15 p-3">
+    <div className="grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-5 gap-2.5 max-h-[320px] overflow-y-auto pr-1">
+      {SUPPLIER_VISUAL_PRESETS.map((preset) => {
+        const active = selectedKey === preset.key;
+        return (
+          <button
+            key={preset.key}
+            type="button"
+            onClick={() => onSelect(preset.key)}
+            title={preset.name}
+            aria-label={preset.name}
+            className={`relative h-20 sm:h-24 rounded-[18px] overflow-hidden border transition-all ${active ? 'border-[#ffd700] shadow-[0_0_0_1px_rgba(255,215,0,0.35)] scale-[1.01]' : 'border-white/10 hover:border-white/25'}`}
+          >
+            <div className="absolute inset-0" style={preset.thumbStyle} />
+            <div className={`absolute inset-0 transition-colors ${active ? 'bg-[#ffd700]/10' : 'bg-black/10 hover:bg-black/0'}`} />
+          </button>
+        );
+      })}
+    </div>
+  </div>
+);
+
 const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
   setView, configs, setConfigs,
 }) => {
@@ -299,36 +326,11 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                   </div>
 
                   {showCreateGallery && (
-                    <div className="mt-5 rounded-[28px] border border-white/10 bg-black/15 p-4">
-                      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-                        <div>
-                          <div className="text-[#ffd700] font-black uppercase text-sm tracking-widest">Galerie des visuels</div>
-                          <div className="text-white/50 text-xs mt-1">Choisis une image librement parmi la bibliothèque.</div>
-                        </div>
-                        <div className="text-white/45 text-[11px] uppercase tracking-[0.18em]">{SUPPLIER_VISUAL_PRESETS.length} visuels</div>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[460px] overflow-y-auto pr-1">
-                        {SUPPLIER_VISUAL_PRESETS.map((preset) => {
-                          const active = form.visualKey === preset.key;
-                          return (
-                            <button
-                              key={preset.key}
-                              type="button"
-                              onClick={() => setForm((prev) => ({ ...prev, visualKey: preset.key }))}
-                              className={`rounded-[22px] overflow-hidden border text-left transition-all ${active ? 'border-[#ffd700] shadow-[0_0_0_1px_rgba(255,215,0,0.35)] scale-[1.01]' : 'border-white/10 hover:border-white/25'}`}
-                            >
-                              <div className="h-28" style={preset.thumbStyle} />
-                              <div className="bg-black/35 px-3 py-3">
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="text-white text-sm font-black leading-tight">{preset.name}</div>
-                                  <span className="text-[10px] uppercase tracking-[0.18em] text-[#ffd700]/85">{preset.category}</span>
-                                </div>
-                                <div className="text-white/55 text-[11px] leading-snug mt-1">{preset.description}</div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
+                    <div className="mt-4">
+                      <VisualThumbnailGallery
+                        selectedKey={form.visualKey}
+                        onSelect={(key) => setForm((prev) => ({ ...prev, visualKey: key }))}
+                      />
                     </div>
                   )}
                 </div>
@@ -423,37 +425,10 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                     </div>
 
                     {galleryOpen && (
-                      <div className="rounded-[28px] border border-white/10 bg-black/15 p-4">
-                        <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-                          <div>
-                            <div className="text-[#ffd700] font-black uppercase text-sm tracking-widest">Galerie des visuels</div>
-                            <div className="text-white/50 text-xs mt-1">Clique sur une miniature pour changer l'image de la carte.</div>
-                          </div>
-                          <div className="text-white/45 text-[11px] uppercase tracking-[0.18em]">{SUPPLIER_VISUAL_PRESETS.length} visuels</div>
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[460px] overflow-y-auto pr-1">
-                          {SUPPLIER_VISUAL_PRESETS.map((preset) => {
-                            const active = preset.key === (config.visualKey || DEFAULT_SUPPLIER_VISUAL_KEY);
-                            return (
-                              <button
-                                type="button"
-                                key={preset.key}
-                                onClick={() => updateSupplier(config.id, { visualKey: preset.key })}
-                                className={`rounded-[22px] overflow-hidden border transition-all text-left ${active ? 'border-[#ffd700] shadow-[0_0_0_1px_rgba(255,215,0,0.35)] scale-[1.01]' : 'border-white/10 hover:border-white/25'}`}
-                              >
-                                <div className="h-28" style={preset.thumbStyle} />
-                                <div className="bg-black/35 px-3 py-3">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <div className="text-white text-sm font-black leading-tight">{preset.name}</div>
-                                    <span className="text-[10px] uppercase tracking-[0.18em] text-[#ffd700]/85">{preset.category}</span>
-                                  </div>
-                                  <div className="text-white/55 text-[11px] leading-snug mt-1">{preset.description}</div>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                      <VisualThumbnailGallery
+                        selectedKey={config.visualKey || DEFAULT_SUPPLIER_VISUAL_KEY}
+                        onSelect={(key) => updateSupplier(config.id, { visualKey: key })}
+                      />
                     )}
 
                     <div className="overflow-x-auto rounded-2xl border border-white/10">

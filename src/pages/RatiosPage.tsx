@@ -124,9 +124,14 @@ const ProductCard: React.FC<{
                 {activeMappingId === p.id && (
                   <div className="absolute top-full left-0 z-50 mt-1">
                     <MappingPopover
-                      orphanNames={Array.from(allAvailableImportNames).filter(
-                        n => !products.some(pr => pr.searchName === n)
-                      )}
+                      orphanNames={Array.from(allAvailableImportNames).filter((name) => {
+                        const normalizedName = name.trim().toLowerCase();
+                        return !products.some((pr) => (
+                          pr.id !== p.id &&
+                          pr.supplierId === p.supplierId &&
+                          pr.searchName.trim().toLowerCase() === normalizedName
+                        ));
+                      })}
                       onSelect={n => { if (!canEdit) return; updateSearchName(p.id, n); setActiveMappingId(null); }}
                       onClose={() => setActiveMappingId(null)}
                     />
@@ -490,7 +495,14 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                         </button>
                         {state.activeMappingId === p.id && (
                           <MappingPopover
-                            orphanNames={Array.from(state.allAvailableImportNames).filter(n => !state.products.some(pr => pr.searchName === n))}
+                            orphanNames={Array.from(state.allAvailableImportNames).filter((name) => {
+                              const normalizedName = name.trim().toLowerCase();
+                              return !state.products.some((pr) => (
+                                pr.id !== p.id &&
+                                pr.supplierId === p.supplierId &&
+                                pr.searchName.trim().toLowerCase() === normalizedName
+                              ));
+                            })}
                             onSelect={n => { if (!canEdit) return; state.updateSearchName(p.id, n); state.setActiveMappingId(null); }}
                             onClose={() => state.setActiveMappingId(null)}
                           />
