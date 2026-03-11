@@ -254,9 +254,6 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                   >
                     <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/15 to-black/80" />
                     <div className="absolute inset-x-0 bottom-0 p-5 z-10">
-                      <div className="inline-flex items-center rounded-full bg-black/30 border border-white/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-white/85 mb-3 backdrop-blur-sm">
-                        {form.subtitle || 'Nouveau fournisseur'}
-                      </div>
                       <div className="text-white text-3xl font-black uppercase leading-none tracking-[-0.04em] drop-shadow-[0_4px_12px_rgba(0,0,0,0.45)] break-words">
                         {form.name || 'Nouveau nom'}
                       </div>
@@ -371,9 +368,6 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                     >
                       <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/15 to-black/80" />
                       <div className="absolute inset-x-0 bottom-0 p-5 z-10">
-                        <div className="inline-flex items-center rounded-full bg-black/30 border border-white/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-white/85 mb-3 backdrop-blur-sm">
-                          {config.subtitle || 'Fournisseur'}
-                        </div>
                         <div className="text-white text-3xl font-black uppercase leading-none tracking-[-0.04em] drop-shadow-[0_4px_12px_rgba(0,0,0,0.45)] break-words">
                           {config.name}
                         </div>
@@ -385,6 +379,14 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                       </p>
                       <ChevronButton open={galleryOpen} onClick={() => toggleSupplierGallery(config.id)} />
                     </div>
+                    {galleryOpen && (
+                      <div className="mt-3">
+                        <VisualThumbnailGallery
+                          selectedKey={config.visualKey || DEFAULT_SUPPLIER_VISUAL_KEY}
+                          onSelect={(key) => updateSupplier(config.id, { visualKey: key })}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-6">
@@ -423,13 +425,6 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                         </button>
                       </div>
                     </div>
-
-                    {galleryOpen && (
-                      <VisualThumbnailGallery
-                        selectedKey={config.visualKey || DEFAULT_SUPPLIER_VISUAL_KEY}
-                        onSelect={(key) => updateSupplier(config.id, { visualKey: key })}
-                      />
-                    )}
 
                     <div className="overflow-x-auto rounded-2xl border border-white/10">
                       <table className="w-full min-w-[640px] text-sm">
