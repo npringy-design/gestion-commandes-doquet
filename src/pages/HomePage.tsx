@@ -39,7 +39,6 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         />
       )}
 
-      {/* Image de fond vache / boeuf */}
       <div
         className="absolute inset-0 z-0 pointer-events-none"
         style={{
@@ -52,7 +51,6 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         }}
       />
 
-      {/* Overlay moins sombre pour mieux voir le dessin */}
       <div
         className="absolute inset-0 z-0 pointer-events-none"
         style={{
@@ -72,19 +70,21 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
                 const isActive = site.id === activeSiteId;
 
                 return (
-                  <div
+                  <button
                     key={site.id}
-                    className={`rounded-2xl border px-4 py-3 transition-all ${
+                    type="button"
+                    onClick={() => setActiveSiteId(site.id)}
+                    className={`w-full text-left rounded-2xl border px-4 py-3 transition-all hover:scale-[1.01] ${
                       isActive
                         ? 'border-[#ffd700] bg-[#ffd700]/15 text-white shadow-lg'
-                        : 'border-white/10 bg-white/5 text-white/80'
+                        : 'border-white/10 bg-white/5 text-white/80 hover:border-white/25 hover:bg-white/10'
                     }`}
                   >
                     <div className="text-xs font-bold uppercase tracking-[0.18em] opacity-70 mb-1">
-                      {isActive ? 'Site actif' : 'Site autorisé'}
+                      {isActive ? 'Site actif' : 'Cliquer pour sélectionner'}
                     </div>
                     <div className="text-lg font-black tracking-tight">{site.name}</div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -94,42 +94,6 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
 
       <div className="z-10 text-center w-full max-w-5xl px-2">
         {allowedSites.length > 1 && (
-          <div className="mb-6 max-w-md mx-auto">
-            <label className="block text-white/80 text-sm font-bold uppercase tracking-[0.2em] mb-2">
-              Site actif
-            </label>
-            <select
-              value={activeSiteId ?? ''}
-              onChange={(e) => {
-                const newSiteId = e.target.value || null;
-                setActiveSiteId(newSiteId);
-
-                if (typeof window !== 'undefined') {
-                  if (newSiteId) {
-                    window.localStorage.setItem('hippo_active_site_id', newSiteId);
-                  } else {
-                    window.localStorage.removeItem('hippo_active_site_id');
-                  }
-                }
-              }}
-              className="w-full rounded-2xl border border-white/20 bg-black/35 text-white px-4 py-3 text-base font-semibold backdrop-blur-sm outline-none focus:border-[#ffd700]"
-            >
-              {allowedSites.map((site) => (
-                <option key={site.id} value={site.id} className="text-black">
-                  {site.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {allowedSites.length <= 1 && selectedSiteName && (
-          <div className="mb-6 text-white/75 text-sm font-bold uppercase tracking-[0.2em]">
-            {selectedSiteName}
-          </div>
-        )}
-
-        {allowedSites.length > 0 && (
           <div className="xl:hidden mb-6 max-w-md mx-auto rounded-[28px] border border-white/15 bg-black/30 backdrop-blur-md px-4 py-4">
             <div className="text-[#ffd700] text-xs font-black uppercase tracking-[0.2em] mb-3">
               Restaurants disponibles
@@ -138,38 +102,31 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
               {allowedSites.map((site) => {
                 const isActive = site.id === activeSiteId;
                 return (
-                  <div
+                  <button
                     key={site.id}
-                    className={`rounded-full border px-3 py-2 text-sm font-bold ${
+                    type="button"
+                    onClick={() => setActiveSiteId(site.id)}
+                    className={`rounded-full border px-3 py-2 text-sm font-bold transition-colors ${
                       isActive
                         ? 'border-[#ffd700] bg-[#ffd700]/15 text-white'
-                        : 'border-white/15 bg-white/5 text-white/80'
+                        : 'border-white/15 bg-white/5 text-white/80 hover:border-white/30 hover:bg-white/10'
                     }`}
                   >
                     {site.name}
-                  </div>
+                  </button>
                 );
               })}
             </div>
           </div>
         )}
 
-        {/* Titre */}
         <div className="mb-12">
-          <h1 className="text-[#ffd700] text-5xl sm:text-7xl lg:text-8xl font-black uppercase tracking-tighter leading-none mb-4">
-            HIPPO
-            <br />
-            <span className="text-white">COMMANDES</span>
+          <h1 className="text-[#ffd700] text-4xl sm:text-6xl lg:text-7xl font-black uppercase tracking-tight leading-none mb-4 drop-shadow-[0_4px_20px_rgba(0,0,0,0.35)]">
+            {selectedSiteName ?? 'Hippo Thillois'}
           </h1>
-          {selectedSiteName && (
-            <div className="mb-4 text-white text-xl sm:text-2xl lg:text-3xl font-black uppercase tracking-[0.18em]">
-              {selectedSiteName}
-            </div>
-          )}
           <div className="h-2 w-48 bg-red-600 mx-auto rounded-full" />
         </div>
 
-        {/* Boutons principaux */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8">
           <button
             onClick={() => setView('suppliers')}
@@ -249,7 +206,6 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           </button>
         </div>
 
-        {/* Accès admin discret */}
         <button
           onClick={() => {
             if (canAccessAdminDashboard(profile)) {
