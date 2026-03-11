@@ -18,7 +18,9 @@ export type AppProfile = {
   email?: string | null;
   access_scope?: 'all' | 'current_site' | null;
   protected_user?: boolean;
+  default_site_id?: string | null;
 };
+
 export type AppSite = {
   id: string;
   code: string;
@@ -29,6 +31,7 @@ export type AppUserSite = {
   site_id: string;
   site: AppSite | null;
 };
+
 type AuthContextValue = {
   session: Session | null;
   user: User | null;
@@ -44,6 +47,7 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 const AUTH_TIMEOUT_MS = 7000;
+const ACTIVE_SITE_STORAGE_KEY = 'hippo_active_site_id';
 
 async function withTimeout<T>(promise: Promise<T>, label: string, timeoutMs = AUTH_TIMEOUT_MS): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -72,6 +76,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoadingProfile(false);
       setSession(null);
       setProfile(null);
+      setAllowedSites([]);
+      setActiveSiteId(null);
       return;
     }
 
@@ -88,6 +94,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (!userId) {
         setProfile(null);
+        setAllowedSites([]);
+        setActiveSiteId(null);
         setLoadingProfile(false);
         return;
       }
@@ -98,7 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data, error } = await withTimeout(
           supabase
             .from('profiles')
-            .select('id, role, is_active, full_name, email, access_scope, protected_user')
+            .select('id, role, is_active, full_name, email, access_scope, protected_user, default_site_id')
             .eq('id', userId)
             .maybeSingle(),
           'Chargement du profil'
@@ -109,12 +117,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (error || !data) {
           if (error) console.warn('[auth] Profil indisponible:', error.message);
           setProfile(null);
-        } else {
-          setProfile(data as AppProfile);
+          setAllowedSites([]);
+          setActiveSiteId(null);
+          return;
         }
+
+        const nextProfile = data as AppProfile;
+        setProfile(nextProfile);
+
+        const { data: userSitesData, error: userSitesError } = await withTimeout(
+          supabase
+            .from('user_sites')
+            .select('site_id, site:sites(id, code, name)')
+            .eq('user_id', userId),
+          'Chargement des sites autorisés'
+        );
+
+        if (!mounted) return;
+
+        if (userSitesError) {
+          console.warn('[auth] Sites utilisateurs indisponibles:', userSitesError.message);
+          setAllowedSites([]);
+          setActiveSiteId(nextProfile.default_site_id ?? null);
+          return;
+        }
+
+        const nextAllowedSites = ((userSitesData ?? []) as AppUserSite[])
+          .map((entry) => entry.site)
+          .filter((site): site is AppSite => Boolean(site))
+          .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
+
+        setAllowedSites(nextAllowedSites);
+
+        const storedSiteId = typeof window !== 'undefined' ? window.localStorage.getItem(ACTIVE_SITE_STORAGE_KEY) : null;
+        const validIds = new Set(nextAllowedSites.map((site) => site.id));
+
+        let nextActiveSiteId: string | null = null;
+
+        if (storedSiteId && validIds.has(storedSiteId)) {
+          nextActiveSiteId = storedSiteId;
+        } else if (nextProfile.default_site_id && validIds.has(nextProfile.default_site_id)) {
+          nextActiveSiteId = nextProfile.default_site_id;
+        } else if (nextAllowedSites.length > 0) {
+          nextActiveSiteId = nextAllowedSites[0].id;
+        }
+
+        setActiveSiteId(nextActiveSiteId);
       } catch (error) {
         console.warn('[auth] Erreur lors du chargement du profil:', error);
-        if (mounted) setProfile(null);
+        if (mounted) {
+          setProfile(null);
+          setAllowedSites([]);
+          setActiveSiteId(null);
+        }
       } finally {
         if (mounted) setLoadingProfile(false);
       }
@@ -129,6 +184,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (error) {
           console.warn('[auth] getSession:', error.message);
           setSession(null);
+          setAllowedSites([]);
+          setActiveSiteId(null);
           setLoadingSession(false);
           setLoadingProfile(false);
           return;
@@ -143,6 +200,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!mounted) return;
         setSession(null);
         setProfile(null);
+        setAllowedSites([]);
+        setActiveSiteId(null);
         setLoadingSession(false);
         setLoadingProfile(false);
       }
@@ -164,6 +223,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    if (!activeSiteId) {
+      window.localStorage.removeItem(ACTIVE_SITE_STORAGE_KEY);
+      return;
+    }
+
+    window.localStorage.setItem(ACTIVE_SITE_STORAGE_KEY, activeSiteId);
+  }, [activeSiteId]);
+
   const value = useMemo<AuthContextValue>(() => {
     const isActive = profile?.is_active ?? true;
     const isAdmin = ['super_admin', 'global_admin', 'director', 'manager_plus'].includes(profile?.role ?? '') && isActive;
@@ -179,8 +249,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!supabase) return;
         await supabase.auth.signOut();
       },
+      allowedSites,
+      activeSiteId,
+      setActiveSiteId,
     };
-  }, [session, profile, loadingSession, loadingProfile]);
+  }, [session, profile, loadingSession, loadingProfile, allowedSites, activeSiteId]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

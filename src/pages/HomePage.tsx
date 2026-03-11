@@ -4,7 +4,7 @@
 // Extraite de App.tsx
 // =============================================================
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View } from '../constants';
 import { PasswordModal } from '../components/Modals';
 import { useAuth } from '../auth/AuthProvider';
@@ -17,11 +17,15 @@ interface HomePageProps {
 
 const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   const [showPassword, setShowPassword] = useState(false);
-  const { profile } = useAuth();
+  const { profile, allowedSites, activeSiteId, setActiveSiteId } = useAuth();
 
   const isMobile =
     typeof window !== 'undefined' &&
     window.matchMedia('(max-width: 1023px)').matches;
+
+  const selectedSiteName = useMemo(() => {
+    return allowedSites.find((site) => site.id === activeSiteId)?.name ?? null;
+  }, [allowedSites, activeSiteId]);
 
   return (
     <div className="min-h-screen bg-[#1a0f0a] flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 relative overflow-hidden">
@@ -58,6 +62,31 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
       />
 
       <div className="z-10 text-center w-full max-w-5xl px-2">
+        {allowedSites.length > 1 && (
+          <div className="mb-6 max-w-md mx-auto">
+            <label className="block text-white/80 text-sm font-bold uppercase tracking-[0.2em] mb-2">
+              Site actif
+            </label>
+            <select
+              value={activeSiteId ?? ''}
+              onChange={(e) => setActiveSiteId(e.target.value || null)}
+              className="w-full rounded-2xl border border-white/20 bg-black/35 text-white px-4 py-3 text-base font-semibold backdrop-blur-sm outline-none focus:border-[#ffd700]"
+            >
+              {allowedSites.map((site) => (
+                <option key={site.id} value={site.id} className="text-black">
+                  {site.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {allowedSites.length <= 1 && selectedSiteName && (
+          <div className="mb-6 text-white/75 text-sm font-bold uppercase tracking-[0.2em]">
+            {selectedSiteName}
+          </div>
+        )}
+
         {/* Titre */}
         <div className="mb-12">
           <h1 className="text-[#ffd700] text-5xl sm:text-7xl lg:text-8xl font-black uppercase tracking-tighter leading-none mb-4">
