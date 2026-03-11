@@ -126,69 +126,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const nextProfile = data as AppProfile;
         setProfile(nextProfile);
 
-        const shouldLoadAllSites = nextProfile.role === 'super_admin' || nextProfile.role === 'global_admin';
+       const { data: userSitesData, error: userSitesError } = await withTimeout(
+  supabase
+    .from('user_sites')
+    .select('site_id')
+    .eq('user_id', userId),
+  'Chargement des sites autorisés'
+);
 
-        let nextAllowedSites: AppSite[] = [];
+if (!mounted) return;
 
-        if (shouldLoadAllSites) {
-          const { data: sitesData, error: sitesError } = await withTimeout(
-            supabase
-              .from('sites')
-              .select('id, code, name'),
-            'Chargement de tous les sites'
-          );
+if (userSitesError) {
+  console.warn('[auth] Sites utilisateurs indisponibles:', userSitesError.message);
+  setAllowedSites([]);
+  setActiveSiteId(nextProfile.default_site_id ?? null);
+  return;
+}
 
-          if (!mounted) return;
+const siteIds = Array.from(
+  new Set((userSitesData ?? []).map((entry) => entry.site_id).filter(Boolean))
+);
 
-          if (sitesError) {
-            console.warn('[auth] Chargement global des sites indisponible:', sitesError.message);
-          } else {
-            nextAllowedSites = ((sitesData ?? []) as AppSite[])
-              .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
-          }
-        } else {
-          const { data: userSitesData, error: userSitesError } = await withTimeout(
-            supabase
-              .from('user_sites')
-              .select('site_id')
-              .eq('user_id', userId),
-            'Chargement des sites autorisés'
-          );
+let nextAllowedSites: AppSite[] = [];
 
-          if (!mounted) return;
+if (siteIds.length > 0) {
+  const { data: sitesData, error: sitesError } = await withTimeout(
+    supabase
+      .from('sites')
+      .select('id, code, name')
+      .in('id', siteIds),
+    'Chargement du détail des sites'
+  );
 
-          if (userSitesError) {
-            console.warn('[auth] Sites utilisateurs indisponibles:', userSitesError.message);
-            setAllowedSites([]);
-            setActiveSiteId(nextProfile.default_site_id ?? null);
-            return;
-          }
+  if (!mounted) return;
 
-          const siteIds = Array.from(
-            new Set((userSitesData ?? []).map((entry) => entry.site_id).filter(Boolean))
-          );
+  if (sitesError) {
+    console.warn('[auth] Détail des sites indisponible:', sitesError.message);
+  } else {
+    nextAllowedSites = ((sitesData ?? []) as AppSite[])
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
+  }
+}
 
-          if (siteIds.length > 0) {
-            const { data: sitesData, error: sitesError } = await withTimeout(
-              supabase
-                .from('sites')
-                .select('id, code, name')
-                .in('id', siteIds),
-              'Chargement du détail des sites'
-            );
-
-            if (!mounted) return;
-
-            if (sitesError) {
-              console.warn('[auth] Détail des sites indisponible:', sitesError.message);
-            } else {
-              nextAllowedSites = ((sitesData ?? []) as AppSite[])
-                .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
-            }
-          }
-        }
-
-        setAllowedSites(nextAllowedSites);
+setAllowedSites(nextAllowedSites);
 
         const storedSiteId =
   typeof window !== 'undefined'
