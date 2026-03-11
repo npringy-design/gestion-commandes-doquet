@@ -149,20 +149,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         setAllowedSites(nextAllowedSites);
 
-        const storedSiteId = typeof window !== 'undefined' ? window.localStorage.getItem(ACTIVE_SITE_STORAGE_KEY) : null;
-        const validIds = new Set(nextAllowedSites.map((site) => site.id));
+        const storedSiteId =
+  typeof window !== 'undefined'
+    ? window.localStorage.getItem(ACTIVE_SITE_STORAGE_KEY)
+    : null;
 
-        let nextActiveSiteId: string | null = null;
+const validIds = new Set(nextAllowedSites.map((site) => site.id));
 
-        if (storedSiteId && validIds.has(storedSiteId)) {
-          nextActiveSiteId = storedSiteId;
-        } else if (nextProfile.default_site_id && validIds.has(nextProfile.default_site_id)) {
-          nextActiveSiteId = nextProfile.default_site_id;
-        } else if (nextAllowedSites.length > 0) {
-          nextActiveSiteId = nextAllowedSites[0].id;
-        }
+let nextActiveSiteId: string | null = null;
 
-        setActiveSiteId(nextActiveSiteId);
+if (storedSiteId && validIds.has(storedSiteId)) {
+  nextActiveSiteId = storedSiteId;
+} else if (nextProfile.default_site_id && validIds.has(nextProfile.default_site_id)) {
+  nextActiveSiteId = nextProfile.default_site_id;
+} else if (nextAllowedSites.length > 0) {
+  nextActiveSiteId = nextAllowedSites[0].id;
+}
+
+setActiveSiteId(nextActiveSiteId);
+
+if (typeof window !== 'undefined') {
+  if (nextActiveSiteId) {
+    window.localStorage.setItem(ACTIVE_SITE_STORAGE_KEY, nextActiveSiteId);
+  } else {
+    window.localStorage.removeItem(ACTIVE_SITE_STORAGE_KEY);
+  }
+}
       } catch (error) {
         console.warn('[auth] Erreur lors du chargement du profil:', error);
         if (mounted) {
