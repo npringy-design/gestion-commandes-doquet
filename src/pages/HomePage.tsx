@@ -75,9 +75,9 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
 
                 if (typeof window !== 'undefined') {
                   if (newSiteId) {
-                    window.localStorage.setItem('active_site_id', newSiteId);
+                    window.localStorage.setItem('hippo_active_site_id', newSiteId);
                   } else {
-                    window.localStorage.removeItem('active_site_id');
+                    window.localStorage.removeItem('hippo_active_site_id');
                   }
                 }
               }}
