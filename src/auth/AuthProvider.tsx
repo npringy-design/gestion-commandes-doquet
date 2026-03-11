@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 
@@ -69,6 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [allowedSites, setAllowedSites] = useState<AppSite[]>([]);
   const [activeSiteId, setActiveSiteId] = useState<string | null>(null);
+  const hasHydratedActiveSiteRef = useRef(false);
 
   useEffect(() => {
     if (!isSupabaseConfigured() || !supabase) {
@@ -195,6 +196,8 @@ if (typeof window !== 'undefined') {
     window.localStorage.removeItem(ACTIVE_SITE_STORAGE_KEY);
   }
 }
+
+hasHydratedActiveSiteRef.current = true;
       } catch (error) {
         console.warn('[auth] Erreur lors du chargement du profil:', error);
         if (mounted) {
@@ -257,6 +260,10 @@ if (typeof window !== 'undefined') {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    if (!hasHydratedActiveSiteRef.current) {
+      return;
+    }
 
     if (!activeSiteId) {
       window.localStorage.removeItem(ACTIVE_SITE_STORAGE_KEY);
