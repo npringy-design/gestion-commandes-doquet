@@ -77,11 +77,11 @@ export default async function handler(req: any, res: any) {
     const filteredUsers = hydratedUsers
       .filter((u) => canViewUser(u))
       .filter((u) => {
-        if (validatedActiveSiteId) {
-          return u.access_scope === 'all' || u.site_ids.includes(validatedActiveSiteId);
-        }
         if (auth.profile.role === 'super_admin' || auth.profile.role === 'global_admin') {
           return true;
+        }
+        if (validatedActiveSiteId) {
+          return u.access_scope === 'all' || u.site_ids.includes(validatedActiveSiteId);
         }
         return u.site_ids.some((siteId: string) => actorSiteScope.has(siteId));
       });

@@ -39,9 +39,18 @@ export default async function handler(req: any, res: any) {
       return sendJson(res, 404, { ok: false, error: error?.message || 'Profil utilisateur introuvable.' });
     }
 
-    const permission = canManageTarget(auth.profile, target);
-    if (!permission.ok) {
-      return forbidden(res, permission.error);
+    const isSelfUpdate = target.id === auth.profile.id;
+    const wantsRestrictedChange = role !== undefined || isActive !== undefined || requestedSiteIds !== undefined;
+
+    if (isSelfUpdate) {
+      if (wantsRestrictedChange) {
+        return forbidden(res, 'Vous ne pouvez modifier votre propre compte ici que pour le nom.');
+      }
+    } else {
+      const permission = canManageTarget(auth.profile, target);
+      if (!permission.ok) {
+        return forbidden(res, permission.error);
+      }
     }
 
     const patch: Record<string, unknown> = {};

@@ -60,6 +60,7 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({ setView }) => {
   const [sitesModalUser, setSitesModalUser] = useState<UserRow | null>(null);
   const [sitesModalSelection, setSitesModalSelection] = useState<string[]>([]);
   const [sitesSaving, setSitesSaving] = useState(false);
+  const [nameDrafts, setNameDrafts] = useState<Record<string, string>>({});
 
   const [formEmail, setFormEmail] = useState('');
   const [formFullName, setFormFullName] = useState('');
@@ -180,11 +181,64 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({ setView }) => {
   }, [loadUsers]);
 
   React.useEffect(() => {
+    setNameDrafts((prev) => {
+      const next: Record<string, string> = {};
+      for (const user of users) {
+        next[user.id] = prev[user.id] ?? user.full_name ?? '';
+      }
+      return next;
+    });
+  }, [users]);
+
+  React.useEffect(() => {
     setFormSiteIds(syncSiteSelectionForRole(formRole, formSiteIds));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formRole, isGlobalSiteAdmin, activeSiteId, allowedSites.length]);
 
   const usersCount = useMemo(() => users.length, [users]);
+
+  const saveFullName = async (id: string) => {
+    const row = users.find((u) => u.id === id);
+    if (!row) return;
+
+    const rawDraft = nameDrafts[id] ?? '';
+    const trimmedDraft = rawDraft.trim();
+    const currentName = (row.full_name ?? '').trim();
+    if (trimmedDraft === currentName) return;
+
+    setActionId(id);
+    try {
+      const data = await request('/api/admin/users/update', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          id,
+          full_name: trimmedDraft || null,
+        }),
+      });
+      const updatedUser = data?.user as Partial<UserRow> | undefined;
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === id
+            ? {
+                ...u,
+                ...(updatedUser || {}),
+                full_name: (updatedUser?.full_name as string | null | undefined) ?? (trimmedDraft || null),
+              }
+            : u
+        )
+      );
+      showToast('Nom mis à jour.', 'success');
+    } catch (error: any) {
+      showToast(error?.message || 'Impossible de modifier le nom.', 'error');
+      await loadUsers();
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const handleNameDraftChange = (id: string, value: string) => {
+    setNameDrafts((prev) => ({ ...prev, [id]: value }));
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -448,7 +502,47 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({ setView }) => {
                     return (
                       <tr key={u.id} className="border-t border-slate-100 hover:bg-slate-50/80 transition-colors align-top">
                         <td className="p-3 text-sm font-bold text-slate-700">{u.email || '—'}</td>
-                        <td className="p-3 text-sm font-semibold text-slate-600">{u.full_name || '—'}</td>
+                        <td className="p-3 min-w-[230px]">
+                          {(() => {
+                            const draftName = nameDrafts[u.id] ?? u.full_name ?? '';
+                            const busyOnName = actionId === u.id;
+                            const canEditName = canManageRow || isCurrentUser;
+                            const isNameDirty = draftName.trim() !== ((u.full_name ?? '').trim());
+                            return canEditName ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  value={draftName}
+                                  onChange={(e) => handleNameDraftChange(u.id, e.target.value)}
+                                  onBlur={() => {
+                                    if (isNameDirty && !busyOnName) {
+                                      void saveFullName(u.id);
+                                    }
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      if (isNameDirty && !busyOnName) {
+                                        void saveFullName(u.id);
+                                      }
+                                    }
+                                  }}
+                                  disabled={busyOnName}
+                                  placeholder="Nom"
+                                  className="h-9 w-full min-w-[140px] px-3 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-700 disabled:opacity-50"
+                                />
+                                <button
+                                  onClick={() => void saveFullName(u.id)}
+                                  disabled={!isNameDirty || busyOnName}
+                                  className="h-9 px-3 rounded-lg bg-indigo-600 text-white text-[11px] font-black uppercase disabled:opacity-50"
+                                >
+                                  OK
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-sm font-semibold text-slate-600">{u.full_name || '—'}</span>
+                            );
+                          })()}
+                        </td>
                         <td className="p-3">
                           <select
                             value={u.role}
