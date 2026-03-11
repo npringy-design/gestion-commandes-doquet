@@ -40,11 +40,11 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         className="absolute inset-0 z-0 pointer-events-none"
         style={{
           backgroundImage: `url(${homeBgCow})`,
-          backgroundSize: 'cover',
-          backgroundPosition: isMobile ? '58% center' : '48% 42%',
+          backgroundSize: isMobile ? 'cover' : 'contain',
+          backgroundPosition: isMobile ? '60% center' : 'center center',
           backgroundRepeat: 'no-repeat',
-          filter: 'brightness(1.08)',
-          transform: 'scale(1.02)',
+          filter: 'brightness(1.12)',
+          transform: 'scale(1)',
         }}
       />
 
