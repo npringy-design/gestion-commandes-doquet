@@ -63,6 +63,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<AppProfile | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [allowedSites, setAllowedSites] = useState<AppSite[]>([]);
+  const [activeSiteId, setActiveSiteId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isSupabaseConfigured() || !supabase) {
