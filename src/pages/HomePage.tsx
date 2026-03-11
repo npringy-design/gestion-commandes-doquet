@@ -24,8 +24,25 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
     window.matchMedia('(max-width: 1023px)').matches;
 
   const selectedSiteName = useMemo(() => {
-    return allowedSites.find((site) => site.id === activeSiteId)?.name ?? null;
+    return allowedSites.find((site) => site.id === activeSiteId)?.name ?? 'Hippo Thillois';
   }, [allowedSites, activeSiteId]);
+
+  const siteTitle = useMemo(() => {
+    const trimmed = (selectedSiteName ?? 'Hippo Thillois').trim();
+    if (!trimmed) {
+      return { prefix: 'Hippo', suffix: 'Thillois' };
+    }
+
+    const parts = trimmed.split(/\s+/);
+    if (parts.length === 1) {
+      return { prefix: parts[0], suffix: '' };
+    }
+
+    return {
+      prefix: parts[0],
+      suffix: parts.slice(1).join(' '),
+    };
+  }, [selectedSiteName]);
 
   return (
     <div className="min-h-screen bg-[#1a0f0a] flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 relative overflow-hidden">
@@ -60,11 +77,8 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
       />
 
       {allowedSites.length > 0 && (
-        <div className="hidden xl:block absolute left-4 top-1/2 -translate-y-1/2 z-10 w-72">
-          <div className="rounded-[32px] border border-white/15 bg-black/35 backdrop-blur-md shadow-2xl p-5 text-left">
-            <div className="text-[#ffd700] text-sm font-black uppercase tracking-[0.22em] mb-4">
-              Restaurants disponibles
-            </div>
+        <div className="hidden xl:block absolute left-4 top-6 z-10 w-72">
+          <div className="rounded-[32px] border border-white/15 bg-black/35 backdrop-blur-md shadow-2xl p-4 text-left">
             <div className="space-y-3">
               {allowedSites.map((site) => {
                 const isActive = site.id === activeSiteId;
@@ -74,16 +88,13 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
                     key={site.id}
                     type="button"
                     onClick={() => setActiveSiteId(site.id)}
-                    className={`w-full text-left rounded-2xl border px-4 py-3 transition-all hover:scale-[1.01] ${
+                    className={`w-full text-left rounded-2xl border px-4 py-4 transition-all hover:scale-[1.01] ${
                       isActive
                         ? 'border-[#ffd700] bg-[#ffd700]/15 text-white shadow-lg'
-                        : 'border-white/10 bg-white/5 text-white/80 hover:border-white/25 hover:bg-white/10'
+                        : 'border-white/10 bg-white/5 text-white/85 hover:border-white/25 hover:bg-white/10'
                     }`}
                   >
-                    <div className="text-xs font-bold uppercase tracking-[0.18em] opacity-70 mb-1">
-                      {isActive ? 'Site actif' : 'Cliquer pour sélectionner'}
-                    </div>
-                    <div className="text-lg font-black tracking-tight">{site.name}</div>
+                    <div className="text-[1.65rem] leading-tight font-black tracking-tight">{site.name}</div>
                   </button>
                 );
               })}
@@ -92,12 +103,9 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         </div>
       )}
 
-      <div className="z-10 text-center w-full max-w-5xl px-2">
+      <div className="z-10 text-center w-full max-w-6xl px-2 xl:pl-80">
         {allowedSites.length > 1 && (
           <div className="xl:hidden mb-6 max-w-md mx-auto rounded-[28px] border border-white/15 bg-black/30 backdrop-blur-md px-4 py-4">
-            <div className="text-[#ffd700] text-xs font-black uppercase tracking-[0.2em] mb-3">
-              Restaurants disponibles
-            </div>
             <div className="flex flex-wrap justify-center gap-2">
               {allowedSites.map((site) => {
                 const isActive = site.id === activeSiteId;
@@ -121,10 +129,16 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         )}
 
         <div className="mb-12">
-          <h1 className="text-[#ffd700] text-4xl sm:text-6xl lg:text-7xl font-black uppercase tracking-tight leading-none mb-4 drop-shadow-[0_4px_20px_rgba(0,0,0,0.35)]">
-            {selectedSiteName ?? 'Hippo Thillois'}
-          </h1>
-          <div className="h-2 w-48 bg-red-600 mx-auto rounded-full" />
+          <div className="leading-none drop-shadow-[0_4px_20px_rgba(0,0,0,0.35)]">
+            <div className="text-[#ffd700] text-4xl sm:text-6xl lg:text-7xl font-black uppercase tracking-tight">
+              {siteTitle.prefix}
+            </div>
+            {siteTitle.suffix && (
+              <div className="text-white text-4xl sm:text-6xl lg:text-7xl font-black uppercase tracking-tight mt-1 sm:mt-2">
+                {siteTitle.suffix}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8">
