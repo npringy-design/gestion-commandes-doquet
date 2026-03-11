@@ -69,7 +69,18 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
             </label>
             <select
               value={activeSiteId ?? ''}
-              onChange={(e) => setActiveSiteId(e.target.value || null)}
+              onChange={(e) => {
+                const newSiteId = e.target.value || null;
+                setActiveSiteId(newSiteId);
+
+                if (typeof window !== 'undefined') {
+                  if (newSiteId) {
+                    window.localStorage.setItem('active_site_id', newSiteId);
+                  } else {
+                    window.localStorage.removeItem('active_site_id');
+                  }
+                }
+              }}
               className="w-full rounded-2xl border border-white/20 bg-black/35 text-white px-4 py-3 text-base font-semibold backdrop-blur-sm outline-none focus:border-[#ffd700]"
             >
               {allowedSites.map((site) => (
