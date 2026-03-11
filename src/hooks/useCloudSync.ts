@@ -375,8 +375,10 @@ export const useCloudSync = ({
   }, [applyCloudKey, getLogicalKeyFromRemoteKey, getRemoteKey, scopeToken, supabaseLoaded, syncStatus]);
 
   const persistEverywhere = useCallback((key: string, value: unknown) => {
+    if (!siteStateReady || isHydratingFromCloud.current) return;
+
     saveSiteScopedState(key, value, activeSiteId, useLegacySiteStorage, onSaveError);
-    if (!siteStateReady || isHydratingFromCloud.current || !supabaseLoaded || !isSupabaseConfigured()) return;
+    if (!supabaseLoaded || !isSupabaseConfigured()) return;
 
     const ts = nowIso();
     localTsByKey.current[key] = ts;

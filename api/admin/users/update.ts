@@ -2,6 +2,7 @@ import { requireAdmin } from '../../_lib/auth.js';
 import { assertServerEnv, supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { badRequest, forbidden, methodNotAllowed, sendJson, serverError, unauthorized } from '../../_lib/http.js';
 import { canAssignRole, canManageTarget, canUpdateUsers, MANAGEABLE_ROLES } from '../../_lib/permissions.js';
+import { computeTargetSiteIds, getAllowedSiteIdsForUser, syncProfileSites } from '../../_lib/siteAccess.js';
 import { ensureProfileExists } from '../../_lib/profileProvisioning.js';
 
 const ALLOWED_ROLES = new Set(MANAGEABLE_ROLES);
@@ -26,6 +27,8 @@ export default async function handler(req: any, res: any) {
     const role = req.body?.role;
     const isActive = req.body?.is_active;
     const fullName = req.body?.full_name;
+    const requestedSiteIds = Array.isArray(req.body?.siteIds) ? req.body.siteIds : undefined;
+    const activeSiteId = String(req.body?.activeSiteId ?? '').trim();
 
     if (!id) return badRequest(res, 'Identifiant utilisateur (id) requis.');
 
@@ -36,15 +39,26 @@ export default async function handler(req: any, res: any) {
       return sendJson(res, 404, { ok: false, error: error?.message || 'Profil utilisateur introuvable.' });
     }
 
-    const permission = canManageTarget(auth.profile, target);
-    if (!permission.ok) {
-      return forbidden(res, permission.error);
+    const isSelfUpdate = target.id === auth.profile.id;
+    const wantsRestrictedChange = role !== undefined || isActive !== undefined || requestedSiteIds !== undefined;
+
+    if (isSelfUpdate) {
+      if (wantsRestrictedChange) {
+        return forbidden(res, 'Vous ne pouvez modifier votre propre compte ici que pour le nom.');
+      }
+    } else {
+      const permission = canManageTarget(auth.profile, target);
+      if (!permission.ok) {
+        return forbidden(res, permission.error);
+      }
     }
 
     const patch: Record<string, unknown> = {};
 
+    let nextRole = target.role;
+
     if (role !== undefined) {
-      const nextRole = String(role);
+      nextRole = String(role);
       if (!ALLOWED_ROLES.has(nextRole)) {
         return badRequest(res, 'Rôle invalide. Valeurs autorisées: global_admin, director, manager_plus, manager, commande.');
       }
@@ -69,8 +83,21 @@ export default async function handler(req: any, res: any) {
       patch.full_name = fullName === null ? null : fullName.trim();
     }
 
+    const shouldSyncSites = requestedSiteIds !== undefined || role !== undefined;
+    let nextSiteIds = await getAllowedSiteIdsForUser(target.id, target.role);
+
+    if (shouldSyncSites) {
+      nextSiteIds = await computeTargetSiteIds({
+        actor: auth.profile,
+        targetRole: nextRole,
+        requestedSiteIds: requestedSiteIds ?? nextSiteIds,
+        activeSiteId,
+      });
+      patch.default_site_id = nextSiteIds[0] ?? null;
+    }
+
     if (Object.keys(patch).length === 0) {
-      return badRequest(res, 'Aucune propriété à mettre à jour (role, is_active, full_name).');
+      return badRequest(res, 'Aucune propriété à mettre à jour (role, is_active, full_name, siteIds).');
     }
 
     const { error: updateError } = await supabaseAdmin
@@ -85,9 +112,13 @@ export default async function handler(req: any, res: any) {
       return serverError(res, `Mise à jour impossible: ${updateError.message}`);
     }
 
+    if (shouldSyncSites) {
+      await syncProfileSites({ userId: id, role: nextRole, siteIds: nextSiteIds });
+    }
+
     const { data, error } = await supabaseAdmin
       .from('profiles')
-      .select('id, email, full_name, role, is_active, access_scope, protected_user, created_at, updated_at')
+      .select('id, email, full_name, role, is_active, access_scope, protected_user, created_at, updated_at, default_site_id')
       .eq('id', id)
       .maybeSingle();
 
