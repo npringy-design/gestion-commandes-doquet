@@ -9,6 +9,7 @@ import { View } from '../constants';
 import { PasswordModal } from '../components/Modals';
 import { useAuth } from '../auth/AuthProvider';
 import { canAccessAdminDashboard, canAccessStatsPage } from '../lib/permissions';
+import homeBgCow from '../assets/supplier-visuals/home-bg-cow.jpg';
 
 interface HomePageProps {
   setView: (v: View) => void;
@@ -29,11 +30,18 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         />
       )}
 
-      {/* Texture de fond */}
+      {/* Image de fond vache boucherie */}
       <div
-        className="absolute inset-0 z-0 opacity-20 pointer-events-none"
-        style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/brick-wall.png')` }}
+        className="absolute inset-0 z-0 pointer-events-none"
+        style={{
+          backgroundImage: `url(${homeBgCow})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center center',
+          backgroundRepeat: 'no-repeat',
+        }}
       />
+      {/* Overlay sombre pour lisibilité */}
+      <div className="absolute inset-0 z-0 pointer-events-none bg-[#1a0f0a]/80" />
 
       <div className="z-10 text-center w-full max-w-5xl px-2">
         {/* Titre */}
