@@ -19,7 +19,16 @@ export type AppProfile = {
   access_scope?: 'all' | 'current_site' | null;
   protected_user?: boolean;
 };
+export type AppSite = {
+  id: string;
+  code: string;
+  name: string;
+};
 
+export type AppUserSite = {
+  site_id: string;
+  site: AppSite | null;
+};
 type AuthContextValue = {
   session: Session | null;
   user: User | null;
