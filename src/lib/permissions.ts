@@ -103,7 +103,7 @@ export function canAssignRole(profile: AppProfile | null, role: AppRole) {
 export function canManageTarget(profile: AppProfile | null, target: Pick<AppProfile, 'id' | 'role' | 'protected_user'> | null) {
   if (!profile || !target) return false;
   if (profile.id === target.id) return false;
-  if (profile.role === ROLES.SUPER_ADMIN) return true;
+  if (profile.role === ROLES.SUPER_ADMIN) return target.role !== ROLES.SUPER_ADMIN;
   if (target.protected_user || target.role === ROLES.SUPER_ADMIN) return false;
 
   switch (profile.role) {

@@ -66,20 +66,16 @@ export const computeTargetSiteIds = async ({ actor, targetRole, requestedSiteIds
   if (actor.role === 'super_admin' || actor.role === 'global_admin') {
     const filtered = normalizedRequested.filter((siteId) => validSiteSet.has(siteId));
 
-    if (targetRole === 'director' || targetRole === 'manager_plus') {
-      if (filtered.length === 0) {
-        const fallback = String(activeSiteId || '').trim();
-        if (fallback && validSiteSet.has(fallback)) return [fallback];
-        throw new Error('Sélectionnez au moins un site.');
-      }
+    if (filtered.length > 0) {
       return filtered;
     }
 
-    const singleSite = filtered[0] || String(activeSiteId || '').trim();
-    if (!singleSite || !validSiteSet.has(singleSite)) {
-      throw new Error('Sélectionnez un site valide.');
+    const fallback = String(activeSiteId || '').trim();
+    if (fallback && validSiteSet.has(fallback)) {
+      return [fallback];
     }
-    return [singleSite];
+
+    throw new Error('Sélectionnez au moins un site valide.');
   }
 
   const actorSiteId = await validateActorActiveSite(actor, activeSiteId);

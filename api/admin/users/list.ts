@@ -34,18 +34,22 @@ export default async function handler(req: any, res: any) {
     const allSiteIds = allSites.map((site) => site.id);
     const allSiteNameMap = new Map(allSites.map((site) => [site.id, site.name]));
 
+    const actorAllowedSiteIds = await getAllowedSiteIdsForUser(auth.profile.id, auth.profile.role);
+    const actorSiteScope = new Set(actorAllowedSiteIds);
+
     const hydratedUsers = await Promise.all((data?.users ?? []).map(async (u) => {
       const p = profilesMap.get(u.id);
-      const siteIds = p?.role === 'super_admin' || p?.role === 'global_admin'
+      const role = p?.role ?? 'commande';
+      const siteIds = role === 'super_admin' || role === 'global_admin'
         ? allSiteIds
-        : await getAllowedSiteIdsForUser(u.id, p?.role ?? 'commande');
+        : await getAllowedSiteIdsForUser(u.id, role);
       const siteNames = siteIds.map((siteId) => allSiteNameMap.get(siteId)).filter(Boolean);
 
       return {
         id: u.id,
         email: p?.email ?? u.email ?? null,
         full_name: p?.full_name ?? u.user_metadata?.full_name ?? u.user_metadata?.name ?? null,
-        role: p?.role ?? 'commande',
+        role,
         is_active: p?.is_active ?? true,
         access_scope: p?.access_scope ?? 'current_site',
         protected_user: p?.protected_user ?? false,
@@ -54,13 +58,33 @@ export default async function handler(req: any, res: any) {
         last_sign_in_at: u.last_sign_in_at ?? null,
         default_site_id: p?.default_site_id ?? null,
         site_ids: siteIds,
-        site_names: p?.role === 'super_admin' || p?.role === 'global_admin' ? ['Tous les sites'] : siteNames,
+        site_names: role === 'super_admin' || role === 'global_admin' ? ['Tous les sites'] : siteNames,
       };
     }));
 
-    const filteredUsers = !validatedActiveSiteId
-      ? hydratedUsers
-      : hydratedUsers.filter((u) => u.access_scope === 'all' || u.site_ids.includes(validatedActiveSiteId));
+    const canViewUser = (target: any) => {
+      if (target.id === auth.profile.id) return true;
+      if (target.role === 'super_admin') return auth.profile.role === 'super_admin';
+      if (target.role === 'global_admin') return auth.profile.role === 'super_admin';
+      if (auth.profile.role === 'super_admin') return true;
+      if (auth.profile.role === 'global_admin') return ['director', 'manager_plus', 'manager', 'commande'].includes(target.role);
+      if (auth.profile.role === 'director') return ['manager_plus', 'manager', 'commande'].includes(target.role);
+      if (auth.profile.role === 'manager_plus') return ['manager', 'commande'].includes(target.role);
+      if (auth.profile.role === 'manager') return target.role === 'commande';
+      return false;
+    };
+
+    const filteredUsers = hydratedUsers
+      .filter((u) => canViewUser(u))
+      .filter((u) => {
+        if (validatedActiveSiteId) {
+          return u.access_scope === 'all' || u.site_ids.includes(validatedActiveSiteId);
+        }
+        if (auth.profile.role === 'super_admin' || auth.profile.role === 'global_admin') {
+          return true;
+        }
+        return u.site_ids.some((siteId: string) => actorSiteScope.has(siteId));
+      });
 
     const users = filteredUsers.slice((page - 1) * perPage, page * perPage);
 
@@ -68,7 +92,7 @@ export default async function handler(req: any, res: any) {
       ok: true,
       page,
       perPage,
-      total: users.length,
+      total: filteredUsers.length,
       users,
     });
   } catch (error: any) {

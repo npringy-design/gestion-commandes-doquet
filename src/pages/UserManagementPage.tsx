@@ -33,8 +33,7 @@ interface UserManagementPageProps {
   setView: (v: View) => void;
 }
 
-const MULTI_SITE_ELIGIBLE_ROLES: Role[] = ['director', 'manager_plus'];
-const MONO_SITE_ROLES: Role[] = ['manager', 'commande'];
+const SITE_ASSIGNABLE_ROLES: Role[] = ['director', 'manager_plus', 'manager', 'commande'];
 
 const formatDate = (value?: string | null) => {
   if (!value) return '—';
@@ -118,10 +117,10 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({ setView }) => {
       if (role === 'global_admin' || role === 'super_admin') {
         return allowedSites.map((site) => site.id);
       }
-      if (MULTI_SITE_ELIGIBLE_ROLES.includes(role)) {
+      if (SITE_ASSIGNABLE_ROLES.includes(role)) {
         return ids;
       }
-      return ids.slice(0, 1);
+      return ids;
     },
     [activeSiteId, allowedSites, isGlobalSiteAdmin]
   );
@@ -196,7 +195,7 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({ setView }) => {
     }
 
     const normalizedSiteIds = syncSiteSelectionForRole(formRole, formSiteIds);
-    if ((MULTI_SITE_ELIGIBLE_ROLES.includes(formRole) || MONO_SITE_ROLES.includes(formRole)) && normalizedSiteIds.length === 0) {
+    if (SITE_ASSIGNABLE_ROLES.includes(formRole) && normalizedSiteIds.length === 0) {
       return showToast('Sélectionne au moins un site.', 'warning');
     }
 
@@ -268,7 +267,7 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({ setView }) => {
   const updateSites = async () => {
     if (!sitesModalUser) return;
     const normalizedSiteIds = syncSiteSelectionForRole(sitesModalUser.role, sitesModalSelection);
-    if ((MULTI_SITE_ELIGIBLE_ROLES.includes(sitesModalUser.role) || MONO_SITE_ROLES.includes(sitesModalUser.role)) && normalizedSiteIds.length === 0) {
+    if (SITE_ASSIGNABLE_ROLES.includes(sitesModalUser.role) && normalizedSiteIds.length === 0) {
       return showToast('Sélectionne au moins un site.', 'warning');
     }
 
@@ -601,7 +600,6 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({ setView }) => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {allowedSites.map((site) => {
                       const checked = formSiteIds.includes(site.id);
-                      const monoSiteRole = MONO_SITE_ROLES.includes(formRole);
                       return (
                         <label key={site.id} className={`flex items-center gap-3 rounded-xl border px-3 py-2 cursor-pointer ${checked ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-white'}`}>
                           <input
@@ -611,7 +609,6 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({ setView }) => {
                             className="h-4 w-4"
                           />
                           <span className="text-sm font-bold text-slate-700">{site.name}</span>
-                          {monoSiteRole && <span className="ml-auto text-[10px] font-black uppercase text-slate-400">1 seul</span>}
                         </label>
                       );
                     })}
@@ -659,7 +656,6 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({ setView }) => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {allowedSites.map((site) => {
                   const checked = sitesModalSelection.includes(site.id);
-                  const monoSiteRole = MONO_SITE_ROLES.includes(sitesModalUser.role);
                   return (
                     <label key={site.id} className={`flex items-center gap-3 rounded-xl border px-3 py-2 cursor-pointer ${checked ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-white'}`}>
                       <input
@@ -669,7 +665,6 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({ setView }) => {
                         className="h-4 w-4"
                       />
                       <span className="text-sm font-bold text-slate-700">{site.name}</span>
-                      {monoSiteRole && <span className="ml-auto text-[10px] font-black uppercase text-slate-400">1 seul</span>}
                     </label>
                   );
                 })}
