@@ -1,18 +1,22 @@
 import React from 'react';
-import { createRoot } from 'react-dom/client';
-import { AuthProvider } from '../auth/AuthProvider';
-import { AuthGate } from '../auth/AuthGate';
+import ReactDOM from 'react-dom/client';
 import App from './App';
+import './index.css';
+import { ToastProvider } from './components/Toast';
+import { AuthProvider } from './auth/AuthProvider';
+import { AuthGate } from './auth/AuthGate';
 
-const container = document.getElementById('root');
-if (!container) throw new Error('Root element not found');
+const el = document.getElementById('root');
+if (!el) throw new Error('Root element #root not found');
 
-createRoot(container).render(
+ReactDOM.createRoot(el).render(
   <React.StrictMode>
-    <AuthProvider>
-      <AuthGate>
-        <App />
-      </AuthGate>
-    </AuthProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <AuthGate>
+          <App />
+        </AuthGate>
+      </AuthProvider>
+    </ToastProvider>
   </React.StrictMode>
 );

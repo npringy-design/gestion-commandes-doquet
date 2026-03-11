@@ -77,6 +77,13 @@ export const SUPPLIER_VISUAL_PRESETS: SupplierVisualPreset[] = [
   photoPreset('epices-01', 'Épices 01', epices01),
   photoPreset('epicerie-pates-01', 'Épicerie & pâtes 01', epiceriePates01),
   photoPreset('surgele-01', 'Surgelé 01', surgele01),
+  photoPreset('vins-cave-02', 'Vins & cave 02', vins02),
+  photoPreset('viandes-rustiques-03', 'Viandes rustiques 03', viandes03),
+  photoPreset('legumes-02', 'Légumes 02', legumes02),
+  photoPreset('fruits-02', 'Fruits 02', fruits02),
+  photoPreset('epices-02', 'Épices 02', epices02),
+  photoPreset('grill-braise-04', 'Grill & braise 04', grill04),
+  photoPreset('grill-braise-05', 'Grill & braise 05', grill05),
 ];
 
 export const DEFAULT_SUPPLIER_VISUAL_KEY: SupplierVisualKey = 'premium-sombre-01';
