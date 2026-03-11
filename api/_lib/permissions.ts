@@ -90,10 +90,10 @@ export const canCreateUsers = (role: unknown) =>
   typeof role === 'string' && ['super_admin', 'global_admin', 'director', 'manager_plus', 'manager'].includes(role);
 
 export const canUpdateUsers = (role: unknown) =>
-  typeof role === 'string' && ['super_admin', 'global_admin', 'director', 'manager'].includes(role);
+  typeof role === 'string' && ['super_admin', 'global_admin', 'director', 'manager_plus', 'manager'].includes(role);
 
 export const canDeleteUsers = (role: unknown) =>
-  typeof role === 'string' && ['super_admin', 'global_admin', 'director', 'manager'].includes(role);
+  typeof role === 'string' && ['super_admin', 'global_admin', 'director', 'manager_plus', 'manager'].includes(role);
 
 export const canToggleUsers = (role: unknown) =>
-  typeof role === 'string' && ['super_admin', 'global_admin', 'director', 'manager'].includes(role);
+  typeof role === 'string' && ['super_admin', 'global_admin', 'director', 'manager_plus', 'manager'].includes(role);
