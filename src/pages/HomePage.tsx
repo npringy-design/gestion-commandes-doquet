@@ -169,6 +169,3 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
 };
 
 export default HomePage;
-};
-
-export default HomePage;
