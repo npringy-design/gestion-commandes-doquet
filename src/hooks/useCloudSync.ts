@@ -13,7 +13,7 @@ import {
   mergeAndNormalizeProducts,
   mergeSupplierConfigsWithDefaults,
   nowIso,
-  saveScopedState,
+  saveState,
 } from './appStateHelpers';
 
 type SyncStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -48,22 +48,8 @@ type StateSetters = {
 
 type UseCloudSyncParams = PersistedState &
   StateSetters & {
-    activeSiteId: string | null;
-    useLegacySiteStorage: boolean;
     onSaveError: (message: string) => void;
   };
-
-const SITE_SCOPED_KEYS = new Set<string>([
-  'covers',
-  'dailyCovers',
-  'inventory',
-  'salesHtByMonth',
-  'costMatterByMonth',
-  'validatedMonths',
-  'supplierConfigs',
-  'deliveryDateBySupplier',
-  'nextDeliveryDateBySupplier',
-]);
 
 const PARAMETER_KEYS = new Set<string>([
   'supplierConfigs',
@@ -73,22 +59,6 @@ const PARAMETER_KEYS = new Set<string>([
   'deliveryDateBySupplier',
   'nextDeliveryDateBySupplier',
 ]);
-
-const toCloudKey = (key: string, activeSiteId: string | null, useLegacySiteStorage: boolean): string => {
-  if (!SITE_SCOPED_KEYS.has(key) || useLegacySiteStorage || !activeSiteId) return key;
-  return `site::${activeSiteId}::${key}`;
-};
-
-const fromCloudKey = (cloudKey: string, activeSiteId: string | null, useLegacySiteStorage: boolean): string | null => {
-  if (!cloudKey.startsWith('site::')) return cloudKey;
-
-  if (useLegacySiteStorage || !activeSiteId) return null;
-
-  const prefix = `site::${activeSiteId}::`;
-  if (!cloudKey.startsWith(prefix)) return null;
-
-  return cloudKey.slice(prefix.length);
-};
 
 const hasDailyCoverData = (state: DailyCoversState): boolean =>
   Object.values(state).some(
@@ -118,8 +88,6 @@ export const useCloudSync = ({
   setDeliveryDateBySupplier,
   setNextDeliveryDateBySupplier,
   setProducts,
-  activeSiteId,
-  useLegacySiteStorage,
   onSaveError,
 }: UseCloudSyncParams) => {
   const [supabaseLoaded, setSupabaseLoaded] = useState(false);
@@ -131,9 +99,6 @@ export const useCloudSync = ({
   const pollingInFlightRef = useRef(false);
   const pendingKeysRef = useRef<Set<string>>(new Set());
   const localTsByKey = useRef<Record<string, string>>({});
-
-  const resolveCloudKey = useCallback((key: string) => toCloudKey(key, activeSiteId, useLegacySiteStorage), [activeSiteId, useLegacySiteStorage]);
-  const resolveBaseKey = useCallback((cloudKey: string) => fromCloudKey(cloudKey, activeSiteId, useLegacySiteStorage), [activeSiteId, useLegacySiteStorage]);
 
   const applyCloudKey = useCallback((key: string, cloudTs: string, value: unknown) => {
     const localTs = localTsByKey.current[key];
@@ -197,7 +162,6 @@ export const useCloudSync = ({
     setSalesHtByMonth,
     setSupplierConfigs,
     setValidatedMonths,
-    resolveBaseKey,
   ]);
 
   useEffect(() => {
@@ -218,33 +182,31 @@ export const useCloudSync = ({
           const cloudMap: Record<string, unknown> = {};
 
           cloud.forEach((row: any) => {
-            const baseKey = resolveBaseKey(row.key);
-            if (!baseKey) return;
-            lastCloudUpdatedAtByKey.current[baseKey] = row.updated_at;
-            cloudMap[baseKey] = row.value;
+            lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
+            cloudMap[row.key] = row.value;
           });
 
-          if ('covers' in cloudMap) setCovers(cloudMap.covers as Record<string, number>);
+          if (cloudMap.covers) setCovers(cloudMap.covers as Record<string, number>);
           if (cloudMap.dailyCovers && hasDailyCoverData(cloudMap.dailyCovers as DailyCoversState)) {
             setDailyCovers(cloudMap.dailyCovers as DailyCoversState);
           }
-          if ('orderStates' in cloudMap) setOrderStates(cloudMap.orderStates as Record<string, OrderState>);
-          if ('inventory' in cloudMap) setDetailedInventory(cloudMap.inventory as Record<string, string>);
-          if ('salesHtByMonth' in cloudMap) setSalesHtByMonth(cloudMap.salesHtByMonth as Record<string, number>);
-          if ('costMatterByMonth' in cloudMap) setCostMatterByMonth(cloudMap.costMatterByMonth as Record<string, number>);
-          if ('validatedMonths' in cloudMap) setValidatedMonths(cloudMap.validatedMonths as Record<string, boolean>);
-          if ('supplierConfigs' in cloudMap) {
+          if (cloudMap.orderStates) setOrderStates(cloudMap.orderStates as Record<string, OrderState>);
+          if (cloudMap.inventory) setDetailedInventory(cloudMap.inventory as Record<string, string>);
+          if (cloudMap.salesHtByMonth) setSalesHtByMonth(cloudMap.salesHtByMonth as Record<string, number>);
+          if (cloudMap.costMatterByMonth) setCostMatterByMonth(cloudMap.costMatterByMonth as Record<string, number>);
+          if (cloudMap.validatedMonths) setValidatedMonths(cloudMap.validatedMonths as Record<string, boolean>);
+          if (cloudMap.supplierConfigs) {
             setSupplierConfigs(
               mergeSupplierConfigsWithDefaults(cloudMap.supplierConfigs as Record<string, SupplierConfig>)
             );
           }
-          if ('deliveryDateBySupplier' in cloudMap) {
+          if (cloudMap.deliveryDateBySupplier) {
             setDeliveryDateBySupplier(cloudMap.deliveryDateBySupplier as Record<string, string>);
           }
-          if ('nextDeliveryDateBySupplier' in cloudMap) {
+          if (cloudMap.nextDeliveryDateBySupplier) {
             setNextDeliveryDateBySupplier(cloudMap.nextDeliveryDateBySupplier as Record<string, string>);
           }
-          if ('products' in cloudMap) {
+          if (cloudMap.products) {
             setProducts(mergeAndNormalizeProducts(cloudMap.products as ProductWithHistory[]));
           }
 
@@ -302,13 +264,11 @@ export const useCloudSync = ({
       try {
         const keys = Array.from(pendingKeysRef.current);
         pendingKeysRef.current.clear();
-        const rows = await loadKeysFromSupabase(keys.map(resolveCloudKey));
+        const rows = await loadKeysFromSupabase(keys);
         if (!rows) return;
         rows.forEach(row => {
-          const baseKey = resolveBaseKey(row.key);
-          if (!baseKey) return;
-          lastCloudUpdatedAtByKey.current[baseKey] = row.updated_at;
-          applyCloudKey(baseKey, row.updated_at, row.value);
+          lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
+          applyCloudKey(row.key, row.updated_at, row.value);
         });
       } finally {
         pollingInFlightRef.current = false;
@@ -325,14 +285,13 @@ export const useCloudSync = ({
 
         const changedKeys: string[] = [];
         meta.forEach(row => {
-          const baseKey = resolveBaseKey(row.key);
-          if (!baseKey || !PARAMETER_KEYS.has(baseKey)) return;
-          const prev = lastCloudUpdatedAtByKey.current[baseKey];
+          if (!PARAMETER_KEYS.has(row.key)) return;
+          const prev = lastCloudUpdatedAtByKey.current[row.key];
           if (!prev) {
-            lastCloudUpdatedAtByKey.current[baseKey] = row.updated_at;
+            lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
             return;
           }
-          if (prev !== row.updated_at) changedKeys.push(baseKey);
+          if (prev !== row.updated_at) changedKeys.push(row.key);
         });
 
         if (changedKeys.length === 0) return;
@@ -341,13 +300,11 @@ export const useCloudSync = ({
           return;
         }
 
-        const rows = await loadKeysFromSupabase(changedKeys.map(resolveCloudKey));
+        const rows = await loadKeysFromSupabase(changedKeys);
         if (!rows) return;
         rows.forEach(row => {
-          const baseKey = resolveBaseKey(row.key);
-          if (!baseKey) return;
-          lastCloudUpdatedAtByKey.current[baseKey] = row.updated_at;
-          applyCloudKey(baseKey, row.updated_at, row.value);
+          lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
+          applyCloudKey(row.key, row.updated_at, row.value);
         });
       } catch (error) {
         console.error('[Cloud polling tick error]', error);
@@ -367,36 +324,30 @@ export const useCloudSync = ({
       if (timer) clearInterval(timer);
       window.removeEventListener('focusout', flushPendingIfSafe);
     };
-  }, [applyCloudKey, resolveBaseKey, resolveCloudKey, supabaseLoaded, syncStatus]);
+  }, [applyCloudKey, supabaseLoaded, syncStatus]);
 
   const persistEverywhere = useCallback((key: string, value: unknown) => {
-    saveScopedState(key, value, activeSiteId, useLegacySiteStorage, onSaveError);
+    saveState(key, value, onSaveError);
     if (isHydratingFromCloud.current || !supabaseLoaded || !isSupabaseConfigured()) return;
 
     const ts = nowIso();
-    const cloudKey = resolveCloudKey(key);
     localTsByKey.current[key] = ts;
     setSyncStatus('saving');
 
     saveToSupabaseDebounced(
-      cloudKey,
+      key,
       value,
       ts,
-      currentKey => {
-        const baseKey = resolveBaseKey(currentKey);
-        return baseKey ? lastCloudUpdatedAtByKey.current[baseKey] : undefined;
-      },
+      currentKey => lastCloudUpdatedAtByKey.current[currentKey],
       (confirmedKey, confirmedTs) => {
-        const baseKey = resolveBaseKey(confirmedKey);
-        if (!baseKey) return;
-        lastCloudUpdatedAtByKey.current[baseKey] = confirmedTs;
-        delete localTsByKey.current[baseKey];
+        lastCloudUpdatedAtByKey.current[confirmedKey] = confirmedTs;
+        delete localTsByKey.current[confirmedKey];
       }
     );
 
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     syncTimerRef.current = setTimeout(() => setSyncStatus('saved'), 1700);
-  }, [activeSiteId, onSaveError, resolveBaseKey, resolveCloudKey, supabaseLoaded, useLegacySiteStorage]);
+  }, [onSaveError, supabaseLoaded]);
 
   useEffect(() => { persistEverywhere('covers', covers); }, [covers, persistEverywhere]);
   useEffect(() => { persistEverywhere('dailyCovers', dailyCovers); }, [dailyCovers, persistEverywhere]);

@@ -41,42 +41,6 @@ export const saveState = (key: string, value: unknown, onError?: (msg: string) =
   }
 };
 
-export const buildScopedStorageKey = (key: string, siteId: string | null, useLegacyKey = false): string => {
-  if (useLegacyKey || !siteId) return `${STORAGE_PREFIX}${key}`;
-  return `${STORAGE_PREFIX}site::${siteId}::${key}`;
-};
-
-export const loadScopedState = <T>(
-  key: string,
-  defaultVal: T,
-  siteId: string | null,
-  useLegacyKey = false,
-): T => {
-  try {
-    const scopedKey = buildScopedStorageKey(key, siteId, useLegacyKey);
-    const saved = localStorage.getItem(scopedKey);
-    return saved ? JSON.parse(saved) as T : defaultVal;
-  } catch {
-    return defaultVal;
-  }
-};
-
-export const saveScopedState = (
-  key: string,
-  value: unknown,
-  siteId: string | null,
-  useLegacyKey = false,
-  onError?: (msg: string) => void,
-): void => {
-  try {
-    localStorage.setItem(buildScopedStorageKey(key, siteId, useLegacyKey), JSON.stringify(value));
-  } catch (err) {
-    const msg = 'Sauvegarde impossible : stockage local plein ou désactivé.';
-    if (onError) onError(msg);
-    else console.error(msg, err);
-  }
-};
-
 export const DEFAULT_PRODUCTS: ProductWithHistory[] = [
   ...DOQUET_PRODUCTS,
   ...VINS_PRODUCTS,

@@ -61,6 +61,37 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         }}
       />
 
+      {allowedSites.length > 0 && (
+        <div className="hidden xl:block absolute left-4 top-1/2 -translate-y-1/2 z-10 w-72">
+          <div className="rounded-[32px] border border-white/15 bg-black/35 backdrop-blur-md shadow-2xl p-5 text-left">
+            <div className="text-[#ffd700] text-sm font-black uppercase tracking-[0.22em] mb-4">
+              Restaurants disponibles
+            </div>
+            <div className="space-y-3">
+              {allowedSites.map((site) => {
+                const isActive = site.id === activeSiteId;
+
+                return (
+                  <div
+                    key={site.id}
+                    className={`rounded-2xl border px-4 py-3 transition-all ${
+                      isActive
+                        ? 'border-[#ffd700] bg-[#ffd700]/15 text-white shadow-lg'
+                        : 'border-white/10 bg-white/5 text-white/80'
+                    }`}
+                  >
+                    <div className="text-xs font-bold uppercase tracking-[0.18em] opacity-70 mb-1">
+                      {isActive ? 'Site actif' : 'Site autorisé'}
+                    </div>
+                    <div className="text-lg font-black tracking-tight">{site.name}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="z-10 text-center w-full max-w-5xl px-2">
         {allowedSites.length > 1 && (
           <div className="mb-6 max-w-md mx-auto">
@@ -98,6 +129,31 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           </div>
         )}
 
+        {allowedSites.length > 0 && (
+          <div className="xl:hidden mb-6 max-w-md mx-auto rounded-[28px] border border-white/15 bg-black/30 backdrop-blur-md px-4 py-4">
+            <div className="text-[#ffd700] text-xs font-black uppercase tracking-[0.2em] mb-3">
+              Restaurants disponibles
+            </div>
+            <div className="flex flex-wrap justify-center gap-2">
+              {allowedSites.map((site) => {
+                const isActive = site.id === activeSiteId;
+                return (
+                  <div
+                    key={site.id}
+                    className={`rounded-full border px-3 py-2 text-sm font-bold ${
+                      isActive
+                        ? 'border-[#ffd700] bg-[#ffd700]/15 text-white'
+                        : 'border-white/15 bg-white/5 text-white/80'
+                    }`}
+                  >
+                    {site.name}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Titre */}
         <div className="mb-12">
           <h1 className="text-[#ffd700] text-5xl sm:text-7xl lg:text-8xl font-black uppercase tracking-tighter leading-none mb-4">
@@ -105,6 +161,11 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
             <br />
             <span className="text-white">COMMANDES</span>
           </h1>
+          {selectedSiteName && (
+            <div className="mb-4 text-white text-xl sm:text-2xl lg:text-3xl font-black uppercase tracking-[0.18em]">
+              {selectedSiteName}
+            </div>
+          )}
           <div className="h-2 w-48 bg-red-600 mx-auto rounded-full" />
         </div>
 

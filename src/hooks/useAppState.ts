@@ -11,7 +11,6 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useToast } from '../components/Toast';
-import { useAuth } from '../auth/AuthProvider';
 import {
   MONTHLY_COVERS as INITIAL_COVERS,
   ProductWithHistory,
@@ -23,7 +22,6 @@ import { DailyCoversState } from '../utils/dateHelpers';
 import { getImportedValueForProduct, extractAllNamesFromCsvs } from '../utils/csvHelpers';
 import {
   createInitialProducts,
-  loadScopedState,
   loadState,
   mergeSupplierConfigsWithDefaults,
   saveState,
@@ -37,14 +35,6 @@ import { useCloudSync } from './useCloudSync';
 export const useAppState = () => {
   // Toast — affichage des messages d'erreur
   const { showToast } = useToast();
-  const { activeSiteId, allowedSites } = useAuth();
-
-  const activeSite = useMemo(
-    () => allowedSites.find((site) => site.id === activeSiteId) ?? null,
-    [allowedSites, activeSiteId]
-  );
-
-  const useLegacySiteStorage = (activeSite?.name ?? '').trim().toLowerCase() === 'hippo thillois';
 
   // Navigation
   const [view, setView] = useState<View>(() => loadState<View>('currentView', 'home'));
@@ -71,58 +61,38 @@ export const useAppState = () => {
 
   // --- États persistés (localStorage) ---
   const [deliveryDateBySupplier, setDeliveryDateBySupplier] =
-    useState<Record<string, string>>(() => loadScopedState('deliveryDateBySupplier', {}, activeSiteId, useLegacySiteStorage));
+    useState<Record<string, string>>(() => loadState('deliveryDateBySupplier', {}));
 
   const [nextDeliveryDateBySupplier, setNextDeliveryDateBySupplier] =
-    useState<Record<string, string>>(() => loadScopedState('nextDeliveryDateBySupplier', {}, activeSiteId, useLegacySiteStorage));
+    useState<Record<string, string>>(() => loadState('nextDeliveryDateBySupplier', {}));
 
   const [covers, setCovers] =
-    useState<Record<string, number>>(() => loadScopedState('covers', INITIAL_COVERS, activeSiteId, useLegacySiteStorage));
+    useState<Record<string, number>>(() => loadState('covers', INITIAL_COVERS));
 
   const [dailyCovers, setDailyCovers] =
-    useState<DailyCoversState>(() => loadScopedState('dailyCovers', DAILY_COVERS_INITIAL, activeSiteId, useLegacySiteStorage));
+    useState<DailyCoversState>(() => loadState('dailyCovers', DAILY_COVERS_INITIAL));
 
   const [orderStates, setOrderStates] =
     useState<Record<string, OrderState>>(() => loadState('orderStates', {}));
 
   const [detailedInventory, setDetailedInventory] =
-    useState<Record<string, string>>(() => loadScopedState('inventory', {}, activeSiteId, useLegacySiteStorage));
+    useState<Record<string, string>>(() => loadState('inventory', {}));
 
   const [salesHtByMonth, setSalesHtByMonth] =
-    useState<Record<string, number>>(() => loadScopedState('salesHtByMonth', INITIAL_COVERS, activeSiteId, useLegacySiteStorage));
+    useState<Record<string, number>>(() => loadState('salesHtByMonth', INITIAL_COVERS));
 
   const [costMatterByMonth, setCostMatterByMonth] =
-    useState<Record<string, number>>(() => loadScopedState('costMatterByMonth', INITIAL_COVERS, activeSiteId, useLegacySiteStorage));
+    useState<Record<string, number>>(() => loadState('costMatterByMonth', INITIAL_COVERS));
 
   const [validatedMonths, setValidatedMonths] =
-    useState<Record<string, boolean>>(() => loadScopedState('validatedMonths', {}, activeSiteId, useLegacySiteStorage));
+    useState<Record<string, boolean>>(() => loadState('validatedMonths', {}));
 
   const [supplierConfigs, setSupplierConfigs] =
-    useState<Record<string, SupplierConfig>>(() =>
-      mergeSupplierConfigsWithDefaults(
-        loadScopedState<Record<string, SupplierConfig>>('supplierConfigs', {}, activeSiteId, useLegacySiteStorage)
-      )
-    );
+useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(loadState<Record<string, SupplierConfig>>('supplierConfigs', {})));
 
   const [products, setProducts] = useState<ProductWithHistory[]>(() =>
     createInitialProducts(loadState('products', [] as ProductWithHistory[]))
   );
-
-  useEffect(() => {
-    setDeliveryDateBySupplier(loadScopedState('deliveryDateBySupplier', {}, activeSiteId, useLegacySiteStorage));
-    setNextDeliveryDateBySupplier(loadScopedState('nextDeliveryDateBySupplier', {}, activeSiteId, useLegacySiteStorage));
-    setCovers(loadScopedState('covers', INITIAL_COVERS, activeSiteId, useLegacySiteStorage));
-    setDailyCovers(loadScopedState('dailyCovers', DAILY_COVERS_INITIAL, activeSiteId, useLegacySiteStorage));
-    setDetailedInventory(loadScopedState('inventory', {}, activeSiteId, useLegacySiteStorage));
-    setSalesHtByMonth(loadScopedState('salesHtByMonth', INITIAL_COVERS, activeSiteId, useLegacySiteStorage));
-    setCostMatterByMonth(loadScopedState('costMatterByMonth', INITIAL_COVERS, activeSiteId, useLegacySiteStorage));
-    setValidatedMonths(loadScopedState('validatedMonths', {}, activeSiteId, useLegacySiteStorage));
-    setSupplierConfigs(
-      mergeSupplierConfigsWithDefaults(
-        loadScopedState<Record<string, SupplierConfig>>('supplierConfigs', {}, activeSiteId, useLegacySiteStorage)
-      )
-    );
-  }, [activeSiteId, useLegacySiteStorage]);
 
   useEffect(() => {
     try {
@@ -158,8 +128,6 @@ export const useAppState = () => {
     setDeliveryDateBySupplier,
     setNextDeliveryDateBySupplier,
     setProducts,
-    activeSiteId,
-    useLegacySiteStorage,
     onSaveError,
   });
 
