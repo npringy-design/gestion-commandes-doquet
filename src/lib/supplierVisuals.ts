@@ -1,15 +1,9 @@
 import type { CSSProperties } from 'react';
 
-import softs01 from '../assets/supplier-visuals/softs-cocktails-01.jpg';
-import barAmbre01 from '../assets/supplier-visuals/bar-ambre-01.jpg';
-import vins01 from '../assets/supplier-visuals/vins-cave-01.jpg';
-import vins02 from '../assets/supplier-visuals/vins-cave-02.jpg';
 import premiumSombre01 from '../assets/supplier-visuals/premium-sombre-01.jpg';
 import grill01 from '../assets/supplier-visuals/boucherie-grill-01.jpg';
 
 import grill03 from '../assets/supplier-visuals/grill-braise-03.webp';
-import viandes03 from '../assets/supplier-visuals/viandes-rustiques-03.webp';
-import vins03 from '../assets/supplier-visuals/vins-cave-03.webp';
 import epices01 from '../assets/supplier-visuals/epices-01.webp';
 import surgele01 from '../assets/supplier-visuals/surgele-01.webp';
 import epiceriePates01 from '../assets/supplier-visuals/epicerie-pates-01.webp';
@@ -54,17 +48,11 @@ const photoPreset = (
 });
 
 export const SUPPLIER_VISUAL_PRESETS: SupplierVisualPreset[] = [
-  photoPreset('softs-cocktails-01', 'Softs & cocktails', softs01),
-  photoPreset('bar-ambre-01', 'Bar ambré', barAmbre01),
-  photoPreset('vins-cave-01', 'Vins & cave', vins01),
-  photoPreset('vins-cave-02', 'Vins & cave 02', vins02),
-  photoPreset('vins-cave-03', 'Vins & cave 03', vins03),
   photoPreset('premium-sombre-01', 'Premium sombre', premiumSombre01),
   photoPreset('boucherie-grill-01', 'Boucherie & grill', grill01),
   photoPreset('grill-braise-03', 'Grill & braise', grill03),
   photoPreset('grill-braise-04', 'Grill & braise 04', grill04),
-  photoPreset('viandes-rustiques-03', 'Viandes rustiques', viandes03),
-  photoPreset('viandes-rustiques-04', 'Viandes rustiques 04', viandes04),
+  photoPreset('viandes-rustiques-04', 'Viandes rustiques', viandes04),
   photoPreset('legumes-01', 'Légumes', legumes01),
   photoPreset('legumes-02', 'Légumes 02', legumes02),
   photoPreset('fruits-01', 'Fruits', fruits01),

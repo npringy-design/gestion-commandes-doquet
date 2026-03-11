@@ -52,8 +52,8 @@ const VisualThumbnailGallery: React.FC<{
   selectedKey: string;
   onSelect: (key: string) => void;
 }> = ({ selectedKey, onSelect }) => (
-  <div className="rounded-[24px] border border-white/10 bg-black/15 p-3">
-    <div className="grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-5 gap-2.5 max-h-[320px] overflow-y-auto pr-1">
+  <div className="rounded-[24px] border border-white/10 bg-[#1a0f0a] p-4">
+    <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-9 gap-3">
       {SUPPLIER_VISUAL_PRESETS.map((preset) => {
         const active = selectedKey === preset.key;
         return (
@@ -63,10 +63,19 @@ const VisualThumbnailGallery: React.FC<{
             onClick={() => onSelect(preset.key)}
             title={preset.name}
             aria-label={preset.name}
-            className={`relative h-20 sm:h-24 rounded-[18px] overflow-hidden border transition-all ${active ? 'border-[#ffd700] shadow-[0_0_0_1px_rgba(255,215,0,0.35)] scale-[1.01]' : 'border-white/10 hover:border-white/25'}`}
+            className={`relative h-20 sm:h-24 rounded-[16px] overflow-hidden border-2 transition-all ${active ? 'border-[#ffd700] shadow-[0_0_0_2px_rgba(255,215,0,0.3)] scale-[1.04]' : 'border-white/10 hover:border-white/30 hover:scale-[1.02]'}`}
           >
             <div className="absolute inset-0" style={preset.thumbStyle} />
-            <div className={`absolute inset-0 transition-colors ${active ? 'bg-[#ffd700]/10' : 'bg-black/10 hover:bg-black/0'}`} />
+            <div className={`absolute inset-0 transition-colors ${active ? 'bg-[#ffd700]/10' : 'bg-transparent hover:bg-black/5'}`} />
+            {active && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-6 h-6 rounded-full bg-[#ffd700] flex items-center justify-center shadow-lg">
+                  <svg className="w-3.5 h-3.5 text-[#1a0f0a]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/>
+                  </svg>
+                </div>
+              </div>
+            )}
           </button>
         );
       })}
@@ -379,14 +388,6 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                       </p>
                       <ChevronButton open={galleryOpen} onClick={() => toggleSupplierGallery(config.id)} />
                     </div>
-                    {galleryOpen && (
-                      <div className="mt-3">
-                        <VisualThumbnailGallery
-                          selectedKey={config.visualKey || DEFAULT_SUPPLIER_VISUAL_KEY}
-                          onSelect={(key) => updateSupplier(config.id, { visualKey: key })}
-                        />
-                      </div>
-                    )}
                   </div>
 
                   <div className="space-y-6">
@@ -501,6 +502,15 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                     </div>
                   </div>
                 </div>
+
+                {galleryOpen && (
+                  <div className="mt-6 pt-6 border-t border-white/10">
+                    <VisualThumbnailGallery
+                      selectedKey={config.visualKey || DEFAULT_SUPPLIER_VISUAL_KEY}
+                      onSelect={(key) => updateSupplier(config.id, { visualKey: key })}
+                    />
+                  </div>
+                )}
               </div>
             );
           })}

@@ -53,14 +53,14 @@ export const DEFAULT_PRODUCTS: ProductWithHistory[] = [
 ];
 
 export const DEFAULT_SUPPLIER_CONFIGS: Record<string, SupplierConfig> = {
-  doquet: { ...DOQUET_CONFIG, subtitle: 'Softs • Jus • Cocktails', visualKey: 'softs-cocktails-01' },
-  vins: { ...VINS_CONFIG, subtitle: 'Cave • Alcools', visualKey: 'vins-cave-01' },
+  doquet: { ...DOQUET_CONFIG, subtitle: 'Softs • Jus • Cocktails', visualKey: 'premium-sombre-01' },
+  vins: { ...VINS_CONFIG, subtitle: 'Cave • Alcools', visualKey: 'premium-sombre-01' },
   viandes: { ...VIANDES_CONFIG, subtitle: 'Boucherie • Grill', visualKey: 'boucherie-grill-01' },
-  domafrais: { ...DOMAFRAIS_CONFIG, subtitle: 'Viandes • Volailles', visualKey: 'viandes-rustiques-03' },
+  domafrais: { ...DOMAFRAIS_CONFIG, subtitle: 'Viandes • Volailles', visualKey: 'viandes-rustiques-04' },
   domafrais_bof: { ...DOMAFRAIS_BOF_CONFIG, subtitle: 'Crémerie • Fromages', visualKey: 'grill-braise-04' },
-  domafrais_surgele: { ...DOMAFRAIS_SURGELE_CONFIG, subtitle: 'Surgelés • Glaces', visualKey: 'premium-sombre-01' },
-  pomona_terre_azur: { ...POMONA_TERRE_AZUR_CONFIG, subtitle: 'Fruits • Légumes', visualKey: 'bar-ambre-01' },
-  pomona_episaveurs: { ...POMONA_EPISAVEURS_CONFIG, subtitle: 'Épicerie • Aides culinaires', visualKey: 'premium-sombre-01' },
+  domafrais_surgele: { ...DOMAFRAIS_SURGELE_CONFIG, subtitle: 'Surgelés • Glaces', visualKey: 'surgele-01' },
+  pomona_terre_azur: { ...POMONA_TERRE_AZUR_CONFIG, subtitle: 'Fruits • Légumes', visualKey: 'legumes-01' },
+  pomona_episaveurs: { ...POMONA_EPISAVEURS_CONFIG, subtitle: 'Épicerie • Aides culinaires', visualKey: 'epicerie-pates-01' },
 };
 
 export const mergeSupplierConfigsWithDefaults = (
