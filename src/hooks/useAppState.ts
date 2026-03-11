@@ -10,6 +10,7 @@
 // =============================================================
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useAuth } from '../auth/AuthProvider';
 import { useToast } from '../components/Toast';
 import {
   MONTHLY_COVERS as INITIAL_COVERS,
@@ -22,6 +23,7 @@ import { DailyCoversState } from '../utils/dateHelpers';
 import { getImportedValueForProduct, extractAllNamesFromCsvs } from '../utils/csvHelpers';
 import {
   createInitialProducts,
+  loadSiteScopedState,
   loadState,
   mergeSupplierConfigsWithDefaults,
   saveState,
@@ -35,6 +37,15 @@ import { useCloudSync } from './useCloudSync';
 export const useAppState = () => {
   // Toast — affichage des messages d'erreur
   const { showToast } = useToast();
+  const { activeSiteId, allowedSites } = useAuth();
+
+  const activeSite = useMemo(
+    () => allowedSites.find((site) => site.id === activeSiteId) ?? null,
+    [allowedSites, activeSiteId]
+  );
+
+  const useLegacySiteStorage = /thillois/i.test(activeSite?.name ?? '');
+  const [siteStateReady, setSiteStateReady] = useState(false);
 
   // Navigation
   const [view, setView] = useState<View>(() => loadState<View>('currentView', 'home'));
@@ -61,37 +72,37 @@ export const useAppState = () => {
 
   // --- États persistés (localStorage) ---
   const [deliveryDateBySupplier, setDeliveryDateBySupplier] =
-    useState<Record<string, string>>(() => loadState('deliveryDateBySupplier', {}));
+    useState<Record<string, string>>(() => loadSiteScopedState('deliveryDateBySupplier', {}, activeSiteId, useLegacySiteStorage));
 
   const [nextDeliveryDateBySupplier, setNextDeliveryDateBySupplier] =
-    useState<Record<string, string>>(() => loadState('nextDeliveryDateBySupplier', {}));
+    useState<Record<string, string>>(() => loadSiteScopedState('nextDeliveryDateBySupplier', {}, activeSiteId, useLegacySiteStorage));
 
   const [covers, setCovers] =
-    useState<Record<string, number>>(() => loadState('covers', INITIAL_COVERS));
+    useState<Record<string, number>>(() => loadSiteScopedState('covers', INITIAL_COVERS, activeSiteId, useLegacySiteStorage));
 
   const [dailyCovers, setDailyCovers] =
-    useState<DailyCoversState>(() => loadState('dailyCovers', DAILY_COVERS_INITIAL));
+    useState<DailyCoversState>(() => loadSiteScopedState('dailyCovers', DAILY_COVERS_INITIAL, activeSiteId, useLegacySiteStorage));
 
   const [orderStates, setOrderStates] =
-    useState<Record<string, OrderState>>(() => loadState('orderStates', {}));
+    useState<Record<string, OrderState>>(() => loadSiteScopedState('orderStates', {}, activeSiteId, useLegacySiteStorage));
 
   const [detailedInventory, setDetailedInventory] =
-    useState<Record<string, string>>(() => loadState('inventory', {}));
+    useState<Record<string, string>>(() => loadSiteScopedState('inventory', {}, activeSiteId, useLegacySiteStorage));
 
   const [salesHtByMonth, setSalesHtByMonth] =
-    useState<Record<string, number>>(() => loadState('salesHtByMonth', INITIAL_COVERS));
+    useState<Record<string, number>>(() => loadSiteScopedState('salesHtByMonth', INITIAL_COVERS, activeSiteId, useLegacySiteStorage));
 
   const [costMatterByMonth, setCostMatterByMonth] =
-    useState<Record<string, number>>(() => loadState('costMatterByMonth', INITIAL_COVERS));
+    useState<Record<string, number>>(() => loadSiteScopedState('costMatterByMonth', INITIAL_COVERS, activeSiteId, useLegacySiteStorage));
 
   const [validatedMonths, setValidatedMonths] =
-    useState<Record<string, boolean>>(() => loadState('validatedMonths', {}));
+    useState<Record<string, boolean>>(() => loadSiteScopedState('validatedMonths', {}, activeSiteId, useLegacySiteStorage));
 
   const [supplierConfigs, setSupplierConfigs] =
-useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(loadState<Record<string, SupplierConfig>>('supplierConfigs', {})));
+useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(loadSiteScopedState<Record<string, SupplierConfig>>('supplierConfigs', {}, activeSiteId, useLegacySiteStorage)));
 
   const [products, setProducts] = useState<ProductWithHistory[]>(() =>
-    createInitialProducts(loadState('products', [] as ProductWithHistory[]))
+    createInitialProducts(loadSiteScopedState('products', [] as ProductWithHistory[], activeSiteId, useLegacySiteStorage))
   );
 
   useEffect(() => {
@@ -102,6 +113,52 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     }
     saveState('currentView', view, onSaveError);
   }, [view]);
+
+
+  useEffect(() => {
+    setSiteStateReady(false);
+
+    setDeliveryDateBySupplier(
+      loadSiteScopedState('deliveryDateBySupplier', {}, activeSiteId, useLegacySiteStorage)
+    );
+    setNextDeliveryDateBySupplier(
+      loadSiteScopedState('nextDeliveryDateBySupplier', {}, activeSiteId, useLegacySiteStorage)
+    );
+    setCovers(loadSiteScopedState('covers', INITIAL_COVERS, activeSiteId, useLegacySiteStorage));
+    setDailyCovers(
+      loadSiteScopedState('dailyCovers', DAILY_COVERS_INITIAL, activeSiteId, useLegacySiteStorage)
+    );
+    setOrderStates(loadSiteScopedState('orderStates', {}, activeSiteId, useLegacySiteStorage));
+    setDetailedInventory(loadSiteScopedState('inventory', {}, activeSiteId, useLegacySiteStorage));
+    setSalesHtByMonth(
+      loadSiteScopedState('salesHtByMonth', INITIAL_COVERS, activeSiteId, useLegacySiteStorage)
+    );
+    setCostMatterByMonth(
+      loadSiteScopedState('costMatterByMonth', INITIAL_COVERS, activeSiteId, useLegacySiteStorage)
+    );
+    setValidatedMonths(
+      loadSiteScopedState('validatedMonths', {}, activeSiteId, useLegacySiteStorage)
+    );
+    setSupplierConfigs(
+      mergeSupplierConfigsWithDefaults(
+        loadSiteScopedState<Record<string, SupplierConfig>>(
+          'supplierConfigs',
+          {},
+          activeSiteId,
+          useLegacySiteStorage
+        )
+      )
+    );
+    setProducts(
+      createInitialProducts(
+        loadSiteScopedState('products', [] as ProductWithHistory[], activeSiteId, useLegacySiteStorage)
+      )
+    );
+
+    const timer = window.setTimeout(() => setSiteStateReady(true), 0);
+    return () => window.clearTimeout(timer);
+  }, [activeSiteId, useLegacySiteStorage]);
+
 
   // --- Persistance automatique à chaque changement ---
   const onSaveError = (msg: string) => showToast(msg, 'error');
@@ -129,6 +186,9 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     setNextDeliveryDateBySupplier,
     setProducts,
     onSaveError,
+    activeSiteId,
+    useLegacySiteStorage,
+    siteStateReady,
   });
 
   // --- Valeurs calculées ---

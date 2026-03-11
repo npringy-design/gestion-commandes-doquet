@@ -41,6 +41,50 @@ export const saveState = (key: string, value: unknown, onError?: (msg: string) =
   }
 };
 
+
+export const buildSiteScopedStateKey = (key: string, siteId: string): string =>
+  `${key}__site__${siteId}`;
+
+export const loadSiteScopedState = <T>(
+  key: string,
+  defaultVal: T,
+  siteId: string | null,
+  useLegacyFallback = false,
+): T => {
+  try {
+    if (siteId) {
+      const scopedSaved = localStorage.getItem(`${STORAGE_PREFIX}${buildSiteScopedStateKey(key, siteId)}`);
+      if (scopedSaved != null) return JSON.parse(scopedSaved) as T;
+    }
+
+    if (useLegacyFallback || !siteId) {
+      const legacySaved = localStorage.getItem(`${STORAGE_PREFIX}${key}`);
+      if (legacySaved != null) return JSON.parse(legacySaved) as T;
+    }
+
+    return defaultVal;
+  } catch {
+    return defaultVal;
+  }
+};
+
+export const saveSiteScopedState = (
+  key: string,
+  value: unknown,
+  siteId: string | null,
+  useLegacyKey = false,
+  onError?: (msg: string) => void,
+): void => {
+  try {
+    const storageKey = siteId && !useLegacyKey ? buildSiteScopedStateKey(key, siteId) : key;
+    localStorage.setItem(`${STORAGE_PREFIX}${storageKey}`, JSON.stringify(value));
+  } catch (err) {
+    const msg = 'Sauvegarde impossible : stockage local plein ou désactivé.';
+    if (onError) onError(msg);
+    else console.error(msg, err);
+  }
+};
+
 export const DEFAULT_PRODUCTS: ProductWithHistory[] = [
   ...DOQUET_PRODUCTS,
   ...VINS_PRODUCTS,

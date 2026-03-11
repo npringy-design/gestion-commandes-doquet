@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   isSupabaseConfigured,
   loadAllFromSupabase,
@@ -13,7 +13,7 @@ import {
   mergeAndNormalizeProducts,
   mergeSupplierConfigsWithDefaults,
   nowIso,
-  saveState,
+  saveSiteScopedState,
 } from './appStateHelpers';
 
 type SyncStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -49,6 +49,9 @@ type StateSetters = {
 type UseCloudSyncParams = PersistedState &
   StateSetters & {
     onSaveError: (message: string) => void;
+    activeSiteId: string | null;
+    useLegacySiteStorage: boolean;
+    siteStateReady: boolean;
   };
 
 const PARAMETER_KEYS = new Set<string>([
@@ -89,6 +92,9 @@ export const useCloudSync = ({
   setNextDeliveryDateBySupplier,
   setProducts,
   onSaveError,
+  activeSiteId,
+  useLegacySiteStorage,
+  siteStateReady,
 }: UseCloudSyncParams) => {
   const [supabaseLoaded, setSupabaseLoaded] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
@@ -99,6 +105,33 @@ export const useCloudSync = ({
   const pollingInFlightRef = useRef(false);
   const pendingKeysRef = useRef<Set<string>>(new Set());
   const localTsByKey = useRef<Record<string, string>>({});
+
+  const scopeToken = useMemo(() => {
+    if (!activeSiteId || useLegacySiteStorage) return 'legacy';
+    return `site:${activeSiteId}`;
+  }, [activeSiteId, useLegacySiteStorage]);
+
+  const getRemoteKey = useCallback((key: string) => {
+    if (!activeSiteId || useLegacySiteStorage) return key;
+    return `${key}__site__${activeSiteId}`;
+  }, [activeSiteId, useLegacySiteStorage]);
+
+  const getLogicalKeyFromRemoteKey = useCallback((remoteKey: string): string | null => {
+    if (!activeSiteId || useLegacySiteStorage) return remoteKey;
+    const suffix = `__site__${activeSiteId}`;
+    if (!remoteKey.endsWith(suffix)) return null;
+    return remoteKey.slice(0, -suffix.length);
+  }, [activeSiteId, useLegacySiteStorage]);
+
+
+
+  useEffect(() => {
+    lastCloudUpdatedAtByKey.current = {};
+    pendingKeysRef.current.clear();
+    localTsByKey.current = {};
+    setSupabaseLoaded(false);
+    setSyncStatus('idle');
+  }, [scopeToken]);
 
   const applyCloudKey = useCallback((key: string, cloudTs: string, value: unknown) => {
     const localTs = localTsByKey.current[key];
@@ -151,6 +184,8 @@ export const useCloudSync = ({
       isHydratingFromCloud.current = false;
     }, 600);
   }, [
+    getLogicalKeyFromRemoteKey,
+    scopeToken,
     setCostMatterByMonth,
     setCovers,
     setDailyCovers,
@@ -162,12 +197,15 @@ export const useCloudSync = ({
     setSalesHtByMonth,
     setSupplierConfigs,
     setValidatedMonths,
+    siteStateReady,
   ]);
 
   useEffect(() => {
     let cancelled = false;
 
     const run = async () => {
+      if (!siteStateReady) return;
+
       if (!isSupabaseConfigured()) {
         setSupabaseLoaded(true);
         return;
@@ -182,8 +220,10 @@ export const useCloudSync = ({
           const cloudMap: Record<string, unknown> = {};
 
           cloud.forEach((row: any) => {
-            lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
-            cloudMap[row.key] = row.value;
+            const logicalKey = getLogicalKeyFromRemoteKey(row.key);
+            if (!logicalKey) return;
+            lastCloudUpdatedAtByKey.current[logicalKey] = row.updated_at;
+            cloudMap[logicalKey] = row.value;
           });
 
           if (cloudMap.covers) setCovers(cloudMap.covers as Record<string, number>);
@@ -226,6 +266,8 @@ export const useCloudSync = ({
       cancelled = true;
     };
   }, [
+    getLogicalKeyFromRemoteKey,
+    scopeToken,
     setCostMatterByMonth,
     setCovers,
     setDailyCovers,
@@ -237,6 +279,7 @@ export const useCloudSync = ({
     setSalesHtByMonth,
     setSupplierConfigs,
     setValidatedMonths,
+    siteStateReady,
   ]);
 
   useEffect(() => {
@@ -264,11 +307,13 @@ export const useCloudSync = ({
       try {
         const keys = Array.from(pendingKeysRef.current);
         pendingKeysRef.current.clear();
-        const rows = await loadKeysFromSupabase(keys);
+        const rows = await loadKeysFromSupabase(keys.map(getRemoteKey));
         if (!rows) return;
         rows.forEach(row => {
-          lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
-          applyCloudKey(row.key, row.updated_at, row.value);
+          const logicalKey = getLogicalKeyFromRemoteKey(row.key);
+          if (!logicalKey) return;
+          lastCloudUpdatedAtByKey.current[logicalKey] = row.updated_at;
+          applyCloudKey(logicalKey, row.updated_at, row.value);
         });
       } finally {
         pollingInFlightRef.current = false;
@@ -285,13 +330,14 @@ export const useCloudSync = ({
 
         const changedKeys: string[] = [];
         meta.forEach(row => {
-          if (!PARAMETER_KEYS.has(row.key)) return;
-          const prev = lastCloudUpdatedAtByKey.current[row.key];
+          const logicalKey = getLogicalKeyFromRemoteKey(row.key);
+          if (!logicalKey || !PARAMETER_KEYS.has(logicalKey)) return;
+          const prev = lastCloudUpdatedAtByKey.current[logicalKey];
           if (!prev) {
-            lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
+            lastCloudUpdatedAtByKey.current[logicalKey] = row.updated_at;
             return;
           }
-          if (prev !== row.updated_at) changedKeys.push(row.key);
+          if (prev !== row.updated_at) changedKeys.push(logicalKey);
         });
 
         if (changedKeys.length === 0) return;
@@ -300,11 +346,13 @@ export const useCloudSync = ({
           return;
         }
 
-        const rows = await loadKeysFromSupabase(changedKeys);
+        const rows = await loadKeysFromSupabase(changedKeys.map(getRemoteKey));
         if (!rows) return;
         rows.forEach(row => {
-          lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
-          applyCloudKey(row.key, row.updated_at, row.value);
+          const logicalKey = getLogicalKeyFromRemoteKey(row.key);
+          if (!logicalKey) return;
+          lastCloudUpdatedAtByKey.current[logicalKey] = row.updated_at;
+          applyCloudKey(logicalKey, row.updated_at, row.value);
         });
       } catch (error) {
         console.error('[Cloud polling tick error]', error);
@@ -324,30 +372,32 @@ export const useCloudSync = ({
       if (timer) clearInterval(timer);
       window.removeEventListener('focusout', flushPendingIfSafe);
     };
-  }, [applyCloudKey, supabaseLoaded, syncStatus]);
+  }, [applyCloudKey, getLogicalKeyFromRemoteKey, getRemoteKey, scopeToken, supabaseLoaded, syncStatus]);
 
   const persistEverywhere = useCallback((key: string, value: unknown) => {
-    saveState(key, value, onSaveError);
-    if (isHydratingFromCloud.current || !supabaseLoaded || !isSupabaseConfigured()) return;
+    saveSiteScopedState(key, value, activeSiteId, useLegacySiteStorage, onSaveError);
+    if (!siteStateReady || isHydratingFromCloud.current || !supabaseLoaded || !isSupabaseConfigured()) return;
 
     const ts = nowIso();
     localTsByKey.current[key] = ts;
     setSyncStatus('saving');
 
+    const remoteKey = getRemoteKey(key);
+
     saveToSupabaseDebounced(
-      key,
+      remoteKey,
       value,
       ts,
-      currentKey => lastCloudUpdatedAtByKey.current[currentKey],
-      (confirmedKey, confirmedTs) => {
-        lastCloudUpdatedAtByKey.current[confirmedKey] = confirmedTs;
-        delete localTsByKey.current[confirmedKey];
+      () => lastCloudUpdatedAtByKey.current[key],
+      (_confirmedRemoteKey, confirmedTs) => {
+        lastCloudUpdatedAtByKey.current[key] = confirmedTs;
+        delete localTsByKey.current[key];
       }
     );
 
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     syncTimerRef.current = setTimeout(() => setSyncStatus('saved'), 1700);
-  }, [onSaveError, supabaseLoaded]);
+  }, [activeSiteId, getRemoteKey, onSaveError, siteStateReady, supabaseLoaded, useLegacySiteStorage]);
 
   useEffect(() => { persistEverywhere('covers', covers); }, [covers, persistEverywhere]);
   useEffect(() => { persistEverywhere('dailyCovers', dailyCovers); }, [dailyCovers, persistEverywhere]);
