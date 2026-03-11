@@ -37,6 +37,9 @@ type AuthContextValue = {
   isAdmin: boolean;
   isActive: boolean;
   signOut: () => Promise<void>;
+  allowedSites: AppSite[];
+  activeSiteId: string | null;
+  setActiveSiteId: React.Dispatch<React.SetStateAction<string | null>>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
