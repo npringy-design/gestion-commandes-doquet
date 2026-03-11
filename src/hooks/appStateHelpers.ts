@@ -53,9 +53,9 @@ export const DEFAULT_PRODUCTS: ProductWithHistory[] = [
 ];
 
 export const DEFAULT_SUPPLIER_CONFIGS: Record<string, SupplierConfig> = {
-  doquet: { ...DOQUET_CONFIG, subtitle: 'Softs • Jus • Cocktails', visualKey: 'premium-sombre-01' },
-  vins: { ...VINS_CONFIG, subtitle: 'Cave • Alcools', visualKey: 'premium-sombre-01' },
-  viandes: { ...VIANDES_CONFIG, subtitle: 'Boucherie • Grill', visualKey: 'boucherie-grill-01' },
+  doquet: { ...DOQUET_CONFIG, subtitle: 'Softs • Jus • Cocktails', visualKey: 'new-cocktails-01' },
+  vins: { ...VINS_CONFIG, subtitle: 'Cave • Alcools', visualKey: 'new-vins-01' },
+  viandes: { ...VIANDES_CONFIG, subtitle: 'Boucherie • Grill', visualKey: 'new-grilling-01' },
   domafrais: { ...DOMAFRAIS_CONFIG, subtitle: 'Viandes • Volailles', visualKey: 'viandes-rustiques-04' },
   domafrais_bof: { ...DOMAFRAIS_BOF_CONFIG, subtitle: 'Crémerie • Fromages', visualKey: 'grill-braise-04' },
   domafrais_surgele: { ...DOMAFRAIS_SURGELE_CONFIG, subtitle: 'Surgelés • Glaces', visualKey: 'surgele-01' },
