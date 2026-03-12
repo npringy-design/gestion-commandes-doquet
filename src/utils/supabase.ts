@@ -150,7 +150,7 @@ export const listSiteBackups = async (siteId: string): Promise<SiteBackupRow[] |
 
   const { data, error } = await supabase
     .from(BACKUPS_TABLE)
-.select('id,site_id,snapshot,backup_type,note,created_at,created_by')
+    .select('id,site_id,snapshot,backup_type,note,created_at,created_by')
     .eq('site_id', siteId)
     .order('created_at', { ascending: false })
     .limit(20);

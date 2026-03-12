@@ -65,7 +65,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ setView, profile = null
     </p>
   </button>
 )}
-
         <button
           onClick={() => setView('site_backups')}
           className="bg-white/5 border border-white/10 p-10 rounded-[40px] text-left hover:border-[#93c47d] transition-all group"
