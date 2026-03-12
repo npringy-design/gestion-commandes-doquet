@@ -1,4 +1,15 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+// =============================================================
+// hooks/useAppState.ts
+// Hook personnalisé qui centralise TOUT l'état de l'application.
+// Extrait du composant App principal pour le décharger.
+//
+// Pourquoi un hook ?
+// - App.tsx n'a plus besoin de contenir 200 lignes de useState/useEffect
+// - La logique métier est testable indépendamment
+// - Les pages reçoivent exactement ce dont elles ont besoin
+// =============================================================
+
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useToast } from '../components/Toast';
 import {
   MONTHLY_COVERS as INITIAL_COVERS,
@@ -12,104 +23,79 @@ import { getImportedValueForProduct, extractAllNamesFromCsvs } from '../utils/cs
 import {
   createInitialProducts,
   loadState,
-  loadScopedState,
   mergeSupplierConfigsWithDefaults,
-  migrateLegacyStateToSite,
   saveState,
 } from './appStateHelpers';
 import { useProductActions } from './useProductActions';
 import { useCloudSync } from './useCloudSync';
 import { useAuth } from '../auth/AuthProvider';
 
-const normalizeName = (value: string | null | undefined): string =>
-  (value ?? '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-
-const isLegacyThilloisSite = (siteName: string | null): boolean => normalizeName(siteName).includes('thillois');
-
-const getSiteBundle = (siteId: string | null, siteName: string | null) => {
-  const loadForSite = <T,>(key: string, defaultValue: T): T => {
-    if (!siteId) return defaultValue;
-    if (isLegacyThilloisSite(siteName)) {
-      return migrateLegacyStateToSite(siteId, key, defaultValue);
-    }
-    return loadScopedState(siteId, key, defaultValue);
-  };
-
-  return {
-    deliveryDateBySupplier: loadForSite<Record<string, string>>('deliveryDateBySupplier', {}),
-    nextDeliveryDateBySupplier: loadForSite<Record<string, string>>('nextDeliveryDateBySupplier', {}),
-    covers: loadForSite<Record<string, number>>('covers', INITIAL_COVERS),
-    dailyCovers: loadForSite<DailyCoversState>('dailyCovers', DAILY_COVERS_INITIAL),
-    orderStates: loadForSite<Record<string, OrderState>>('orderStates', {}),
-    detailedInventory: loadForSite<Record<string, string>>('inventory', {}),
-    salesHtByMonth: loadForSite<Record<string, number>>('salesHtByMonth', INITIAL_COVERS),
-    costMatterByMonth: loadForSite<Record<string, number>>('costMatterByMonth', INITIAL_COVERS),
-    validatedMonths: loadForSite<Record<string, boolean>>('validatedMonths', {}),
-    supplierConfigs: mergeSupplierConfigsWithDefaults(loadForSite<Record<string, SupplierConfig>>('supplierConfigs', {})),
-    products: createInitialProducts(loadForSite('products', [] as ProductWithHistory[])),
-  };
-};
-
+// -----------------------------------------------------------
+// Hook principal
+// -----------------------------------------------------------
 export const useAppState = () => {
+  // Toast — affichage des messages d'erreur
   const { showToast } = useToast();
   const { activeSiteId, allowedSites } = useAuth();
-  const activeSiteName = useMemo(
-    () => allowedSites.find((site) => site.id === activeSiteId)?.name ?? null,
-    [allowedSites, activeSiteId],
-  );
+  const legacyBaseSiteId = useMemo(() => allowedSites.find(site => /thillois/i.test(site.name))?.id ?? null, [allowedSites]);
 
+  // Navigation
   const [view, setView] = useState<View>(() => loadState<View>('currentView', 'home'));
+
+  // Mode de calcul commandes (marge de sécurité ou stock cible)
   const [calculationMode, setCalculationMode] = useState<'margin' | 'target'>('margin');
+
+  // Onglet actif sur la page Ratios
   const [ratioTab, setRatioTab] = useState<SupplierId>('doquet');
+
+  // Modale de confirmation RAZ
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  // Calendrier de livraison affiché (id fournisseur ou null)
   const [activeCalendarSupplier, setActiveCalendarSupplier] = useState<string | null>(null);
-  const [calendarAnchorRectBySupplier, setCalendarAnchorRectBySupplier] = useState<Record<string, DOMRect | null>>({});
+  const [calendarAnchorRectBySupplier, setCalendarAnchorRectBySupplier] =
+    useState<Record<string, DOMRect | null>>({});
+
+  // Produit dont le popover de mapping est ouvert
   const [activeMappingId, setActiveMappingId] = useState<string | null>(null);
+
+  // Sélection multi-produits (page Ratios)
   const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
-  const [siteScopeReady, setSiteScopeReady] = useState(false);
-  const lastLoadedSiteIdRef = useRef<string | null>(null);
 
-  const [deliveryDateBySupplier, setDeliveryDateBySupplier] = useState<Record<string, string>>({});
-  const [nextDeliveryDateBySupplier, setNextDeliveryDateBySupplier] = useState<Record<string, string>>({});
-  const [covers, setCovers] = useState<Record<string, number>>(INITIAL_COVERS);
-  const [dailyCovers, setDailyCovers] = useState<DailyCoversState>(DAILY_COVERS_INITIAL);
-  const [orderStates, setOrderStates] = useState<Record<string, OrderState>>({});
-  const [detailedInventory, setDetailedInventory] = useState<Record<string, string>>({});
-  const [salesHtByMonth, setSalesHtByMonth] = useState<Record<string, number>>(INITIAL_COVERS);
-  const [costMatterByMonth, setCostMatterByMonth] = useState<Record<string, number>>(INITIAL_COVERS);
-  const [validatedMonths, setValidatedMonths] = useState<Record<string, boolean>>({});
-  const [supplierConfigs, setSupplierConfigs] = useState<Record<string, SupplierConfig>>(mergeSupplierConfigsWithDefaults({}));
-  const [products, setProducts] = useState<ProductWithHistory[]>(createInitialProducts([]));
+  // --- États persistés (localStorage) ---
+  const [deliveryDateBySupplier, setDeliveryDateBySupplier] =
+    useState<Record<string, string>>(() => loadState('deliveryDateBySupplier', {}));
 
-  useEffect(() => {
-    if (!activeSiteId) {
-      lastLoadedSiteIdRef.current = null;
-      setSiteScopeReady(false);
-      return;
-    }
+  const [nextDeliveryDateBySupplier, setNextDeliveryDateBySupplier] =
+    useState<Record<string, string>>(() => loadState('nextDeliveryDateBySupplier', {}));
 
-    setSiteScopeReady(false);
-    const bundle = getSiteBundle(activeSiteId, activeSiteName);
+  const [covers, setCovers] =
+    useState<Record<string, number>>(() => loadState('covers', INITIAL_COVERS));
 
-    setDeliveryDateBySupplier(bundle.deliveryDateBySupplier);
-    setNextDeliveryDateBySupplier(bundle.nextDeliveryDateBySupplier);
-    setCovers(bundle.covers);
-    setDailyCovers(bundle.dailyCovers);
-    setOrderStates(bundle.orderStates);
-    setDetailedInventory(bundle.detailedInventory);
-    setSalesHtByMonth(bundle.salesHtByMonth);
-    setCostMatterByMonth(bundle.costMatterByMonth);
-    setValidatedMonths(bundle.validatedMonths);
-    setSupplierConfigs(bundle.supplierConfigs);
-    setProducts(bundle.products);
+  const [dailyCovers, setDailyCovers] =
+    useState<DailyCoversState>(() => loadState('dailyCovers', DAILY_COVERS_INITIAL));
 
-    lastLoadedSiteIdRef.current = activeSiteId;
-    const timer = window.setTimeout(() => setSiteScopeReady(true), 0);
-    return () => window.clearTimeout(timer);
-  }, [activeSiteId, activeSiteName]);
+  const [orderStates, setOrderStates] =
+    useState<Record<string, OrderState>>(() => loadState('orderStates', {}));
+
+  const [detailedInventory, setDetailedInventory] =
+    useState<Record<string, string>>(() => loadState('inventory', {}));
+
+  const [salesHtByMonth, setSalesHtByMonth] =
+    useState<Record<string, number>>(() => loadState('salesHtByMonth', INITIAL_COVERS));
+
+  const [costMatterByMonth, setCostMatterByMonth] =
+    useState<Record<string, number>>(() => loadState('costMatterByMonth', INITIAL_COVERS));
+
+  const [validatedMonths, setValidatedMonths] =
+    useState<Record<string, boolean>>(() => loadState('validatedMonths', {}));
+
+  const [supplierConfigs, setSupplierConfigs] =
+useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(loadState<Record<string, SupplierConfig>>('supplierConfigs', {})));
+
+  const [products, setProducts] = useState<ProductWithHistory[]>(() =>
+    createInitialProducts(loadState('products', [] as ProductWithHistory[]))
+  );
 
   useEffect(() => {
     try {
@@ -117,14 +103,12 @@ export const useAppState = () => {
     } catch (_e) {
       window.scrollTo(0, 0);
     }
-    saveState('currentView', view, (msg: string) => showToast(msg, 'error'));
-  }, [view, showToast]);
+    saveState('currentView', view, onSaveError);
+  }, [view]);
 
+  // --- Persistance automatique à chaque changement ---
   const onSaveError = (msg: string) => showToast(msg, 'error');
   const { supabaseLoaded, syncStatus } = useCloudSync({
-    activeSiteId,
-    activeSiteName,
-    siteScopeReady,
     covers,
     dailyCovers,
     orderStates,
@@ -148,8 +132,13 @@ export const useAppState = () => {
     setNextDeliveryDateBySupplier,
     setProducts,
     onSaveError,
+    activeSiteId,
+    legacyBaseSiteId,
   });
 
+  // --- Valeurs calculées ---
+
+  // Total couverts prévisionnels (toutes périodes confondues)
   const totalForecast = useMemo(() => {
     let sum = 0;
     Object.values(dailyCovers).forEach(m =>
@@ -158,6 +147,7 @@ export const useAppState = () => {
     return sum;
   }, [dailyCovers]);
 
+  // Mois cible d'import: premier mois non figé disposant d'un CSV, sinon fallback sur le premier mois importé
   const importTargetMonth = useMemo(() => {
     const firstOpenWithCsv = MONTHS_ORDER.find(m => !validatedMonths[m] && !!detailedInventory[m]);
     if (firstOpenWithCsv) return firstOpenWithCsv;
@@ -165,6 +155,7 @@ export const useAppState = () => {
     return firstWithCsv ?? MONTHS_ORDER[0];
   }, [detailedInventory, validatedMonths]);
 
+  // Ensemble des noms disponibles dans le CSV du mois cible (pour le mapping et les alertes unmatched)
   const allAvailableImportNames = useMemo(
     () => extractAllNamesFromCsvs(
       detailedInventory[importTargetMonth]
@@ -174,11 +165,18 @@ export const useAppState = () => {
     [detailedInventory, importTargetMonth]
   );
 
+  // --- Actions sur les produits ---
+
+  // Calcule les stats (ratio moyen, ventes mensuelles) pour un produit
   const getProductStats = useCallback((p: ProductWithHistory) => {
     let totalR = 0, countR = 0;
     const mR: Record<string, number> = {};
     const mS: Record<string, { value: number; isImported: boolean; isValidated: boolean }> = {};
 
+    // RÈGLE PERF (workMonth) :
+    // - Mois figés (validated) : on affiche uniquement le snapshot (salesHistory) -> jamais de lecture CSV
+    // - Mois de travail (importTargetMonth) : seul mois autorisé à lire/parsing CSV + matching/alertes
+    // - Autres mois non figés : 0 (pas de parsing, pas de fallback salesHistory)
     MONTHS_ORDER.forEach(m => {
       const isValidated = validatedMonths[m] || false;
       const isWorkMonth = m === importTargetMonth;
@@ -207,6 +205,7 @@ export const useAppState = () => {
     return { avgRatio: countR > 0 ? totalR / countR : 0, mR, mS };
   }, [detailedInventory, validatedMonths, covers, importTargetMonth]);
 
+  // Valide / dévalide un mois (fige les valeurs importées dans l'historique)
   const toggleValidateMonth = (m: string) => {
     const next = !validatedMonths[m];
     if (next) {
@@ -239,16 +238,21 @@ export const useAppState = () => {
     showToast,
   });
 
+
   return {
+    // Navigation
     view, setView,
     calculationMode, setCalculationMode,
     ratioTab, setRatioTab,
+
+    // Modales / UI
     showResetConfirm, setShowResetConfirm,
     activeCalendarSupplier, setActiveCalendarSupplier,
     calendarAnchorRectBySupplier, setCalendarAnchorRectBySupplier,
     activeMappingId, setActiveMappingId,
     selectedProductIds, setSelectedProductIds,
 
+    // Données persistées
     deliveryDateBySupplier, setDeliveryDateBySupplier,
     nextDeliveryDateBySupplier, setNextDeliveryDateBySupplier,
     covers, setCovers,
@@ -257,32 +261,31 @@ export const useAppState = () => {
     detailedInventory, setDetailedInventory,
     salesHtByMonth, setSalesHtByMonth,
     costMatterByMonth, setCostMatterByMonth,
-    validatedMonths, setValidatedMonths,
+    validatedMonths,
+    importTargetMonth,
     supplierConfigs, setSupplierConfigs,
     products, setProducts,
 
-    supabaseLoaded,
-    syncStatus,
-    siteScopeReady,
-    activeSiteId,
-    activeSiteName,
-
+    // Valeurs calculées
     totalForecast,
-    importTargetMonth,
     allAvailableImportNames,
+
+    // Actions
     getProductStats,
     toggleValidateMonth,
-
     updateProductValue,
+    syncStatus,
+    supabaseLoaded,
+    updateSearchName,
+    updateImportDivisor,
     performReset,
     addNewProduct,
     deleteSelectedProducts,
     toggleProductSelection,
     moveProduct,
     handleNameChange,
-    updateSearchName,
-    updateImportDivisor,
   };
 };
+
 
 export type AppState = ReturnType<typeof useAppState>;
