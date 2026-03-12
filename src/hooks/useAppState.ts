@@ -108,7 +108,7 @@ export const useAppState = () => {
 
   // --- Persistance automatique à chaque changement ---
   const onSaveError = (msg: string) => showToast(msg, 'error');
-  const { supabaseLoaded, syncStatus, siteReady } = useCloudSync({
+  const { supabaseLoaded, syncStatus } = useCloudSync({
     covers,
     dailyCovers,
     orderStates,
@@ -276,7 +276,6 @@ export const useAppState = () => {
     updateProductValue,
     syncStatus,
     supabaseLoaded,
-    siteReady,
     updateSearchName,
     updateImportDivisor,
     performReset,

@@ -1,6 +1,6 @@
 // =============================================================
 // pages/HomePage.tsx
-// Accueil principal avec sélection de site compacte en haut à gauche
+// Page d'accueil principale de l'application
 // =============================================================
 
 import React, { useMemo, useState } from 'react';
@@ -14,27 +14,24 @@ interface HomePageProps {
   setView: (v: View) => void;
 }
 
-const getSiteDisplayName = (siteName: string | null) => {
-  if (!siteName) return 'THILLOIS';
-  return siteName.replace(/^hippo\s+/i, '').toUpperCase();
-};
-
 const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   const [showPassword, setShowPassword] = useState(false);
   const { profile, allowedSites, activeSiteId, setActiveSiteId } = useAuth();
 
-  const selectedSiteName = useMemo(() => {
-    return allowedSites.find((site) => site.id === activeSiteId)?.name ?? 'Hippo Thillois';
-  }, [allowedSites, activeSiteId]);
+  const isMobile =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(max-width: 1023px)').matches;
 
-  const titleSiteName = useMemo(() => getSiteDisplayName(selectedSiteName), [selectedSiteName]);
+  const activeSite = useMemo(
+    () => allowedSites.find((site) => site.id === activeSiteId) ?? null,
+    [allowedSites, activeSiteId]
+  );
 
-  const selectSite = (siteId: string) => {
-    setActiveSiteId(siteId);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('hippo_active_site_id', siteId);
-    }
-  };
+  const activeSiteName = activeSite?.name ?? null;
+  const activeSiteShortName = useMemo(() => {
+    if (!activeSiteName) return '';
+    return activeSiteName.replace(/^Hippo\s+/i, '').toUpperCase();
+  }, [activeSiteName]);
 
   return (
     <div className="min-h-screen bg-[#1a0f0a] flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 relative overflow-hidden">
@@ -53,8 +50,9 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         style={{
           backgroundImage: `url(${homeBgCow})`,
           backgroundSize: 'cover',
-          backgroundPosition: '75% 35%',
+          backgroundPosition: isMobile ? '60% center' : '75% 35%',
           backgroundRepeat: 'no-repeat',
+          filter: 'brightness(1.20)',
         }}
       />
 
@@ -66,45 +64,53 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
       />
 
       {allowedSites.length > 1 && (
-        <div className="absolute top-6 left-6 z-20 w-[280px] max-w-[calc(100vw-3rem)] rounded-[32px] border border-white/10 bg-black/30 backdrop-blur-md p-4 shadow-2xl">
-          <div className="space-y-3">
-            {allowedSites.map((site) => {
-              const active = site.id === activeSiteId;
-              return (
-                <button
-                  key={site.id}
-                  type="button"
-                  onClick={() => selectSite(site.id)}
-                  className={`w-full text-left rounded-[24px] px-5 py-4 border transition-all ${active
-                    ? 'border-[#ffd700] bg-[#ffd700]/18 text-white shadow-[0_0_0_1px_rgba(255,215,0,0.15)]'
-                    : 'border-white/10 bg-white/6 text-white/90 hover:border-white/25 hover:bg-white/10'}`}
-                >
-                  <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/55 mb-1">
-                    {active ? 'Site actif' : 'Cliquer pour sélectionner'}
-                  </div>
-                  <div className="text-[17px] sm:text-[18px] font-black leading-tight">{site.name}</div>
-                </button>
-              );
-            })}
+        <div className="absolute top-6 left-6 z-20 w-[240px] max-w-[calc(100vw-3rem)]">
+          <div className="rounded-[34px] border border-white/10 bg-black/30 backdrop-blur-md p-3 shadow-2xl">
+            <div className="space-y-3">
+              {allowedSites.map((site) => {
+                const selected = site.id === activeSiteId;
+                return (
+                  <button
+                    key={site.id}
+                    type="button"
+                    onClick={() => setActiveSiteId(site.id)}
+                    className={`w-full rounded-[24px] border px-5 py-4 text-left transition-all ${
+                      selected
+                        ? 'border-[#d4af37] bg-[#7a5e14]/60 shadow-[0_0_0_1px_rgba(255,215,0,0.15)]'
+                        : 'border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/25'
+                    }`}
+                  >
+                    <div className="text-white text-[14px] sm:text-[15px] font-black leading-tight">
+                      {site.name.replace(/^Hippo\s+/i, 'Hippo ')}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
 
+      <div className="absolute top-4 right-4 z-20" />
+
       <div className="z-10 text-center w-full max-w-5xl px-2">
-        <div className="mb-4 text-white/80 text-sm font-bold uppercase tracking-[0.25em]">
-          {selectedSiteName.toUpperCase()}
-        </div>
+        {activeSiteName && (
+          <div className="mb-6 text-white/85 text-sm font-bold uppercase tracking-[0.2em]">
+            {activeSiteName.toUpperCase()}
+          </div>
+        )}
 
         <div className="mb-12">
           <h1 className="text-[#ffd700] text-5xl sm:text-7xl lg:text-8xl font-black uppercase tracking-tighter leading-none mb-2">
             HIPPO
           </h1>
           <div className="text-white text-4xl sm:text-6xl lg:text-7xl font-black uppercase tracking-tighter leading-none">
-            {titleSiteName}
+            {activeSiteShortName || 'THILLOIS'}
           </div>
+          <div className="h-2 w-48 bg-red-600 mx-auto rounded-full mt-6" />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8 max-w-6xl mx-auto">
           <button
             onClick={() => setView('suppliers')}
             className="group bg-white p-4 sm:p-6 lg:p-8 rounded-[40px] shadow-2xl hover:scale-105 transition-all border-4 border-transparent hover:border-red-600"
@@ -117,7 +123,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
             <span className="text-2xl font-black uppercase text-slate-800 tracking-tighter">Commandes</span>
           </button>
 
-          {canAccessStatsPage(profile) && (
+          {!isMobile && canAccessStatsPage(profile) && (
             <button
               onClick={() => setView('stats')}
               className="group bg-white p-4 sm:p-6 lg:p-8 rounded-[40px] shadow-2xl transition-all border-4 border-transparent hover:scale-105 hover:border-amber-500"
@@ -141,11 +147,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
               </svg>
             </div>
-            <span className="text-2xl font-black uppercase text-slate-800 tracking-tighter">
-              Analyse
-              <br />
-              Coût Matière
-            </span>
+            <span className="text-2xl font-black uppercase text-slate-800 tracking-tighter">Analyse<br />Coût Matière</span>
           </button>
         </div>
 
@@ -159,9 +161,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           }}
           className="flex items-center gap-4 mx-auto text-white/20 hover:text-[#ffd700] transition-colors"
         >
-          <span className="font-black uppercase text-[11px] tracking-widest">
-            Accès Dashboard Admin
-          </span>
+          <span className="font-black uppercase text-[11px] tracking-widest">Accès Dashboard Admin</span>
         </button>
       </div>
     </div>
