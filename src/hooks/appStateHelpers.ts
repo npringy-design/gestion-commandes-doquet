@@ -22,36 +22,6 @@ import { SupplierConfig } from '../types';
 
 export const nowIso = () => new Date().toISOString();
 
-export const cleanupLegacyHippoStorage = (): void => {
-  try {
-    const keysToRemove: string[] = [];
-    for (let i = 0; i < localStorage.length; i += 1) {
-      const key = localStorage.key(i);
-      if (!key) continue;
-      if (key.startsWith('hippo_v6_') || key.startsWith('hippo_v5_') || key.startsWith('hippo_v4_')) {
-        keysToRemove.push(key);
-      }
-    }
-    keysToRemove.forEach((key) => localStorage.removeItem(key));
-    localStorage.setItem(`${STORAGE_PREFIX}appMode`, JSON.stringify('mono_site_thillois'));
-    localStorage.setItem(`${STORAGE_PREFIX}storageVersion`, JSON.stringify(1));
-  } catch {
-    // no-op
-  }
-};
-
-export const enforceThilloisRescueStorage = (): void => {
-  try {
-    const bootFlag = `${STORAGE_PREFIX}bootstrapped`;
-    if (localStorage.getItem(bootFlag) === '1') return;
-    cleanupLegacyHippoStorage();
-    localStorage.setItem(bootFlag, '1');
-  } catch {
-    // no-op
-  }
-};
-
-
 export const loadState = <T>(key: string, defaultVal: T): T => {
   try {
     const saved = localStorage.getItem(`${STORAGE_PREFIX}${key}`);
