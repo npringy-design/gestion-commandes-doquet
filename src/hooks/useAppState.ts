@@ -25,9 +25,9 @@ import {
   loadState,
   mergeSupplierConfigsWithDefaults,
   saveState,
+  enforceThilloisRescueStorage,
 } from './appStateHelpers';
 import { useProductActions } from './useProductActions';
-import { useCloudSync } from './useCloudSync';
 
 // -----------------------------------------------------------
 // Hook principal
@@ -35,6 +35,11 @@ import { useCloudSync } from './useCloudSync';
 export const useAppState = () => {
   // Toast — affichage des messages d'erreur
   const { showToast } = useToast();
+
+  // Verrouillage mono-site Thillois : nettoyage des anciennes clés et isolation du stockage local
+  useEffect(() => {
+    enforceThilloisRescueStorage();
+  }, []);
 
   // Navigation
   const [view, setView] = useState<View>(() => loadState<View>('currentView', 'home'));
@@ -105,31 +110,10 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
 
   // --- Persistance automatique à chaque changement ---
   const onSaveError = (msg: string) => showToast(msg, 'error');
-  const { supabaseLoaded, syncStatus } = useCloudSync({
-    covers,
-    dailyCovers,
-    orderStates,
-    detailedInventory,
-    salesHtByMonth,
-    costMatterByMonth,
-    validatedMonths,
-    supplierConfigs,
-    deliveryDateBySupplier,
-    nextDeliveryDateBySupplier,
-    products,
-    setCovers,
-    setDailyCovers,
-    setOrderStates,
-    setDetailedInventory,
-    setSalesHtByMonth,
-    setCostMatterByMonth,
-    setValidatedMonths,
-    setSupplierConfigs,
-    setDeliveryDateBySupplier,
-    setNextDeliveryDateBySupplier,
-    setProducts,
-    onSaveError,
-  });
+
+  // Mode secours mono-site Thillois : aucune synchronisation cloud de l'état métier
+  const supabaseLoaded = true;
+  const syncStatus = 'idle' as const;
 
   // --- Valeurs calculées ---
 

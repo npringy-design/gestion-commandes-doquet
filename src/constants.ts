@@ -40,7 +40,7 @@ export const MONTH_KEY_TO_NAME: Record<string, string> = {
 };
 
 // Préfixe utilisé pour toutes les clés localStorage
-export const STORAGE_PREFIX = 'hippo_v6_';
+export const STORAGE_PREFIX = 'hippo_thillois_rescue_v1_';
 
 // Types de vues de navigation
 export type CoreView =
