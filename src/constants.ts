@@ -52,6 +52,7 @@ export type CoreView =
   | 'admin_dashboard'
   | 'supplier_settings'
   | 'user_management'
+  | 'site_backups'
   | 'cost_analysis';
 
 export type View = CoreView | (string & {});
@@ -80,6 +81,7 @@ export const RESERVED_VIEWS = new Set<CoreView>([
   'admin_dashboard',
   'supplier_settings',
   'user_management',
+  'site_backups',
   'cost_analysis',
 ]);
 

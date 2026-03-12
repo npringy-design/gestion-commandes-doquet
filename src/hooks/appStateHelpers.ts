@@ -22,44 +22,20 @@ import { SupplierConfig } from '../types';
 
 export const nowIso = () => new Date().toISOString();
 
-export const loadState = <T>(key: string, defaultVal: T): T => {
+export const getLegacyStorageKey = (key: string) => `${STORAGE_PREFIX}${key}`;
+
+export const getScopedStorageKey = (siteId: string, key: string) =>
+  `${STORAGE_PREFIX}site_${siteId}_${key}`;
+
+export const loadState = <T>(key: string, defaultVal: T, siteId?: string | null, allowLegacyFallback = false): T => {
   try {
-    const saved = localStorage.getItem(`${STORAGE_PREFIX}${key}`);
-    return saved ? JSON.parse(saved) : defaultVal;
-  } catch {
-    return defaultVal;
-  }
-};
+    const scopedKey = siteId ? getScopedStorageKey(siteId, key) : getLegacyStorageKey(key);
+    const saved = localStorage.getItem(scopedKey);
+    if (saved) return JSON.parse(saved) as T;
 
-export const saveState = (key: string, value: unknown, onError?: (msg: string) => void): void => {
-  try {
-    localStorage.setItem(`${STORAGE_PREFIX}${key}`, JSON.stringify(value));
-  } catch (err) {
-    const msg = 'Sauvegarde impossible : stockage local plein ou désactivé.';
-    if (onError) onError(msg);
-    else console.error(msg, err);
-  }
-};
-
-
-export const buildSiteScopedStateKey = (key: string, siteId: string): string =>
-  `${key}__site__${siteId}`;
-
-export const loadSiteScopedState = <T>(
-  key: string,
-  defaultVal: T,
-  siteId: string | null,
-  useLegacyFallback = false,
-): T => {
-  try {
-    if (siteId) {
-      const scopedSaved = localStorage.getItem(`${STORAGE_PREFIX}${buildSiteScopedStateKey(key, siteId)}`);
-      if (scopedSaved != null) return JSON.parse(scopedSaved) as T;
-    }
-
-    if (useLegacyFallback || !siteId) {
-      const legacySaved = localStorage.getItem(`${STORAGE_PREFIX}${key}`);
-      if (legacySaved != null) return JSON.parse(legacySaved) as T;
+    if (allowLegacyFallback) {
+      const legacy = localStorage.getItem(getLegacyStorageKey(key));
+      if (legacy) return JSON.parse(legacy) as T;
     }
 
     return defaultVal;
@@ -68,21 +44,48 @@ export const loadSiteScopedState = <T>(
   }
 };
 
-export const saveSiteScopedState = (
+export const saveState = (
   key: string,
   value: unknown,
-  siteId: string | null,
-  useLegacyKey = false,
   onError?: (msg: string) => void,
+  siteId?: string | null
 ): void => {
   try {
-    const storageKey = siteId && !useLegacyKey ? buildSiteScopedStateKey(key, siteId) : key;
-    localStorage.setItem(`${STORAGE_PREFIX}${storageKey}`, JSON.stringify(value));
+    const targetKey = siteId ? getScopedStorageKey(siteId, key) : getLegacyStorageKey(key);
+    localStorage.setItem(targetKey, JSON.stringify(value));
   } catch (err) {
     const msg = 'Sauvegarde impossible : stockage local plein ou désactivé.';
     if (onError) onError(msg);
     else console.error(msg, err);
   }
+};
+
+export const ensureScopedLocalState = <T>(
+  key: string,
+  defaultVal: T,
+  siteId: string | null | undefined,
+  options?: { allowLegacyFallback?: boolean }
+): T => {
+  const safeDefault = defaultVal;
+  if (!siteId) return safeDefault;
+
+  try {
+    const scopedKey = getScopedStorageKey(siteId, key);
+    const existingScoped = localStorage.getItem(scopedKey);
+    if (existingScoped) return JSON.parse(existingScoped) as T;
+
+    if (options?.allowLegacyFallback) {
+      const legacy = localStorage.getItem(getLegacyStorageKey(key));
+      if (legacy) {
+        localStorage.setItem(scopedKey, legacy);
+        return JSON.parse(legacy) as T;
+      }
+    }
+  } catch {
+    return safeDefault;
+  }
+
+  return safeDefault;
 };
 
 export const DEFAULT_PRODUCTS: ProductWithHistory[] = [

@@ -16,6 +16,7 @@ const SupplierSettingsPage = lazy(() => import('../pages/SupplierSettingsPage'))
 const SupplierOrderPage = lazy(() => import('../pages/SupplierOrderPage'));
 const RatiosPage = lazy(() => import('../pages/RatiosPage'));
 const UserManagementPage = lazy(() => import('../pages/UserManagementPage'));
+const SiteBackupsPage = lazy(() => import('../pages/SiteBackupsPage'));
 
 type ScrollSyncSource = 'main' | 'bottom';
 
@@ -193,6 +194,18 @@ const AppRouter: React.FC<AppRouterProps> = ({
         setConfigs={state.setSupplierConfigs}
       />,
       'Chargement des fournisseurs…'
+    );
+  }
+
+
+  if (view === 'site_backups') {
+    if (!canAccessAdminDashboard(profile)) {
+      return renderWithShell(<AccessDenied message="Cette section est réservée aux rôles autorisés pour ce module." />);
+    }
+
+    return renderLazyPage(
+      <SiteBackupsPage setView={setView} state={state} />,
+      'Chargement des sauvegardes…'
     );
   }
 

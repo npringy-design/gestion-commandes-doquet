@@ -27,11 +27,6 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
     return allowedSites.find((site) => site.id === activeSiteId)?.name ?? null;
   }, [allowedSites, activeSiteId]);
 
-  const currentRestaurantName = useMemo(() => {
-    if (!selectedSiteName) return 'THILLOIS';
-    return selectedSiteName.replace(/^hippo\s+/i, '').toUpperCase();
-  }, [selectedSiteName]);
-
   return (
     <div className="min-h-screen bg-[#1a0f0a] flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 relative overflow-hidden">
       {showPassword && (
@@ -44,6 +39,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         />
       )}
 
+      {/* Image de fond vache / boeuf */}
       <div
         className="absolute inset-0 z-0 pointer-events-none"
         style={{
@@ -56,6 +52,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         }}
       />
 
+      {/* Overlay moins sombre pour mieux voir le dessin */}
       <div
         className="absolute inset-0 z-0 pointer-events-none"
         style={{
@@ -64,50 +61,55 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         }}
       />
 
-      {allowedSites.length > 1 && (
-        <div className="z-20 absolute top-6 left-4 sm:left-6 lg:left-8 w-[210px] sm:w-[225px] lg:w-[240px]">
-          <div className="rounded-[28px] border border-white/10 bg-black/28 backdrop-blur-md shadow-2xl p-3 sm:p-4 space-y-3">
-            {allowedSites.map((site) => {
-              const isActive = site.id === activeSiteId;
-              return (
-                <button
-                  key={site.id}
-                  type="button"
-                  onClick={() => setActiveSiteId(site.id)}
-                  className={`w-full text-left rounded-[22px] px-4 py-4 transition-all border ${
-                    isActive
-                      ? 'border-[#d4af37] bg-[#8a6a14]/45 shadow-[0_0_0_1px_rgba(255,215,0,0.15)]'
-                      : 'border-white/10 bg-white/6 hover:bg-white/10'
-                  }`}
-                >
-                  <div className="text-white text-[15px] sm:text-[16px] font-extrabold leading-tight">
-                    {site.name.replace(/^Hippo\s+/i, 'Hippo ')}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <div className="z-10 text-center w-full max-w-5xl px-2">
+        {allowedSites.length > 1 && (
+          <div className="mb-6 max-w-md mx-auto">
+            <label className="block text-white/80 text-sm font-bold uppercase tracking-[0.2em] mb-2">
+              Site actif
+            </label>
+            <select
+              value={activeSiteId ?? ''}
+              onChange={(e) => {
+                const newSiteId = e.target.value || null;
+                setActiveSiteId(newSiteId);
 
-      <div className={`z-10 text-center w-full max-w-6xl px-2 ${allowedSites.length > 1 ? 'lg:pl-[140px]' : ''}`}>
+                if (typeof window !== 'undefined') {
+                  if (newSiteId) {
+                    window.localStorage.setItem('hippo_active_site_id', newSiteId);
+                  } else {
+                    window.localStorage.removeItem('hippo_active_site_id');
+                  }
+                }
+              }}
+              className="w-full rounded-2xl border border-white/20 bg-black/35 text-white px-4 py-3 text-base font-semibold backdrop-blur-sm outline-none focus:border-[#ffd700]"
+            >
+              {allowedSites.map((site) => (
+                <option key={site.id} value={site.id} className="text-black">
+                  {site.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {allowedSites.length <= 1 && selectedSiteName && (
           <div className="mb-6 text-white/75 text-sm font-bold uppercase tracking-[0.2em]">
             {selectedSiteName}
           </div>
         )}
 
-        <div className="mb-10 sm:mb-12">
-          <h1 className="text-[#ffd700] text-5xl sm:text-7xl lg:text-8xl font-black uppercase tracking-tighter leading-none">
+        {/* Titre */}
+        <div className="mb-12">
+          <h1 className="text-[#ffd700] text-5xl sm:text-7xl lg:text-8xl font-black uppercase tracking-tighter leading-none mb-4">
             HIPPO
+            <br />
+            <span className="text-white">COMMANDES</span>
           </h1>
-          <div className="text-white text-4xl sm:text-6xl lg:text-7xl font-black uppercase tracking-tighter leading-none mt-2 sm:mt-3">
-            {currentRestaurantName}
-          </div>
-          <div className="h-2 w-48 bg-red-600 mx-auto rounded-full mt-6" />
+          <div className="h-2 w-48 bg-red-600 mx-auto rounded-full" />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8 max-w-4xl mx-auto">
+        {/* Boutons principaux */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8">
           <button
             onClick={() => setView('suppliers')}
             className="group bg-white p-4 sm:p-6 lg:p-8 rounded-[40px] shadow-2xl hover:scale-105 transition-all border-4 border-transparent hover:border-red-600"
@@ -186,6 +188,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           </button>
         </div>
 
+        {/* Accès admin discret */}
         <button
           onClick={() => {
             if (canAccessAdminDashboard(profile)) {

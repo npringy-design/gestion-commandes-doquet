@@ -7,13 +7,15 @@ import {
   saveToSupabaseDebounced,
 } from '../utils/supabase';
 import { OrderState, SupplierConfig } from '../types';
-import { ProductWithHistory } from '../data';
+import { ProductWithHistory, DAILY_COVERS_INITIAL, MONTHLY_COVERS as INITIAL_COVERS } from '../data';
 import { DailyCoversState } from '../utils/dateHelpers';
 import {
+  createInitialProducts,
+  ensureScopedLocalState,
   mergeAndNormalizeProducts,
   mergeSupplierConfigsWithDefaults,
   nowIso,
-  saveSiteScopedState,
+  saveState,
 } from './appStateHelpers';
 
 type SyncStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -50,8 +52,7 @@ type UseCloudSyncParams = PersistedState &
   StateSetters & {
     onSaveError: (message: string) => void;
     activeSiteId: string | null;
-    useLegacySiteStorage: boolean;
-    siteStateReady: boolean;
+    legacyBaseSiteId: string | null;
   };
 
 const PARAMETER_KEYS = new Set<string>([
@@ -67,6 +68,37 @@ const hasDailyCoverData = (state: DailyCoversState): boolean =>
   Object.values(state).some(
     month => Array.isArray(month) && month.some(day => day.midi !== '' && day.midi !== 0)
   );
+
+const emptySnapshot = (): PersistedState => ({
+  covers: { ...INITIAL_COVERS },
+  dailyCovers: structuredClone(DAILY_COVERS_INITIAL),
+  orderStates: {},
+  detailedInventory: {},
+  salesHtByMonth: { ...INITIAL_COVERS },
+  costMatterByMonth: { ...INITIAL_COVERS },
+  validatedMonths: {},
+  supplierConfigs: mergeSupplierConfigsWithDefaults({}),
+  deliveryDateBySupplier: {},
+  nextDeliveryDateBySupplier: {},
+  products: createInitialProducts([]),
+});
+
+const applyStateSnapshot = (
+  snapshot: PersistedState,
+  setters: StateSetters,
+) => {
+  setters.setCovers(snapshot.covers);
+  setters.setDailyCovers(snapshot.dailyCovers);
+  setters.setOrderStates(snapshot.orderStates);
+  setters.setDetailedInventory(snapshot.detailedInventory);
+  setters.setSalesHtByMonth(snapshot.salesHtByMonth);
+  setters.setCostMatterByMonth(snapshot.costMatterByMonth);
+  setters.setValidatedMonths(snapshot.validatedMonths);
+  setters.setSupplierConfigs(snapshot.supplierConfigs);
+  setters.setDeliveryDateBySupplier(snapshot.deliveryDateBySupplier);
+  setters.setNextDeliveryDateBySupplier(snapshot.nextDeliveryDateBySupplier);
+  setters.setProducts(snapshot.products);
+};
 
 export const useCloudSync = ({
   covers,
@@ -93,11 +125,11 @@ export const useCloudSync = ({
   setProducts,
   onSaveError,
   activeSiteId,
-  useLegacySiteStorage,
-  siteStateReady,
+  legacyBaseSiteId,
 }: UseCloudSyncParams) => {
   const [supabaseLoaded, setSupabaseLoaded] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
+  const [siteReady, setSiteReady] = useState(false);
 
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isHydratingFromCloud = useRef(false);
@@ -105,87 +137,103 @@ export const useCloudSync = ({
   const pollingInFlightRef = useRef(false);
   const pendingKeysRef = useRef<Set<string>>(new Set());
   const localTsByKey = useRef<Record<string, string>>({});
+  const siteLoadTokenRef = useRef(0);
 
-  const scopeToken = useMemo(() => {
-    if (!activeSiteId || useLegacySiteStorage) return 'legacy';
-    return `site:${activeSiteId}`;
-  }, [activeSiteId, useLegacySiteStorage]);
-
-  const getRemoteKey = useCallback((key: string) => {
-    if (!activeSiteId || useLegacySiteStorage) return key;
-    return `${key}__site__${activeSiteId}`;
-  }, [activeSiteId, useLegacySiteStorage]);
-
-  const getLogicalKeyFromRemoteKey = useCallback((remoteKey: string): string | null => {
-    if (!activeSiteId || useLegacySiteStorage) return remoteKey;
-    const suffix = `__site__${activeSiteId}`;
-    if (!remoteKey.endsWith(suffix)) return null;
-    return remoteKey.slice(0, -suffix.length);
-  }, [activeSiteId, useLegacySiteStorage]);
-
-
-
-  useEffect(() => {
-    lastCloudUpdatedAtByKey.current = {};
-    pendingKeysRef.current.clear();
-    localTsByKey.current = {};
-    setSupabaseLoaded(false);
-    setSyncStatus('idle');
-  }, [scopeToken]);
+  const setters = useMemo<StateSetters>(() => ({
+    setCovers,
+    setDailyCovers,
+    setOrderStates,
+    setDetailedInventory,
+    setSalesHtByMonth,
+    setCostMatterByMonth,
+    setValidatedMonths,
+    setSupplierConfigs,
+    setDeliveryDateBySupplier,
+    setNextDeliveryDateBySupplier,
+    setProducts,
+  }), [
+    setCovers,
+    setDailyCovers,
+    setOrderStates,
+    setDetailedInventory,
+    setSalesHtByMonth,
+    setCostMatterByMonth,
+    setValidatedMonths,
+    setSupplierConfigs,
+    setDeliveryDateBySupplier,
+    setNextDeliveryDateBySupplier,
+    setProducts,
+  ]);
 
   const applyCloudKey = useCallback((key: string, cloudTs: string, value: unknown) => {
     const localTs = localTsByKey.current[key];
     if (localTs && localTs > cloudTs) return;
+    if (!activeSiteId) return;
 
     isHydratingFromCloud.current = true;
     switch (key) {
       case 'covers':
         setCovers(value as Record<string, number>);
+        saveState(key, value, onSaveError, activeSiteId);
         break;
       case 'dailyCovers': {
         const nextDailyCovers = value as DailyCoversState;
         if (hasDailyCoverData(nextDailyCovers)) {
           setDailyCovers(nextDailyCovers);
+          saveState(key, value, onSaveError, activeSiteId);
         }
         break;
       }
       case 'orderStates':
         setOrderStates(value as Record<string, OrderState>);
+        saveState(key, value, onSaveError, activeSiteId);
         break;
       case 'inventory':
         setDetailedInventory(value as Record<string, string>);
+        saveState(key, value, onSaveError, activeSiteId);
         break;
       case 'salesHtByMonth':
         setSalesHtByMonth(value as Record<string, number>);
+        saveState(key, value, onSaveError, activeSiteId);
         break;
       case 'costMatterByMonth':
         setCostMatterByMonth(value as Record<string, number>);
+        saveState(key, value, onSaveError, activeSiteId);
         break;
       case 'validatedMonths':
         setValidatedMonths(value as Record<string, boolean>);
+        saveState(key, value, onSaveError, activeSiteId);
         break;
-      case 'supplierConfigs':
-        setSupplierConfigs(mergeSupplierConfigsWithDefaults(value as Record<string, SupplierConfig>));
+      case 'supplierConfigs': {
+        const nextConfigs = mergeSupplierConfigsWithDefaults(value as Record<string, SupplierConfig>);
+        setSupplierConfigs(nextConfigs);
+        saveState(key, nextConfigs, onSaveError, activeSiteId);
         break;
+      }
       case 'deliveryDateBySupplier':
         setDeliveryDateBySupplier(value as Record<string, string>);
+        saveState(key, value, onSaveError, activeSiteId);
         break;
       case 'nextDeliveryDateBySupplier':
         setNextDeliveryDateBySupplier(value as Record<string, string>);
+        saveState(key, value, onSaveError, activeSiteId);
         break;
-      case 'products':
-        setProducts(mergeAndNormalizeProducts(value as ProductWithHistory[]));
+      case 'products': {
+        const nextProducts = mergeAndNormalizeProducts(value as ProductWithHistory[]);
+        setProducts(nextProducts);
+        saveState(key, nextProducts, onSaveError, activeSiteId);
         break;
+      }
       default:
         break;
     }
 
     setTimeout(() => {
       isHydratingFromCloud.current = false;
-    }, 600);
+    }, 300);
   }, [
-    getLogicalKeyFromRemoteKey,
-    scopeToken,
+    activeSiteId,
+    onSaveError,
     setCostMatterByMonth,
     setCovers,
     setDailyCovers,
@@ -197,67 +245,115 @@ export const useCloudSync = ({
     setSalesHtByMonth,
     setSupplierConfigs,
     setValidatedMonths,
-    siteStateReady,
   ]);
 
   useEffect(() => {
     let cancelled = false;
 
     const run = async () => {
-      if (!siteStateReady) return;
+      setSiteReady(false);
+      setSupabaseLoaded(false);
+      lastCloudUpdatedAtByKey.current = {};
+      localTsByKey.current = {};
+      pendingKeysRef.current.clear();
+      siteLoadTokenRef.current += 1;
+      const loadToken = siteLoadTokenRef.current;
+
+      if (!activeSiteId) {
+        applyStateSnapshot(emptySnapshot(), setters);
+        setSupabaseLoaded(true);
+        setSiteReady(true);
+        return;
+      }
+
+      const allowLegacyFallback = activeSiteId === legacyBaseSiteId;
+      const snapshot = emptySnapshot();
+      snapshot.covers = ensureScopedLocalState('covers', snapshot.covers, activeSiteId, { allowLegacyFallback });
+      snapshot.dailyCovers = ensureScopedLocalState('dailyCovers', snapshot.dailyCovers, activeSiteId, { allowLegacyFallback });
+      snapshot.orderStates = ensureScopedLocalState('orderStates', snapshot.orderStates, activeSiteId, { allowLegacyFallback });
+      snapshot.detailedInventory = ensureScopedLocalState('inventory', snapshot.detailedInventory, activeSiteId, { allowLegacyFallback });
+      snapshot.salesHtByMonth = ensureScopedLocalState('salesHtByMonth', snapshot.salesHtByMonth, activeSiteId, { allowLegacyFallback });
+      snapshot.costMatterByMonth = ensureScopedLocalState('costMatterByMonth', snapshot.costMatterByMonth, activeSiteId, { allowLegacyFallback });
+      snapshot.validatedMonths = ensureScopedLocalState('validatedMonths', snapshot.validatedMonths, activeSiteId, { allowLegacyFallback });
+      snapshot.supplierConfigs = mergeSupplierConfigsWithDefaults(
+        ensureScopedLocalState('supplierConfigs', {}, activeSiteId, { allowLegacyFallback }) as Record<string, SupplierConfig>
+      );
+      snapshot.deliveryDateBySupplier = ensureScopedLocalState('deliveryDateBySupplier', snapshot.deliveryDateBySupplier, activeSiteId, { allowLegacyFallback });
+      snapshot.nextDeliveryDateBySupplier = ensureScopedLocalState('nextDeliveryDateBySupplier', snapshot.nextDeliveryDateBySupplier, activeSiteId, { allowLegacyFallback });
+      snapshot.products = createInitialProducts(
+        ensureScopedLocalState('products', [] as ProductWithHistory[], activeSiteId, { allowLegacyFallback })
+      );
+
+      isHydratingFromCloud.current = true;
+      applyStateSnapshot(snapshot, setters);
 
       if (!isSupabaseConfigured()) {
-        setSupabaseLoaded(true);
+        if (!cancelled && siteLoadTokenRef.current === loadToken) {
+          setSupabaseLoaded(true);
+          setSiteReady(true);
+          setTimeout(() => {
+            isHydratingFromCloud.current = false;
+          }, 300);
+        }
         return;
       }
 
       try {
-        const cloud = await loadAllFromSupabase();
-        if (cancelled) return;
+        const cloud = await loadAllFromSupabase(activeSiteId);
+        if (cancelled || siteLoadTokenRef.current !== loadToken) return;
 
         if (cloud && cloud.length > 0) {
-          isHydratingFromCloud.current = true;
           const cloudMap: Record<string, unknown> = {};
-
-          cloud.forEach((row: any) => {
-            const logicalKey = getLogicalKeyFromRemoteKey(row.key);
-            if (!logicalKey) return;
-            lastCloudUpdatedAtByKey.current[logicalKey] = row.updated_at;
-            cloudMap[logicalKey] = row.value;
+          cloud.forEach(row => {
+            lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
+            cloudMap[row.key] = row.value;
           });
 
-          if (cloudMap.covers) setCovers(cloudMap.covers as Record<string, number>);
+          if (cloudMap.covers) snapshot.covers = cloudMap.covers as Record<string, number>;
           if (cloudMap.dailyCovers && hasDailyCoverData(cloudMap.dailyCovers as DailyCoversState)) {
-            setDailyCovers(cloudMap.dailyCovers as DailyCoversState);
+            snapshot.dailyCovers = cloudMap.dailyCovers as DailyCoversState;
           }
-          if (cloudMap.orderStates) setOrderStates(cloudMap.orderStates as Record<string, OrderState>);
-          if (cloudMap.inventory) setDetailedInventory(cloudMap.inventory as Record<string, string>);
-          if (cloudMap.salesHtByMonth) setSalesHtByMonth(cloudMap.salesHtByMonth as Record<string, number>);
-          if (cloudMap.costMatterByMonth) setCostMatterByMonth(cloudMap.costMatterByMonth as Record<string, number>);
-          if (cloudMap.validatedMonths) setValidatedMonths(cloudMap.validatedMonths as Record<string, boolean>);
+          if (cloudMap.orderStates) snapshot.orderStates = cloudMap.orderStates as Record<string, OrderState>;
+          if (cloudMap.inventory) snapshot.detailedInventory = cloudMap.inventory as Record<string, string>;
+          if (cloudMap.salesHtByMonth) snapshot.salesHtByMonth = cloudMap.salesHtByMonth as Record<string, number>;
+          if (cloudMap.costMatterByMonth) snapshot.costMatterByMonth = cloudMap.costMatterByMonth as Record<string, number>;
+          if (cloudMap.validatedMonths) snapshot.validatedMonths = cloudMap.validatedMonths as Record<string, boolean>;
           if (cloudMap.supplierConfigs) {
-            setSupplierConfigs(
-              mergeSupplierConfigsWithDefaults(cloudMap.supplierConfigs as Record<string, SupplierConfig>)
-            );
+            snapshot.supplierConfigs = mergeSupplierConfigsWithDefaults(cloudMap.supplierConfigs as Record<string, SupplierConfig>);
           }
           if (cloudMap.deliveryDateBySupplier) {
-            setDeliveryDateBySupplier(cloudMap.deliveryDateBySupplier as Record<string, string>);
+            snapshot.deliveryDateBySupplier = cloudMap.deliveryDateBySupplier as Record<string, string>;
           }
           if (cloudMap.nextDeliveryDateBySupplier) {
-            setNextDeliveryDateBySupplier(cloudMap.nextDeliveryDateBySupplier as Record<string, string>);
+            snapshot.nextDeliveryDateBySupplier = cloudMap.nextDeliveryDateBySupplier as Record<string, string>;
           }
           if (cloudMap.products) {
-            setProducts(mergeAndNormalizeProducts(cloudMap.products as ProductWithHistory[]));
+            snapshot.products = mergeAndNormalizeProducts(cloudMap.products as ProductWithHistory[]);
           }
 
-          setTimeout(() => {
-            isHydratingFromCloud.current = false;
-          }, 600);
+          applyStateSnapshot(snapshot, setters);
+          saveState('covers', snapshot.covers, onSaveError, activeSiteId);
+          saveState('dailyCovers', snapshot.dailyCovers, onSaveError, activeSiteId);
+          saveState('orderStates', snapshot.orderStates, onSaveError, activeSiteId);
+          saveState('inventory', snapshot.detailedInventory, onSaveError, activeSiteId);
+          saveState('salesHtByMonth', snapshot.salesHtByMonth, onSaveError, activeSiteId);
+          saveState('costMatterByMonth', snapshot.costMatterByMonth, onSaveError, activeSiteId);
+          saveState('validatedMonths', snapshot.validatedMonths, onSaveError, activeSiteId);
+          saveState('supplierConfigs', snapshot.supplierConfigs, onSaveError, activeSiteId);
+          saveState('deliveryDateBySupplier', snapshot.deliveryDateBySupplier, onSaveError, activeSiteId);
+          saveState('nextDeliveryDateBySupplier', snapshot.nextDeliveryDateBySupplier, onSaveError, activeSiteId);
+          saveState('products', snapshot.products, onSaveError, activeSiteId);
         }
       } catch (error) {
         console.error('[Supabase load exception]', error);
       } finally {
-        if (!cancelled) setSupabaseLoaded(true);
+        if (!cancelled && siteLoadTokenRef.current === loadToken) {
+          setSupabaseLoaded(true);
+          setSiteReady(true);
+          setTimeout(() => {
+            isHydratingFromCloud.current = false;
+          }, 300);
+        }
       }
     };
 
@@ -265,25 +361,10 @@ export const useCloudSync = ({
     return () => {
       cancelled = true;
     };
-  }, [
-    getLogicalKeyFromRemoteKey,
-    scopeToken,
-    setCostMatterByMonth,
-    setCovers,
-    setDailyCovers,
-    setDeliveryDateBySupplier,
-    setDetailedInventory,
-    setNextDeliveryDateBySupplier,
-    setOrderStates,
-    setProducts,
-    setSalesHtByMonth,
-    setSupplierConfigs,
-    setValidatedMonths,
-    siteStateReady,
-  ]);
+  }, [activeSiteId, legacyBaseSiteId, onSaveError, setters]);
 
   useEffect(() => {
-    if (!supabaseLoaded || !isSupabaseConfigured()) return;
+    if (!siteReady || !activeSiteId || !isSupabaseConfigured()) return;
 
     const isSmallDevice = () =>
       typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches;
@@ -307,13 +388,11 @@ export const useCloudSync = ({
       try {
         const keys = Array.from(pendingKeysRef.current);
         pendingKeysRef.current.clear();
-        const rows = await loadKeysFromSupabase(keys.map(getRemoteKey));
+        const rows = await loadKeysFromSupabase(activeSiteId, keys);
         if (!rows) return;
         rows.forEach(row => {
-          const logicalKey = getLogicalKeyFromRemoteKey(row.key);
-          if (!logicalKey) return;
-          lastCloudUpdatedAtByKey.current[logicalKey] = row.updated_at;
-          applyCloudKey(logicalKey, row.updated_at, row.value);
+          lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
+          applyCloudKey(row.key, row.updated_at, row.value);
         });
       } finally {
         pollingInFlightRef.current = false;
@@ -322,22 +401,20 @@ export const useCloudSync = ({
 
     const tick = async () => {
       if (cancelled || pollingInFlightRef.current || document?.hidden || syncStatus === 'saving') return;
-
       pollingInFlightRef.current = true;
       try {
-        const meta = await loadMetaFromSupabase();
+        const meta = await loadMetaFromSupabase(activeSiteId);
         if (!meta) return;
 
         const changedKeys: string[] = [];
         meta.forEach(row => {
-          const logicalKey = getLogicalKeyFromRemoteKey(row.key);
-          if (!logicalKey || !PARAMETER_KEYS.has(logicalKey)) return;
-          const prev = lastCloudUpdatedAtByKey.current[logicalKey];
+          if (!PARAMETER_KEYS.has(row.key)) return;
+          const prev = lastCloudUpdatedAtByKey.current[row.key];
           if (!prev) {
-            lastCloudUpdatedAtByKey.current[logicalKey] = row.updated_at;
+            lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
             return;
           }
-          if (prev !== row.updated_at) changedKeys.push(logicalKey);
+          if (prev !== row.updated_at) changedKeys.push(row.key);
         });
 
         if (changedKeys.length === 0) return;
@@ -346,13 +423,11 @@ export const useCloudSync = ({
           return;
         }
 
-        const rows = await loadKeysFromSupabase(changedKeys.map(getRemoteKey));
+        const rows = await loadKeysFromSupabase(activeSiteId, changedKeys);
         if (!rows) return;
         rows.forEach(row => {
-          const logicalKey = getLogicalKeyFromRemoteKey(row.key);
-          if (!logicalKey) return;
-          lastCloudUpdatedAtByKey.current[logicalKey] = row.updated_at;
-          applyCloudKey(logicalKey, row.updated_at, row.value);
+          lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
+          applyCloudKey(row.key, row.updated_at, row.value);
         });
       } catch (error) {
         console.error('[Cloud polling tick error]', error);
@@ -372,34 +447,32 @@ export const useCloudSync = ({
       if (timer) clearInterval(timer);
       window.removeEventListener('focusout', flushPendingIfSafe);
     };
-  }, [applyCloudKey, getLogicalKeyFromRemoteKey, getRemoteKey, scopeToken, supabaseLoaded, syncStatus]);
+  }, [activeSiteId, applyCloudKey, siteReady, syncStatus]);
 
   const persistEverywhere = useCallback((key: string, value: unknown) => {
-    if (!siteStateReady || isHydratingFromCloud.current) return;
-
-    saveSiteScopedState(key, value, activeSiteId, useLegacySiteStorage, onSaveError);
-    if (!supabaseLoaded || !isSupabaseConfigured()) return;
+    if (!activeSiteId || !siteReady) return;
+    saveState(key, value, onSaveError, activeSiteId);
+    if (isHydratingFromCloud.current || !supabaseLoaded || !isSupabaseConfigured()) return;
 
     const ts = nowIso();
     localTsByKey.current[key] = ts;
     setSyncStatus('saving');
 
-    const remoteKey = getRemoteKey(key);
-
     saveToSupabaseDebounced(
-      remoteKey,
+      activeSiteId,
+      key,
       value,
       ts,
-      () => lastCloudUpdatedAtByKey.current[key],
-      (_confirmedRemoteKey, confirmedTs) => {
-        lastCloudUpdatedAtByKey.current[key] = confirmedTs;
-        delete localTsByKey.current[key];
+      currentKey => lastCloudUpdatedAtByKey.current[currentKey],
+      (confirmedKey, confirmedTs) => {
+        lastCloudUpdatedAtByKey.current[confirmedKey] = confirmedTs;
+        delete localTsByKey.current[confirmedKey];
       }
     );
 
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     syncTimerRef.current = setTimeout(() => setSyncStatus('saved'), 1700);
-  }, [activeSiteId, getRemoteKey, onSaveError, siteStateReady, supabaseLoaded, useLegacySiteStorage]);
+  }, [activeSiteId, onSaveError, siteReady, supabaseLoaded]);
 
   useEffect(() => { persistEverywhere('covers', covers); }, [covers, persistEverywhere]);
   useEffect(() => { persistEverywhere('dailyCovers', dailyCovers); }, [dailyCovers, persistEverywhere]);
@@ -416,5 +489,6 @@ export const useCloudSync = ({
   return {
     supabaseLoaded,
     syncStatus,
+    siteReady,
   };
 };

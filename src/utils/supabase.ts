@@ -1,151 +1,192 @@
-// =============================================================
-// utils/supabase.ts
-// Client Supabase + helpers de lecture/écriture de l'état app
-//
-// Table Supabase attendue :
-//   app_state (key text PRIMARY KEY, value jsonb, updated_at timestamptz)
-//
-// Stratégie de sync : LAST WRITE WINS basé sur updated_at
-// → Aucun device n'est prioritaire. C'est la dernière modification
-//   horodatée qui gagne, peu importe d'où elle vient.
-// =============================================================
+import { supabase } from '../lib/supabaseClient';
 
-// ── Types ────────────────────────────────────────────────────
 interface SupabaseRow {
-  key:        string;
-  value:      unknown;
+  site_id: string;
+  key: string;
+  value: unknown;
   updated_at: string;
 }
 
-// ── Config (variables d'env Vite) ────────────────────────────
-const SUPABASE_URL      = import.meta.env.VITE_SUPABASE_URL      as string | undefined;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
-const TABLE             = 'app_state';
+export interface SiteBackupRow {
+  id: string;
+  site_id: string;
+  snapshot: Record<string, unknown>;
+  backup_type: 'auto' | 'manual';
+  note: string | null;
+  created_at: string;
+  created_by: string | null;
+}
 
-export const isSupabaseConfigured = (): boolean =>
-  Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+const TABLE = 'app_state';
+const BACKUPS_TABLE = 'site_backups';
 
-const headers = (): HeadersInit => ({
-  'Content-Type':  'application/json',
-  'apikey':        SUPABASE_ANON_KEY ?? '',
-  'Authorization': `Bearer ${SUPABASE_ANON_KEY ?? ''}`,
-  'Prefer':        'return=minimal',
-});
+export const isSupabaseConfigured = (): boolean => Boolean(supabase);
 
-// ── Chargement de TOUTES les clés au démarrage ───────────────
-export const loadAllFromSupabase = async (): Promise<Array<SupabaseRow> | null> => {
-  if (!isSupabaseConfigured()) return null;
-  try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/${TABLE}?select=key,value,updated_at`,
-      { headers: headers() }
-    );
-    if (!res.ok) return null;
-    return await res.json() as SupabaseRow[];
-  } catch {
+export const loadAllFromSupabase = async (siteId: string): Promise<Array<SupabaseRow> | null> => {
+  if (!supabase || !siteId) return null;
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('site_id,key,value,updated_at')
+    .eq('site_id', siteId);
+
+  if (error) {
+    console.error('[Supabase loadAll error]', error.message);
     return null;
   }
+
+  return (data ?? []) as SupabaseRow[];
 };
 
-// ── Chargement léger (meta) : key + updated_at ──────────────
-export const loadMetaFromSupabase = async (): Promise<Array<Pick<SupabaseRow, 'key' | 'updated_at'>> | null> => {
-  if (!isSupabaseConfigured()) return null;
-  try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/${TABLE}?select=key,updated_at`,
-      { headers: headers() }
-    );
-    if (!res.ok) return null;
-    return await res.json() as Array<Pick<SupabaseRow, 'key' | 'updated_at'>>;
-  } catch {
+export const loadMetaFromSupabase = async (
+  siteId: string
+): Promise<Array<Pick<SupabaseRow, 'key' | 'updated_at'>> | null> => {
+  if (!supabase || !siteId) return null;
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('key,updated_at')
+    .eq('site_id', siteId);
+
+  if (error) {
+    console.error('[Supabase loadMeta error]', error.message);
     return null;
   }
+
+  return (data ?? []) as Array<Pick<SupabaseRow, 'key' | 'updated_at'>>;
 };
 
-// ── Chargement par clés : key + value + updated_at ──────────
-export const loadKeysFromSupabase = async (keys: string[]): Promise<SupabaseRow[] | null> => {
-  if (!isSupabaseConfigured()) return null;
+export const loadKeysFromSupabase = async (siteId: string, keys: string[]): Promise<SupabaseRow[] | null> => {
+  if (!supabase || !siteId) return null;
   if (!keys || keys.length === 0) return [];
-  try {
-    const encoded = keys
-      .map(k => `"${String(k).replace(/"/g, '\\"')}"`)
-      .join(',');
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/${TABLE}?select=key,value,updated_at&key=in.(${encoded})`,
-      { headers: headers() }
-    );
-    if (!res.ok) return null;
-    return await res.json() as SupabaseRow[];
-  } catch {
+
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('site_id,key,value,updated_at')
+    .eq('site_id', siteId)
+    .in('key', keys);
+
+  if (error) {
+    console.error('[Supabase loadKeys error]', error.message);
     return null;
   }
+
+  return (data ?? []) as SupabaseRow[];
 };
 
-// ── Sauvegarde d'une clé (upsert) ────────────────────────────
-// Retourne le updated_at réel enregistré en base (ISO string) ou null si erreur.
 export const saveToSupabase = async (
-  key:   string,
+  siteId: string,
+  key: string,
   value: unknown,
-  ts:    string  // timestamp ISO généré par l'appelant au moment de la frappe
+  ts: string
 ): Promise<string | null> => {
-  if (!isSupabaseConfigured()) return null;
-  try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/${TABLE}?on_conflict=key`,
-      {
-        method:  'POST',
-        headers: { ...headers(), 'Prefer': 'resolution=merge-duplicates,return=minimal' },
-        body:    JSON.stringify([{ key, value, updated_at: ts }]),
-      }
+  if (!supabase || !siteId) return null;
+
+  const { error } = await supabase
+    .from(TABLE)
+    .upsert(
+      [{ site_id: siteId, key, value, updated_at: ts }],
+      { onConflict: 'site_id,key' }
     );
-    if (!res.ok) {
-      let body = '';
-      try { body = await res.text(); } catch {}
-      console.error('[Supabase save error]', key, res.status, body);
-      return null;
-    }
-    return ts; // Supabase a accepté notre timestamp
-  } catch (err) {
-    console.error('[Supabase save exception]', key, err);
+
+  if (error) {
+    console.error('[Supabase save error]', siteId, key, error.message);
     return null;
   }
-};
 
-// ── Debounce avec last-write-wins ────────────────────────────
-//
-// Principe :
-// - Chaque frappe génère un timestamp local (localTs).
-// - Si une nouvelle frappe arrive avant le délai, on annule le timer
-//   et on crée un nouveau avec le nouveau timestamp.
-// - Au moment d'envoyer, on compare localTs avec ce que Supabase
-//   a actuellement (via le curseur lastCloudTs fourni par l'appelant).
-// - Si localTs > lastCloudTs → on envoie (notre modif est plus récente).
-// - Si localTs < lastCloudTs → on n'envoie pas (quelqu'un d'autre a écrit
-//   plus récemment, on doit accepter sa valeur à la prochaine tick poll).
-// - onSaved(key, confirmedTs) est appelé si Supabase accepte.
+  return ts;
+};
 
 const debounceTimers: Record<string, ReturnType<typeof setTimeout>> = {};
 
 export const saveToSupabaseDebounced = (
-  key:          string,
-  value:        unknown,
-  localTs:      string,                                 // ISO timestamp de cette frappe
-  getCloudTs:   (key: string) => string | undefined,    // curseur de polling
-  onSaved:      (key: string, confirmedTs: string) => void,
-  ms           = 1500
+  siteId: string,
+  key: string,
+  value: unknown,
+  localTs: string,
+  getCloudTs: (key: string) => string | undefined,
+  onSaved: (key: string, confirmedTs: string) => void,
+  ms = 1500
 ): void => {
-  if (!isSupabaseConfigured()) return;
-  if (debounceTimers[key]) clearTimeout(debounceTimers[key]);
-  debounceTimers[key] = setTimeout(async () => {
-    // Vérifier last-write-wins avant d'envoyer
+  if (!supabase || !siteId) return;
+
+  const debounceKey = `${siteId}::${key}`;
+  if (debounceTimers[debounceKey]) clearTimeout(debounceTimers[debounceKey]);
+
+  debounceTimers[debounceKey] = setTimeout(async () => {
     const cloudTs = getCloudTs(key);
     if (cloudTs && cloudTs > localTs) {
-      // Le cloud est plus récent → ne pas écraser
-      // (un autre device a écrit après nous, le polling va appliquer sa valeur)
-      console.log(`[LWW] Skipping save for "${key}" — cloud (${cloudTs}) > local (${localTs})`);
+      console.log(`[LWW] Skipping save for "${siteId}/${key}" — cloud (${cloudTs}) > local (${localTs})`);
       return;
     }
-    const confirmedTs = await saveToSupabase(key, value, localTs);
+    const confirmedTs = await saveToSupabase(siteId, key, value, localTs);
     if (confirmedTs) onSaved(key, confirmedTs);
   }, ms);
+};
+
+export const createSiteBackup = async (
+  siteId: string,
+  snapshot: Record<string, unknown>,
+  backupType: 'auto' | 'manual' = 'manual',
+  note?: string
+): Promise<boolean> => {
+  if (!supabase || !siteId) return false;
+
+  const { error } = await supabase.from(BACKUPS_TABLE).insert({
+    site_id: siteId,
+    snapshot,
+    backup_type: backupType,
+    note: note ?? null,
+  });
+
+  if (error) {
+    console.error('[Supabase create backup error]', siteId, error.message);
+    return false;
+  }
+
+  return true;
+};
+
+export const listSiteBackups = async (siteId: string): Promise<SiteBackupRow[] | null> => {
+  if (!supabase || !siteId) return null;
+
+  const { data, error } = await supabase
+    .from(BACKUPS_TABLE)
+.select('id,site_id,snapshot,backup_type,note,created_at,created_by')
+    .eq('site_id', siteId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (error) {
+    console.error('[Supabase list backups error]', siteId, error.message);
+    return null;
+  }
+
+  return (data ?? []) as SiteBackupRow[];
+};
+
+export const restoreSiteBackup = async (
+  siteId: string,
+  snapshot: Record<string, unknown>,
+  ts = new Date().toISOString()
+): Promise<boolean> => {
+  if (!supabase || !siteId) return false;
+
+  const rows = Object.entries(snapshot).map(([key, value]) => ({
+    site_id: siteId,
+    key,
+    value,
+    updated_at: ts,
+  }));
+
+  if (rows.length === 0) return true;
+
+  const { error } = await supabase
+    .from(TABLE)
+    .upsert(rows, { onConflict: 'site_id,key' });
+
+  if (error) {
+    console.error('[Supabase restore backup error]', siteId, error.message);
+    return false;
+  }
+
+  return true;
 };
