@@ -83,19 +83,12 @@ comment on column public.app_state.updated_at is 'Dernière mise à jour.';
 -- -------------------------------------------------------------
 -- 2) Table de sauvegardes par site
 -- -------------------------------------------------------------
-create table if not exists public.site_backups (
   id          uuid primary key default gen_random_uuid(),
   site_id      uuid        not null references public.sites(id) on delete cascade,
-  snapshot     jsonb       not null,
-  backup_type  text        not null default 'manual' check (backup_type in ('manual', 'auto')),
-  label        text,
   created_at   timestamptz not null default now(),
-  created_by   uuid references auth.users(id) on delete set null
 );
 
-create index if not exists site_backups_site_created_idx on public.site_backups(site_id, created_at desc);
 
-comment on table public.site_backups is 'Snapshots complets par site pour restauration ciblée.';
 
 -- -------------------------------------------------------------
 -- 3) Fonctions d autorisation RLS
@@ -139,17 +132,12 @@ $$;
 -- 4) RLS stricte
 -- -------------------------------------------------------------
 alter table public.app_state enable row level security;
-alter table public.site_backups enable row level security;
 
 -- Nettoyage d anciennes policies si besoin.
 drop policy if exists app_state_select on public.app_state;
 drop policy if exists app_state_insert on public.app_state;
 drop policy if exists app_state_update on public.app_state;
 drop policy if exists app_state_delete on public.app_state;
-drop policy if exists site_backups_select on public.site_backups;
-drop policy if exists site_backups_insert on public.site_backups;
-drop policy if exists site_backups_update on public.site_backups;
-drop policy if exists site_backups_delete on public.site_backups;
 
 create policy app_state_select on public.app_state
 for select
@@ -168,20 +156,16 @@ create policy app_state_delete on public.app_state
 for delete
 using (public.user_can_access_site(site_id));
 
-create policy site_backups_select on public.site_backups
 for select
 using (public.user_can_access_site(site_id));
 
-create policy site_backups_insert on public.site_backups
 for insert
 with check (public.user_can_access_site(site_id));
 
-create policy site_backups_update on public.site_backups
 for update
 using (public.user_can_access_site(site_id))
 with check (public.user_can_access_site(site_id));
 
-create policy site_backups_delete on public.site_backups
 for delete
 using (public.is_super_or_global_admin());
 
@@ -189,23 +173,19 @@ using (public.is_super_or_global_admin());
 -- 5) Droits minimums nécessaires côté front authentifié
 -- -------------------------------------------------------------
 revoke all on public.app_state from anon;
-revoke all on public.site_backups from anon;
 grant select, insert, update, delete on public.app_state to authenticated;
-grant select, insert, update, delete on public.site_backups to authenticated;
 
 -- -------------------------------------------------------------
 -- 6) Base d automatisation quotidienne (optionnelle)
 -- -------------------------------------------------------------
 -- La sauvegarde auto 00h01 n est pas pilotable depuis le front de façon fiable.
 -- Recommandation : créer un cron Supabase / pg_cron ou une Edge Function
--- qui construit chaque nuit un snapshot par site dans public.site_backups.
 --
 -- Exemple de principe (à adapter selon ton projet si pg_cron est activé) :
 --   select cron.schedule(
 --     'hippo-site-backups-daily',
 --     '1 0 * * *',
 --     $$
---     insert into public.site_backups(site_id, snapshot, backup_type, label)
 --     select
 --       s.id,
 --       jsonb_object_agg(a.key, a.value),

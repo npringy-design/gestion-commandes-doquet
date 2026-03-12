@@ -7,18 +7,7 @@ interface SupabaseRow {
   updated_at: string;
 }
 
-export interface SiteBackupRow {
-  id: string;
-  site_id: string;
-  snapshot: Record<string, unknown>;
-  backup_type: 'auto' | 'manual';
-  note: string | null;
-  created_at: string;
-  created_by: string | null;
-}
-
 const TABLE = 'app_state';
-const BACKUPS_TABLE = 'site_backups';
 
 export const isSupabaseConfigured = (): boolean => Boolean(supabase);
 
@@ -120,73 +109,4 @@ export const saveToSupabaseDebounced = (
     const confirmedTs = await saveToSupabase(siteId, key, value, localTs);
     if (confirmedTs) onSaved(key, confirmedTs);
   }, ms);
-};
-
-export const createSiteBackup = async (
-  siteId: string,
-  snapshot: Record<string, unknown>,
-  backupType: 'auto' | 'manual' = 'manual',
-  note?: string
-): Promise<boolean> => {
-  if (!supabase || !siteId) return false;
-
-  const { error } = await supabase.from(BACKUPS_TABLE).insert({
-    site_id: siteId,
-    snapshot,
-    backup_type: backupType,
-    note: note ?? null,
-  });
-
-  if (error) {
-    console.error('[Supabase create backup error]', siteId, error.message);
-    return false;
-  }
-
-  return true;
-};
-
-export const listSiteBackups = async (siteId: string): Promise<SiteBackupRow[] | null> => {
-  if (!supabase || !siteId) return null;
-
-  const { data, error } = await supabase
-    .from(BACKUPS_TABLE)
-    .select('id,site_id,snapshot,backup_type,note,created_at,created_by')
-    .eq('site_id', siteId)
-    .order('created_at', { ascending: false })
-    .limit(20);
-
-  if (error) {
-    console.error('[Supabase list backups error]', siteId, error.message);
-    return null;
-  }
-
-  return (data ?? []) as SiteBackupRow[];
-};
-
-export const restoreSiteBackup = async (
-  siteId: string,
-  snapshot: Record<string, unknown>,
-  ts = new Date().toISOString()
-): Promise<boolean> => {
-  if (!supabase || !siteId) return false;
-
-  const rows = Object.entries(snapshot).map(([key, value]) => ({
-    site_id: siteId,
-    key,
-    value,
-    updated_at: ts,
-  }));
-
-  if (rows.length === 0) return true;
-
-  const { error } = await supabase
-    .from(TABLE)
-    .upsert(rows, { onConflict: 'site_id,key' });
-
-  if (error) {
-    console.error('[Supabase restore backup error]', siteId, error.message);
-    return false;
-  }
-
-  return true;
 };
