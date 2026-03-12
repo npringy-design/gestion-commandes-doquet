@@ -12,7 +12,7 @@ export interface SiteBackupRow {
   site_id: string;
   snapshot: Record<string, unknown>;
   backup_type: 'auto' | 'manual';
-  label: string | null;
+  note: string | null;
   created_at: string;
   created_by: string | null;
 }
@@ -126,7 +126,7 @@ export const createSiteBackup = async (
   siteId: string,
   snapshot: Record<string, unknown>,
   backupType: 'auto' | 'manual' = 'manual',
-  label?: string
+  note?: string
 ): Promise<boolean> => {
   if (!supabase || !siteId) return false;
 
@@ -134,7 +134,7 @@ export const createSiteBackup = async (
     site_id: siteId,
     snapshot,
     backup_type: backupType,
-    label: label ?? null,
+    note: note ?? null,
   });
 
   if (error) {
@@ -150,7 +150,7 @@ export const listSiteBackups = async (siteId: string): Promise<SiteBackupRow[] |
 
   const { data, error } = await supabase
     .from(BACKUPS_TABLE)
-    .select('id,site_id,snapshot,backup_type,label,created_at,created_by')
+    .select('id,site_id,snapshot,backup_type,note,created_at,created_by')
     .eq('site_id', siteId)
     .order('created_at', { ascending: false })
     .limit(20);

@@ -64,37 +64,37 @@ export const useAppState = () => {
 
   // --- États persistés (localStorage) ---
   const [deliveryDateBySupplier, setDeliveryDateBySupplier] =
-    useState<Record<string, string>>(() => loadState('deliveryDateBySupplier', {}));
+    useState<Record<string, string>>({});
 
   const [nextDeliveryDateBySupplier, setNextDeliveryDateBySupplier] =
-    useState<Record<string, string>>(() => loadState('nextDeliveryDateBySupplier', {}));
+    useState<Record<string, string>>({});
 
   const [covers, setCovers] =
-    useState<Record<string, number>>(() => loadState('covers', INITIAL_COVERS));
+    useState<Record<string, number>>({ ...INITIAL_COVERS });
 
   const [dailyCovers, setDailyCovers] =
-    useState<DailyCoversState>(() => loadState('dailyCovers', DAILY_COVERS_INITIAL));
+    useState<DailyCoversState>(() => structuredClone(DAILY_COVERS_INITIAL));
 
   const [orderStates, setOrderStates] =
-    useState<Record<string, OrderState>>(() => loadState('orderStates', {}));
+    useState<Record<string, OrderState>>({});
 
   const [detailedInventory, setDetailedInventory] =
-    useState<Record<string, string>>(() => loadState('inventory', {}));
+    useState<Record<string, string>>({});
 
   const [salesHtByMonth, setSalesHtByMonth] =
-    useState<Record<string, number>>(() => loadState('salesHtByMonth', INITIAL_COVERS));
+    useState<Record<string, number>>({ ...INITIAL_COVERS });
 
   const [costMatterByMonth, setCostMatterByMonth] =
-    useState<Record<string, number>>(() => loadState('costMatterByMonth', INITIAL_COVERS));
+    useState<Record<string, number>>({ ...INITIAL_COVERS });
 
   const [validatedMonths, setValidatedMonths] =
-    useState<Record<string, boolean>>(() => loadState('validatedMonths', {}));
+    useState<Record<string, boolean>>({});
 
   const [supplierConfigs, setSupplierConfigs] =
-useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(loadState<Record<string, SupplierConfig>>('supplierConfigs', {})));
+    useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults({}));
 
   const [products, setProducts] = useState<ProductWithHistory[]>(() =>
-    createInitialProducts(loadState('products', [] as ProductWithHistory[]))
+    createInitialProducts([] as ProductWithHistory[])
   );
 
   useEffect(() => {
@@ -108,7 +108,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
 
   // --- Persistance automatique à chaque changement ---
   const onSaveError = (msg: string) => showToast(msg, 'error');
-  const { supabaseLoaded, syncStatus } = useCloudSync({
+  const { supabaseLoaded, syncStatus, siteReady } = useCloudSync({
     covers,
     dailyCovers,
     orderStates,
@@ -276,6 +276,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     updateProductValue,
     syncStatus,
     supabaseLoaded,
+    siteReady,
     updateSearchName,
     updateImportDivisor,
     performReset,
