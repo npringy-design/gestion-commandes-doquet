@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
+import type { ProductType } from '../types';
 
-export type ProductType = 'LIQUIDE' | 'SOLIDE';
+export type { ProductType };
 export type TypeSource = 'SECTEUR' | 'FOURNISSEUR' | 'HEURISTIQUE' | 'INCONNU';
 
 export interface EcartRow {
@@ -138,16 +139,6 @@ function findColumnIndexes(rows: any[][]): { sectorIdx: number | null; supplierI
   // scan first 15 rows for a header row that contains "secteur" / "fournisseur"
   for (let i = 0; i < Math.min(rows.length, 15); i++) {
     const r = rows[i] ?? [];
-    for (let c = 0; c < r.length; c++) {
-      const v = cleanLabel(r[c] ?? '');
-      if (!v) continue;
-      // For robustness, accept variations
-      if (v === 'secteur' || v.includes('secteur') || v.includes('zone') || v.includes('emplacement')) {
-        // We assume this is a header row; sector in same column on subsequent rows
-        // But do not immediately return; supplier might be in another col
-      }
-    }
-
     const idxSect = r.findIndex(cell => {
       const v = cleanLabel(cell ?? '');
       return v === 'secteur' || v.includes('secteur') || v.includes('zone') || v.includes('emplacement');
@@ -396,10 +387,7 @@ export async function parseEcartFile(file: File): Promise<EcartRow[]> {
   // CSV/TXT
   if (ext === 'csv' || ext === 'txt') {
     const text = await file.text();
-    const lines = text.split(/\r?\n/).filter(Boolean);
-    const sep = lines[0]?.includes(';') ? ';' : ',';
-    const rows = lines.map(l => l.split(sep));
-    return fromRows(rows);
+    return parseEcartCsvText(text);
   }
 
   // XLS/XLSX

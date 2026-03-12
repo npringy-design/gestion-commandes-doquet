@@ -137,7 +137,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
         costMatterByMonth={state.costMatterByMonth}
         salesHtByMonth={state.salesHtByMonth}
       />,
-      'Chargement de l’analyse CM…'
+      `Chargement de l'analyse CM…`
     );
   }
 

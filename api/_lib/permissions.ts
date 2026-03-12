@@ -1,8 +1,8 @@
 export const ROLE_RANK: Record<string, number> = {
   commande: 10,
-  manager: 20,
-  manager_plus: 30,
-  director: 40,
+  manager: 40,
+  manager_plus: 50,
+  director: 70,
   global_admin: 90,
   super_admin: 100,
 };

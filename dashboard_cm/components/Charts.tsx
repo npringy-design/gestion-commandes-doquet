@@ -14,7 +14,7 @@ import {
   AreaChart,
   Area,
 } from 'recharts';
-import { MonthlyData, ItemTrend } from '../types';
+import { MonthlyData, ItemTrend, ProductSeriesPoint } from '../types';
 
 interface CostChartProps {
   data: MonthlyData[];
@@ -99,7 +99,7 @@ export const ItemTrendChart: React.FC<ItemTrendChartProps> = ({ data, title }) =
             </defs>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
             <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} />
-            <YAxis domain={[20, 'auto']} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} tickFormatter={(v) => Number(v).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} />
+            <YAxis domain={['auto', 'auto']} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} tickFormatter={(v) => Number(v).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} />
             <Tooltip contentStyle={{ borderRadius: '4px', border: 'none', fontSize: '10px' }} />
             <ReferenceLine y={0} stroke="#cbd5e1" />
             <Area type="monotone" dataKey="value" stroke="#8b5cf6" fill="url(#colorValue)" strokeWidth={2} />
@@ -109,12 +109,6 @@ export const ItemTrendChart: React.FC<ItemTrendChartProps> = ({ data, title }) =
     </div>
   );
 };
-
-export interface ProductSeriesPoint {
-  month: string;
-  euro: number;
-  qty: number;
-}
 
 interface ProductTrendChartProps {
   data: ProductSeriesPoint[];

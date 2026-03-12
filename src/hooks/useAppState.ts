@@ -97,6 +97,9 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     createInitialProducts(loadState('products', [] as ProductWithHistory[]))
   );
 
+  // --- Persistance automatique à chaque changement ---
+  const onSaveError = (msg: string) => showToast(msg, 'error');
+
   useEffect(() => {
     try {
       window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -105,9 +108,6 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     }
     saveState('currentView', view, onSaveError);
   }, [view]);
-
-  // --- Persistance automatique à chaque changement ---
-  const onSaveError = (msg: string) => showToast(msg, 'error');
   const { supabaseLoaded, syncStatus } = useCloudSync({
     covers,
     dailyCovers,

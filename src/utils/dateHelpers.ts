@@ -28,8 +28,6 @@ export type DailyCoversState = Record<string, DailyCover[]>;
 const nextFlexDelivery = (now: Date): Date => {
   // Plaine Maison : livraison tous les jours sauf dimanche (0)
   // Cut-off = veille avant 10h, sauf lundi dont le cut-off est vendredi avant 10h
-  const [h] = ['10:00'].map(t => parseInt(t));
-  const nowDay  = now.getDay(); // 0=Dim, 1=Lun ... 6=Sam
   const nowHour = now.getHours();
 
   // Trouver la prochaine date de livraison possible
