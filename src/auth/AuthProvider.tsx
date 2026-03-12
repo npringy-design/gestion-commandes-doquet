@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 
@@ -18,18 +18,6 @@ export type AppProfile = {
   email?: string | null;
   access_scope?: 'all' | 'current_site' | null;
   protected_user?: boolean;
-  default_site_id?: string | null;
-};
-
-export type AppSite = {
-  id: string;
-  code: string;
-  name: string;
-};
-
-export type AppUserSite = {
-  site_id: string;
-  site: AppSite | null;
 };
 
 type AuthContextValue = {
@@ -40,14 +28,10 @@ type AuthContextValue = {
   isAdmin: boolean;
   isActive: boolean;
   signOut: () => Promise<void>;
-  allowedSites: AppSite[];
-  activeSiteId: string | null;
-  setActiveSiteId: React.Dispatch<React.SetStateAction<string | null>>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 const AUTH_TIMEOUT_MS = 7000;
-const ACTIVE_SITE_STORAGE_KEY = 'hippo_active_site_id';
 
 async function withTimeout<T>(promise: Promise<T>, label: string, timeoutMs = AUTH_TIMEOUT_MS): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -67,9 +51,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<AppProfile | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
   const [loadingProfile, setLoadingProfile] = useState(true);
-  const [allowedSites, setAllowedSites] = useState<AppSite[]>([]);
-  const [activeSiteId, setActiveSiteId] = useState<string | null>(null);
-  const hasHydratedActiveSiteRef = useRef(false);
 
   useEffect(() => {
     if (!isSupabaseConfigured() || !supabase) {
@@ -77,8 +58,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoadingProfile(false);
       setSession(null);
       setProfile(null);
-      setAllowedSites([]);
-      setActiveSiteId(null);
       return;
     }
 
@@ -95,8 +74,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (!userId) {
         setProfile(null);
-        setAllowedSites([]);
-        setActiveSiteId(null);
         setLoadingProfile(false);
         return;
       }
@@ -107,7 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data, error } = await withTimeout(
           supabase
             .from('profiles')
-            .select('id, role, is_active, full_name, email, access_scope, protected_user, default_site_id')
+            .select('id, role, is_active, full_name, email, access_scope, protected_user')
             .eq('id', userId)
             .maybeSingle(),
           'Chargement du profil'
@@ -118,93 +95,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (error || !data) {
           if (error) console.warn('[auth] Profil indisponible:', error.message);
           setProfile(null);
-          setAllowedSites([]);
-          setActiveSiteId(null);
-          return;
+        } else {
+          setProfile(data as AppProfile);
         }
-
-        const nextProfile = data as AppProfile;
-        setProfile(nextProfile);
-
-       const { data: userSitesData, error: userSitesError } = await withTimeout(
-  supabase
-    .from('user_sites')
-    .select('site_id')
-    .eq('user_id', userId),
-  'Chargement des sites autorisés'
-);
-
-if (!mounted) return;
-
-if (userSitesError) {
-  console.warn('[auth] Sites utilisateurs indisponibles:', userSitesError.message);
-  setAllowedSites([]);
-  setActiveSiteId(nextProfile.default_site_id ?? null);
-  return;
-}
-
-const siteIds = Array.from(
-  new Set((userSitesData ?? []).map((entry) => entry.site_id).filter(Boolean))
-);
-
-let nextAllowedSites: AppSite[] = [];
-
-if (siteIds.length > 0) {
-  const { data: sitesData, error: sitesError } = await withTimeout(
-    supabase
-      .from('sites')
-      .select('id, code, name')
-      .in('id', siteIds),
-    'Chargement du détail des sites'
-  );
-
-  if (!mounted) return;
-
-  if (sitesError) {
-    console.warn('[auth] Détail des sites indisponible:', sitesError.message);
-  } else {
-    nextAllowedSites = ((sitesData ?? []) as AppSite[])
-      .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
-  }
-}
-
-setAllowedSites(nextAllowedSites);
-
-        const storedSiteId =
-  typeof window !== 'undefined'
-    ? window.localStorage.getItem(ACTIVE_SITE_STORAGE_KEY)
-    : null;
-
-const validIds = new Set(nextAllowedSites.map((site) => site.id));
-
-let nextActiveSiteId: string | null = null;
-
-if (storedSiteId && validIds.has(storedSiteId)) {
-  nextActiveSiteId = storedSiteId;
-} else if (nextProfile.default_site_id && validIds.has(nextProfile.default_site_id)) {
-  nextActiveSiteId = nextProfile.default_site_id;
-} else if (nextAllowedSites.length > 0) {
-  nextActiveSiteId = nextAllowedSites[0].id;
-}
-
-setActiveSiteId(nextActiveSiteId);
-
-if (typeof window !== 'undefined') {
-  if (nextActiveSiteId) {
-    window.localStorage.setItem(ACTIVE_SITE_STORAGE_KEY, nextActiveSiteId);
-  } else {
-    window.localStorage.removeItem(ACTIVE_SITE_STORAGE_KEY);
-  }
-}
-
-hasHydratedActiveSiteRef.current = true;
       } catch (error) {
         console.warn('[auth] Erreur lors du chargement du profil:', error);
-        if (mounted) {
-          setProfile(null);
-          setAllowedSites([]);
-          setActiveSiteId(null);
-        }
+        if (mounted) setProfile(null);
       } finally {
         if (mounted) setLoadingProfile(false);
       }
@@ -219,8 +115,6 @@ hasHydratedActiveSiteRef.current = true;
         if (error) {
           console.warn('[auth] getSession:', error.message);
           setSession(null);
-          setAllowedSites([]);
-          setActiveSiteId(null);
           setLoadingSession(false);
           setLoadingProfile(false);
           return;
@@ -235,8 +129,6 @@ hasHydratedActiveSiteRef.current = true;
         if (!mounted) return;
         setSession(null);
         setProfile(null);
-        setAllowedSites([]);
-        setActiveSiteId(null);
         setLoadingSession(false);
         setLoadingProfile(false);
       }
@@ -258,21 +150,6 @@ hasHydratedActiveSiteRef.current = true;
     };
   }, []);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    if (!hasHydratedActiveSiteRef.current) {
-      return;
-    }
-
-    if (!activeSiteId) {
-      window.localStorage.removeItem(ACTIVE_SITE_STORAGE_KEY);
-      return;
-    }
-
-    window.localStorage.setItem(ACTIVE_SITE_STORAGE_KEY, activeSiteId);
-  }, [activeSiteId]);
-
   const value = useMemo<AuthContextValue>(() => {
     const isActive = profile?.is_active ?? true;
     const isAdmin = ['super_admin', 'global_admin', 'director', 'manager_plus'].includes(profile?.role ?? '') && isActive;
@@ -288,11 +165,8 @@ hasHydratedActiveSiteRef.current = true;
         if (!supabase) return;
         await supabase.auth.signOut();
       },
-      allowedSites,
-      activeSiteId,
-      setActiveSiteId,
     };
-  }, [session, profile, loadingSession, loadingProfile, allowedSites, activeSiteId]);
+  }, [session, profile, loadingSession, loadingProfile]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

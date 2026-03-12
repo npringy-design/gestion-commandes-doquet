@@ -28,7 +28,6 @@ import {
 } from './appStateHelpers';
 import { useProductActions } from './useProductActions';
 import { useCloudSync } from './useCloudSync';
-import { useAuth } from '../auth/AuthProvider';
 
 // -----------------------------------------------------------
 // Hook principal
@@ -36,8 +35,6 @@ import { useAuth } from '../auth/AuthProvider';
 export const useAppState = () => {
   // Toast — affichage des messages d'erreur
   const { showToast } = useToast();
-  const { activeSiteId, allowedSites } = useAuth();
-  const legacyBaseSiteId = useMemo(() => allowedSites.find(site => /thillois/i.test(site.name))?.id ?? null, [allowedSites]);
 
   // Navigation
   const [view, setView] = useState<View>(() => loadState<View>('currentView', 'home'));
@@ -64,37 +61,37 @@ export const useAppState = () => {
 
   // --- États persistés (localStorage) ---
   const [deliveryDateBySupplier, setDeliveryDateBySupplier] =
-    useState<Record<string, string>>({});
+    useState<Record<string, string>>(() => loadState('deliveryDateBySupplier', {}));
 
   const [nextDeliveryDateBySupplier, setNextDeliveryDateBySupplier] =
-    useState<Record<string, string>>({});
+    useState<Record<string, string>>(() => loadState('nextDeliveryDateBySupplier', {}));
 
   const [covers, setCovers] =
-    useState<Record<string, number>>({ ...INITIAL_COVERS });
+    useState<Record<string, number>>(() => loadState('covers', INITIAL_COVERS));
 
   const [dailyCovers, setDailyCovers] =
-    useState<DailyCoversState>(() => structuredClone(DAILY_COVERS_INITIAL));
+    useState<DailyCoversState>(() => loadState('dailyCovers', DAILY_COVERS_INITIAL));
 
   const [orderStates, setOrderStates] =
-    useState<Record<string, OrderState>>({});
+    useState<Record<string, OrderState>>(() => loadState('orderStates', {}));
 
   const [detailedInventory, setDetailedInventory] =
-    useState<Record<string, string>>({});
+    useState<Record<string, string>>(() => loadState('inventory', {}));
 
   const [salesHtByMonth, setSalesHtByMonth] =
-    useState<Record<string, number>>({ ...INITIAL_COVERS });
+    useState<Record<string, number>>(() => loadState('salesHtByMonth', INITIAL_COVERS));
 
   const [costMatterByMonth, setCostMatterByMonth] =
-    useState<Record<string, number>>({ ...INITIAL_COVERS });
+    useState<Record<string, number>>(() => loadState('costMatterByMonth', INITIAL_COVERS));
 
   const [validatedMonths, setValidatedMonths] =
-    useState<Record<string, boolean>>({});
+    useState<Record<string, boolean>>(() => loadState('validatedMonths', {}));
 
   const [supplierConfigs, setSupplierConfigs] =
-    useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults({}));
+useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(loadState<Record<string, SupplierConfig>>('supplierConfigs', {})));
 
   const [products, setProducts] = useState<ProductWithHistory[]>(() =>
-    createInitialProducts([] as ProductWithHistory[])
+    createInitialProducts(loadState('products', [] as ProductWithHistory[]))
   );
 
   useEffect(() => {
@@ -132,8 +129,6 @@ export const useAppState = () => {
     setNextDeliveryDateBySupplier,
     setProducts,
     onSaveError,
-    activeSiteId,
-    legacyBaseSiteId,
   });
 
   // --- Valeurs calculées ---

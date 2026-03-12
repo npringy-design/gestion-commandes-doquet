@@ -22,70 +22,23 @@ import { SupplierConfig } from '../types';
 
 export const nowIso = () => new Date().toISOString();
 
-export const getLegacyStorageKey = (key: string) => `${STORAGE_PREFIX}${key}`;
-
-export const getScopedStorageKey = (siteId: string, key: string) =>
-  `${STORAGE_PREFIX}site_${siteId}_${key}`;
-
-export const loadState = <T>(key: string, defaultVal: T, siteId?: string | null, allowLegacyFallback = false): T => {
+export const loadState = <T>(key: string, defaultVal: T): T => {
   try {
-    const scopedKey = siteId ? getScopedStorageKey(siteId, key) : getLegacyStorageKey(key);
-    const saved = localStorage.getItem(scopedKey);
-    if (saved) return JSON.parse(saved) as T;
-
-    if (allowLegacyFallback) {
-      const legacy = localStorage.getItem(getLegacyStorageKey(key));
-      if (legacy) return JSON.parse(legacy) as T;
-    }
-
-    return defaultVal;
+    const saved = localStorage.getItem(`${STORAGE_PREFIX}${key}`);
+    return saved ? JSON.parse(saved) : defaultVal;
   } catch {
     return defaultVal;
   }
 };
 
-export const saveState = (
-  key: string,
-  value: unknown,
-  onError?: (msg: string) => void,
-  siteId?: string | null
-): void => {
+export const saveState = (key: string, value: unknown, onError?: (msg: string) => void): void => {
   try {
-    const targetKey = siteId ? getScopedStorageKey(siteId, key) : getLegacyStorageKey(key);
-    localStorage.setItem(targetKey, JSON.stringify(value));
+    localStorage.setItem(`${STORAGE_PREFIX}${key}`, JSON.stringify(value));
   } catch (err) {
     const msg = 'Sauvegarde impossible : stockage local plein ou désactivé.';
     if (onError) onError(msg);
     else console.error(msg, err);
   }
-};
-
-export const ensureScopedLocalState = <T>(
-  key: string,
-  defaultVal: T,
-  siteId: string | null | undefined,
-  options?: { allowLegacyFallback?: boolean }
-): T => {
-  const safeDefault = defaultVal;
-  if (!siteId) return safeDefault;
-
-  try {
-    const scopedKey = getScopedStorageKey(siteId, key);
-    const existingScoped = localStorage.getItem(scopedKey);
-    if (existingScoped) return JSON.parse(existingScoped) as T;
-
-    if (options?.allowLegacyFallback) {
-      const legacy = localStorage.getItem(getLegacyStorageKey(key));
-      if (legacy) {
-        localStorage.setItem(scopedKey, legacy);
-        return JSON.parse(legacy) as T;
-      }
-    }
-  } catch {
-    return safeDefault;
-  }
-
-  return safeDefault;
 };
 
 export const DEFAULT_PRODUCTS: ProductWithHistory[] = [
