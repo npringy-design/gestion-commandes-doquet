@@ -29,7 +29,7 @@ const SuppliersPage: React.FC<SuppliersPageProps> = ({ setView, supplierConfigs 
         className="absolute inset-0 z-0 opacity-30 pointer-events-none"
         style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/brick-wall.png')` }}
       />
-      <div className="w-full max-w-[1400px] z-10 flex flex-col h-full">
+      <div className="w-full max-w-[1800px] z-10 flex flex-col h-full">
         <div className="flex justify-between items-center mb-6 sm:mb-12 gap-2">
           <div className="flex flex-col">
             <h2 className="text-[#ffd700] text-3xl sm:text-5xl font-black uppercase tracking-tighter leading-none mb-2">
@@ -48,7 +48,7 @@ const SuppliersPage: React.FC<SuppliersPageProps> = ({ setView, supplierConfigs 
         <div
   className="grid gap-4 sm:gap-5 lg:gap-6 sm:p-4 lg:p-6 flex-1 pb-12"
   style={{
-    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
   }}
 >
           {cards.map(card => (
@@ -58,7 +58,7 @@ const SuppliersPage: React.FC<SuppliersPageProps> = ({ setView, supplierConfigs 
               className="group cursor-pointer transform transition-all duration-300 hover:-translate-y-3"
             >
               <div
-                className="relative h-[240px] sm:h-[340px] lg:h-[420px] w-full rounded-[28px] sm:rounded-[40px] overflow-hidden border-4 border-[#ffd700]/20 group-hover:border-[#ffd700] shadow-2xl"
+                className="relative h-[220px] sm:h-[300px] lg:h-[360px] w-full rounded-[28px] sm:rounded-[36px] overflow-hidden border-4 border-[#ffd700]/20 group-hover:border-[#ffd700] shadow-2xl"
                  >
                 <div
                   className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-[1.08]"
