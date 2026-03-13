@@ -76,12 +76,12 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
 
           {/* Boutons principaux */}
           <div
-            className={`grid gap-4 lg:gap-6 mb-8 ${
-              !isMobile && canAccessStatsPage(profile)
-                ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
-                : 'grid-cols-1 md:grid-cols-2'
-            }`}
-          >
+  className={`grid gap-4 lg:gap-6 mb-8 justify-center ${
+    !isMobile && canAccessStatsPage(profile)
+      ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
+      : 'grid-cols-1 md:grid-cols-2'
+  }`}
+>
             <button
               onClick={() => setView('suppliers')}
               className="group bg-white p-3 sm:p-4 lg:p-5 rounded-[30px] shadow-2xl hover:scale-105 transition-all border-4 border-transparent hover:border-red-600"
