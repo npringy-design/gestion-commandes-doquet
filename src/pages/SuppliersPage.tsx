@@ -45,7 +45,12 @@ const SuppliersPage: React.FC<SuppliersPageProps> = ({ setView, supplierConfigs 
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:p-6 lg:p-8 flex-1 pb-12">
+        <div
+  className="grid gap-4 sm:gap-5 lg:gap-6 sm:p-4 lg:p-6 flex-1 pb-12"
+  style={{
+    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  }}
+>
           {cards.map(card => (
             <div
               key={card.view}
