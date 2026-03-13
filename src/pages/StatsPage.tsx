@@ -85,19 +85,20 @@ const StatsPage: React.FC<StatsPageProps> = ({
   };
 
   const cardClass =
-    'flex flex-col rounded-[20px] lg:rounded-[24px] overflow-hidden bg-white border border-slate-200 shadow-[0_10px_30px_rgba(15,23,42,0.08)] min-h-[420px] md:min-h-[480px] xl:min-h-0';
+    'flex flex-col rounded-[22px] lg:rounded-[26px] overflow-hidden bg-white/95 border border-white/70 shadow-[0_14px_34px_rgba(120,53,15,0.14)] min-h-[420px] md:min-h-[480px] xl:min-h-0 backdrop-blur-sm';
 
   const rowClass =
-    'flex-1 flex items-center justify-between px-4 sm:px-5 lg:px-6 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors gap-3';
+    'flex-1 flex items-center justify-between px-4 sm:px-5 lg:px-6 border-b border-stone-200/70 last:border-0 hover:bg-amber-50/40 transition-colors gap-3';
 
   const inputClass =
-    'w-24 sm:w-28 h-10 bg-slate-50 border border-slate-300 rounded-lg text-center font-bold text-slate-800 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all text-base sm:text-lg disabled:opacity-50 disabled:cursor-not-allowed';
+    'w-24 sm:w-28 h-10 bg-white border border-stone-300 rounded-xl text-center font-bold text-stone-800 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200 transition-all text-base sm:text-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-sm';
 
-  const monthLabelClass = 'font-extrabold text-slate-700 uppercase text-sm';
-  const monthLabelWideClass = 'font-extrabold text-slate-700 uppercase text-sm w-28 shrink-0';
+  const monthLabelClass = 'font-extrabold text-stone-700 uppercase text-sm tracking-wide';
+  const monthLabelWideClass =
+    'font-extrabold text-stone-700 uppercase text-sm tracking-wide w-28 shrink-0';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-stone-100 via-amber-50 to-orange-50 p-3 sm:p-4 lg:p-6 flex flex-col lg:flex-row gap-4 lg:gap-8 font-sans overflow-x-hidden overflow-y-auto">
+    <div className="min-h-screen bg-gradient-to-br from-[#f7e7d6] via-[#fdf3e7] to-[#f6dfcf] p-3 sm:p-4 lg:p-6 flex flex-col lg:flex-row gap-4 lg:gap-8 font-sans overflow-x-hidden overflow-y-auto">
       {modalState && canImport && (
         <ImportModal
           monthLabel={MONTHS_DISPLAY_CONFIG.find((m) => m.key === modalState.month)?.label || ''}
@@ -110,7 +111,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
       <div className="w-full lg:w-72 flex flex-col gap-3 sm:gap-4 shrink-0 lg:h-full py-1 lg:py-2">
         <button
           onClick={() => setView('home')}
-          className="bg-amber-400 hover:bg-amber-300 text-stone-900 py-5 rounded-2xl font-black uppercase text-sm tracking-widest border border-amber-500 shadow-[0_8px_24px_rgba(120,53,15,0.12)] transition-all flex items-center justify-center gap-3"
+          className="bg-gradient-to-r from-amber-400 to-orange-300 hover:from-amber-300 hover:to-orange-200 text-stone-900 py-5 rounded-2xl font-black uppercase text-sm tracking-widest border border-amber-500 shadow-[0_10px_26px_rgba(120,53,15,0.18)] transition-all flex items-center justify-center gap-3"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -124,7 +125,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
           {canOpenRatios && (
             <button
               onClick={() => setView('ratios')}
-              className="w-full bg-slate-800 hover:bg-slate-700 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest border border-slate-700 shadow-[0_8px_24px_rgba(15,23,42,0.14)] transition-all"
+              className="w-full bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest border border-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.18)] transition-all"
             >
               Calcul
               <br />
@@ -137,8 +138,8 @@ const StatsPage: React.FC<StatsPageProps> = ({
       <div className="flex-1 lg:h-full flex justify-center min-w-0">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-5 w-full max-w-[1800px] lg:h-full">
           <div className={cardClass}>
-            <div className="bg-amber-50 py-4 px-4 flex items-center justify-center border-b border-amber-100">
-              <h2 className="font-extrabold text-amber-900 uppercase text-sm tracking-[0.18em]">
+            <div className="bg-gradient-to-r from-[#f6c68b] to-[#f9ddae] py-4 px-4 flex items-center justify-center border-b border-amber-200">
+              <h2 className="font-extrabold text-amber-950 uppercase text-sm tracking-[0.18em]">
                 Inventaire détaillé
               </h2>
             </div>
@@ -148,12 +149,12 @@ const StatsPage: React.FC<StatsPageProps> = ({
                 <button
                   key={m.key}
                   onClick={() => canImport && setModalState({ month: m.key })}
-                  className={`flex-1 flex items-center justify-center w-full border-b border-slate-100 last:border-0 relative group transition-colors ${
-                    canImport ? 'hover:bg-amber-50' : 'opacity-70 cursor-not-allowed'
+                  className={`flex-1 flex items-center justify-center w-full border-b border-stone-200/70 last:border-0 relative group transition-colors ${
+                    canImport ? 'hover:bg-amber-50/50' : 'opacity-70 cursor-not-allowed'
                   }`}
                   title={canImport ? 'Importer un fichier' : 'Import non autorisé pour votre rôle'}
                 >
-                  <span className="font-extrabold text-slate-700 uppercase text-sm group-hover:text-amber-900 transition-colors">
+                  <span className="font-extrabold text-stone-700 uppercase text-sm tracking-wide group-hover:text-amber-900 transition-colors">
                     {m.label}
                   </span>
 
@@ -167,9 +168,9 @@ const StatsPage: React.FC<StatsPageProps> = ({
                         }}
                         disabled={!canRemoveImport}
                         title={`Supprimer l'import ${m.label}`}
-                        className="w-8 h-8 rounded-full border border-slate-300 bg-white hover:bg-slate-50 flex items-center justify-center shadow-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="w-8 h-8 rounded-full border border-stone-300 bg-white hover:bg-stone-50 flex items-center justify-center shadow-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       >
-                        <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 6l12 12M18 6L6 18" />
                         </svg>
                       </button>
@@ -181,9 +182,9 @@ const StatsPage: React.FC<StatsPageProps> = ({
                       </div>
                     </div>
                   ) : (
-                    <div className="absolute right-6 w-8 h-8 rounded-full border border-slate-300 flex items-center justify-center group-hover:border-amber-500 transition-colors">
+                    <div className="absolute right-6 w-8 h-8 rounded-full border border-stone-300 flex items-center justify-center group-hover:border-amber-500 transition-colors">
                       <svg
-                        className="w-4 h-4 text-slate-400 group-hover:text-amber-700"
+                        className="w-4 h-4 text-stone-400 group-hover:text-amber-700"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -198,8 +199,8 @@ const StatsPage: React.FC<StatsPageProps> = ({
           </div>
 
           <div className={cardClass}>
-            <div className="bg-yellow-50 py-4 px-4 flex items-center justify-center border-b border-yellow-100">
-              <h2 className="font-extrabold text-yellow-900 uppercase text-sm tracking-[0.18em]">
+            <div className="bg-gradient-to-r from-[#f6de7a] to-[#fff0b3] py-4 px-4 flex items-center justify-center border-b border-yellow-200">
+              <h2 className="font-extrabold text-yellow-950 uppercase text-sm tracking-[0.18em]">
                 Couverts réalisés
               </h2>
             </div>
@@ -222,8 +223,8 @@ const StatsPage: React.FC<StatsPageProps> = ({
           </div>
 
           <div className={cardClass}>
-            <div className="bg-rose-50 py-4 px-4 flex items-center justify-center border-b border-rose-100">
-              <h2 className="font-extrabold text-rose-900 uppercase text-sm tracking-[0.18em]">
+            <div className="bg-gradient-to-r from-[#f3b0b0] to-[#f8d4d4] py-4 px-4 flex items-center justify-center border-b border-rose-200">
+              <h2 className="font-extrabold text-rose-950 uppercase text-sm tracking-[0.18em]">
                 CM (%)
               </h2>
             </div>
@@ -255,8 +256,8 @@ const StatsPage: React.FC<StatsPageProps> = ({
           </div>
 
           <div className={cardClass}>
-            <div className="bg-sky-50 py-4 px-4 flex items-center justify-center border-b border-sky-100">
-              <h2 className="font-extrabold text-sky-900 uppercase text-sm tracking-[0.18em]">
+            <div className="bg-gradient-to-r from-[#a9cdf5] to-[#d9ecff] py-4 px-4 flex items-center justify-center border-b border-sky-200">
+              <h2 className="font-extrabold text-sky-950 uppercase text-sm tracking-[0.18em]">
                 CA HT (€)
               </h2>
             </div>
