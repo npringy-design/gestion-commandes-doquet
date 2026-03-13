@@ -84,7 +84,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
 >
             <button
               onClick={() => setView('suppliers')}
-              className="group w-full max-w-[420px] mx-auto bg-white p-3 sm:p-4 lg:p-5 rounded-[30px] shadow-2xl hover:scale-105 transition-all border-4 border-transparent hover:border-red-600"
+              className="group w-full max-w-[380px] mx-auto bg-white p-3 sm:p-4 lg:p-5 rounded-[30px] shadow-2xl hover:scale-105 transition-all border-4 border-transparent hover:border-red-600"
             >
               <div className="w-16 h-16 lg:w-20 lg:h-20 bg-red-100 rounded-3xl flex items-center justify-center mb-4 mx-auto group-hover:bg-red-600 transition-colors">
                 <svg
@@ -112,7 +112,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
             {!isMobile && canAccessStatsPage(profile) && (
               <button
                 onClick={() => setView('stats')}
-                className="group w-full max-w-[420px] mx-auto bg-white p-3 sm:p-4 lg:p-5 rounded-[30px] shadow-2xl transition-all border-4 border-transparent hover:scale-105 hover:border-amber-500"
+                className="group w-full max-w-[380px] mx-auto bg-white p-3 sm:p-4 lg:p-5 rounded-[30px] shadow-2xl transition-all border-4 border-transparent hover:scale-105 hover:border-amber-500"
                 title="Paramètres"
               >
                 <div className="w-16 h-16 lg:w-20 lg:h-20 bg-amber-100 rounded-3xl flex items-center justify-center mb-4 mx-auto group-hover:bg-amber-500 transition-colors">
@@ -141,7 +141,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
 
             <button
               onClick={() => setView('cost_analysis')}
-              className="group w-full max-w-[420px] mx-auto bg-white p-3 sm:p-4 lg:p-5 rounded-[30px] shadow-2xl hover:scale-105 transition-all border-4 border-transparent hover:border-orange-600"
+              className="group w-full max-w-[380px] mx-auto bg-white p-3 sm:p-4 lg:p-5 rounded-[30px] shadow-2xl hover:scale-105 transition-all border-4 border-transparent hover:border-orange-600"
             >
               <div className="w-16 h-16 lg:w-20 lg:h-20 bg-orange-100 rounded-3xl flex items-center justify-center mb-4 mx-auto group-hover:bg-orange-600 transition-colors">
                 <svg
