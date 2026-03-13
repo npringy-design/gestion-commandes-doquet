@@ -41,10 +41,10 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         style={{
           backgroundImage: `url(${homeBgCow})`,
           backgroundSize: 'cover',
-          backgroundPosition: isMobile ? '60% center' : 'center center',
+          backgroundPosition: isMobile ? '72% center' : '68% center',
           backgroundRepeat: 'no-repeat',
-          filter: 'brightness(1.18)',
-          transform: 'scale(1.02)',
+          filter: 'brightness(1.12)',
+          transform: 'scale(1)',
         }}
       />
 
