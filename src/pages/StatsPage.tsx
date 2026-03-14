@@ -1,268 +1,116 @@
-export default function ParametresPage() {
-  const months = [
-    {
-      month: "Janvier",
-      ca: "125 400 €",
-      cm: "29,4 %",
-      covers: "4 820",
-      inventory: "Importé",
-      status: "ok",
-    },
-    {
-      month: "Février",
-      ca: "118 900 €",
-      cm: "30,1 %",
-      covers: "4 560",
-      inventory: "Importé",
-      status: "ok",
-    },
-    {
-      month: "Mars",
-      ca: "132 700 €",
-      cm: "28,7 %",
-      covers: "5 040",
-      inventory: "En attente",
-      status: "pending",
-    },
-    {
-      month: "Avril",
-      ca: "127 300 €",
-      cm: "29,0 %",
-      covers: "4 910",
-      inventory: "Importé",
-      status: "ok",
-    },
-  ];
+const months = [
+  { name: "Janvier", value: "3956", active: false, imported: false },
+  { name: "Février", value: "4863", active: false, imported: false },
+  { name: "Mars", value: "4440", active: false, imported: false },
+  { name: "Avril", value: "4239", active: true, imported: true },
+  { name: "Mai", value: "4506", active: false, imported: false },
+  { name: "Juin", value: "4002", active: false, imported: false },
+  { name: "Juillet", value: "4493", active: false, imported: false },
+  { name: "Août", value: "4604", active: false, imported: false },
+  { name: "Septembre", value: "3470", active: false, imported: false },
+  { name: "Octobre", value: "5082", active: false, imported: false },
+  { name: "Novembre", value: "4694", active: false, imported: false },
+  { name: "Décembre", value: "5989", active: false, imported: false },
+];
 
+function PanelColumn({
+  title,
+  headerClass,
+  bodyClass,
+  rowClass,
+  monthTextClass,
+  valueClass,
+  iconMode = false,
+}: {
+  title: string;
+  headerClass: string;
+  bodyClass: string;
+  rowClass: string;
+  monthTextClass: string;
+  valueClass?: string;
+  iconMode?: boolean;
+}) {
   return (
-    <div className="min-h-screen bg-[#241D1A] text-[#F2E7DA]">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        {/* HEADER */}
-        <section className="mb-6 overflow-hidden rounded-3xl border border-[#5A3A2A] bg-[linear-gradient(135deg,#1F1815_0%,#2B211D_55%,#3A241E_100%)] shadow-[0_20px_50px_rgba(0,0,0,0.30)]">
-          <div className="h-1.5 w-full bg-gradient-to-r from-[#7A5330] via-[#A14E3B] to-[#7B2332]" />
-          <div className="flex flex-col gap-4 px-6 py-6 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#C8B29D]">
-                Hippopotamus Thillois
-              </p>
-              <h1 className="mt-2 text-3xl font-bold text-[#F7EFE5]">
-                Paramètres mensuels
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm text-[#D7C3B0]">
-                Pilotage mensuel des indicateurs clés et suivi des imports inventaires.
-              </p>
-            </div>
+    <section className={`overflow-hidden rounded-[26px] border border-[#6B4A3A] shadow-[0_12px_28px_rgba(0,0,0,0.22)] ${bodyClass}`}>
+      <div className={`px-6 py-5 text-center border-b border-black/10 ${headerClass}`}>
+        <h2 className="text-[22px] font-black uppercase tracking-[0.08em]">
+          {title}
+        </h2>
+      </div>
 
-            <div className="flex flex-wrap gap-3">
-              <button className="rounded-2xl border border-[#8E2E3C] bg-[#7B2332] px-5 py-3 text-sm font-semibold text-[#FFF7EF] transition hover:bg-[#681D2A]">
-                Enregistrer
+      <div>
+        {months.map((month) => (
+          <div
+            key={month.name}
+            className={`flex items-center justify-between px-5 py-3 border-b border-black/10 transition ${rowClass} ${
+              month.active ? "relative z-10 ring-1 ring-inset ring-[#A14E3B]/40" : ""
+            }`}
+          >
+            <span className={`text-[17px] font-extrabold uppercase ${monthTextClass}`}>
+              {month.name}
+            </span>
+
+            {iconMode ? (
+              <button
+                className={`flex h-11 w-11 items-center justify-center rounded-full border text-[26px] leading-none font-medium transition ${
+                  month.active
+                    ? "border-[#7A3A1E] bg-[#D8891C] text-[#4A230E] shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]"
+                    : "border-[#C49A72] bg-[#EBC9A5] text-[#B27A48]"
+                }`}
+              >
+                +
               </button>
-              <button className="rounded-2xl border border-[#7A5330] bg-[#3A302B] px-5 py-3 text-sm font-semibold text-[#F2E7DA] transition hover:bg-[#4A3B34]">
-                Annuler
-              </button>
-            </div>
+            ) : (
+              <div className={valueClass}>
+                {month.value}
+              </div>
+            )}
           </div>
-        </section>
+        ))}
+      </div>
+    </section>
+  );
+}
 
-        {/* KPI TOP */}
-        <section className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {[
-            ["CA annuel cumulé", "504 300 €", "#A14E3B"],
-            ["CM moyen", "29,3 %", "#7B2332"],
-            ["Couverts cumulés", "19 330", "#7A5330"],
-            ["Imports inventaires", "3 / 4 validés", "#8E6A45"],
-          ].map(([label, value, accent]) => (
-            <div
-              key={label}
-              className="overflow-hidden rounded-2xl border border-[#5B463B] bg-[#2E2622] shadow-[0_12px_30px_rgba(0,0,0,0.18)]"
-            >
-              <div className="h-1.5" style={{ backgroundColor: accent }} />
-              <div className="p-5">
-                <p className="text-xs uppercase tracking-[0.22em] text-[#BFA895]">
-                  {label}
-                </p>
-                <p className="mt-3 text-3xl font-bold text-[#F7EFE5]">{value}</p>
-              </div>
-            </div>
-          ))}
-        </section>
+export default function ParametresColumnsOnly() {
+  return (
+    <div className="min-h-screen bg-[linear-gradient(180deg,#2A120C_0%,#34160F_45%,#24110D_100%)] px-5 py-6">
+      <div className="mx-auto grid max-w-[1280px] gap-5 lg:grid-cols-2 2xl:grid-cols-4">
+        <PanelColumn
+          title="Inventaire détaillé"
+          headerClass="bg-[linear-gradient(180deg,#C88B4D_0%,#B87437_100%)] text-[#4E250D]"
+          bodyClass="bg-[#E7BE94]"
+          rowClass="bg-[#EBC69F] hover:bg-[#E4BA8D]"
+          monthTextClass="text-[#6A3200]"
+          iconMode
+        />
 
-        <div className="grid gap-6 xl:grid-cols-[1.5fr_0.85fr]">
-          {/* GAUCHE */}
-          <div className="space-y-6">
-            {/* BLOC TABLEAU MENSUEL */}
-            <section className="overflow-hidden rounded-3xl border border-[#5B463B] bg-[#2E2622] shadow-[0_12px_30px_rgba(0,0,0,0.20)]">
-              <div className="flex items-center justify-between border-b border-[#4A3A32] bg-[#1F1815] px-6 py-4">
-                <div>
-                  <h2 className="text-lg font-bold text-[#F7EFE5]">
-                    Pilotage mensuel
-                  </h2>
-                  <p className="mt-1 text-sm text-[#BFA895]">
-                    CA, CM, couverts et statut d’import par mois
-                  </p>
-                </div>
-              </div>
+        <PanelColumn
+          title="Couverts réalisés"
+          headerClass="bg-[linear-gradient(180deg,#D9B34C_0%,#C89927_100%)] text-[#5B4300]"
+          bodyClass="bg-[#ECDDAB]"
+          rowClass="bg-[#EFE3BA] hover:bg-[#E6D7A4]"
+          monthTextClass="text-[#6E5200]"
+          valueClass="min-w-[116px] rounded-[15px] border-2 border-[#B88A14] bg-[#F5F0E3] px-4 py-1.5 text-center text-[19px] font-black text-[#6E5200] shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]"
+        />
 
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead className="bg-[#3A302B] text-[#F2E7DA]">
-                    <tr>
-                      <th className="px-5 py-4 text-left text-sm font-semibold">Mois</th>
-                      <th className="px-5 py-4 text-left text-sm font-semibold">CA</th>
-                      <th className="px-5 py-4 text-left text-sm font-semibold">CM</th>
-                      <th className="px-5 py-4 text-left text-sm font-semibold">Couverts</th>
-                      <th className="px-5 py-4 text-left text-sm font-semibold">Import inventaire</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {months.map((item, index) => (
-                      <tr
-                        key={item.month}
-                        className={
-                          index % 2 === 0
-                            ? "bg-[#E7D8C7] text-[#2B2623]"
-                            : "bg-[#DDCBB8] text-[#2B2623]"
-                        }
-                      >
-                        <td className="border-t border-[#C7AE98] px-5 py-4 font-semibold">
-                          {item.month}
-                        </td>
-                        <td className="border-t border-[#C7AE98] px-5 py-4">{item.ca}</td>
-                        <td className="border-t border-[#C7AE98] px-5 py-4">{item.cm}</td>
-                        <td className="border-t border-[#C7AE98] px-5 py-4">{item.covers}</td>
-                        <td className="border-t border-[#C7AE98] px-5 py-4">
-                          <span
-                            className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
-                              item.status === "ok"
-                                ? "bg-[#6E8B5B]/20 text-[#3F5C30] ring-1 ring-[#6E8B5B]/40"
-                                : "bg-[#A14E3B]/15 text-[#7A2F20] ring-1 ring-[#A14E3B]/30"
-                            }`}
-                          >
-                            {item.inventory}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
+        <PanelColumn
+          title="CM (%)"
+          headerClass="bg-[linear-gradient(180deg,#B56567_0%,#934648_100%)] text-[#FFF1F1]"
+          bodyClass="bg-[#E7D0D0]"
+          rowClass="bg-[#EEDDDD] hover:bg-[#E7D2D2]"
+          monthTextClass="text-[#7E2327]"
+          valueClass="min-w-[116px] rounded-[15px] border-2 border-[#C85B62] bg-[#F7F1F1] px-4 py-1.5 text-center text-[19px] font-black text-[#8A1F23] shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]"
+        />
 
-            {/* BLOC PARAMETRES DE SAISIE */}
-            <section className="overflow-hidden rounded-3xl border border-[#5B463B] bg-[#2E2622] shadow-[0_12px_30px_rgba(0,0,0,0.20)]">
-              <div className="border-b border-[#4A3A32] bg-[#1F1815] px-6 py-4">
-                <h2 className="text-lg font-bold text-[#F7EFE5]">
-                  Réglages du mois
-                </h2>
-              </div>
-
-              <div className="grid gap-4 p-6 md:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-[#E6D6C6]">
-                    Mois sélectionné
-                  </label>
-                  <select className="w-full rounded-2xl border border-[#7A5A47] bg-[#E7D8C7] px-4 py-3 text-sm text-[#2B2623] outline-none transition focus:border-[#A14E3B] focus:ring-2 focus:ring-[#A14E3B]/20">
-                    <option>Janvier</option>
-                    <option>Février</option>
-                    <option>Mars</option>
-                    <option>Avril</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-[#E6D6C6]">
-                    Objectif CM
-                  </label>
-                  <input
-                    className="w-full rounded-2xl border border-[#7A5A47] bg-[#E7D8C7] px-4 py-3 text-sm text-[#2B2623] outline-none transition placeholder:text-[#8A786D] focus:border-[#A14E3B] focus:ring-2 focus:ring-[#A14E3B]/20"
-                    placeholder="Ex : 29.00"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-[#E6D6C6]">
-                    Objectif CA
-                  </label>
-                  <input
-                    className="w-full rounded-2xl border border-[#7A5A47] bg-[#E7D8C7] px-4 py-3 text-sm text-[#2B2623] outline-none transition placeholder:text-[#8A786D] focus:border-[#A14E3B] focus:ring-2 focus:ring-[#A14E3B]/20"
-                    placeholder="Ex : 130000"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-[#E6D6C6]">
-                    Prévision couverts
-                  </label>
-                  <input
-                    className="w-full rounded-2xl border border-[#7A5A47] bg-[#E7D8C7] px-4 py-3 text-sm text-[#2B2623] outline-none transition placeholder:text-[#8A786D] focus:border-[#A14E3B] focus:ring-2 focus:ring-[#A14E3B]/20"
-                    placeholder="Ex : 5000"
-                  />
-                </div>
-              </div>
-            </section>
-          </div>
-
-          {/* DROITE */}
-          <aside className="space-y-6">
-            {/* IMPORT INVENTAIRE */}
-            <section className="overflow-hidden rounded-3xl border border-[#5B463B] bg-[#2E2622] shadow-[0_12px_30px_rgba(0,0,0,0.20)]">
-              <div className="border-b border-[#4A3A32] bg-[#1F1815] px-6 py-4">
-                <h2 className="text-lg font-bold text-[#F7EFE5]">
-                  Import inventaire
-                </h2>
-              </div>
-
-              <div className="space-y-4 p-6">
-                <div className="rounded-2xl border border-[#6E5446] bg-[#E7D8C7] p-4 text-[#2B2623]">
-                  <p className="text-xs uppercase tracking-[0.2em] text-[#7A5E4B]">
-                    Mois en cours
-                  </p>
-                  <p className="mt-2 text-xl font-bold">Mars</p>
-                </div>
-
-                <div className="rounded-2xl border border-[#6E5446] bg-[#E7D8C7] p-4 text-[#2B2623]">
-                  <p className="text-xs uppercase tracking-[0.2em] text-[#7A5E4B]">
-                    Statut
-                  </p>
-                  <p className="mt-2 text-xl font-bold text-[#7A2F20]">
-                    En attente d’import
-                  </p>
-                </div>
-
-                <button className="w-full rounded-2xl border border-[#8E2E3C] bg-[#7B2332] px-4 py-3 text-sm font-semibold text-[#FFF7EF] transition hover:bg-[#681D2A]">
-                  Lancer l’import
-                </button>
-              </div>
-            </section>
-
-            {/* RESUME */}
-            <section className="overflow-hidden rounded-3xl border border-[#5B463B] bg-[#2E2622] shadow-[0_12px_30px_rgba(0,0,0,0.20)]">
-              <div className="border-b border-[#4A3A32] bg-[#1F1815] px-6 py-4">
-                <h2 className="text-lg font-bold text-[#F7EFE5]">
-                  Résumé rapide
-                </h2>
-              </div>
-
-              <div className="space-y-4 p-6">
-                <div className="rounded-2xl border border-[#6E5446] bg-[#E7D8C7] p-4 text-[#2B2623]">
-                  <p className="text-xs uppercase tracking-[0.2em] text-[#7A5E4B]">
-                    Dernière mise à jour
-                  </p>
-                  <p className="mt-2 text-lg font-bold">Aujourd’hui</p>
-                </div>
-
-                <div className="rounded-2xl border border-[#6E5446] bg-[#E7D8C7] p-4 text-[#2B2623]">
-                  <p className="text-xs uppercase tracking-[0.2em] text-[#7A5E4B]">
-                    Lecture
-                  </p>
-                  <p className="mt-2 text-lg font-bold">
-                    Vision mensuelle du pilotage
-                  </p>
-                </div>
-              </div>
-            </section>
-          </aside>
-        </div>
+        <PanelColumn
+          title="CA HT (€)"
+          headerClass="bg-[linear-gradient(180deg,#879BB5_0%,#6D829D_100%)] text-[#F5F8FC]"
+          bodyClass="bg-[#C9D4E3]"
+          rowClass="bg-[#D8E1ED] hover:bg-[#CDD8E7]"
+          monthTextClass="text-[#163E66]"
+          valueClass="min-w-[116px] rounded-[15px] border-2 border-[#6F99C7] bg-[#EEF4FA] px-4 py-1.5 text-center text-[19px] font-black text-[#0E487E] shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]"
+        />
       </div>
     </div>
   );
