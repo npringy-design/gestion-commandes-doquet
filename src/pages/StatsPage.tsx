@@ -1,184 +1,145 @@
 export default function ParametresPage() {
+  const months = [
+    {
+      month: "Janvier",
+      ca: "125 400 €",
+      cm: "29,4 %",
+      covers: "4 820",
+      inventory: "Importé",
+      status: "ok",
+    },
+    {
+      month: "Février",
+      ca: "118 900 €",
+      cm: "30,1 %",
+      covers: "4 560",
+      inventory: "Importé",
+      status: "ok",
+    },
+    {
+      month: "Mars",
+      ca: "132 700 €",
+      cm: "28,7 %",
+      covers: "5 040",
+      inventory: "En attente",
+      status: "pending",
+    },
+    {
+      month: "Avril",
+      ca: "127 300 €",
+      cm: "29,0 %",
+      covers: "4 910",
+      inventory: "Importé",
+      status: "ok",
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#F4EEE6] text-[#2B2623]">
+    <div className="min-h-screen bg-[#241D1A] text-[#F2E7DA]">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         {/* HEADER */}
-        <div className="mb-6 overflow-hidden rounded-2xl border border-[#4A3F39] bg-[#1F1A17] shadow-[0_10px_30px_rgba(31,26,23,0.18)]">
-          <div className="h-1 w-full bg-gradient-to-r from-[#8C4334] via-[#B88A52] to-[#6E2F3A]" />
-          <div className="flex flex-col gap-4 px-5 py-5 md:flex-row md:items-center md:justify-between">
+        <section className="mb-6 overflow-hidden rounded-3xl border border-[#5A3A2A] bg-[linear-gradient(135deg,#1F1815_0%,#2B211D_55%,#3A241E_100%)] shadow-[0_20px_50px_rgba(0,0,0,0.30)]">
+          <div className="h-1.5 w-full bg-gradient-to-r from-[#7A5330] via-[#A14E3B] to-[#7B2332]" />
+          <div className="flex flex-col gap-4 px-6 py-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#CFC1B2]">
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#C8B29D]">
                 Hippopotamus Thillois
               </p>
-              <h1 className="mt-1 text-2xl font-bold text-[#F7F1E8]">
-                Paramètres
+              <h1 className="mt-2 text-3xl font-bold text-[#F7EFE5]">
+                Paramètres mensuels
               </h1>
-              <p className="mt-1 text-sm text-[#CFC1B2]">
-                Configuration générale et repères de pilotage
+              <p className="mt-2 max-w-2xl text-sm text-[#D7C3B0]">
+                Pilotage mensuel des indicateurs clés et suivi des imports inventaires.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <button className="rounded-xl border border-[#7A332B] bg-[#6E2F3A] px-4 py-2 text-sm font-semibold text-[#F7F1E8] transition hover:bg-[#5C2630]">
+              <button className="rounded-2xl border border-[#8E2E3C] bg-[#7B2332] px-5 py-3 text-sm font-semibold text-[#FFF7EF] transition hover:bg-[#681D2A]">
                 Enregistrer
               </button>
-              <button className="rounded-xl border border-[#8D8178] bg-[#EFE5D8] px-4 py-2 text-sm font-semibold text-[#2B2623] transition hover:bg-[#E5D7C6]">
+              <button className="rounded-2xl border border-[#7A5330] bg-[#3A302B] px-5 py-3 text-sm font-semibold text-[#F2E7DA] transition hover:bg-[#4A3B34]">
                 Annuler
               </button>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* CARTES RAPIDES */}
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {/* KPI TOP */}
+        <section className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {[
-            ["Paramètres globaux", "Réglages principaux"],
-            ["Imports liés", "Sources et dépendances"],
-            ["Pilotage", "Valeurs et repères"],
-            ["Contrôle", "Vérifications rapides"],
-          ].map(([title, subtitle]) => (
+            ["CA annuel cumulé", "504 300 €", "#A14E3B"],
+            ["CM moyen", "29,3 %", "#7B2332"],
+            ["Couverts cumulés", "19 330", "#7A5330"],
+            ["Imports inventaires", "3 / 4 validés", "#8E6A45"],
+          ].map(([label, value, accent]) => (
             <div
-              key={title}
-              className="rounded-2xl border border-[#C9B8A6] bg-[#FBF7F2] p-4 shadow-[0_6px_18px_rgba(60,40,20,0.06)]"
+              key={label}
+              className="overflow-hidden rounded-2xl border border-[#5B463B] bg-[#2E2622] shadow-[0_12px_30px_rgba(0,0,0,0.18)]"
             >
-              <div className="mb-3 h-1 w-14 rounded-full bg-[#8C4334]" />
-              <h2 className="text-sm font-bold text-[#2B2623]">{title}</h2>
-              <p className="mt-1 text-sm text-[#6F625A]">{subtitle}</p>
+              <div className="h-1.5" style={{ backgroundColor: accent }} />
+              <div className="p-5">
+                <p className="text-xs uppercase tracking-[0.22em] text-[#BFA895]">
+                  {label}
+                </p>
+                <p className="mt-3 text-3xl font-bold text-[#F7EFE5]">{value}</p>
+              </div>
             </div>
           ))}
-        </div>
+        </section>
 
-        {/* LAYOUT PRINCIPAL */}
-        <div className="grid gap-6 xl:grid-cols-[1.7fr_0.9fr]">
-          {/* COLONNE GAUCHE */}
+        <div className="grid gap-6 xl:grid-cols-[1.5fr_0.85fr]">
+          {/* GAUCHE */}
           <div className="space-y-6">
-            {/* SECTION 1 */}
-            <section className="overflow-hidden rounded-2xl border border-[#C9B8A6] bg-[#FBF7F2] shadow-[0_6px_18px_rgba(60,40,20,0.06)]">
-              <div className="border-b border-[#4A3F39] bg-[#2B2623] px-5 py-3">
-                <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-[#F7F1E8]">
-                  Paramètres principaux
-                </h3>
-              </div>
-
-              <div className="grid gap-4 p-5 md:grid-cols-2">
+            {/* BLOC TABLEAU MENSUEL */}
+            <section className="overflow-hidden rounded-3xl border border-[#5B463B] bg-[#2E2622] shadow-[0_12px_30px_rgba(0,0,0,0.20)]">
+              <div className="flex items-center justify-between border-b border-[#4A3A32] bg-[#1F1815] px-6 py-4">
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-[#3A312D]">
-                    Nom du site
-                  </label>
-                  <input
-                    className="w-full rounded-xl border border-[#BDAA96] bg-[#FFFBF6] px-4 py-3 text-sm outline-none transition focus:border-[#8C4334] focus:ring-2 focus:ring-[#8C4334]/20"
-                    placeholder="Ex : Hippo Thillois"
-                  />
+                  <h2 className="text-lg font-bold text-[#F7EFE5]">
+                    Pilotage mensuel
+                  </h2>
+                  <p className="mt-1 text-sm text-[#BFA895]">
+                    CA, CM, couverts et statut d’import par mois
+                  </p>
                 </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-[#3A312D]">
-                    Mois actif
-                  </label>
-                  <select className="w-full rounded-xl border border-[#BDAA96] bg-[#FFFBF6] px-4 py-3 text-sm outline-none transition focus:border-[#8C4334] focus:ring-2 focus:ring-[#8C4334]/20">
-                    <option>Janvier</option>
-                    <option>Février</option>
-                    <option>Mars</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-[#3A312D]">
-                    Objectif CM
-                  </label>
-                  <input
-                    className="w-full rounded-xl border border-[#BDAA96] bg-[#FFFBF6] px-4 py-3 text-sm outline-none transition focus:border-[#8C4334] focus:ring-2 focus:ring-[#8C4334]/20"
-                    placeholder="Ex : 28.50"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-[#3A312D]">
-                    Couvert moyen
-                  </label>
-                  <input
-                    className="w-full rounded-xl border border-[#BDAA96] bg-[#FFFBF6] px-4 py-3 text-sm outline-none transition focus:border-[#8C4334] focus:ring-2 focus:ring-[#8C4334]/20"
-                    placeholder="Ex : 145"
-                  />
-                </div>
-              </div>
-            </section>
-
-            {/* SECTION 2 */}
-            <section className="overflow-hidden rounded-2xl border border-[#C9B8A6] bg-[#FBF7F2] shadow-[0_6px_18px_rgba(60,40,20,0.06)]">
-              <div className="border-b border-[#4A3F39] bg-[#2B2623] px-5 py-3">
-                <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-[#F7F1E8]">
-                  Réglages secondaires
-                </h3>
-              </div>
-
-              <div className="grid gap-4 p-5 md:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-[#3A312D]">
-                    Valeur 1
-                  </label>
-                  <input
-                    className="w-full rounded-xl border border-[#BDAA96] bg-[#FFFBF6] px-4 py-3 text-sm outline-none transition focus:border-[#8C4334] focus:ring-2 focus:ring-[#8C4334]/20"
-                    placeholder="..."
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-[#3A312D]">
-                    Valeur 2
-                  </label>
-                  <input
-                    className="w-full rounded-xl border border-[#BDAA96] bg-[#FFFBF6] px-4 py-3 text-sm outline-none transition focus:border-[#8C4334] focus:ring-2 focus:ring-[#8C4334]/20"
-                    placeholder="..."
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="mb-2 block text-sm font-semibold text-[#3A312D]">
-                    Commentaire / note
-                  </label>
-                  <textarea
-                    rows={4}
-                    className="w-full rounded-xl border border-[#BDAA96] bg-[#FFFBF6] px-4 py-3 text-sm outline-none transition focus:border-[#8C4334] focus:ring-2 focus:ring-[#8C4334]/20"
-                    placeholder="..."
-                  />
-                </div>
-              </div>
-            </section>
-
-            {/* SECTION TABLEAU / LISTE */}
-            <section className="overflow-hidden rounded-2xl border border-[#C9B8A6] bg-[#FBF7F2] shadow-[0_6px_18px_rgba(60,40,20,0.06)]">
-              <div className="border-b border-[#4A3F39] bg-[#2B2623] px-5 py-3">
-                <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-[#F7F1E8]">
-                  Tableau de paramètres
-                </h3>
               </div>
 
               <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-[#3A312D] text-[#F7F1E8]">
+                <table className="min-w-full">
+                  <thead className="bg-[#3A302B] text-[#F2E7DA]">
                     <tr>
-                      <th className="px-4 py-3 text-left font-semibold">Nom</th>
-                      <th className="px-4 py-3 text-left font-semibold">Valeur</th>
-                      <th className="px-4 py-3 text-left font-semibold">Type</th>
-                      <th className="px-4 py-3 text-left font-semibold">Action</th>
+                      <th className="px-5 py-4 text-left text-sm font-semibold">Mois</th>
+                      <th className="px-5 py-4 text-left text-sm font-semibold">CA</th>
+                      <th className="px-5 py-4 text-left text-sm font-semibold">CM</th>
+                      <th className="px-5 py-4 text-left text-sm font-semibold">Couverts</th>
+                      <th className="px-5 py-4 text-left text-sm font-semibold">Import inventaire</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {[1, 2, 3, 4].map((row, index) => (
+                    {months.map((item, index) => (
                       <tr
-                        key={row}
-                        className={index % 2 === 0 ? "bg-[#FFFBF6]" : "bg-[#F6EFE7]"}
+                        key={item.month}
+                        className={
+                          index % 2 === 0
+                            ? "bg-[#E7D8C7] text-[#2B2623]"
+                            : "bg-[#DDCBB8] text-[#2B2623]"
+                        }
                       >
-                        <td className="px-4 py-3 border-t border-[#E2D4C6]">Paramètre {row}</td>
-                        <td className="px-4 py-3 border-t border-[#E2D4C6]">Valeur</td>
-                        <td className="px-4 py-3 border-t border-[#E2D4C6] text-[#6F625A]">
-                          Texte
+                        <td className="border-t border-[#C7AE98] px-5 py-4 font-semibold">
+                          {item.month}
                         </td>
-                        <td className="px-4 py-3 border-t border-[#E2D4C6]">
-                          <button className="rounded-lg border border-[#BDAA96] bg-[#EFE5D8] px-3 py-1.5 text-xs font-semibold text-[#2B2623] hover:bg-[#E5D7C6]">
-                            Modifier
-                          </button>
+                        <td className="border-t border-[#C7AE98] px-5 py-4">{item.ca}</td>
+                        <td className="border-t border-[#C7AE98] px-5 py-4">{item.cm}</td>
+                        <td className="border-t border-[#C7AE98] px-5 py-4">{item.covers}</td>
+                        <td className="border-t border-[#C7AE98] px-5 py-4">
+                          <span
+                            className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
+                              item.status === "ok"
+                                ? "bg-[#6E8B5B]/20 text-[#3F5C30] ring-1 ring-[#6E8B5B]/40"
+                                : "bg-[#A14E3B]/15 text-[#7A2F20] ring-1 ring-[#A14E3B]/30"
+                            }`}
+                          >
+                            {item.inventory}
+                          </span>
                         </td>
                       </tr>
                     ))}
@@ -186,44 +147,117 @@ export default function ParametresPage() {
                 </table>
               </div>
             </section>
-          </div>
 
-          {/* COLONNE DROITE */}
-          <aside className="space-y-6">
-            <section className="overflow-hidden rounded-2xl border border-[#C9B8A6] bg-[#FBF7F2] shadow-[0_6px_18px_rgba(60,40,20,0.06)]">
-              <div className="border-b border-[#4A3F39] bg-[#2B2623] px-5 py-3">
-                <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-[#F7F1E8]">
-                  Résumé
-                </h3>
+            {/* BLOC PARAMETRES DE SAISIE */}
+            <section className="overflow-hidden rounded-3xl border border-[#5B463B] bg-[#2E2622] shadow-[0_12px_30px_rgba(0,0,0,0.20)]">
+              <div className="border-b border-[#4A3A32] bg-[#1F1815] px-6 py-4">
+                <h2 className="text-lg font-bold text-[#F7EFE5]">
+                  Réglages du mois
+                </h2>
               </div>
 
-              <div className="space-y-4 p-5">
-                <div className="rounded-xl border border-[#D8C7B6] bg-[#FFFBF6] p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-[#8D8178]">
-                    Statut
-                  </p>
-                  <p className="mt-2 text-lg font-bold text-[#2B2623]">Configuration stable</p>
+              <div className="grid gap-4 p-6 md:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-[#E6D6C6]">
+                    Mois sélectionné
+                  </label>
+                  <select className="w-full rounded-2xl border border-[#7A5A47] bg-[#E7D8C7] px-4 py-3 text-sm text-[#2B2623] outline-none transition focus:border-[#A14E3B] focus:ring-2 focus:ring-[#A14E3B]/20">
+                    <option>Janvier</option>
+                    <option>Février</option>
+                    <option>Mars</option>
+                    <option>Avril</option>
+                  </select>
                 </div>
 
-                <div className="rounded-xl border border-[#D8C7B6] bg-[#FFFBF6] p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-[#8D8178]">
-                    Dernière mise à jour
-                  </p>
-                  <p className="mt-2 text-lg font-bold text-[#2B2623]">Aujourd’hui</p>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-[#E6D6C6]">
+                    Objectif CM
+                  </label>
+                  <input
+                    className="w-full rounded-2xl border border-[#7A5A47] bg-[#E7D8C7] px-4 py-3 text-sm text-[#2B2623] outline-none transition placeholder:text-[#8A786D] focus:border-[#A14E3B] focus:ring-2 focus:ring-[#A14E3B]/20"
+                    placeholder="Ex : 29.00"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-[#E6D6C6]">
+                    Objectif CA
+                  </label>
+                  <input
+                    className="w-full rounded-2xl border border-[#7A5A47] bg-[#E7D8C7] px-4 py-3 text-sm text-[#2B2623] outline-none transition placeholder:text-[#8A786D] focus:border-[#A14E3B] focus:ring-2 focus:ring-[#A14E3B]/20"
+                    placeholder="Ex : 130000"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-[#E6D6C6]">
+                    Prévision couverts
+                  </label>
+                  <input
+                    className="w-full rounded-2xl border border-[#7A5A47] bg-[#E7D8C7] px-4 py-3 text-sm text-[#2B2623] outline-none transition placeholder:text-[#8A786D] focus:border-[#A14E3B] focus:ring-2 focus:ring-[#A14E3B]/20"
+                    placeholder="Ex : 5000"
+                  />
                 </div>
               </div>
             </section>
+          </div>
 
-            <section className="overflow-hidden rounded-2xl border border-[#C9B8A6] bg-[#FBF7F2] shadow-[0_6px_18px_rgba(60,40,20,0.06)]">
-              <div className="border-b border-[#4A3F39] bg-[#2B2623] px-5 py-3">
-                <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-[#F7F1E8]">
-                  Aide
-                </h3>
+          {/* DROITE */}
+          <aside className="space-y-6">
+            {/* IMPORT INVENTAIRE */}
+            <section className="overflow-hidden rounded-3xl border border-[#5B463B] bg-[#2E2622] shadow-[0_12px_30px_rgba(0,0,0,0.20)]">
+              <div className="border-b border-[#4A3A32] bg-[#1F1815] px-6 py-4">
+                <h2 className="text-lg font-bold text-[#F7EFE5]">
+                  Import inventaire
+                </h2>
               </div>
 
-              <div className="p-5">
-                <div className="rounded-xl border border-[#D8C7B6] bg-[#FFFBF6] p-4 text-sm text-[#5E534C]">
-                  Garde ici tes textes d’aide, rappels métier ou infos utiles.
+              <div className="space-y-4 p-6">
+                <div className="rounded-2xl border border-[#6E5446] bg-[#E7D8C7] p-4 text-[#2B2623]">
+                  <p className="text-xs uppercase tracking-[0.2em] text-[#7A5E4B]">
+                    Mois en cours
+                  </p>
+                  <p className="mt-2 text-xl font-bold">Mars</p>
+                </div>
+
+                <div className="rounded-2xl border border-[#6E5446] bg-[#E7D8C7] p-4 text-[#2B2623]">
+                  <p className="text-xs uppercase tracking-[0.2em] text-[#7A5E4B]">
+                    Statut
+                  </p>
+                  <p className="mt-2 text-xl font-bold text-[#7A2F20]">
+                    En attente d’import
+                  </p>
+                </div>
+
+                <button className="w-full rounded-2xl border border-[#8E2E3C] bg-[#7B2332] px-4 py-3 text-sm font-semibold text-[#FFF7EF] transition hover:bg-[#681D2A]">
+                  Lancer l’import
+                </button>
+              </div>
+            </section>
+
+            {/* RESUME */}
+            <section className="overflow-hidden rounded-3xl border border-[#5B463B] bg-[#2E2622] shadow-[0_12px_30px_rgba(0,0,0,0.20)]">
+              <div className="border-b border-[#4A3A32] bg-[#1F1815] px-6 py-4">
+                <h2 className="text-lg font-bold text-[#F7EFE5]">
+                  Résumé rapide
+                </h2>
+              </div>
+
+              <div className="space-y-4 p-6">
+                <div className="rounded-2xl border border-[#6E5446] bg-[#E7D8C7] p-4 text-[#2B2623]">
+                  <p className="text-xs uppercase tracking-[0.2em] text-[#7A5E4B]">
+                    Dernière mise à jour
+                  </p>
+                  <p className="mt-2 text-lg font-bold">Aujourd’hui</p>
+                </div>
+
+                <div className="rounded-2xl border border-[#6E5446] bg-[#E7D8C7] p-4 text-[#2B2623]">
+                  <p className="text-xs uppercase tracking-[0.2em] text-[#7A5E4B]">
+                    Lecture
+                  </p>
+                  <p className="mt-2 text-lg font-bold">
+                    Vision mensuelle du pilotage
+                  </p>
                 </div>
               </div>
             </section>
