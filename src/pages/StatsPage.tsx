@@ -1,6 +1,6 @@
 // =============================================================
 // pages/StatsPage.tsx
-// Version repensée : inventaire large en haut + 3 modules compacts dessous
+// Version repensée compacte
 // =============================================================
 
 import React, { useState } from 'react';
@@ -84,18 +84,18 @@ const StatsPage: React.FC<StatsPageProps> = ({
   };
 
   const shellCard =
-    'rounded-[22px] border border-stone-200 bg-white shadow-[0_8px_24px_rgba(28,25,23,0.06)] overflow-hidden';
+    'rounded-[20px] border border-stone-200 bg-white shadow-[0_6px_18px_rgba(28,25,23,0.05)] overflow-hidden';
 
   const compactRow =
-    'grid grid-cols-[1fr_auto] items-center gap-3 px-4 sm:px-5 py-3 border-b border-stone-200/80 last:border-b-0';
+    'grid grid-cols-[1fr_auto] items-center gap-3 px-4 sm:px-5 py-2 border-b border-stone-200/80 last:border-b-0';
 
   const inputClass =
-    'w-24 sm:w-28 h-10 rounded-xl border border-stone-300 bg-stone-50 text-center text-stone-800 font-bold text-base sm:text-lg outline-none transition-all focus:border-amber-500 focus:ring-2 focus:ring-amber-200 focus:bg-white disabled:opacity-50 disabled:cursor-not-allowed';
+    'w-20 sm:w-24 h-9 rounded-xl border border-stone-300 bg-stone-50 text-center text-stone-800 font-bold text-sm sm:text-base outline-none transition-all focus:border-amber-500 focus:ring-2 focus:ring-amber-200 focus:bg-white disabled:opacity-50 disabled:cursor-not-allowed';
 
   const monthText = 'font-bold text-stone-700 uppercase tracking-wide text-sm';
 
   return (
-    <div className="min-h-screen bg-[#f6f1eb] p-3 sm:p-4 lg:p-6 overflow-x-hidden overflow-y-auto">
+    <div className="min-h-screen bg-[#f6f1eb] p-3 sm:p-4 lg:p-5 overflow-x-hidden overflow-y-auto">
       {modalState && canImport && (
         <ImportModal
           monthLabel={MONTHS_DISPLAY_CONFIG.find((m) => m.key === modalState.month)?.label || ''}
@@ -105,25 +105,25 @@ const StatsPage: React.FC<StatsPageProps> = ({
         />
       )}
 
-      <div className="max-w-[1700px] mx-auto space-y-5">
+      <div className="max-w-[1600px] mx-auto space-y-4">
         {/* Bandeau haut */}
-        <div className={`${shellCard} px-4 sm:px-5 lg:px-6 py-4`}>
-          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div className={`${shellCard} px-4 sm:px-5 py-3.5`}>
+          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.24em] text-stone-500 font-bold mb-1">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-stone-500 font-bold mb-1">
                 Paramètres mensuels
               </p>
-              <h1 className="text-2xl sm:text-3xl font-black text-stone-800 tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-black text-stone-800 tracking-tight">
                 Pilotage activité
               </h1>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col sm:flex-row gap-2.5">
               <button
                 onClick={() => setView('home')}
-                className="rounded-2xl bg-stone-800 hover:bg-stone-700 text-white py-3.5 px-5 font-black uppercase text-sm tracking-wider border border-stone-700 transition-all flex items-center justify-center gap-3"
+                className="rounded-2xl bg-stone-800 hover:bg-stone-700 text-white py-3 px-4 font-black uppercase text-xs sm:text-sm tracking-wider border border-stone-700 transition-all flex items-center justify-center gap-2.5"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
                 Retour accueil
@@ -132,7 +132,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
               {canOpenRatios && (
                 <button
                   onClick={() => setView('ratios')}
-                  className="rounded-2xl bg-amber-500 hover:bg-amber-400 text-stone-900 py-3.5 px-5 font-black uppercase text-xs tracking-[0.18em] border border-amber-600 transition-all"
+                  className="rounded-2xl bg-amber-500 hover:bg-amber-400 text-stone-900 py-3 px-4 font-black uppercase text-[11px] tracking-[0.16em] border border-amber-600 transition-all"
                 >
                   Calcul vente ratio
                 </button>
@@ -143,11 +143,11 @@ const StatsPage: React.FC<StatsPageProps> = ({
 
         {/* Inventaire large */}
         <section className={shellCard}>
-          <div className="px-5 sm:px-6 py-4 border-b border-stone-200 bg-stone-50">
-            <p className="text-[11px] uppercase tracking-[0.24em] text-amber-700 font-bold mb-1">
+          <div className="px-4 py-3 border-b border-stone-200 bg-stone-50">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-amber-700 font-bold mb-1">
               Import
             </p>
-            <h2 className="text-xl sm:text-2xl font-black text-stone-800 tracking-tight">
+            <h2 className="text-base sm:text-lg font-black text-stone-800 tracking-tight">
               Inventaire détaillé
             </h2>
           </div>
@@ -157,7 +157,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
               <button
                 key={m.key}
                 onClick={() => canImport && setModalState({ month: m.key })}
-                className={`relative flex items-center justify-between gap-3 px-4 sm:px-5 py-4 border-b border-r-0 sm:border-r sm:[&:nth-child(2n)]:border-r-0 xl:border-r xl:[&:nth-child(2n)]:border-r xl:[&:nth-child(4n)]:border-r-0 border-stone-200/80 hover:bg-amber-50/70 transition-colors ${
+                className={`relative flex items-center justify-between gap-3 px-4 py-3 border-b border-r-0 sm:border-r sm:[&:nth-child(2n)]:border-r-0 xl:border-r xl:[&:nth-child(2n)]:border-r xl:[&:nth-child(4n)]:border-r-0 border-stone-200/80 hover:bg-amber-50/70 transition-colors ${
                   canImport ? '' : 'opacity-70 cursor-not-allowed'
                 }`}
                 title={canImport ? 'Importer un fichier' : 'Import non autorisé pour votre rôle'}
@@ -174,22 +174,22 @@ const StatsPage: React.FC<StatsPageProps> = ({
                       }}
                       disabled={!canRemoveImport}
                       title={`Supprimer l'import ${m.label}`}
-                      className="w-8 h-8 rounded-full border border-stone-300 bg-white hover:bg-stone-50 flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="w-7 h-7 rounded-full border border-stone-300 bg-white hover:bg-stone-50 flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      <svg className="w-4 h-4 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-3.5 h-3.5 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 6l12 12M18 6L6 18" />
                       </svg>
                     </button>
 
-                    <div className="w-8 h-8 bg-emerald-600 rounded-full flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="w-7 h-7 bg-emerald-600 rounded-full flex items-center justify-center">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
                   </div>
                 ) : (
-                  <div className="w-8 h-8 rounded-full border border-stone-300 bg-white flex items-center justify-center">
-                    <svg className="w-4 h-4 text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-7 h-7 rounded-full border border-stone-300 bg-white flex items-center justify-center">
+                    <svg className="w-3.5 h-3.5 text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" />
                     </svg>
                   </div>
@@ -200,13 +200,13 @@ const StatsPage: React.FC<StatsPageProps> = ({
         </section>
 
         {/* 3 blocs compacts */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
           <section className={shellCard}>
-            <div className="px-5 py-4 border-b border-stone-200 bg-stone-50">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-yellow-700 font-bold mb-1">
+            <div className="px-4 py-3 border-b border-stone-200 bg-stone-50">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-yellow-700 font-bold mb-1">
                 Exploitation
               </p>
-              <h2 className="text-lg sm:text-xl font-black text-stone-800 tracking-tight">
+              <h2 className="text-base sm:text-lg font-black text-stone-800 tracking-tight">
                 Couverts réalisés
               </h2>
             </div>
@@ -229,11 +229,11 @@ const StatsPage: React.FC<StatsPageProps> = ({
           </section>
 
           <section className={shellCard}>
-            <div className="px-5 py-4 border-b border-stone-200 bg-stone-50">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-stone-600 font-bold mb-1">
+            <div className="px-4 py-3 border-b border-stone-200 bg-stone-50">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-stone-600 font-bold mb-1">
                 Performance
               </p>
-              <h2 className="text-lg sm:text-xl font-black text-stone-800 tracking-tight">
+              <h2 className="text-base sm:text-lg font-black text-stone-800 tracking-tight">
                 Coût matière (%)
               </h2>
             </div>
@@ -263,11 +263,11 @@ const StatsPage: React.FC<StatsPageProps> = ({
           </section>
 
           <section className={shellCard}>
-            <div className="px-5 py-4 border-b border-stone-200 bg-stone-50">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-sky-700 font-bold mb-1">
+            <div className="px-4 py-3 border-b border-stone-200 bg-stone-50">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-sky-700 font-bold mb-1">
                 Chiffre d'affaires
               </p>
-              <h2 className="text-lg sm:text-xl font-black text-stone-800 tracking-tight">
+              <h2 className="text-base sm:text-lg font-black text-stone-800 tracking-tight">
                 CA HT (€)
               </h2>
             </div>
