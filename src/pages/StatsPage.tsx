@@ -109,7 +109,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
     'border-[#C79B73] bg-[#FFF8F0] text-[#2E2723] placeholder:text-[#9A7E68] focus:border-[#B4522E] focus:ring-2 focus:ring-[#B4522E]/20';
 
   return (
-    <div className="min-h-screen overflow-x-hidden overflow-y-auto bg-[linear-gradient(180deg,#F5EBDD_0%,#EFD9BF_48%,#E4C7A4_100%)] text-[#2E2723]">
+    <div className="min-h-screen overflow-hidden bg-[linear-gradient(180deg,#F5EBDD_0%,#EFD9BF_48%,#E4C7A4_100%)] text-[#2E2723]">
       {modalState && canImport && (
         <ImportModal
           monthLabel={MONTHS_DISPLAY_CONFIG.find((m) => m.key === modalState.month)?.label || ''}
@@ -119,12 +119,12 @@ const StatsPage: React.FC<StatsPageProps> = ({
         />
       )}
 
-      <div className="mx-auto flex max-w-[1700px] flex-col gap-5 p-3 sm:p-4 lg:flex-row lg:gap-7 lg:p-6">
+      <div className="mx-auto flex min-h-screen max-w-[1920px] flex-col gap-4 p-3 sm:p-4 lg:flex-row lg:gap-5 lg:p-5">
         {/* ACTIONS */}
-        <aside className="w-full shrink-0 lg:w-72">
-          <div className="flex flex-col gap-4 lg:sticky lg:top-6">
-            <div className="overflow-hidden rounded-[26px] border border-[#A66B42] bg-[linear-gradient(135deg,#6A3324_0%,#8B4330_58%,#A54F34_100%)] shadow-[0_14px_32px_rgba(140,67,48,0.18)]">
-              <div className="h-1.5 bg-gradient-to-r from-[#E0A13A] via-[#C65A2E] to-[#8E2E2A]" />
+        <aside className="w-full shrink-0 lg:w-[290px] xl:w-[300px]">
+          <div className="flex flex-col gap-4 lg:sticky lg:top-5">
+            <div className="overflow-hidden rounded-[26px] border border-[#A66B42] bg-[linear-gradient(135deg,#6A3324_0%,#8B4330_58%,#A54F34_100%)] shadow-[0_14px_28px_rgba(140,67,48,0.16)]">
+              <div className="h-1.5 bg-gradient-to-r from-[#E0A13A] via-[#C65A2E] to-[#A74424]" />
               <div className="p-4 sm:p-5">
                 <p className="text-[11px] font-black uppercase tracking-[0.28em] text-[#F6D7A8]">
                   Hippopotamus Thillois
@@ -165,16 +165,24 @@ const StatsPage: React.FC<StatsPageProps> = ({
 
         {/* TABLEAU UNIQUE */}
         <main className="min-w-0 flex-1">
-          <section className="overflow-hidden rounded-[30px] border border-[#C79265] bg-[#FBF2E7] shadow-[0_18px_40px_rgba(165,111,62,0.14)]">
+          <section className="flex h-full min-h-[calc(100vh-40px)] flex-col overflow-hidden rounded-[30px] border border-[#C79265] bg-[#FBF2E7] shadow-[0_18px_40px_rgba(165,111,62,0.14)]">
             <div className="border-b border-[#B87446] bg-[linear-gradient(180deg,#A54F34_0%,#7F3A28_100%)] px-6 py-5">
               <h2 className="text-2xl font-black uppercase tracking-[0.08em] text-[#FFF7EF]">
                 Suivi mensuel
               </h2>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-[980px] w-full">
-                <thead className="bg-[linear-gradient(180deg,#D4843E_0%,#B85F2F_100%)] text-[#FFF8F1]">
+            <div className="flex-1 overflow-auto">
+              <table className="w-full table-fixed min-w-[900px]">
+                <colgroup>
+                  <col className="w-[13%]" />
+                  <col className="w-[23%]" />
+                  <col className="w-[23%]" />
+                  <col className="w-[23%]" />
+                  <col className="w-[18%]" />
+                </colgroup>
+
+                <thead className="sticky top-0 z-10 bg-[linear-gradient(180deg,#D4843E_0%,#B85F2F_100%)] text-[#FFF8F1] shadow-sm">
                   <tr>
                     <th className="px-5 py-4 text-left text-sm font-black uppercase tracking-[0.08em]">
                       Mois
@@ -208,11 +216,11 @@ const StatsPage: React.FC<StatsPageProps> = ({
                             : 'bg-[#F8EAD9] text-[#2E2723]'
                         }
                       >
-                        <td className="border-t border-[#DFC0A3] px-5 py-4 font-black uppercase tracking-[0.05em] text-[#5A2E1F]">
+                        <td className="border-t border-[#DFC0A3] px-5 py-4 font-black uppercase tracking-[0.05em] text-[#5A2E1F] align-middle">
                           {m.label}
                         </td>
 
-                        <td className="border-t border-[#DFC0A3] px-5 py-3">
+                        <td className="border-t border-[#DFC0A3] px-5 py-3 align-middle">
                           <input
                             type="number"
                             step="0.01"
@@ -230,7 +238,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
                           />
                         </td>
 
-                        <td className="border-t border-[#DFC0A3] px-5 py-3">
+                        <td className="border-t border-[#DFC0A3] px-5 py-3 align-middle">
                           <input
                             type="number"
                             step="0.01"
@@ -248,7 +256,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
                           />
                         </td>
 
-                        <td className="border-t border-[#DFC0A3] px-5 py-3">
+                        <td className="border-t border-[#DFC0A3] px-5 py-3 align-middle">
                           <input
                             type="number"
                             value={covers[m.key] || ''}
@@ -264,8 +272,8 @@ const StatsPage: React.FC<StatsPageProps> = ({
                           />
                         </td>
 
-                        <td className="border-t border-[#DFC0A3] px-5 py-4">
-                          <div className="flex items-center gap-2">
+                        <td className="border-t border-[#DFC0A3] px-5 py-4 align-middle">
+                          <div className="flex flex-wrap items-center gap-2">
                             <button
                               onClick={() => canImport && setModalState({ month: m.key })}
                               disabled={!canImport}
