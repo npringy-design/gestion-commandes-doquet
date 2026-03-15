@@ -307,45 +307,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
               )}
             </div>
 
-            {calculationMode === 'margin' && (
-              <>
-                {/* Livraison suivante — calendrier 2 (mobile) */}
-                <div className="relative flex-1">
-              <button
-                onClick={() => {
-                  setActiveNextCalendar(v => !v);
-                  setActiveCalendarSupplier(null);
-                }}
-                className="w-full flex items-center justify-between gap-1 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-xl"
-              >
-                <span className="text-[9px] font-black text-amber-500 uppercase shrink-0">Suiv.</span>
-                <span className="font-black text-amber-900 text-[11px] truncate">
-                  {capitalizeFirstLetter(selectedNextDeliveryFormatted)}
-                </span>
-                <svg className={`w-3 h-3 text-amber-400 shrink-0 transition-transform ${activeNextCalendar ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"/>
-                </svg>
-              </button>
-              {activeNextCalendar && (
-                <WindowsCalendar
-                  selectedDate={selectedNextDeliveryDate}
-                  minDate={minDelivery2}
-                  onSelect={d => {
-                    setNextDeliveryDateBySupplier(prev => ({ ...prev, [currentSupplierId]: d.toISOString() }));
-                    setActiveNextCalendar(false);
-                  }}
-                  onClose={() => setActiveNextCalendar(false)}
-                />
-              )}
-                </div>
-              </>
-            )}
-
-            {/* Couverts (mobile) */}
-            <div className="bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100 flex items-center gap-1.5 shrink-0">
-              <span className="text-[9px] font-black text-indigo-400 uppercase">Couverts</span>
-              <span className="font-black text-indigo-900 text-sm">{windowForecast.total}</span>
-            </div>
+            {/* Mobile/tablette terrain : on allège volontairement l'en-tête */}
           </div>
 
           {/* ── VERSION DESKTOP : 1 seule ligne (inchangée) ── */}
@@ -468,7 +430,70 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
           La colonne "À Commander" est sticky à droite (position: sticky)
       ================================================================ */}
       <div className="max-w-[1600px] mx-auto pb-24">
-        <div className="bg-white rounded-2xl lg:rounded-[32px] shadow-2xl shadow-slate-300/20 border border-slate-100 overflow-x-auto">
+
+        {/* VERSION MOBILE / TABLETTE : focus terrain */}
+        <div className="lg:hidden bg-white rounded-2xl shadow-2xl shadow-slate-300/20 border border-slate-100 overflow-hidden">
+          <table className="w-full table-fixed">
+            <thead>
+              <tr className="text-left h-12">
+                <th className="px-4 bg-[#2c1810] text-[#ffd700] font-black uppercase text-[10px] tracking-widest">
+                  Produit
+                </th>
+                <th className="px-2 bg-amber-600 text-white font-black uppercase text-[10px] tracking-widest text-center">
+                  U. Colisage
+                </th>
+                <th className="px-2 bg-amber-500 text-white font-black uppercase text-[10px] tracking-widest text-center">
+                  U. Pièce
+                </th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y-2 divide-slate-200">
+              {displayedProducts.map((p, rowIdx) => {
+                const stockSplit = getStockSplit(p.stock, p.packaging);
+
+                return (
+                  <tr key={p.id} className="hover:bg-amber-50/40 transition-colors">
+                    <td className="px-4 py-3 font-['Roboto_Slab'] font-bold text-slate-800 text-[13px] leading-tight align-middle">
+                      {capitalizeFirstLetter(p.name)}
+                    </td>
+
+                    <td className="p-2 bg-amber-50/20 align-middle">
+                      <input
+                        type="number"
+                        value={p.stock === '' ? '' : stockSplit.stockCases}
+                        onChange={e => updateStockFromSplit(p.id, p.packaging, e.target.value, String(stockSplit.stockPieces))}
+                        tabIndex={TAB_STOCK_CASES + rowIdx}
+                        onKeyDown={e => handleEnterKey(e, TAB_STOCK_CASES, rowIdx)}
+                        enterKeyHint="next"
+                        inputMode="numeric"
+                        className="w-full h-11 rounded-xl border border-amber-200/60 bg-white text-center font-black text-amber-700 text-base outline-none focus:border-amber-400 transition-all shadow-sm"
+                        placeholder="-"
+                      />
+                    </td>
+
+                    <td className="p-2 bg-amber-50/20 align-middle">
+                      <input
+                        type="number"
+                        value={p.stock === '' ? '' : stockSplit.stockPieces}
+                        onChange={e => updateStockFromSplit(p.id, p.packaging, String(stockSplit.stockCases), e.target.value)}
+                        tabIndex={TAB_STOCK_PIECES + rowIdx}
+                        onKeyDown={e => handleEnterKey(e, TAB_STOCK_PIECES, rowIdx)}
+                        enterKeyHint="next"
+                        inputMode="numeric"
+                        className="w-full h-11 rounded-xl border border-amber-200/60 bg-white text-center font-black text-amber-700 text-base outline-none focus:border-amber-400 transition-all shadow-sm"
+                        placeholder="-"
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* VERSION DESKTOP : tableau complet conservé */}
+        <div className="hidden lg:block bg-white rounded-2xl lg:rounded-[32px] shadow-2xl shadow-slate-300/20 border border-slate-100 overflow-x-auto">
           <table className="w-full" style={{ minWidth: calculationMode === 'margin' ? '760px' : '840px' }}>
             <thead>
               <tr className="text-left h-12 lg:h-16">
@@ -673,8 +698,8 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
           </table>
         </div>
 
-        {/* Hint scroll sur mobile */}
-        <p className="text-center text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-3 lg:hidden">
+        {/* Hint scroll sur desktop seulement */}
+        <p className="hidden lg:block text-center text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-3">
           ← Glisser pour voir toutes les colonnes →
         </p>
       </div>
