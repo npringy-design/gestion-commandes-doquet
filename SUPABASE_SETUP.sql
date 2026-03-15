@@ -26,3 +26,7 @@ COMMENT ON TABLE app_state IS 'Persistance cloud de l état application Hippo Co
 COMMENT ON COLUMN app_state.key IS 'Clé localStorage (ex: covers, products, inventory...)';
 COMMENT ON COLUMN app_state.value IS 'Valeur JSON de l état';
 COMMENT ON COLUMN app_state.updated_at IS 'Dernière mise à jour';
+
+
+-- Active aussi le realtime Supabase pour les mises à jour en direct
+ALTER PUBLICATION supabase_realtime ADD TABLE public.app_state;

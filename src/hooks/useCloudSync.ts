@@ -50,6 +50,7 @@ type UseCloudSyncParams = PersistedState &
     onSaveError: (message: string) => void;
   };
 
+
 const hasDailyCoverData = (state: DailyCoversState): boolean =>
   Object.values(state).some(
     month => Array.isArray(month) && month.some(day => day.midi !== '' && day.midi !== 0)
@@ -86,7 +87,8 @@ export const useCloudSync = ({
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isHydratingFromCloud = useRef(false);
   const lastCloudUpdatedAtByKey = useRef<Record<string, string>>({});
-  const pendingRemoteRowsRef = useRef<Record<string, { updated_at: string; value: unknown }>>({});
+  const pollingInFlightRef = useRef(false);
+  const pendingKeysRef = useRef<Set<string>>(new Set());
   const localTsByKey = useRef<Record<string, string>>({});
 
   const applyCloudKey = useCallback((key: string, cloudTs: string, value: unknown) => {
@@ -227,6 +229,7 @@ export const useCloudSync = ({
     setSupplierConfigs,
     setValidatedMonths,
   ]);
+
 
   useEffect(() => {
     if (!supabaseLoaded || !isSupabaseConfigured() || !supabase) return;

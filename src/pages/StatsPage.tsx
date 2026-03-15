@@ -222,7 +222,6 @@ const StatsPage: React.FC<StatsPageProps> = ({
 
                         <td className="border-t border-[#E0CCBA] px-4 py-2 align-middle">
                           <input
-                            data-cloud-key="salesHtByMonth"
                             type="number"
                             step="0.01"
                             value={salesHtByMonth[m.key] || ''}
@@ -241,7 +240,6 @@ const StatsPage: React.FC<StatsPageProps> = ({
 
                         <td className="border-t border-[#E0CCBA] px-4 py-2 align-middle">
                           <input
-                            data-cloud-key="costMatterByMonth"
                             type="number"
                             step="0.01"
                             value={costMatterByMonth[m.key] || ''}
@@ -260,7 +258,6 @@ const StatsPage: React.FC<StatsPageProps> = ({
 
                         <td className="border-t border-[#E0CCBA] px-4 py-2 align-middle">
                           <input
-                            data-cloud-key="covers"
                             type="number"
                             value={covers[m.key] || ''}
                             onChange={(e) =>
