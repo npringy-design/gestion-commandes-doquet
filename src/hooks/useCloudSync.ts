@@ -86,6 +86,7 @@ export const useCloudSync = ({
   const suppressNextPersistKeysRef = useRef<Set<string>>(new Set());
   const lastCloudUpdatedAtByKey = useRef<Record<string, string>>({});
   const pendingRemoteRowsRef = useRef<Record<string, { updated_at: string; value: unknown }>>({});
+  const pendingLocalEchoByKeyRef = useRef<Record<string, string>>({});
 
   const applyCloudKey = useCallback((key: string, cloudTs: string, value: unknown) => {
     const lastCloudTs = lastCloudUpdatedAtByKey.current[key];
@@ -247,6 +248,14 @@ export const useCloudSync = ({
       });
     };
 
+    const serializeValue = (value: unknown): string => {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return '';
+      }
+    };
+
     const channel = supabase
       .channel('app-state-realtime')
       .on(
@@ -258,6 +267,14 @@ export const useCloudSync = ({
 
           const currentCloudTs = lastCloudUpdatedAtByKey.current[nextRow.key];
           if (currentCloudTs && currentCloudTs >= nextRow.updated_at) return;
+
+          const incomingSerialized = serializeValue(nextRow.value);
+          const pendingLocalSerialized = pendingLocalEchoByKeyRef.current[nextRow.key];
+          if (pendingLocalSerialized && pendingLocalSerialized === incomingSerialized) {
+            lastCloudUpdatedAtByKey.current[nextRow.key] = nextRow.updated_at;
+            delete pendingLocalEchoByKeyRef.current[nextRow.key];
+            return;
+          }
 
           const activeKey = getActiveCloudKey();
           if (activeKey && activeKey === nextRow.key) {
@@ -286,6 +303,7 @@ export const useCloudSync = ({
       window.removeEventListener('pointerup', flushPendingRowsIfSafe);
       document.removeEventListener('visibilitychange', flushPendingRowsIfSafe);
       pendingRemoteRowsRef.current = {};
+      pendingLocalEchoByKeyRef.current = {};
       void supabase.removeChannel(channel);
     };
   }, [applyCloudKey, supabaseLoaded]);
@@ -300,6 +318,12 @@ export const useCloudSync = ({
     if (!supabaseLoaded || !isSupabaseConfigured()) return;
 
     setSyncStatus('saving');
+
+    try {
+      pendingLocalEchoByKeyRef.current[key] = JSON.stringify(value);
+    } catch {
+      delete pendingLocalEchoByKeyRef.current[key];
+    }
 
     saveToSupabaseDebounced(
       key,
