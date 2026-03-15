@@ -87,13 +87,17 @@ export const useCloudSync = ({
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isHydratingFromCloud = useRef(false);
   const lastCloudUpdatedAtByKey = useRef<Record<string, string>>({});
-  const pollingInFlightRef = useRef(false);
   const pendingKeysRef = useRef<Set<string>>(new Set());
+  const pendingRemoteRowsRef = useRef<Record<string, { updated_at: string; value: unknown }>>({});
   const localTsByKey = useRef<Record<string, string>>({});
 
   const applyCloudKey = useCallback((key: string, cloudTs: string, value: unknown) => {
     const localTs = localTsByKey.current[key];
     if (localTs && localTs > cloudTs) return;
+
+    lastCloudUpdatedAtByKey.current[key] = cloudTs;
+    delete localTsByKey.current[key];
+    pendingKeysRef.current.delete(key);
 
     isHydratingFromCloud.current = true;
     switch (key) {
@@ -274,7 +278,14 @@ export const useCloudSync = ({
           if (currentCloudTs && currentCloudTs >= nextRow.updated_at) return;
 
           const localTs = localTsByKey.current[nextRow.key];
-          if (localTs && localTs > nextRow.updated_at) return;
+          if (localTs) {
+            if (nextRow.updated_at >= localTs) {
+              delete localTsByKey.current[nextRow.key];
+              pendingKeysRef.current.delete(nextRow.key);
+            } else {
+              return;
+            }
+          }
 
           const activeKey = getActiveCloudKey();
           if (activeKey && activeKey === nextRow.key) {
@@ -285,7 +296,6 @@ export const useCloudSync = ({
             return;
           }
 
-          lastCloudUpdatedAtByKey.current[nextRow.key] = nextRow.updated_at;
           applyCloudKey(nextRow.key, nextRow.updated_at, nextRow.value);
         }
       )
@@ -316,6 +326,8 @@ export const useCloudSync = ({
     localTsByKey.current[key] = ts;
     setSyncStatus('saving');
 
+    pendingKeysRef.current.add(key);
+
     saveToSupabaseDebounced(
       key,
       value,
@@ -324,6 +336,12 @@ export const useCloudSync = ({
       (confirmedKey, confirmedTs) => {
         lastCloudUpdatedAtByKey.current[confirmedKey] = confirmedTs;
         delete localTsByKey.current[confirmedKey];
+        pendingKeysRef.current.delete(confirmedKey);
+      },
+      (skippedKey, cloudTs) => {
+        lastCloudUpdatedAtByKey.current[skippedKey] = cloudTs;
+        delete localTsByKey.current[skippedKey];
+        pendingKeysRef.current.delete(skippedKey);
       }
     );
 

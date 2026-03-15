@@ -130,9 +130,10 @@ export const saveToSupabaseDebounced = (
   key:          string,
   value:        unknown,
   localTs:      string,                                 // ISO timestamp de cette frappe
-  getCloudTs:   (key: string) => string | undefined,    // curseur de polling
+  getCloudTs:   (key: string) => string | undefined,    // curseur cloud connu localement
   onSaved:      (key: string, confirmedTs: string) => void,
-  ms           = 1500
+  onSkipped?:   (key: string, cloudTs: string) => void,
+  ms           = 450
 ): void => {
   if (!isSupabaseConfigured()) return;
   if (debounceTimers[key]) clearTimeout(debounceTimers[key]);
@@ -141,8 +142,9 @@ export const saveToSupabaseDebounced = (
     const cloudTs = getCloudTs(key);
     if (cloudTs && cloudTs > localTs) {
       // Le cloud est plus récent → ne pas écraser
-      // (un autre device a écrit après nous, le polling va appliquer sa valeur)
+      // (un autre device a écrit après nous, on abandonne notre timestamp local)
       console.log(`[LWW] Skipping save for "${key}" — cloud (${cloudTs}) > local (${localTs})`);
+      onSkipped?.(key, cloudTs);
       return;
     }
     const confirmedTs = await saveToSupabase(key, value, localTs);

@@ -281,6 +281,7 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                     <div className="xl:col-span-2">
                       <label className="block text-white/70 text-xs font-black uppercase tracking-widest mb-2">Nom fournisseur</label>
                       <input
+                        data-cloud-key="supplierConfigs"
                         value={form.name}
                         onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                         className="w-full bg-white/10 text-white px-4 py-3 rounded-2xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"

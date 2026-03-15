@@ -565,7 +565,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                     {calculationMode === 'margin' ? (<>
                       <td className="p-2 text-center font-bold text-slate-700 text-sm bg-[#FFE8CC] whitespace-nowrap">{displayInfo1}</td>
                       <td className="p-2 bg-emerald-50/20">
-                        <input type="number" value={p.upcomingDelivery}
+                        <input data-cloud-key="products" type="number" value={p.upcomingDelivery}
                           onChange={e => updateProductValue(p.id, 'upcomingDelivery', e.target.value)}
                           tabIndex={TAB_UPCOMING + rowIdx}
                           onKeyDown={e => handleEnterKey(e, TAB_UPCOMING, rowIdx)}
@@ -598,7 +598,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                       </td>
 
                       <td className="p-2 text-center bg-[#FFE8CC]">
-                        <input type="number" value={p.packaging} disabled={commandeOnly}
+                        <input data-cloud-key="products" type="number" value={p.packaging} disabled={commandeOnly}
                           onChange={e => updateProductValue(p.id, 'packaging', e.target.value)}
                           className={`w-12 lg:w-16 text-center border border-slate-200 rounded-lg font-bold text-sm outline-none py-1 ${commandeOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/50 text-slate-600'}`} />
                       </td>
@@ -616,7 +616,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
 
                     </>) : (<>
                       <td className="p-2 relative bg-blue-50/20">
-                        <input type="number" value={p.targetStock} disabled={commandeOnly}
+                        <input data-cloud-key="products" type="number" value={p.targetStock} disabled={commandeOnly}
                           onChange={e => updateProductValue(p.id, 'targetStock', e.target.value)}
                           className={`w-14 lg:w-full h-9 lg:h-10 rounded-lg border border-blue-200/50 text-center font-black text-sm outline-none transition-all shadow-sm ${commandeOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white text-blue-700 focus:border-blue-400'}`}
                           placeholder="-" />
@@ -628,7 +628,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                       </td>
 
                       <td className="p-2 bg-emerald-50/20">
-                        <input type="number" value={p.upcomingDelivery}
+                        <input data-cloud-key="products" type="number" value={p.upcomingDelivery}
                           onChange={e => updateProductValue(p.id, 'upcomingDelivery', e.target.value)}
                           tabIndex={TAB_UPCOMING + rowIdx}
                           onKeyDown={e => handleEnterKey(e, TAB_UPCOMING, rowIdx)}
@@ -673,7 +673,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                       </td>
 
                       <td className="p-2 text-center bg-[#FFE8CC]">
-                        <input type="number" value={p.packaging} disabled={commandeOnly}
+                        <input data-cloud-key="products" type="number" value={p.packaging} disabled={commandeOnly}
                           onChange={e => updateProductValue(p.id, 'packaging', e.target.value)}
                           className={`w-12 lg:w-16 text-center border border-slate-200 rounded-lg font-bold text-sm outline-none py-1 ${commandeOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/50 text-slate-600'}`} />
                       </td>
