@@ -2,8 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   isSupabaseConfigured,
   loadAllFromSupabase,
-  loadKeysFromSupabase,
-  loadMetaFromSupabase,
   saveToSupabaseDebounced,
 } from '../utils/supabase';
 import { OrderState, SupplierConfig } from '../types';
@@ -15,6 +13,7 @@ import {
   nowIso,
   saveState,
 } from './appStateHelpers';
+import { supabase } from '../lib/supabaseClient';
 
 type SyncStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -50,15 +49,6 @@ type UseCloudSyncParams = PersistedState &
   StateSetters & {
     onSaveError: (message: string) => void;
   };
-
-const PARAMETER_KEYS = new Set<string>([
-  'supplierConfigs',
-  'costMatterByMonth',
-  'salesHtByMonth',
-  'validatedMonths',
-  'deliveryDateBySupplier',
-  'nextDeliveryDateBySupplier',
-]);
 
 const hasDailyCoverData = (state: DailyCoversState): boolean =>
   Object.values(state).some(
@@ -96,8 +86,7 @@ export const useCloudSync = ({
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isHydratingFromCloud = useRef(false);
   const lastCloudUpdatedAtByKey = useRef<Record<string, string>>({});
-  const pollingInFlightRef = useRef(false);
-  const pendingKeysRef = useRef<Set<string>>(new Set());
+  const pendingRemoteRowsRef = useRef<Record<string, { updated_at: string; value: unknown }>>({});
   const localTsByKey = useRef<Record<string, string>>({});
 
   const applyCloudKey = useCallback((key: string, cloudTs: string, value: unknown) => {
@@ -240,91 +229,81 @@ export const useCloudSync = ({
   ]);
 
   useEffect(() => {
-    if (!supabaseLoaded || !isSupabaseConfigured()) return;
+    if (!supabaseLoaded || !isSupabaseConfigured() || !supabase) return;
 
-    const isSmallDevice = () =>
-      typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches;
-
-    if (!isSmallDevice()) return;
-
-    let cancelled = false;
-    let timer: ReturnType<typeof setInterval> | null = null;
-
-    const isUserEditing = (): boolean => {
-      const el = document?.activeElement as HTMLElement | null;
+    const isEditingElement = (el: HTMLElement | null): boolean => {
       if (!el) return false;
       const tag = el.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
       return Boolean((el as any).isContentEditable);
     };
 
-    const flushPendingIfSafe = async () => {
-      if (pendingKeysRef.current.size === 0 || isUserEditing() || pollingInFlightRef.current) return;
-      pollingInFlightRef.current = true;
-      try {
-        const keys = Array.from(pendingKeysRef.current);
-        pendingKeysRef.current.clear();
-        const rows = await loadKeysFromSupabase(keys);
-        if (!rows) return;
-        rows.forEach(row => {
-          lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
-          applyCloudKey(row.key, row.updated_at, row.value);
-        });
-      } finally {
-        pollingInFlightRef.current = false;
-      }
+    const getActiveCloudKey = (): string | null => {
+      const el = document?.activeElement as HTMLElement | null;
+      if (!isEditingElement(el)) return null;
+      const owner = el?.closest?.('[data-cloud-key]') as HTMLElement | null;
+      return owner?.dataset?.cloudKey ?? null;
     };
 
-    const tick = async () => {
-      if (cancelled || pollingInFlightRef.current || document?.hidden || syncStatus === 'saving') return;
+    const flushPendingRowsIfSafe = () => {
+      const activeKey = getActiveCloudKey();
+      const pendingEntries = Object.entries(pendingRemoteRowsRef.current);
+      if (pendingEntries.length === 0) return;
 
-      pollingInFlightRef.current = true;
-      try {
-        const meta = await loadMetaFromSupabase();
-        if (!meta) return;
+      pendingEntries.forEach(([key, row]) => {
+        if (activeKey && activeKey === key) return;
+        lastCloudUpdatedAtByKey.current[key] = row.updated_at;
+        applyCloudKey(key, row.updated_at, row.value);
+        delete pendingRemoteRowsRef.current[key];
+      });
+    };
 
-        const changedKeys: string[] = [];
-        meta.forEach(row => {
-          if (!PARAMETER_KEYS.has(row.key)) return;
-          const prev = lastCloudUpdatedAtByKey.current[row.key];
-          if (!prev) {
-            lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
+    const channel = supabase
+      .channel('app-state-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'app_state' },
+        payload => {
+          const nextRow = (payload.new ?? payload.record) as { key?: string; updated_at?: string; value?: unknown } | undefined;
+          if (!nextRow?.key || !nextRow.updated_at) return;
+
+          const currentCloudTs = lastCloudUpdatedAtByKey.current[nextRow.key];
+          if (currentCloudTs && currentCloudTs >= nextRow.updated_at) return;
+
+          const localTs = localTsByKey.current[nextRow.key];
+          if (localTs && localTs > nextRow.updated_at) return;
+
+          const activeKey = getActiveCloudKey();
+          if (activeKey && activeKey === nextRow.key) {
+            pendingRemoteRowsRef.current[nextRow.key] = {
+              updated_at: nextRow.updated_at,
+              value: nextRow.value,
+            };
             return;
           }
-          if (prev !== row.updated_at) changedKeys.push(row.key);
-        });
 
-        if (changedKeys.length === 0) return;
-        if (isUserEditing()) {
-          changedKeys.forEach(key => pendingKeysRef.current.add(key));
-          return;
+          lastCloudUpdatedAtByKey.current[nextRow.key] = nextRow.updated_at;
+          applyCloudKey(nextRow.key, nextRow.updated_at, nextRow.value);
         }
+      )
+      .subscribe(status => {
+        if (status === 'CHANNEL_ERROR') {
+          console.error('[Supabase realtime] channel error on app_state');
+        }
+      });
 
-        const rows = await loadKeysFromSupabase(changedKeys);
-        if (!rows) return;
-        rows.forEach(row => {
-          lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
-          applyCloudKey(row.key, row.updated_at, row.value);
-        });
-      } catch (error) {
-        console.error('[Cloud polling tick error]', error);
-      } finally {
-        pollingInFlightRef.current = false;
-      }
-    };
-
-    void tick();
-    timer = setInterval(() => {
-      void tick();
-    }, 8000);
-    window.addEventListener('focusout', flushPendingIfSafe);
+    window.addEventListener('focusout', flushPendingRowsIfSafe);
+    window.addEventListener('pointerup', flushPendingRowsIfSafe);
+    document.addEventListener('visibilitychange', flushPendingRowsIfSafe);
 
     return () => {
-      cancelled = true;
-      if (timer) clearInterval(timer);
-      window.removeEventListener('focusout', flushPendingIfSafe);
+      window.removeEventListener('focusout', flushPendingRowsIfSafe);
+      window.removeEventListener('pointerup', flushPendingRowsIfSafe);
+      document.removeEventListener('visibilitychange', flushPendingRowsIfSafe);
+      pendingRemoteRowsRef.current = {};
+      void supabase.removeChannel(channel);
     };
-  }, [applyCloudKey, supabaseLoaded, syncStatus]);
+  }, [applyCloudKey, supabaseLoaded]);
 
   const persistEverywhere = useCallback((key: string, value: unknown) => {
     saveState(key, value, onSaveError);

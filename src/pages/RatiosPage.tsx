@@ -73,6 +73,7 @@ const ProductCard: React.FC<{
 
         {/* Nom produit */}
         <input
+          data-cloud-key="products"
           className="flex-1 min-w-0 bg-transparent font-black text-slate-900 text-sm uppercase outline-none"
           value={p.name}
           placeholder="NOM PRODUIT..."
@@ -107,6 +108,7 @@ const ProductCard: React.FC<{
               <div className="text-[9px] font-black text-slate-400 uppercase mb-1">Mapping Import</div>
               <div className="relative flex items-center gap-1">
                 <input
+                  data-cloud-key="products"
                   className={`flex-1 min-w-0 bg-slate-50 border rounded-xl px-3 py-2 text-xs font-bold italic outline-none ${alert ? 'border-amber-300 text-amber-600' : 'border-slate-200 text-slate-500'}`}
                   value={p.searchName}
                   placeholder="nom dans le CSV..."
@@ -143,6 +145,7 @@ const ProductCard: React.FC<{
             <div className="shrink-0 w-20">
               <div className="text-[9px] font-black text-slate-400 uppercase mb-1">÷ KG→U</div>
               <input
+                data-cloud-key="products"
                 type="number"
                 value={p.importDivisor ?? ''}
                 onChange={e => updateImportDivisor(p.id, e.target.value)}
@@ -461,6 +464,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                     <td className={`border-r border-slate-200 p-0 sticky left-16 z-20 font-black uppercase text-[11px] ${selectedProductIds.has(p.id) ? 'bg-indigo-50' : 'bg-white'}`}>
                       <div className="flex items-center w-full h-full pr-4 gap-2">
                         <input
+                          data-cloud-key="products"
                           className="flex-1 h-full bg-transparent px-4 outline-none focus:bg-white font-black text-slate-900"
                           value={p.name}
                           placeholder="NOM PRODUIT..."
@@ -483,6 +487,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                     <td className={`border-r border-slate-200 p-0 sticky left-[calc(4rem+420px)] ${state.activeMappingId === p.id ? 'z-[9999]' : 'z-20'} ${selectedProductIds.has(p.id) ? 'bg-indigo-50' : 'bg-white'}`}>
                       <div className="w-full h-full flex items-center px-4 relative">
                         <input
+                          data-cloud-key="products"
                           className={`flex-1 h-full bg-transparent outline-none font-bold italic text-[11px] ${alert ? 'text-amber-600' : 'text-slate-500'}`}
                           value={p.searchName}
                           onChange={e => state.updateSearchName(p.id, e.target.value)}
@@ -512,7 +517,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
 
                     <td className="border-r border-slate-100 p-0 bg-inherit">
                       <div className="w-full h-full flex items-center justify-center px-2">
-                        <input type="number" value={p.importDivisor ?? ''}
+                        <input data-cloud-key="products" type="number" value={p.importDivisor ?? ''}
                           onChange={e => state.updateImportDivisor(p.id, e.target.value)}
                           disabled={!canEdit}
                           className="w-24 h-10 bg-white/70 border border-slate-200 rounded-xl text-center font-black text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all text-[11px]"

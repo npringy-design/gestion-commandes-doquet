@@ -281,6 +281,7 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                     <div className="xl:col-span-2">
                       <label className="block text-white/70 text-xs font-black uppercase tracking-widest mb-2">Nom fournisseur</label>
                       <input
+                        data-cloud-key="supplierConfigs"
                         value={form.name}
                         onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                         className="w-full bg-white/10 text-white px-4 py-3 rounded-2xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
@@ -290,6 +291,7 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                     <div className="xl:col-span-1">
                       <label className="block text-white/70 text-xs font-black uppercase tracking-widest mb-2">Sous-titre</label>
                       <input
+                        data-cloud-key="supplierConfigs"
                         value={form.subtitle}
                         onChange={(e) => setForm((prev) => ({ ...prev, subtitle: e.target.value }))}
                         className="w-full bg-white/10 text-white px-4 py-3 rounded-2xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
@@ -299,6 +301,7 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                     <div>
                       <label className="block text-white/70 text-xs font-black uppercase tracking-widest mb-2">Cut-off jour</label>
                       <select
+                        data-cloud-key="supplierConfigs"
                         value={form.cutoffDay}
                         onChange={(e) => setForm((prev) => ({ ...prev, cutoffDay: Number(e.target.value) }))}
                         className="w-full bg-white/10 text-white px-4 py-3 rounded-2xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
@@ -311,6 +314,7 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                     <div>
                       <label className="block text-white/70 text-xs font-black uppercase tracking-widest mb-2">Livraison jour</label>
                       <select
+                        data-cloud-key="supplierConfigs"
                         value={form.deliveryDay}
                         onChange={(e) => setForm((prev) => ({ ...prev, deliveryDay: Number(e.target.value) }))}
                         className="w-full bg-white/10 text-white px-4 py-3 rounded-2xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
@@ -323,6 +327,7 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                     <div>
                       <label className="block text-white/70 text-xs font-black uppercase tracking-widest mb-2">Heure cut-off</label>
                       <input
+                        data-cloud-key="supplierConfigs"
                         type="time"
                         value={form.cutoffTime}
                         onChange={(e) => setForm((prev) => ({ ...prev, cutoffTime: e.target.value }))}
@@ -395,6 +400,7 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                       <div className="flex-1 min-w-[280px] max-w-xl">
                         <label className="block text-white/70 text-xs font-black uppercase tracking-widest mb-2">Nom fournisseur</label>
                         <input
+                          data-cloud-key="supplierConfigs"
                           value={config.name}
                           onChange={e => updateSupplier(config.id, { name: e.target.value })}
                           className="w-full bg-white/10 text-[#ffd700] px-4 py-3 rounded-2xl border border-white/10 outline-none focus:border-[#ffd700] font-black uppercase text-xl"
@@ -403,6 +409,7 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                         <div className="mt-3">
                           <label className="block text-white/50 text-[11px] font-black uppercase tracking-widest mb-2">Sous-titre</label>
                           <input
+                            data-cloud-key="supplierConfigs"
                             value={config.subtitle || ''}
                             onChange={e => updateSupplier(config.id, { subtitle: e.target.value })}
                             className="w-full bg-white/10 text-white px-4 py-2.5 rounded-2xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
@@ -413,6 +420,7 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                       <div className="flex items-center gap-3 flex-wrap justify-end">
                         <label className="text-white/70 text-xs font-black uppercase tracking-widest">Heure cut-off</label>
                         <input
+                          data-cloud-key="supplierConfigs"
                           type="time"
                           value={config.cutoffTime}
                           onChange={e => updateSupplier(config.id, { cutoffTime: e.target.value })}
@@ -449,6 +457,7 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                               <tr key={`${config.id}-${idx}`} className="border-t border-white/10">
                                 <td className="px-4 py-3">
                                   <select
+                                    data-cloud-key="supplierConfigs"
                                     value={rule.cutoffDay}
                                     onChange={e => updateRule(config, idx, { cutoffDay: Number(e.target.value) })}
                                     className="w-full bg-white/10 text-white p-2 rounded-xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
@@ -460,6 +469,7 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                                 </td>
                                 <td className="px-4 py-3">
                                   <input
+                                    data-cloud-key="supplierConfigs"
                                     type="time"
                                     value={config.cutoffTime}
                                     onChange={e => updateSupplier(config.id, { cutoffTime: e.target.value })}
@@ -468,6 +478,7 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                                 </td>
                                 <td className="px-4 py-3">
                                   <select
+                                    data-cloud-key="supplierConfigs"
                                     value={rule.deliveryDay}
                                     onChange={e => updateRule(config, idx, { deliveryDay: Number(e.target.value) })}
                                     className="w-full bg-white/10 text-white p-2 rounded-xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"

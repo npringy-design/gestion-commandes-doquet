@@ -103,6 +103,7 @@ const DailyForecastPage: React.FC<DailyForecastPageProps> = ({
                   <div className="flex items-center gap-2">
                     <span className="text-[9px] font-bold text-slate-400 uppercase w-9">Midi</span>
                     <input
+                      data-cloud-key="dailyCovers"
                       type="number" inputMode="numeric"
                       value={d.midi}
                       onChange={e => updateDay(i, 'midi', e.target.value)}
@@ -113,6 +114,7 @@ const DailyForecastPage: React.FC<DailyForecastPageProps> = ({
                   <div className="flex items-center gap-2">
                     <span className="text-[9px] font-bold text-slate-400 uppercase w-9">Soir</span>
                     <input
+                      data-cloud-key="dailyCovers"
                       type="number" inputMode="numeric"
                       value={d.soir}
                       onChange={e => updateDay(i, 'soir', e.target.value)}
