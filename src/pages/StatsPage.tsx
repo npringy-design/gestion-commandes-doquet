@@ -54,28 +54,40 @@ const StatsPage: React.FC<StatsPageProps> = ({
     if (!validatedMonths[requestedMonth]) return requestedMonth;
     const startIndex = MONTHS_DISPLAY_CONFIG.findIndex((m) => m.key === requestedMonth);
     if (startIndex === -1) return requestedMonth;
+
     for (let i = startIndex + 1; i < MONTHS_DISPLAY_CONFIG.length; i++) {
       const key = MONTHS_DISPLAY_CONFIG[i].key;
       if (!validatedMonths[key]) return key;
     }
+
     return requestedMonth;
   };
 
   const handleFile = async (file: File) => {
     if (!modalState || !canImport) return;
+
     try {
       const content = await readFileAsCSV(file);
       const targetMonth = resolveImportTargetMonth(modalState.month);
-      setDetailedInventory((prev) => ({ ...prev, [targetMonth]: content }));
+
+      setDetailedInventory((prev) => ({
+        ...prev,
+        [targetMonth]: content,
+      }));
+
       showToast(`Import ${targetMonth.toUpperCase()} réussi ✓`, 'success');
       setModalState(null);
     } catch (err) {
-      showToast('Erreur lors de la lecture du fichier : ' + (err as Error).message, 'error');
+      showToast(
+        'Erreur lors de la lecture du fichier : ' + (err as Error).message,
+        'error'
+      );
     }
   };
 
   const removeInventoryForMonth = (monthKey: string) => {
     if (!canRemoveImport) return;
+
     setDetailedInventory((prev) => {
       if (!prev?.[monthKey]) return prev;
       const next = { ...prev };
@@ -97,7 +109,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
     'border-[#B79070] bg-[#F4E8DA] text-[#2B2623] placeholder:text-[#8E7767] focus:border-[#A14E3B] focus:ring-2 focus:ring-[#A14E3B]/20';
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#4b2418_0%,#2a140f_38%,#1c0f0c_100%)] text-[#F6EBDD] overflow-x-hidden overflow-y-auto">
+    <div className="min-h-screen overflow-x-hidden overflow-y-auto bg-[radial-gradient(circle_at_top,#4b2418_0%,#2a140f_38%,#1c0f0c_100%)] text-[#F6EBDD]">
       {modalState && canImport && (
         <ImportModal
           monthLabel={MONTHS_DISPLAY_CONFIG.find((m) => m.key === modalState.month)?.label || ''}
@@ -128,7 +140,12 @@ const StatsPage: React.FC<StatsPageProps> = ({
               className="flex items-center justify-center gap-3 rounded-[22px] border border-[#c3953f] bg-[linear-gradient(180deg,#e1b62b_0%,#c99612_100%)] px-5 py-5 text-center text-sm font-black uppercase tracking-[0.16em] text-[#2b140f] shadow-[0_5px_0_#8f6904] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_3px_0_#8f6904]"
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="3"
+                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                />
               </svg>
               Retour accueil
             </button>
@@ -159,11 +176,21 @@ const StatsPage: React.FC<StatsPageProps> = ({
               <table className="min-w-[980px] w-full">
                 <thead className="bg-[linear-gradient(180deg,#4b3127_0%,#3b261f_100%)] text-[#fff2e7]">
                   <tr>
-                    <th className="px-5 py-4 text-left text-sm font-black uppercase tracking-[0.08em]">Mois</th>
-                    <th className="px-5 py-4 text-left text-sm font-black uppercase tracking-[0.08em]">CA HT (€)</th>
-                    <th className="px-5 py-4 text-left text-sm font-black uppercase tracking-[0.08em]">CM (%)</th>
-                    <th className="px-5 py-4 text-left text-sm font-black uppercase tracking-[0.08em]">Couverts</th>
-                    <th className="px-5 py-4 text-left text-sm font-black uppercase tracking-[0.08em]">Inventaire détaillé</th>
+                    <th className="px-5 py-4 text-left text-sm font-black uppercase tracking-[0.08em]">
+                      Mois
+                    </th>
+                    <th className="px-5 py-4 text-left text-sm font-black uppercase tracking-[0.08em]">
+                      CA HT (€)
+                    </th>
+                    <th className="px-5 py-4 text-left text-sm font-black uppercase tracking-[0.08em]">
+                      CM (%)
+                    </th>
+                    <th className="px-5 py-4 text-left text-sm font-black uppercase tracking-[0.08em]">
+                      Couverts
+                    </th>
+                    <th className="px-5 py-4 text-left text-sm font-black uppercase tracking-[0.08em]">
+                      Inventaire détaillé
+                    </th>
                   </tr>
                 </thead>
 
@@ -244,11 +271,11 @@ const StatsPage: React.FC<StatsPageProps> = ({
                               disabled={!canImport}
                               className={`inline-flex rounded-full px-3 py-1.5 text-xs font-black uppercase tracking-[0.06em] border transition ${
                                 importState === 'imported'
-                                  ? 'border-[#9b6a39] bg-[#f3e6d7] text-[#6e4522] hover:bg-[#eedcc8]'
+                                  ? 'border-[#9FC9A7] bg-[#E6F3E8] text-[#3F6B4A] hover:bg-[#DDEEE0]'
                                   : importState === 'validated'
-                                  ? 'border-[#a14e3b] bg-[#f4ddd7] text-[#8a3526] hover:bg-[#f0d2ca]'
-                                  : 'border-[#b89e85] bg-[#eadbcb] text-[#7a685a] hover:bg-[#e3d2c0]'
-                              } ${!canImport ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  ? 'border-[#A14E3B] bg-[#F4DDD7] text-[#8A3526] hover:bg-[#F0D2CA]'
+                                  : 'border-[#B89E85] bg-[#EADBCB] text-[#7A685A] hover:bg-[#E3D2C0]'
+                              } ${!canImport ? 'cursor-not-allowed opacity-50' : ''}`}
                             >
                               {importState === 'imported'
                                 ? 'Importé'
@@ -266,7 +293,12 @@ const StatsPage: React.FC<StatsPageProps> = ({
                                 className="flex h-8 w-8 items-center justify-center rounded-full border border-[#9f6b45] bg-[#f1d1b2] text-[#6b330f] shadow-sm transition hover:bg-[#ebc39e] disabled:cursor-not-allowed disabled:opacity-40"
                               >
                                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 6l12 12M18 6L6 18" />
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="3"
+                                    d="M6 6l12 12M18 6L6 18"
+                                  />
                                 </svg>
                               </button>
                             )}
