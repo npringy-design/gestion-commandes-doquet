@@ -49,7 +49,6 @@ type UseCloudSyncParams = PersistedState &
     onSaveError: (message: string) => void;
   };
 
-
 const hasDailyCoverData = (state: DailyCoversState): boolean =>
   Object.values(state).some(
     month => Array.isArray(month) && month.some(day => day.midi !== '' && day.midi !== 0)
@@ -84,9 +83,8 @@ export const useCloudSync = ({
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
 
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isHydratingFromCloud = useRef(false);
+  const suppressNextPersistKeysRef = useRef<Set<string>>(new Set());
   const lastCloudUpdatedAtByKey = useRef<Record<string, string>>({});
-  const pendingKeysRef = useRef<Set<string>>(new Set());
   const pendingRemoteRowsRef = useRef<Record<string, { updated_at: string; value: unknown }>>({});
 
   const applyCloudKey = useCallback((key: string, cloudTs: string, value: unknown) => {
@@ -94,18 +92,15 @@ export const useCloudSync = ({
     if (lastCloudTs && lastCloudTs >= cloudTs) return;
 
     lastCloudUpdatedAtByKey.current[key] = cloudTs;
-    pendingKeysRef.current.delete(key);
+    suppressNextPersistKeysRef.current.add(key);
 
-    isHydratingFromCloud.current = true;
     switch (key) {
       case 'covers':
         setCovers(value as Record<string, number>);
         break;
       case 'dailyCovers': {
         const nextDailyCovers = value as DailyCoversState;
-        if (hasDailyCoverData(nextDailyCovers)) {
-          setDailyCovers(nextDailyCovers);
-        }
+        if (hasDailyCoverData(nextDailyCovers)) setDailyCovers(nextDailyCovers);
         break;
       }
       case 'orderStates':
@@ -138,10 +133,6 @@ export const useCloudSync = ({
       default:
         break;
     }
-
-    setTimeout(() => {
-      isHydratingFromCloud.current = false;
-    }, 600);
   }, [
     setCostMatterByMonth,
     setCovers,
@@ -170,11 +161,11 @@ export const useCloudSync = ({
         if (cancelled) return;
 
         if (cloud && cloud.length > 0) {
-          isHydratingFromCloud.current = true;
           const cloudMap: Record<string, unknown> = {};
 
           cloud.forEach((row: any) => {
             lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
+            suppressNextPersistKeysRef.current.add(row.key);
             cloudMap[row.key] = row.value;
           });
 
@@ -201,10 +192,6 @@ export const useCloudSync = ({
           if (cloudMap.products) {
             setProducts(mergeAndNormalizeProducts(cloudMap.products as ProductWithHistory[]));
           }
-
-          setTimeout(() => {
-            isHydratingFromCloud.current = false;
-          }, 600);
         }
       } catch (error) {
         console.error('[Supabase load exception]', error);
@@ -231,7 +218,6 @@ export const useCloudSync = ({
     setValidatedMonths,
   ]);
 
-
   useEffect(() => {
     if (!supabaseLoaded || !isSupabaseConfigured() || !supabase) return;
 
@@ -256,7 +242,6 @@ export const useCloudSync = ({
 
       pendingEntries.forEach(([key, row]) => {
         if (activeKey && activeKey === key) return;
-        lastCloudUpdatedAtByKey.current[key] = row.updated_at;
         applyCloudKey(key, row.updated_at, row.value);
         delete pendingRemoteRowsRef.current[key];
       });
@@ -307,18 +292,20 @@ export const useCloudSync = ({
 
   const persistEverywhere = useCallback((key: string, value: unknown) => {
     saveState(key, value, onSaveError);
-    if (isHydratingFromCloud.current || !supabaseLoaded || !isSupabaseConfigured()) return;
+
+    if (suppressNextPersistKeysRef.current.has(key)) {
+      suppressNextPersistKeysRef.current.delete(key);
+      return;
+    }
+    if (!supabaseLoaded || !isSupabaseConfigured()) return;
 
     setSyncStatus('saving');
-
-    pendingKeysRef.current.add(key);
 
     saveToSupabaseDebounced(
       key,
       value,
       row => {
         lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
-        pendingKeysRef.current.delete(row.key);
       }
     );
 
