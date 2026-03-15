@@ -10,7 +10,6 @@ import { DailyCoversState } from '../utils/dateHelpers';
 import {
   mergeAndNormalizeProducts,
   mergeSupplierConfigsWithDefaults,
-  nowIso,
   saveState,
 } from './appStateHelpers';
 import { supabase } from '../lib/supabaseClient';
@@ -89,14 +88,12 @@ export const useCloudSync = ({
   const lastCloudUpdatedAtByKey = useRef<Record<string, string>>({});
   const pendingKeysRef = useRef<Set<string>>(new Set());
   const pendingRemoteRowsRef = useRef<Record<string, { updated_at: string; value: unknown }>>({});
-  const localTsByKey = useRef<Record<string, string>>({});
 
   const applyCloudKey = useCallback((key: string, cloudTs: string, value: unknown) => {
-    const localTs = localTsByKey.current[key];
-    if (localTs && localTs > cloudTs) return;
+    const lastCloudTs = lastCloudUpdatedAtByKey.current[key];
+    if (lastCloudTs && lastCloudTs >= cloudTs) return;
 
     lastCloudUpdatedAtByKey.current[key] = cloudTs;
-    delete localTsByKey.current[key];
     pendingKeysRef.current.delete(key);
 
     isHydratingFromCloud.current = true;
@@ -277,16 +274,6 @@ export const useCloudSync = ({
           const currentCloudTs = lastCloudUpdatedAtByKey.current[nextRow.key];
           if (currentCloudTs && currentCloudTs >= nextRow.updated_at) return;
 
-          const localTs = localTsByKey.current[nextRow.key];
-          if (localTs) {
-            if (nextRow.updated_at >= localTs) {
-              delete localTsByKey.current[nextRow.key];
-              pendingKeysRef.current.delete(nextRow.key);
-            } else {
-              return;
-            }
-          }
-
           const activeKey = getActiveCloudKey();
           if (activeKey && activeKey === nextRow.key) {
             pendingRemoteRowsRef.current[nextRow.key] = {
@@ -322,8 +309,6 @@ export const useCloudSync = ({
     saveState(key, value, onSaveError);
     if (isHydratingFromCloud.current || !supabaseLoaded || !isSupabaseConfigured()) return;
 
-    const ts = nowIso();
-    localTsByKey.current[key] = ts;
     setSyncStatus('saving');
 
     pendingKeysRef.current.add(key);
@@ -331,17 +316,9 @@ export const useCloudSync = ({
     saveToSupabaseDebounced(
       key,
       value,
-      ts,
-      currentKey => lastCloudUpdatedAtByKey.current[currentKey],
-      (confirmedKey, confirmedTs) => {
-        lastCloudUpdatedAtByKey.current[confirmedKey] = confirmedTs;
-        delete localTsByKey.current[confirmedKey];
-        pendingKeysRef.current.delete(confirmedKey);
-      },
-      (skippedKey, cloudTs) => {
-        lastCloudUpdatedAtByKey.current[skippedKey] = cloudTs;
-        delete localTsByKey.current[skippedKey];
-        pendingKeysRef.current.delete(skippedKey);
+      row => {
+        lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
+        pendingKeysRef.current.delete(row.key);
       }
     );
 

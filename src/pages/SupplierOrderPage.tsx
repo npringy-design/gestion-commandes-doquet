@@ -576,7 +576,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                       </td>
 
                       <td className="p-2 bg-amber-50/20">
-                        <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockCases}
+                        <input data-cloud-key="products" type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockCases}
                           onChange={e => updateStockFromSplit(p.id, p.packaging, e.target.value, String(getStockSplit(p.stock, p.packaging).stockPieces))}
                           tabIndex={TAB_STOCK_CASES + rowIdx}
                           onKeyDown={e => handleEnterKey(e, TAB_STOCK_CASES, rowIdx)}
@@ -587,7 +587,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                       </td>
 
                       <td className="p-2 bg-amber-50/20">
-                        <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockPieces}
+                        <input data-cloud-key="products" type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockPieces}
                           onChange={e => updateStockFromSplit(p.id, p.packaging, String(getStockSplit(p.stock, p.packaging).stockCases), e.target.value)}
                           tabIndex={TAB_STOCK_PIECES + rowIdx}
                           onKeyDown={e => handleEnterKey(e, TAB_STOCK_PIECES, rowIdx)}
@@ -605,6 +605,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
 
                       <td className="p-2 text-center bg-[#FFE8CC]">
                         <select
+                          data-cloud-key="orderStates"
                           value={orderStates[p.id]?.margin ?? 30}
                           disabled={commandeOnly}
                           onChange={e => setOrderStates(pv => ({ ...pv, [p.id]: { ...pv[p.id], margin: Number(e.target.value) } }))}
@@ -639,7 +640,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                       </td>
 
                       <td className="p-2 bg-amber-50/20">
-                        <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockCases}
+                        <input data-cloud-key="products" type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockCases}
                           onChange={e => updateStockFromSplit(p.id, p.packaging, e.target.value, String(getStockSplit(p.stock, p.packaging).stockPieces))}
                           tabIndex={TAB_STOCK_CASES + rowIdx}
                           onKeyDown={e => handleEnterKey(e, TAB_STOCK_CASES, rowIdx)}
@@ -650,7 +651,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                       </td>
 
                       <td className="p-2 bg-amber-50/20">
-                        <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockPieces}
+                        <input data-cloud-key="products" type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockPieces}
                           onChange={e => updateStockFromSplit(p.id, p.packaging, String(getStockSplit(p.stock, p.packaging).stockCases), e.target.value)}
                           tabIndex={TAB_STOCK_PIECES + rowIdx}
                           onKeyDown={e => handleEnterKey(e, TAB_STOCK_PIECES, rowIdx)}
