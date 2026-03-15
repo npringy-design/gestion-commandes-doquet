@@ -106,10 +106,10 @@ const StatsPage: React.FC<StatsPageProps> = ({
   const inputBase =
     'h-11 w-full rounded-xl border px-3 text-sm font-bold outline-none transition disabled:opacity-50 disabled:cursor-not-allowed';
   const inputTheme =
-    'border-[#B79070] bg-[#F4E8DA] text-[#2B2623] placeholder:text-[#8E7767] focus:border-[#A14E3B] focus:ring-2 focus:ring-[#A14E3B]/20';
+    'border-[#C9A788] bg-[#FBF5EE] text-[#2E2723] placeholder:text-[#9A8575] focus:border-[#A5523F] focus:ring-2 focus:ring-[#A5523F]/20';
 
   return (
-    <div className="min-h-screen overflow-x-hidden overflow-y-auto bg-[radial-gradient(circle_at_top,#4b2418_0%,#2a140f_38%,#1c0f0c_100%)] text-[#F6EBDD]">
+    <div className="min-h-screen overflow-x-hidden overflow-y-auto bg-[linear-gradient(180deg,#F4EEE6_0%,#EADFD2_52%,#E2D3C3_100%)] text-[#2E2723]">
       {modalState && canImport && (
         <ImportModal
           monthLabel={MONTHS_DISPLAY_CONFIG.find((m) => m.key === modalState.month)?.label || ''}
@@ -123,13 +123,13 @@ const StatsPage: React.FC<StatsPageProps> = ({
         {/* ACTIONS */}
         <aside className="w-full shrink-0 lg:w-72">
           <div className="flex flex-col gap-4 lg:sticky lg:top-6">
-            <div className="overflow-hidden rounded-[26px] border border-[#7a4a33] bg-[linear-gradient(180deg,#2c1712_0%,#23120e_100%)] shadow-[0_14px_32px_rgba(0,0,0,0.28)]">
-              <div className="h-1.5 bg-gradient-to-r from-[#a56a3b] via-[#8f3f32] to-[#6e2f3a]" />
+            <div className="overflow-hidden rounded-[26px] border border-[#A97852] bg-[linear-gradient(135deg,#3B241C_0%,#4B2D22_55%,#5B3427_100%)] shadow-[0_14px_32px_rgba(90,52,39,0.18)]">
+              <div className="h-1.5 bg-gradient-to-r from-[#B88A52] via-[#A5523F] to-[#6E2F3A]" />
               <div className="p-4 sm:p-5">
-                <p className="text-[11px] font-black uppercase tracking-[0.28em] text-[#d7b89b]">
+                <p className="text-[11px] font-black uppercase tracking-[0.28em] text-[#E5C9AB]">
                   Hippopotamus Thillois
                 </p>
-                <h1 className="mt-3 text-3xl font-black leading-none text-[#fff4e8]">
+                <h1 className="mt-3 text-3xl font-black leading-none text-[#FFF7F0]">
                   Paramètres
                 </h1>
               </div>
@@ -137,7 +137,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
 
             <button
               onClick={() => setView('home')}
-              className="flex items-center justify-center gap-3 rounded-[22px] border border-[#c3953f] bg-[linear-gradient(180deg,#e1b62b_0%,#c99612_100%)] px-5 py-5 text-center text-sm font-black uppercase tracking-[0.16em] text-[#2b140f] shadow-[0_5px_0_#8f6904] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_3px_0_#8f6904]"
+              className="flex items-center justify-center gap-3 rounded-[22px] border border-[#D6AC3D] bg-[linear-gradient(180deg,#F0C83A_0%,#D8A922_100%)] px-5 py-5 text-center text-sm font-black uppercase tracking-[0.16em] text-[#3B241C] shadow-[0_5px_0_#A37B10] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_3px_0_#A37B10]"
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -153,7 +153,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
             {canOpenRatios && (
               <button
                 onClick={() => setView('ratios')}
-                className="rounded-[22px] border border-[#4e6980] bg-[linear-gradient(180deg,#5d7c96_0%,#3f5d74_100%)] px-5 py-6 text-center text-xs font-black uppercase tracking-[0.16em] text-[#f3ede7] shadow-[0_5px_0_#243847] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_3px_0_#243847]"
+                className="rounded-[22px] border border-[#7C97AD] bg-[linear-gradient(180deg,#8FA7BB_0%,#70889D_100%)] px-5 py-6 text-center text-xs font-black uppercase tracking-[0.16em] text-[#FFF8F2] shadow-[0_5px_0_#55697B] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_3px_0_#55697B]"
               >
                 Calcul
                 <br />
@@ -165,16 +165,16 @@ const StatsPage: React.FC<StatsPageProps> = ({
 
         {/* TABLEAU UNIQUE */}
         <main className="min-w-0 flex-1">
-          <section className="overflow-hidden rounded-[30px] border border-[#7b4f39] bg-[linear-gradient(180deg,#2a1712_0%,#21120f_100%)] shadow-[0_18px_40px_rgba(0,0,0,0.3)]">
-            <div className="border-b border-[#5a392d] bg-[linear-gradient(180deg,#2b1712_0%,#1d110e_100%)] px-6 py-5">
-              <h2 className="text-2xl font-black uppercase tracking-[0.08em] text-[#fff4e8]">
+          <section className="overflow-hidden rounded-[30px] border border-[#C8A385] bg-[#F7F0E7] shadow-[0_18px_40px_rgba(120,85,60,0.12)]">
+            <div className="border-b border-[#B98F74] bg-[linear-gradient(180deg,#4A2D24_0%,#38231D_100%)] px-6 py-5">
+              <h2 className="text-2xl font-black uppercase tracking-[0.08em] text-[#FFF5EC]">
                 Suivi mensuel
               </h2>
             </div>
 
             <div className="overflow-x-auto">
               <table className="min-w-[980px] w-full">
-                <thead className="bg-[linear-gradient(180deg,#4b3127_0%,#3b261f_100%)] text-[#fff2e7]">
+                <thead className="bg-[linear-gradient(180deg,#6A4738_0%,#55392E_100%)] text-[#FFF4EA]">
                   <tr>
                     <th className="px-5 py-4 text-left text-sm font-black uppercase tracking-[0.08em]">
                       Mois
@@ -204,15 +204,15 @@ const StatsPage: React.FC<StatsPageProps> = ({
                         key={m.key}
                         className={
                           index % 2 === 0
-                            ? 'bg-[#e6d5c2] text-[#2b2623]'
-                            : 'bg-[#ddcab6] text-[#2b2623]'
+                            ? 'bg-[#F8F1E8] text-[#2E2723]'
+                            : 'bg-[#F1E6DA] text-[#2E2723]'
                         }
                       >
-                        <td className="border-t border-[#c4aa91] px-5 py-4 font-black uppercase tracking-[0.05em]">
+                        <td className="border-t border-[#D5BBA5] px-5 py-4 font-black uppercase tracking-[0.05em]">
                           {m.label}
                         </td>
 
-                        <td className="border-t border-[#c4aa91] px-5 py-3">
+                        <td className="border-t border-[#D5BBA5] px-5 py-3">
                           <input
                             type="number"
                             step="0.01"
@@ -230,7 +230,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
                           />
                         </td>
 
-                        <td className="border-t border-[#c4aa91] px-5 py-3">
+                        <td className="border-t border-[#D5BBA5] px-5 py-3">
                           <input
                             type="number"
                             step="0.01"
@@ -248,7 +248,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
                           />
                         </td>
 
-                        <td className="border-t border-[#c4aa91] px-5 py-3">
+                        <td className="border-t border-[#D5BBA5] px-5 py-3">
                           <input
                             type="number"
                             value={covers[m.key] || ''}
@@ -264,7 +264,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
                           />
                         </td>
 
-                        <td className="border-t border-[#c4aa91] px-5 py-4">
+                        <td className="border-t border-[#D5BBA5] px-5 py-4">
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => canImport && setModalState({ month: m.key })}
@@ -273,8 +273,8 @@ const StatsPage: React.FC<StatsPageProps> = ({
                                 importState === 'imported'
                                   ? 'border-[#9FC9A7] bg-[#E6F3E8] text-[#3F6B4A] hover:bg-[#DDEEE0]'
                                   : importState === 'validated'
-                                  ? 'border-[#A14E3B] bg-[#F4DDD7] text-[#8A3526] hover:bg-[#F0D2CA]'
-                                  : 'border-[#B89E85] bg-[#EADBCB] text-[#7A685A] hover:bg-[#E3D2C0]'
+                                  ? 'border-[#D09A8A] bg-[#F6E4DE] text-[#8B4434] hover:bg-[#F1D9D1]'
+                                  : 'border-[#CBB49C] bg-[#EFE2D3] text-[#7A685A] hover:bg-[#E7D8C7]'
                               } ${!canImport ? 'cursor-not-allowed opacity-50' : ''}`}
                             >
                               {importState === 'imported'
@@ -290,7 +290,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
                                 onClick={() => removeInventoryForMonth(m.key)}
                                 disabled={!canRemoveImport}
                                 title={`Supprimer l'import ${m.label}`}
-                                className="flex h-8 w-8 items-center justify-center rounded-full border border-[#9f6b45] bg-[#f1d1b2] text-[#6b330f] shadow-sm transition hover:bg-[#ebc39e] disabled:cursor-not-allowed disabled:opacity-40"
+                                className="flex h-8 w-8 items-center justify-center rounded-full border border-[#C8A385] bg-[#F5E6D7] text-[#7A4B2D] shadow-sm transition hover:bg-[#EFD8C3] disabled:cursor-not-allowed disabled:opacity-40"
                               >
                                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path
