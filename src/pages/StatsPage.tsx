@@ -1,6 +1,7 @@
 // =============================================================
 // pages/StatsPage.tsx
-// Refonte visuelle uniquement - mécanique conservée
+// Refonte visuelle uniquement - version tableau unique
+// Mécanique conservée
 // =============================================================
 
 import React, { useState } from 'react';
@@ -83,14 +84,20 @@ const StatsPage: React.FC<StatsPageProps> = ({
     });
   };
 
-  const renderMonthLabel = (label: string, tone: string) => (
-    <span className={`font-black uppercase tracking-[0.08em] text-[12px] sm:text-[13px] ${tone}`}>
-      {label}
-    </span>
-  );
+  const getImportState = (monthKey: string) => {
+    const hasImport = !!detailedInventory[monthKey];
+    if (hasImport) return 'imported';
+    if (validatedMonths[monthKey]) return 'validated';
+    return 'empty';
+  };
+
+  const inputBase =
+    'h-11 w-full rounded-xl border px-3 text-sm font-bold outline-none transition disabled:opacity-50 disabled:cursor-not-allowed';
+  const inputTheme =
+    'border-[#B79070] bg-[#F4E8DA] text-[#2B2623] placeholder:text-[#8E7767] focus:border-[#A14E3B] focus:ring-2 focus:ring-[#A14E3B]/20';
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#4a2318_0%,#2b140f_35%,#1c0f0c_100%)] text-[#F6EBDD] overflow-x-hidden overflow-y-auto">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#4b2418_0%,#2a140f_38%,#1c0f0c_100%)] text-[#F6EBDD] overflow-x-hidden overflow-y-auto">
       {modalState && canImport && (
         <ImportModal
           monthLabel={MONTHS_DISPLAY_CONFIG.find((m) => m.key === modalState.month)?.label || ''}
@@ -100,8 +107,8 @@ const StatsPage: React.FC<StatsPageProps> = ({
         />
       )}
 
-      <div className="mx-auto flex max-w-[1800px] flex-col gap-5 p-3 sm:p-4 lg:flex-row lg:gap-7 lg:p-6">
-        {/* COLONNE ACTIONS */}
+      <div className="mx-auto flex max-w-[1700px] flex-col gap-5 p-3 sm:p-4 lg:flex-row lg:gap-7 lg:p-6">
+        {/* ACTIONS */}
         <aside className="w-full shrink-0 lg:w-72">
           <div className="flex flex-col gap-4 lg:sticky lg:top-6">
             <div className="overflow-hidden rounded-[26px] border border-[#7a4a33] bg-[linear-gradient(180deg,#2c1712_0%,#23120e_100%)] shadow-[0_14px_32px_rgba(0,0,0,0.28)]">
@@ -139,173 +146,139 @@ const StatsPage: React.FC<StatsPageProps> = ({
           </div>
         </aside>
 
-        {/* 4 BLOCS */}
+        {/* TABLEAU UNIQUE */}
         <main className="min-w-0 flex-1">
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4 xl:items-stretch">
-            {/* INVENTAIRE */}
-            <section className="flex min-h-[500px] flex-col overflow-hidden rounded-[28px] border border-[#8b5a3d] bg-[linear-gradient(180deg,#e1b17c_0%,#d29a63_100%)] shadow-[0_18px_40px_rgba(0,0,0,0.28)]">
-              <div className="border-b border-[#9c6b48] bg-[linear-gradient(180deg,#c48750_0%,#b3713c_100%)] px-5 py-5 text-center">
-                <h2 className="text-[18px] font-black uppercase tracking-[0.12em] text-[#4e250d]">
-                  Inventaire détaillé
-                </h2>
-              </div>
+          <section className="overflow-hidden rounded-[30px] border border-[#7b4f39] bg-[linear-gradient(180deg,#2a1712_0%,#21120f_100%)] shadow-[0_18px_40px_rgba(0,0,0,0.3)]">
+            <div className="border-b border-[#5a392d] bg-[linear-gradient(180deg,#2b1712_0%,#1d110e_100%)] px-6 py-5">
+              <h2 className="text-2xl font-black uppercase tracking-[0.08em] text-[#fff4e8]">
+                Suivi mensuel
+              </h2>
+            </div>
 
-              <div className="flex flex-1 flex-col">
-                {MONTHS_DISPLAY_CONFIG.map((m, index) => {
-                  const hasImport = !!detailedInventory[m.key];
-                  return (
-                    <button
-                      key={m.key}
-                      onClick={() => canImport && setModalState({ month: m.key })}
-                      className={`group relative flex flex-1 items-center justify-between gap-3 border-b border-[#b98458]/50 px-4 py-3 text-left transition-all last:border-b-0 ${
-                        canImport ? 'hover:bg-[#e0a469]' : 'cursor-not-allowed opacity-70'
-                      } ${index % 2 === 0 ? 'bg-[#e8be94]' : 'bg-[#e2b587]'}`}
-                      title={canImport ? 'Importer un fichier' : 'Import non autorisé pour votre rôle'}
-                    >
-                      {renderMonthLabel(m.label, 'text-[#6b330f]')}
+            <div className="overflow-x-auto">
+              <table className="min-w-[980px] w-full">
+                <thead className="bg-[linear-gradient(180deg,#4b3127_0%,#3b261f_100%)] text-[#fff2e7]">
+                  <tr>
+                    <th className="px-5 py-4 text-left text-sm font-black uppercase tracking-[0.08em]">Mois</th>
+                    <th className="px-5 py-4 text-left text-sm font-black uppercase tracking-[0.08em]">CA HT (€)</th>
+                    <th className="px-5 py-4 text-left text-sm font-black uppercase tracking-[0.08em]">CM (%)</th>
+                    <th className="px-5 py-4 text-left text-sm font-black uppercase tracking-[0.08em]">Couverts</th>
+                    <th className="px-5 py-4 text-left text-sm font-black uppercase tracking-[0.08em]">Inventaire détaillé</th>
+                  </tr>
+                </thead>
 
-                      <div className="ml-auto flex items-center gap-2">
-                        {hasImport && (
+                <tbody>
+                  {MONTHS_DISPLAY_CONFIG.map((m, index) => {
+                    const importState = getImportState(m.key);
+                    const hasImport = importState === 'imported';
+
+                    return (
+                      <tr
+                        key={m.key}
+                        className={
+                          index % 2 === 0
+                            ? 'bg-[#e6d5c2] text-[#2b2623]'
+                            : 'bg-[#ddcab6] text-[#2b2623]'
+                        }
+                      >
+                        <td className="border-t border-[#c4aa91] px-5 py-4 font-black uppercase tracking-[0.05em]">
+                          {m.label}
+                        </td>
+
+                        <td className="border-t border-[#c4aa91] px-5 py-3">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={salesHtByMonth[m.key] || ''}
+                            onChange={(e) =>
+                              setSalesHtByMonth((p) => ({
+                                ...p,
+                                [m.key]: e.target.value === '' ? 0 : Number(e.target.value),
+                              }))
+                            }
+                            disabled={!canEditFields}
+                            className={`${inputBase} ${inputTheme}`}
+                            placeholder="-"
+                            title="Chiffre d'affaires HT"
+                          />
+                        </td>
+
+                        <td className="border-t border-[#c4aa91] px-5 py-3">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={costMatterByMonth[m.key] || ''}
+                            onChange={(e) =>
+                              setCostMatterByMonth((p) => ({
+                                ...p,
+                                [m.key]: e.target.value === '' ? 0 : Number(e.target.value),
+                              }))
+                            }
+                            disabled={!canEditFields}
+                            className={`${inputBase} ${inputTheme}`}
+                            placeholder="-"
+                            title="Coût matière (%)"
+                          />
+                        </td>
+
+                        <td className="border-t border-[#c4aa91] px-5 py-3">
+                          <input
+                            type="number"
+                            value={covers[m.key] || ''}
+                            onChange={(e) =>
+                              setCovers((p) => ({
+                                ...p,
+                                [m.key]: Number(e.target.value),
+                              }))
+                            }
+                            disabled={!canEditFields}
+                            className={`${inputBase} ${inputTheme}`}
+                            placeholder="-"
+                          />
+                        </td>
+
+                        <td className="border-t border-[#c4aa91] px-5 py-4">
                           <div className="flex items-center gap-2">
-                            <div className="rounded-full border border-[#5c7c39] bg-[#6f9b43] px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white shadow-sm">
-                              Importé
-                            </div>
-
                             <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removeInventoryForMonth(m.key);
-                              }}
-                              disabled={!canRemoveImport}
-                              title={`Supprimer l'import ${m.label}`}
-                              className="flex h-8 w-8 items-center justify-center rounded-full border border-[#9f6b45] bg-[#f1d1b2] text-[#6b330f] shadow-sm transition hover:bg-[#ebc39e] disabled:cursor-not-allowed disabled:opacity-40"
+                              onClick={() => canImport && setModalState({ month: m.key })}
+                              disabled={!canImport}
+                              className={`inline-flex rounded-full px-3 py-1.5 text-xs font-black uppercase tracking-[0.06em] border transition ${
+                                importState === 'imported'
+                                  ? 'border-[#9b6a39] bg-[#f3e6d7] text-[#6e4522] hover:bg-[#eedcc8]'
+                                  : importState === 'validated'
+                                  ? 'border-[#a14e3b] bg-[#f4ddd7] text-[#8a3526] hover:bg-[#f0d2ca]'
+                                  : 'border-[#b89e85] bg-[#eadbcb] text-[#7a685a] hover:bg-[#e3d2c0]'
+                              } ${!canImport ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
-                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 6l12 12M18 6L6 18" />
-                              </svg>
+                              {importState === 'imported'
+                                ? 'Importé'
+                                : importState === 'validated'
+                                ? 'En attente'
+                                : 'Importer'}
                             </button>
+
+                            {hasImport && (
+                              <button
+                                type="button"
+                                onClick={() => removeInventoryForMonth(m.key)}
+                                disabled={!canRemoveImport}
+                                title={`Supprimer l'import ${m.label}`}
+                                className="flex h-8 w-8 items-center justify-center rounded-full border border-[#9f6b45] bg-[#f1d1b2] text-[#6b330f] shadow-sm transition hover:bg-[#ebc39e] disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 6l12 12M18 6L6 18" />
+                                </svg>
+                              </button>
+                            )}
                           </div>
-                        )}
-
-                        {!hasImport && (
-                          <div className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#8f5d37] bg-[#f0cfad] text-[#7a431a] transition group-hover:bg-[#f3d5b6]">
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" />
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-
-            {/* COUVERTS */}
-            <section className="flex min-h-[500px] flex-col overflow-hidden rounded-[28px] border border-[#b79a35] bg-[linear-gradient(180deg,#efe0a1_0%,#e5d28b_100%)] shadow-[0_18px_40px_rgba(0,0,0,0.28)]">
-              <div className="border-b border-[#ccb152] bg-[linear-gradient(180deg,#d9bf57_0%,#caa838_100%)] px-5 py-5 text-center">
-                <h2 className="text-[18px] font-black uppercase tracking-[0.12em] text-[#5d4700]">
-                  Couverts réalisés
-                </h2>
-              </div>
-
-              <div className="flex flex-1 flex-col">
-                {MONTHS_DISPLAY_CONFIG.map((m, index) => (
-                  <div
-                    key={m.key}
-                    className={`flex flex-1 items-center justify-between gap-3 border-b border-[#ccb152]/45 px-4 py-3 last:border-b-0 ${
-                      index % 2 === 0 ? 'bg-[#f1e4ad]' : 'bg-[#ebdda0]'
-                    }`}
-                  >
-                    {renderMonthLabel(m.label, 'text-[#6d5500]')}
-                    <input
-                      type="number"
-                      value={covers[m.key] || ''}
-                      onChange={(e) => setCovers((p) => ({ ...p, [m.key]: Number(e.target.value) }))}
-                      disabled={!canEditFields}
-                      className="h-11 w-28 rounded-[14px] border-2 border-[#b08a12] bg-[#fff9ec] text-center text-base font-black text-[#6d5500] outline-none transition-all placeholder:text-[#a18c54] focus:scale-[1.03] focus:shadow-[0_0_0_3px_rgba(176,138,18,0.18)] disabled:cursor-not-allowed disabled:opacity-50"
-                      placeholder="-"
-                    />
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            {/* CM */}
-            <section className="flex min-h-[500px] flex-col overflow-hidden rounded-[28px] border border-[#b97b79] bg-[linear-gradient(180deg,#ead0cf_0%,#e0c0bf_100%)] shadow-[0_18px_40px_rgba(0,0,0,0.28)]">
-              <div className="border-b border-[#ca9794] bg-[linear-gradient(180deg,#b86a68_0%,#974846_100%)] px-5 py-5 text-center">
-                <h2 className="text-[18px] font-black uppercase tracking-[0.12em] text-[#fff1f1]">
-                  CM (%)
-                </h2>
-              </div>
-
-              <div className="flex flex-1 flex-col">
-                {MONTHS_DISPLAY_CONFIG.map((m, index) => (
-                  <div
-                    key={m.key}
-                    className={`flex flex-1 items-center justify-between gap-3 border-b border-[#ca9794]/40 px-4 py-3 last:border-b-0 ${
-                      index % 2 === 0 ? 'bg-[#eed9d8]' : 'bg-[#e7cfce]'
-                    }`}
-                  >
-                    {renderMonthLabel(m.label, 'text-[#7a2422]')}
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={costMatterByMonth[m.key] || ''}
-                      onChange={(e) =>
-                        setCostMatterByMonth((p) => ({
-                          ...p,
-                          [m.key]: e.target.value === '' ? 0 : Number(e.target.value),
-                        }))
-                      }
-                      disabled={!canEditFields}
-                      className="h-11 w-28 rounded-[14px] border-2 border-[#d06c69] bg-[#fff7f6] text-center text-base font-black text-[#7a2422] outline-none transition-all placeholder:text-[#b48a88] focus:scale-[1.03] focus:shadow-[0_0_0_3px_rgba(208,108,105,0.18)] disabled:cursor-not-allowed disabled:opacity-50"
-                      placeholder="-"
-                      title="Coût matière (%)"
-                    />
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            {/* CA */}
-            <section className="flex min-h-[500px] flex-col overflow-hidden rounded-[28px] border border-[#8da0af] bg-[linear-gradient(180deg,#d6dfe7_0%,#c5d0d9_100%)] shadow-[0_18px_40px_rgba(0,0,0,0.28)]">
-              <div className="border-b border-[#a8bac8] bg-[linear-gradient(180deg,#7d92a3_0%,#607483_100%)] px-5 py-5 text-center">
-                <h2 className="text-[18px] font-black uppercase tracking-[0.12em] text-[#f5f8fb]">
-                  CA HT (€)
-                </h2>
-              </div>
-
-              <div className="flex flex-1 flex-col">
-                {MONTHS_DISPLAY_CONFIG.map((m, index) => (
-                  <div
-                    key={m.key}
-                    className={`flex flex-1 items-center justify-between gap-3 border-b border-[#9fb0bc]/40 px-4 py-3 last:border-b-0 ${
-                      index % 2 === 0 ? 'bg-[#dde5eb]' : 'bg-[#d4dde4]'
-                    }`}
-                  >
-                    {renderMonthLabel(m.label, 'text-[#244255]')}
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={salesHtByMonth[m.key] || ''}
-                      onChange={(e) =>
-                        setSalesHtByMonth((p) => ({
-                          ...p,
-                          [m.key]: e.target.value === '' ? 0 : Number(e.target.value),
-                        }))
-                      }
-                      disabled={!canEditFields}
-                      className="h-11 w-28 rounded-[14px] border-2 border-[#6e8aa1] bg-[#f8fbfd] text-center text-base font-black text-[#244255] outline-none transition-all placeholder:text-[#92a2ae] focus:scale-[1.03] focus:shadow-[0_0_0_3px_rgba(110,138,161,0.18)] disabled:cursor-not-allowed disabled:opacity-50"
-                      placeholder="-"
-                      title="Chiffre d'affaires HT"
-                    />
-                  </div>
-                ))}
-              </div>
-            </section>
-          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
         </main>
       </div>
     </div>
