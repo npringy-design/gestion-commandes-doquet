@@ -69,6 +69,15 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
   const { profile } = useAuth();
   const commandeOnly = isCommandeRole(profile);
 
+  const [isMobile, setIsMobile] = React.useState(() =>
+    typeof window !== 'undefined' && window.innerWidth < 1024
+  );
+  React.useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
   React.useEffect(() => {
     if (calculationMode === 'target') setActiveNextCalendar(false);
   }, [calculationMode]);
@@ -428,15 +437,22 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
           La colonne "À Commander" est sticky à droite (position: sticky)
       ================================================================ */}
       <div className="max-w-[1600px] mx-auto pb-24">
-        <div className="bg-white rounded-2xl lg:rounded-[32px] shadow-2xl shadow-slate-300/20 border border-slate-100 lg:overflow-x-auto overflow-x-hidden">
-          <table className="order-table w-full lg:w-auto lg:[table-layout:auto]">
-            {/* colgroup mobile uniquement — 4 colonnes visibles : produit | colisage | pièce | à cmd */}
-            <colgroup>
-              <col className="col-produit" />
-              <col className="col-stock" />
-              <col className="col-stock" />
-              <col className="col-acmd" />
-            </colgroup>
+        <div className="bg-white rounded-2xl lg:rounded-[32px] shadow-2xl shadow-slate-300/20 border border-slate-100 overflow-x-auto">
+          <table
+            className="w-full"
+            style={isMobile
+              ? { tableLayout: 'fixed', width: '100%' }
+              : { tableLayout: 'auto', minWidth: calculationMode === 'margin' ? '760px' : '840px' }
+            }>
+            {/* colgroup mobile : répartition % sur 4 colonnes visibles */}
+            {isMobile && (
+              <colgroup>
+                <col style={{ width: '38%' }} />
+                <col style={{ width: '26%' }} />
+                <col style={{ width: '22%' }} />
+                <col style={{ width: '14%' }} />
+              </colgroup>
+            )}
             <thead>
               <tr className="text-left h-12 lg:h-16">
 
@@ -449,15 +465,15 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                 {calculationMode === 'margin' ? (<>
                   <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Besoin<br/>Théo.</th>
                   <th className="hidden lg:table-cell p-2 bg-emerald-600 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Livr.<br/>à venir</th>
-                  <th className="p-2 bg-amber-600 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">U. Colisage<br/>en stock</th>
-                  <th className="p-2 bg-amber-500 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">U. Pièce<br/>en stock</th>
+                  <th className="p-2 bg-amber-600 text-white font-black uppercase text-[10px] tracking-widest text-center">U. Colisage<br/>en stock</th>
+                  <th className="p-2 bg-amber-500 text-white font-black uppercase text-[10px] tracking-widest text-center">U. Pièce<br/>en stock</th>
                   <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Colis.</th>
                   <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Marge<br/>(%)</th>
                 </>) : (<>
                   <th className="hidden lg:table-cell p-2 bg-blue-600 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Cible<br/>(Unités)</th>
                   <th className="hidden lg:table-cell p-2 bg-emerald-600 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Livr.<br/>à venir</th>
-                  <th className="p-2 bg-amber-600 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">U. Colisage<br/>en stock</th>
-                  <th className="p-2 bg-amber-500 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">U. Pièce<br/>en stock</th>
+                  <th className="p-2 bg-amber-600 text-white font-black uppercase text-[10px] tracking-widest text-center">U. Colisage<br/>en stock</th>
+                  <th className="p-2 bg-amber-500 text-white font-black uppercase text-[10px] tracking-widest text-center">U. Pièce<br/>en stock</th>
                   <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Conso<br/>Estimée</th>
                   <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Manque</th>
                   <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Colis.</th>
