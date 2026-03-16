@@ -35,7 +35,6 @@ const defaultItem = (): PrepItem => ({
   searchName: '',
   importDivisor: '',
   category: 'poste_chaud',
-  isActive: true,
   ratioHistory: {},
   secondaryDlcHours: 24,
   targetBuffer: '',
@@ -174,19 +173,19 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
             </div>
 
             <div className="min-h-0 flex-1 overflow-auto">
-              <table className="min-w-[1650px] w-full text-sm">
+              <table className="min-w-[1480px] w-full text-sm">
                 <thead className="sticky top-0 z-10 bg-[#F4E4D2] text-[#6C3C2B]">
                   <tr>
                     <th className="px-4 py-3 text-left font-black uppercase">Sel.</th>
-                    <th className="px-3 py-3 text-left font-black uppercase">Production</th>
-                    <th className="px-3 py-3 text-left font-black uppercase">Poste</th>
-                    <th className="px-3 py-3 text-left font-black uppercase">Mapping import</th>
+                    <th className="px-2 py-3 text-left font-black uppercase">Production</th>
+                    <th className="px-2 py-3 text-left font-black uppercase">Poste</th>
+                    <th className="px-2 py-3 text-left font-black uppercase">Mapping import</th>
                     <th className="px-4 py-3 text-center font-black uppercase">÷</th>
                     {MONTHS_ORDER.map((month) => <th key={month} className="px-3 py-3 text-center font-black uppercase">{MONTH_LABELS[month]}</th>)}
                     <th className="px-4 py-3 text-center font-black uppercase">Ratio moy.</th>
-                    <th className="px-4 py-3 text-center font-black uppercase">DLC</th>
-                    <th className="px-4 py-3 text-center font-black uppercase">Buffer</th>
-                    <th className="px-3 py-3 text-left font-black uppercase">Notes</th>
+                    <th className="px-3 py-3 text-center font-black uppercase">DLC</th>
+                    <th className="px-3 py-3 text-center font-black uppercase">Buffer</th>
+                    <th className="px-2 py-3 text-left font-black uppercase">Notes</th>
                     <th className="px-4 py-3 text-center font-black uppercase">Ordre</th>
                   </tr>
                 </thead>
@@ -197,15 +196,15 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                     return (
                       <tr key={item.id} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
                         <td className="border-t border-[#E0CCBA] px-4 py-3 text-center"><input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} className="h-5 w-5" /></td>
-                        <td className="border-t border-[#E0CCBA] px-3 py-3"><input value={item.name} disabled={!canEdit} onChange={(e) => updateItem(item.id, { name: e.target.value })} className="w-[210px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 font-black outline-none" /></td>
-                        <td className="border-t border-[#E0CCBA] px-3 py-3">
-                          <select value={item.category} disabled={!canEdit} onChange={(e) => updateItem(item.id, { category: e.target.value as PrepCategory })} className="w-[145px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 font-bold outline-none">
+                        <td className="border-t border-[#E0CCBA] px-2 py-3"><input value={item.name} disabled={!canEdit} onChange={(e) => updateItem(item.id, { name: e.target.value })} className="w-[170px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 font-black outline-none" /></td>
+                        <td className="border-t border-[#E0CCBA] px-2 py-3">
+                          <select value={item.category} disabled={!canEdit} onChange={(e) => updateItem(item.id, { category: e.target.value as PrepCategory })} className="w-[132px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 font-bold outline-none">
                             {CATEGORY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                           </select>
                         </td>
-                        <td className="border-t border-[#E0CCBA] px-3 py-3">
-                          <div className="relative flex items-center gap-1 min-w-[220px]">
-                            <input value={item.searchName} disabled={!canEdit} onChange={(e) => updateItem(item.id, { searchName: e.target.value })} placeholder="nom dans le fichier import" className={`flex-1 rounded-xl border px-3 py-2 text-xs font-bold outline-none ${alert ? 'border-amber-300 text-amber-700 bg-amber-50' : 'border-[#D0B08D] bg-[#FFFDF9]'}`} />
+                        <td className="border-t border-[#E0CCBA] px-2 py-3">
+                          <div className="relative flex items-center gap-1 min-w-[180px]">
+                            <input value={item.searchName} disabled={!canEdit} onChange={(e) => updateItem(item.id, { searchName: e.target.value })} placeholder="nom dans le fichier import" className={`flex-1 rounded-xl border px-2 py-2 text-xs font-bold outline-none ${alert ? 'border-amber-300 text-amber-700 bg-amber-50' : 'border-[#D0B08D] bg-[#FFFDF9]'}`} />
                             <button onClick={() => setActiveMappingId(activeMappingId === item.id ? null : item.id)} className="h-10 w-10 rounded-xl bg-slate-100 text-slate-600">⌄</button>
                             {activeMappingId === item.id && (
                               <div className="absolute left-0 top-full z-[999] mt-1">
@@ -221,7 +220,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                             )}
                           </div>
                         </td>
-                        <td className="border-t border-[#E0CCBA] px-4 py-3"><input type="number" value={item.importDivisor ?? ''} disabled={!canEdit} onChange={(e) => updateItem(item.id, { importDivisor: e.target.value === '' ? '' : Number(e.target.value) || '' })} className="w-[74px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" /></td>
+                        <td className="border-t border-[#E0CCBA] px-4 py-3"><input type="number" value={item.importDivisor ?? ''} disabled={!canEdit} onChange={(e) => updateItem(item.id, { importDivisor: e.target.value === '' ? '' : Number(e.target.value) || '' })} className="w-[62px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" /></td>
                         {MONTHS_ORDER.map((month) => {
                           const monthValue = getMonthValue(item, month);
                           const monthRatio = getMonthRatio(item, month);
@@ -235,9 +234,9 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                           );
                         })}
                         <td className="border-t border-[#E0CCBA] px-4 py-3 text-center font-black text-[#A93E2A]">{avgRatio.toFixed(3)}</td>
-                        <td className="border-t border-[#E0CCBA] px-4 py-3"><input type="number" value={item.secondaryDlcHours} disabled={!canEdit} onChange={(e) => updateItem(item.id, { secondaryDlcHours: e.target.value === '' ? '' : Number(e.target.value) || '' })} className="w-[80px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" /></td>
-                        <td className="border-t border-[#E0CCBA] px-4 py-3"><input type="number" value={item.targetBuffer} disabled={!canEdit} onChange={(e) => updateItem(item.id, { targetBuffer: e.target.value === '' ? '' : Number(e.target.value) || '' })} className="w-[80px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" /></td>
-                        <td className="border-t border-[#E0CCBA] px-4 py-3"><input value={item.notes || ''} disabled={!canEdit} onChange={(e) => updateItem(item.id, { notes: e.target.value })} className="w-[160px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 font-semibold outline-none" /></td>
+                        <td className="border-t border-[#E0CCBA] px-4 py-3"><input type="number" value={item.secondaryDlcHours} disabled={!canEdit} onChange={(e) => updateItem(item.id, { secondaryDlcHours: e.target.value === '' ? '' : Number(e.target.value) || '' })} className="w-[68px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" /></td>
+                        <td className="border-t border-[#E0CCBA] px-4 py-3"><input type="number" value={item.targetBuffer} disabled={!canEdit} onChange={(e) => updateItem(item.id, { targetBuffer: e.target.value === '' ? '' : Number(e.target.value) || '' })} className="w-[68px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" /></td>
+                        <td className="border-t border-[#E0CCBA] px-4 py-3"><input value={item.notes || ''} disabled={!canEdit} onChange={(e) => updateItem(item.id, { notes: e.target.value })} className="w-[120px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 font-semibold outline-none" /></td>
                         <td className="border-t border-[#E0CCBA] px-4 py-3">
                           <div className="flex gap-2 justify-center">
                             <button onClick={() => moveItem(item.id, 'up')} disabled={!canEdit || idx === 0} className="h-9 w-9 rounded-xl bg-slate-900 text-[#ffd700] disabled:opacity-20">↑</button>
@@ -248,7 +247,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                     );
                   })}
                   {rows.length === 0 && (
-                    <tr><td colSpan={19} className="px-6 py-10 text-center text-sm font-semibold text-slate-500">Aucune production. Ajoute d'abord tes lignes ici, puis importe tes fichiers production dans Paramètres.</td></tr>
+                    <tr><td colSpan={18} className="px-6 py-10 text-center text-sm font-semibold text-slate-500">Aucune production. Ajoute d'abord tes lignes ici, puis importe tes fichiers production dans Paramètres.</td></tr>
                   )}
                 </tbody>
               </table>

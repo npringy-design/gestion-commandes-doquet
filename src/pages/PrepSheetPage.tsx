@@ -44,7 +44,8 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
           const ratios = Object.values(item.ratioHistory || {}).filter((value) => Number(value) > 0);
           const ratio = ratios.length ? ratios.reduce((sum, value) => sum + Number(value), 0) / ratios.length : 0;
           const need = ratio * coversForDay;
-          const toProduce = Math.max(0, Math.ceil(need));
+          const buffer = Number(item.targetBuffer || 0);
+          const toProduce = Math.max(0, Math.ceil(need + buffer));
           return { item, ratio, need, toProduce };
         }),
     })).filter((group) => group.rows.length > 0);
@@ -57,78 +58,59 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#F6EFE6_0%,#F2E8DD_45%,#EBDDCE_100%)] text-[#34271F]">
-      <div className="mx-auto max-w-[1800px] p-3 md:p-4 xl:p-5">
-        <div className="mb-4 rounded-[30px] border border-[#D7B79B] bg-white p-5 shadow-[0_16px_30px_rgba(145,105,75,0.08)]">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+      <div className="mx-auto max-w-[1600px] p-2 md:p-3 xl:p-4">
+        <div className="mb-3 rounded-[22px] border border-[#D7B79B] bg-white px-4 py-3 shadow-[0_10px_22px_rgba(145,105,75,0.08)]">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="text-[11px] font-black uppercase tracking-[0.32em] text-[#15A06B]">Production terrain</div>
-              <h1 className="mt-2 text-4xl font-black uppercase tracking-tight text-[#0E1B42]">Feuille de mise en place</h1>
-              <p className="mt-3 text-sm font-semibold text-slate-500">
-                Page opérationnelle simplifiée : uniquement les productions actives et le besoin du jour.
-              </p>
+              <div className="text-[10px] font-black uppercase tracking-[0.26em] text-[#15A06B]">Production terrain</div>
+              <h1 className="mt-1 text-[30px] leading-none font-black uppercase tracking-tight text-[#0E1B42] md:text-[34px]">Feuille de mise en place</h1>
+              <p className="mt-1 text-xs font-semibold text-slate-500">Lecture terrain simple par poste.</p>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => setView('home')}
-                className="rounded-2xl bg-[#091433] px-6 py-4 text-sm font-black uppercase tracking-[0.08em] text-white shadow-lg"
-              >
-                Accueil
-              </button>
-            </div>
+            <button onClick={() => setView('home')} className="rounded-2xl bg-[#091433] px-5 py-3 text-xs font-black uppercase tracking-[0.08em] text-white shadow-lg">
+              Accueil
+            </button>
           </div>
         </div>
 
-        <div className="mb-5 grid gap-4 md:grid-cols-2">
-          <div className="rounded-[26px] border border-[#D7B79B] bg-white p-4 shadow-sm">
-            <div className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Date</div>
+        <div className="mb-3 grid gap-3 md:grid-cols-2">
+          <div className="rounded-[18px] border border-[#D7B79B] bg-white p-3 shadow-sm">
+            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Date</div>
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="mt-3 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xl font-black outline-none"
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base font-black outline-none"
             />
           </div>
 
-          <div className="rounded-[26px] border border-[#D7B79B] bg-white p-4 shadow-sm">
-            <div className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Prévi du jour</div>
-            <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-3xl font-black text-[#0E1B42]">
-              {coversForDay}
-            </div>
-            <div className="mt-3 text-xs font-semibold text-slate-500">
-              Valeur récupérée automatiquement depuis le journalier.
-            </div>
+          <div className="rounded-[18px] border border-[#D7B79B] bg-white p-3 shadow-sm">
+            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Prévi couverts</div>
+            <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-2xl font-black text-[#0E1B42]">{coversForDay}</div>
+            <div className="mt-1 text-[11px] font-semibold text-slate-500">Valeur récupérée automatiquement depuis le journalier.</div>
           </div>
         </div>
 
         {groupedRows.length === 0 ? (
-          <div className="rounded-[26px] border border-dashed border-slate-300 bg-white p-10 text-center font-semibold text-slate-500">
+          <div className="rounded-[20px] border border-dashed border-slate-300 bg-white p-8 text-center text-sm font-semibold text-slate-500">
             Aucune production enregistrée. Va dans <span className="font-black text-slate-800">Calcul prod ratio</span> pour créer tes lignes.
           </div>
         ) : (
-          <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)]">
-            <aside className="rounded-[28px] border border-[#D7B79B] bg-white p-3 shadow-sm">
-              <div className="mb-3 px-2 text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Sections</div>
+          <div className="grid gap-3 xl:grid-cols-[180px_minmax(0,1fr)]">
+            <aside className="rounded-[20px] border border-[#D7B79B] bg-white p-2 shadow-sm xl:sticky xl:top-3 xl:h-fit">
+              <div className="mb-2 px-2 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Postes</div>
               <div className="flex gap-2 overflow-x-auto xl:flex-col">
                 <button
                   onClick={() => setActiveCategory('all')}
-                  className={`min-w-[140px] rounded-2xl px-4 py-3 text-left text-sm font-black uppercase tracking-[0.08em] transition ${
-                    activeCategory === 'all'
-                      ? 'bg-[#091433] text-white shadow-lg'
-                      : 'border border-[#D7B79B] bg-[#FCF8F2] text-[#4D2B18]'
-                  }`}
+                  className={`min-w-[126px] rounded-xl px-3 py-2 text-left text-xs font-black uppercase tracking-[0.06em] transition ${activeCategory === 'all' ? 'bg-[#091433] text-white shadow-lg' : 'border border-[#D7B79B] bg-[#FCF8F2] text-[#4D2B18]'}`}
                 >
-                  Tous les postes
+                  Tous
                 </button>
                 {CATEGORY_ORDER.filter((category) => groupedRows.some((group) => group.category === category)).map((category) => (
                   <button
                     key={category}
                     onClick={() => setActiveCategory(category)}
-                    className={`min-w-[140px] rounded-2xl px-4 py-3 text-left text-sm font-black uppercase tracking-[0.08em] transition ${
-                      activeCategory === category
-                        ? 'bg-[#091433] text-white shadow-lg'
-                        : 'border border-[#D7B79B] bg-[#FCF8F2] text-[#4D2B18]'
-                    }`}
+                    className={`min-w-[126px] rounded-xl px-3 py-2 text-left text-xs font-black uppercase tracking-[0.06em] transition ${activeCategory === category ? 'bg-[#091433] text-white shadow-lg' : 'border border-[#D7B79B] bg-[#FCF8F2] text-[#4D2B18]'}`}
                   >
                     {CATEGORY_LABELS[category]}
                   </button>
@@ -138,35 +120,33 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
 
             <div>
               {visibleGroups.map((group) => (
-                <section key={group.category} className="mb-5 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-                  <div className={`bg-gradient-to-r ${CATEGORY_ACCENTS[group.category]} px-5 py-4 text-white`}>
-                    <div className="text-[10px] font-black uppercase tracking-[0.24em] text-white/80">Mise en place</div>
-                    <h2 className="text-2xl font-black uppercase tracking-tight">{CATEGORY_LABELS[group.category]}</h2>
+                <section key={group.category} className="mb-4 overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-sm">
+                  <div className={`bg-gradient-to-r ${CATEGORY_ACCENTS[group.category]} px-4 py-3 text-white`}>
+                    <div className="text-[10px] uppercase tracking-[0.22em] font-black text-white/80">Mise en place</div>
+                    <h2 className="text-xl font-black uppercase tracking-tight">{CATEGORY_LABELS[group.category]}</h2>
                   </div>
 
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[760px]">
+                    <table className="w-full min-w-[620px]">
                       <thead className="bg-[#F4E4D2] text-[#6C3C2B]">
                         <tr>
-                          <th className="px-4 py-3 text-left font-black uppercase">Production</th>
-                          <th className="px-4 py-3 text-center font-black uppercase">Ratio</th>
-                          <th className="px-4 py-3 text-center font-black uppercase">Besoin théo</th>
-                          <th className="px-4 py-3 text-center font-black uppercase">À produire</th>
+                          <th className="px-3 py-2 text-left text-xs font-black uppercase">Production</th>
+                          <th className="px-3 py-2 text-center text-xs font-black uppercase">Ratio</th>
+                          <th className="px-3 py-2 text-center text-xs font-black uppercase">Besoin théo</th>
+                          <th className="px-3 py-2 text-center text-xs font-black uppercase">À produire</th>
                         </tr>
                       </thead>
                       <tbody>
                         {group.rows.map((row, idx) => (
                           <tr key={row.item.id} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
-                            <td className="border-t border-[#E0CCBA] px-4 py-4 align-top">
+                            <td className="border-t border-[#E0CCBA] px-3 py-3 align-top">
                               <div className="font-black uppercase text-[#4D2B18]">{row.item.name}</div>
-                              {row.item.notes ? (
-                                <div className="mt-1 text-[11px] font-semibold text-slate-500">{row.item.notes}</div>
-                              ) : null}
+                              {row.item.notes ? <div className="mt-0.5 text-[10px] font-semibold text-slate-500">{row.item.notes}</div> : null}
                             </td>
-                            <td className="border-t border-[#E0CCBA] px-4 py-4 text-center font-black">{row.ratio.toFixed(3)}</td>
-                            <td className="border-t border-[#E0CCBA] px-4 py-4 text-center font-black">{row.need.toFixed(1)}</td>
-                            <td className="border-t border-[#E0CCBA] px-4 py-4 text-center">
-                              <span className="inline-flex min-w-[120px] items-center justify-center rounded-2xl bg-[#A93E2A] px-5 py-2 text-lg font-black text-white">
+                            <td className="border-t border-[#E0CCBA] px-3 py-3 text-center text-sm font-black">{row.ratio.toFixed(3)}</td>
+                            <td className="border-t border-[#E0CCBA] px-3 py-3 text-center text-sm font-black">{row.need.toFixed(1)}</td>
+                            <td className="border-t border-[#E0CCBA] px-3 py-3 text-center">
+                              <span className="inline-flex min-w-[84px] items-center justify-center rounded-xl bg-[#A93E2A] px-3 py-1.5 text-base font-black text-white">
                                 {row.toProduce}
                               </span>
                             </td>
