@@ -224,69 +224,57 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
       <div className="max-w-[1600px] mx-auto mb-4">
         <div className="bg-white/90 backdrop-blur-xl rounded-2xl lg:rounded-[32px] p-3 lg:p-6 shadow border border-white">
 
-          {/* ── Rangée 1 : nom fournisseur + boutons nav ── */}
-          <div className="flex items-center justify-between gap-2 mb-3 lg:mb-0 lg:hidden">
+          {/* ══════════════════════════════════════════════
+              HEADER MOBILE — 3 rangées empilées
+          ══════════════════════════════════════════════ */}
+          <div className="lg:hidden flex flex-col gap-2">
 
-            {/* Nom */}
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="w-9 h-9 shrink-0 bg-slate-900 rounded-full flex items-center justify-center text-[#ffd700]">
-                <SupplierIcon view={view} />
-              </span>
-              <div className="min-w-0">
-                <h1 className="text-base font-black text-slate-800 uppercase tracking-tighter truncate leading-tight">
-                  {supplierLabel.name}
-                </h1>
-                <p className="text-slate-400 font-bold uppercase text-[9px] tracking-widest truncate">
-                  {supplierLabel.subtitle}
-                </p>
+            {/* ── Rangée 1 : icône + nom + boutons nav ── */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-9 h-9 shrink-0 bg-slate-900 rounded-full flex items-center justify-center text-[#ffd700]">
+                  <SupplierIcon view={view} />
+                </span>
+                <div className="min-w-0">
+                  <h1 className="text-base font-black text-slate-800 uppercase tracking-tighter truncate leading-tight">
+                    {supplierLabel.name}
+                  </h1>
+                  <p className="text-slate-400 font-bold uppercase text-[9px] tracking-widest truncate">
+                    {supplierLabel.subtitle}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button onClick={() => setView('home')} title="Accueil"
+                  className="w-9 h-9 rounded-xl bg-[#FCEEB5] text-slate-500 flex items-center justify-center">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                </button>
+                <button onClick={() => setView('suppliers')} title="Fournisseurs"
+                  className="w-9 h-9 rounded-xl bg-[#FCEEB5] text-slate-500 flex items-center justify-center">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                </button>
+                <button onClick={() => setShowResetConfirm(true)}
+                  className="h-9 px-3 bg-red-50 text-red-600 font-black uppercase text-[10px] rounded-xl border border-red-100">
+                  RAZ
+                </button>
               </div>
             </div>
 
-            {/* Boutons nav (mobile) */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button onClick={() => setView('home')} title="Accueil"
-                className="w-9 h-9 rounded-xl bg-[#FCEEB5] text-slate-500 flex items-center justify-center">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-              </button>
-              <button onClick={() => setView('suppliers')} title="Fournisseurs"
-                className="w-9 h-9 rounded-xl bg-[#FCEEB5] text-slate-500 flex items-center justify-center">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-              </button>
-              <button onClick={() => setShowResetConfirm(true)}
-                className="h-9 px-3 bg-red-50 text-red-600 font-black uppercase text-[10px] rounded-xl border border-red-100">
-                RAZ
-              </button>
-            </div>
-          </div>
-
-          {/* ── Rangée 2 : mode calcul + livraison + couverts (mobile) ── */}
-          <div className="flex items-center gap-2 lg:hidden">
-
-            {/* Sélecteur mode — compact */}
-            <div className="flex bg-[#FCEEB5] p-1 rounded-xl border border-white/50 shrink-0">
-              <button onClick={() => setCalculationMode('margin')}
-                className={`px-3 py-1.5 rounded-lg font-black uppercase text-[9px] transition-all ${calculationMode === 'margin' ? 'bg-white text-orange-600 shadow' : 'text-slate-400'}`}>
-                Marge
-              </button>
-              <button onClick={() => setCalculationMode('target')}
-                className={`px-3 py-1.5 rounded-lg font-black uppercase text-[9px] transition-all ${calculationMode === 'target' ? 'bg-white text-blue-600 shadow' : 'text-slate-400'}`}>
-                Cible
-              </button>
-            </div>
-
-            {/* Livraison courante — calendrier 1 (mobile) */}
-            <div className="relative flex-1">
+            {/* ── Rangée 2 : livraison courante uniquement (mobile terrain) ── */}
+            <div className="relative">
               <button
                 onClick={() => {
                   setActiveCalendarSupplier(prev => prev === currentSupplierId ? null : currentSupplierId);
                   setActiveNextCalendar(false);
                 }}
-                className="w-full flex items-center justify-between gap-1 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl"
+                className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl"
               >
-                <span className="text-[9px] font-black text-emerald-400 uppercase shrink-0">Livr.</span>
-                <span className="font-black text-emerald-900 text-[11px] truncate">
-                  {capitalizeFirstLetter(selectedDeliveryFormatted)}
-                </span>
+                <div className="flex flex-col items-start min-w-0">
+                  <span className="text-[8px] font-black text-emerald-400 uppercase leading-none mb-0.5">Livraison</span>
+                  <span className="font-black text-emerald-900 text-[12px] truncate leading-tight">
+                    {capitalizeFirstLetter(selectedDeliveryFormatted)}
+                  </span>
+                </div>
                 <svg className={`w-3 h-3 text-emerald-400 shrink-0 transition-transform ${activeCalendarSupplier === currentSupplierId ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"/>
                 </svg>
@@ -297,7 +285,6 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                   minDate={minDelivery1}
                   onSelect={d => {
                     setDeliveryDateBySupplier(prev => ({ ...prev, [currentSupplierId]: d.toISOString() }));
-                    // Recaler la livraison suivante à +7j automatiquement
                     const next = new Date(d); next.setDate(d.getDate() + 7);
                     setNextDeliveryDateBySupplier(prev => ({ ...prev, [currentSupplierId]: next.toISOString() }));
                     setActiveCalendarSupplier(null);
@@ -307,45 +294,18 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
               )}
             </div>
 
-            {calculationMode === 'margin' && (
-              <>
-                {/* Livraison suivante — calendrier 2 (mobile) */}
-                <div className="relative flex-1">
-              <button
-                onClick={() => {
-                  setActiveNextCalendar(v => !v);
-                  setActiveCalendarSupplier(null);
-                }}
-                className="w-full flex items-center justify-between gap-1 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-xl"
-              >
-                <span className="text-[9px] font-black text-amber-500 uppercase shrink-0">Suiv.</span>
-                <span className="font-black text-amber-900 text-[11px] truncate">
-                  {capitalizeFirstLetter(selectedNextDeliveryFormatted)}
-                </span>
-                <svg className={`w-3 h-3 text-amber-400 shrink-0 transition-transform ${activeNextCalendar ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"/>
-                </svg>
+            {/* ── Rangée 3 : sélecteur mode calcul ── */}
+            <div className="flex bg-[#FCEEB5] p-1 rounded-xl border border-white/50">
+              <button onClick={() => setCalculationMode('margin')}
+                className={`flex-1 py-2 rounded-lg font-black uppercase text-[10px] transition-all ${calculationMode === 'margin' ? 'bg-white text-orange-600 shadow' : 'text-slate-400'}`}>
+                Mode Marge
               </button>
-              {activeNextCalendar && (
-                <WindowsCalendar
-                  selectedDate={selectedNextDeliveryDate}
-                  minDate={minDelivery2}
-                  onSelect={d => {
-                    setNextDeliveryDateBySupplier(prev => ({ ...prev, [currentSupplierId]: d.toISOString() }));
-                    setActiveNextCalendar(false);
-                  }}
-                  onClose={() => setActiveNextCalendar(false)}
-                />
-              )}
-                </div>
-              </>
-            )}
-
-            {/* Couverts (mobile) */}
-            <div className="bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100 flex items-center gap-1.5 shrink-0">
-              <span className="text-[9px] font-black text-indigo-400 uppercase">Couverts</span>
-              <span className="font-black text-indigo-900 text-sm">{windowForecast.total}</span>
+              <button onClick={() => setCalculationMode('target')}
+                className={`flex-1 py-2 rounded-lg font-black uppercase text-[10px] transition-all ${calculationMode === 'target' ? 'bg-white text-blue-600 shadow' : 'text-slate-400'}`}>
+                Mode Cible
+              </button>
             </div>
+
           </div>
 
           {/* ── VERSION DESKTOP : 1 seule ligne (inchangée) ── */}
@@ -469,13 +429,20 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
       ================================================================ */}
       <div className="max-w-[1600px] mx-auto pb-24">
         <div className="bg-white rounded-2xl lg:rounded-[32px] shadow-2xl shadow-slate-300/20 border border-slate-100 lg:overflow-x-auto overflow-x-hidden">
-          <table className="w-full lg:w-auto" style={{ minWidth: 'unset' }}>
+          <table className="order-table w-full lg:w-auto lg:[table-layout:auto]">
+            {/* colgroup mobile uniquement — 4 colonnes visibles : produit | colisage | pièce | à cmd */}
+            <colgroup>
+              <col className="col-produit" />
+              <col className="col-stock" />
+              <col className="col-stock" />
+              <col className="col-acmd" />
+            </colgroup>
             <thead>
               <tr className="text-left h-12 lg:h-16">
 
-                {/* Colonne Produit — sticky gauche */}
+                {/* Colonne Produit */}
                 <th className="px-3 lg:px-6 bg-[#2c1810] text-[#ffd700] font-black uppercase text-[10px] lg:text-xs tracking-widest"
-                    style={{ position: 'sticky', left: 0, zIndex: 20, minWidth: '110px', maxWidth: '130px' }}>
+                    style={{ position: 'sticky', left: 0, zIndex: 20 }}>
                   Produit
                 </th>
 
@@ -532,9 +499,9 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                   <tr key={p.id} className="hover:bg-amber-50/40 transition-colors">
 
                     {/* Nom produit — sticky gauche */}
-                    <td className="px-3 lg:px-6 py-3 font-['Roboto_Slab'] font-bold text-slate-800 text-xs lg:text-sm border-r-2 border-slate-100 bg-white"
+                    <td className="px-3 lg:px-6 py-3 font-['Roboto_Slab'] font-bold text-slate-800 text-xs lg:text-sm border-r-2 border-slate-100 bg-white overflow-hidden"
                         style={{ position: 'sticky', left: 0, zIndex: 10 }}>
-                      {capitalizeFirstLetter(p.name)}
+                      <span className="block truncate">{capitalizeFirstLetter(p.name)}</span>
                     </td>
 
                     {calculationMode === 'margin' ? (<>
