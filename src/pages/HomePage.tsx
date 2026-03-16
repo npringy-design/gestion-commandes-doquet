@@ -78,8 +78,8 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           <div
   className={`grid gap-1 lg:gap-2 mb-8 justify-center ${
     !isMobile && canAccessStatsPage(profile)
-      ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
-      : 'grid-cols-1 md:grid-cols-2'
+      ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4'
+      : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
   }`}
 >
             <button
@@ -138,6 +138,35 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
                 </span>
               </button>
             )}
+
+            <button
+              onClick={() => setView('prep_sheet')}
+              className="group w-full max-w-[380px] mx-auto bg-white p-3 sm:p-4 lg:p-5 rounded-[30px] shadow-2xl hover:scale-105 transition-all border-4 border-transparent hover:border-emerald-600"
+            >
+              <div className="w-16 h-16 lg:w-20 lg:h-20 bg-emerald-100 rounded-3xl flex items-center justify-center mb-4 mx-auto group-hover:bg-emerald-600 transition-colors">
+                <svg
+                  className="w-8 h-8 lg:w-10 lg:h-10 text-emerald-600 group-hover:text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M12 6v12m6-6H6M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2z"
+                  />
+                </svg>
+              </div>
+              <span
+                className="font-black uppercase text-slate-800 tracking-tighter text-center leading-tight"
+                style={{ fontSize: 'clamp(1.45rem, 2vw, 2.2rem)' }}
+              >
+                Feuille de
+                <br />
+                Mise en Place
+              </span>
+            </button>
 
             <button
               onClick={() => setView('cost_analysis')}

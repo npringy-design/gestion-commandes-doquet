@@ -52,7 +52,8 @@ export type CoreView =
   | 'admin_dashboard'
   | 'supplier_settings'
   | 'user_management'
-  | 'cost_analysis';
+  | 'cost_analysis'
+  | 'prep_sheet';
 
 export type View = CoreView | (string & {});
 
@@ -81,6 +82,7 @@ export const RESERVED_VIEWS = new Set<CoreView>([
   'supplier_settings',
   'user_management',
   'cost_analysis',
+  'prep_sheet',
 ]);
 
 export const slugifySupplierId = (value: string): string =>

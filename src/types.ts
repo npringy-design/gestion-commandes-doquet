@@ -65,3 +65,22 @@ export interface SupplierConfig {
   isArchived?:      boolean;
   createdAt?:       string;
 }
+
+
+export interface PrepConfig {
+  enabled: boolean;
+  ratioPerCover: number | '';
+  secondaryDlcHours: number | '';
+  targetBuffer: number | '';
+  notes?: string;
+}
+
+export interface PrepBatch {
+  id: string;
+  productId: string;
+  quantity: number;
+  remainingQty: number;
+  producedAt: string;
+  expiresAt: string;
+  note?: string;
+}

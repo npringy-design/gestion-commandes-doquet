@@ -22,7 +22,7 @@ import {
   loadAllFromSupabase,
   saveToSupabaseDebounced,
 } from '../utils/supabase';
-import { OrderState, SupplierConfig } from '../types';
+import { OrderState, SupplierConfig, PrepBatch, PrepConfig } from '../types';
 import { ProductWithHistory } from '../data';
 import { DailyCoversState } from '../utils/dateHelpers';
 import {
@@ -46,6 +46,8 @@ type PersistedState = {
   deliveryDateBySupplier: Record<string, string>;
   nextDeliveryDateBySupplier: Record<string, string>;
   products: ProductWithHistory[];
+  prepConfigs: Record<string, PrepConfig>;
+  prepBatches: PrepBatch[];
 };
 
 type StateSetters = {
@@ -60,6 +62,8 @@ type StateSetters = {
   setDeliveryDateBySupplier: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   setNextDeliveryDateBySupplier: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   setProducts: React.Dispatch<React.SetStateAction<ProductWithHistory[]>>;
+  setPrepConfigs: React.Dispatch<React.SetStateAction<Record<string, PrepConfig>>>;
+  setPrepBatches: React.Dispatch<React.SetStateAction<PrepBatch[]>>;
 };
 
 type UseCloudSyncParams = PersistedState &
@@ -84,6 +88,8 @@ const DEFER_WHILE_TYPING = new Set<string>([
 const EXCLUDE_FROM_REALTIME = new Set<string>([
   'inventory',    // CSV bruts — peut peser plusieurs Mo
   'dailyCovers',  // 12 mois × 31 jours — non modifié en session terrain
+  'prepConfigs',
+  'prepBatches',
   // NOTE: products est intentionnellement INCLUS dans le Realtime
   // car il contient stock/upcomingDelivery/targetStock saisis en terrain.
   // Il est protégé contre le clignotement via DEFER_WHILE_TYPING.
@@ -113,6 +119,8 @@ export const useCloudSync = ({
   deliveryDateBySupplier,
   nextDeliveryDateBySupplier,
   products,
+  prepConfigs,
+  prepBatches,
   setCovers,
   setDailyCovers,
   setOrderStates,
@@ -124,6 +132,8 @@ export const useCloudSync = ({
   setDeliveryDateBySupplier,
   setNextDeliveryDateBySupplier,
   setProducts,
+  setPrepConfigs,
+  setPrepBatches,
   onSaveError,
 }: UseCloudSyncParams) => {
   const [supabaseLoaded, setSupabaseLoaded] = useState(false);
@@ -181,6 +191,12 @@ export const useCloudSync = ({
       case 'products':
         setProducts(mergeAndNormalizeProducts(value as ProductWithHistory[]));
         break;
+      case 'prepConfigs':
+        setPrepConfigs(value as Record<string, PrepConfig>);
+        break;
+      case 'prepBatches':
+        setPrepBatches(value as PrepBatch[]);
+        break;
       default:
         break;
     }
@@ -190,7 +206,7 @@ export const useCloudSync = ({
     setCostMatterByMonth, setCovers, setDailyCovers,
     setDeliveryDateBySupplier, setDetailedInventory,
     setNextDeliveryDateBySupplier, setOrderStates,
-    setProducts, setSalesHtByMonth, setSupplierConfigs, setValidatedMonths,
+    setProducts, setPrepConfigs, setPrepBatches, setSalesHtByMonth, setSupplierConfigs, setValidatedMonths,
   ]);
 
   // ─── Vide la file d'attente (appelé au focusout global) ───────────────────
@@ -269,6 +285,8 @@ export const useCloudSync = ({
           if (cloudMap.deliveryDateBySupplier) setDeliveryDateBySupplier(cloudMap.deliveryDateBySupplier as Record<string, string>);
           if (cloudMap.nextDeliveryDateBySupplier) setNextDeliveryDateBySupplier(cloudMap.nextDeliveryDateBySupplier as Record<string, string>);
           if (cloudMap.products) setProducts(mergeAndNormalizeProducts(cloudMap.products as ProductWithHistory[]));
+          if (cloudMap.prepConfigs) setPrepConfigs(cloudMap.prepConfigs as Record<string, PrepConfig>);
+          if (cloudMap.prepBatches) setPrepBatches(cloudMap.prepBatches as PrepBatch[]);
 
           setTimeout(() => { isHydratingFromCloud.current = false; }, 600);
         }
@@ -285,7 +303,7 @@ export const useCloudSync = ({
     setCostMatterByMonth, setCovers, setDailyCovers,
     setDeliveryDateBySupplier, setDetailedInventory,
     setNextDeliveryDateBySupplier, setOrderStates,
-    setProducts, setSalesHtByMonth, setSupplierConfigs, setValidatedMonths,
+    setProducts, setPrepConfigs, setPrepBatches, setSalesHtByMonth, setSupplierConfigs, setValidatedMonths,
   ]);
 
   // ─── Supabase Realtime — écoute les INSERT/UPDATE sur app_state ───────────
@@ -372,6 +390,8 @@ export const useCloudSync = ({
   useEffect(() => { persistEverywhere('deliveryDateBySupplier', deliveryDateBySupplier); }, [deliveryDateBySupplier, persistEverywhere]);
   useEffect(() => { persistEverywhere('nextDeliveryDateBySupplier', nextDeliveryDateBySupplier); }, [nextDeliveryDateBySupplier, persistEverywhere]);
   useEffect(() => { persistEverywhere('products', products); }, [persistEverywhere, products]);
+  useEffect(() => { persistEverywhere('prepConfigs', prepConfigs); }, [persistEverywhere, prepConfigs]);
+  useEffect(() => { persistEverywhere('prepBatches', prepBatches); }, [persistEverywhere, prepBatches]);
 
   return {
     supabaseLoaded,

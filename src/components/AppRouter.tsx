@@ -16,6 +16,7 @@ const SupplierSettingsPage = lazy(() => import('../pages/SupplierSettingsPage'))
 const SupplierOrderPage = lazy(() => import('../pages/SupplierOrderPage'));
 const RatiosPage = lazy(() => import('../pages/RatiosPage'));
 const UserManagementPage = lazy(() => import('../pages/UserManagementPage'));
+const PrepSheetPage = lazy(() => import('../pages/PrepSheetPage'));
 
 type ScrollSyncSource = 'main' | 'bottom';
 
@@ -175,6 +176,22 @@ const AppRouter: React.FC<AppRouterProps> = ({
         setDailyCovers={state.setDailyCovers}
       />,
       'Chargement du journalier…'
+    );
+  }
+
+  if (view === 'prep_sheet') {
+    return renderLazyPage(
+      <PrepSheetPage
+        setView={setView}
+        dailyCovers={state.dailyCovers}
+        products={state.products}
+        prepConfigs={state.prepConfigs}
+        setPrepConfigs={state.setPrepConfigs}
+        prepBatches={state.prepBatches}
+        setPrepBatches={state.setPrepBatches}
+        getProductStats={state.getProductStats}
+      />,
+      'Chargement de la feuille de mise en place…'
     );
   }
 
