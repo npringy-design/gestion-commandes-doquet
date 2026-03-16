@@ -160,6 +160,8 @@ const AppRouter: React.FC<AppRouterProps> = ({
         setCostMatterByMonth={state.setCostMatterByMonth}
         detailedInventory={state.detailedInventory}
         setDetailedInventory={state.setDetailedInventory}
+        prepImportsByMonth={state.prepImportsByMonth}
+        setPrepImportsByMonth={state.setPrepImportsByMonth}
         validatedMonths={state.validatedMonths}
       />,
       'Chargement des paramètres…'
@@ -184,13 +186,10 @@ const AppRouter: React.FC<AppRouterProps> = ({
     return renderLazyPage(
       <PrepSheetPage
         setView={setView}
-        products={state.products}
-        prepConfigs={state.prepConfigs}
+        prepItems={state.prepItems}
         prepBatches={state.prepBatches}
         setPrepBatches={state.setPrepBatches}
-        prepForecasts={state.prepForecasts}
-        setPrepForecasts={state.setPrepForecasts}
-        getProductStats={state.getProductStats}
+        dailyCovers={state.dailyCovers}
       />,
       'Chargement de la feuille de mise en place…'
     );
@@ -205,10 +204,11 @@ const AppRouter: React.FC<AppRouterProps> = ({
     return renderLazyPage(
       <PrepRatiosPage
         setView={setView}
-        products={state.products}
-        prepConfigs={state.prepConfigs}
-        setPrepConfigs={state.setPrepConfigs}
-        getProductStats={state.getProductStats}
+        covers={state.covers}
+        validatedMonths={state.validatedMonths}
+        prepItems={state.prepItems}
+        setPrepItems={state.setPrepItems}
+        prepImportsByMonth={state.prepImportsByMonth}
       />,
       'Chargement du calcul prod ratio…'
     );

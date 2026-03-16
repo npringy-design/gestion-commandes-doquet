@@ -69,15 +69,20 @@ export interface SupplierConfig {
 
 export type PrepCategory = 'poste_chaud' | 'poste_entree' | 'poste_dessert' | 'decongelation';
 
-export interface PrepConfig {
-  enabled: boolean;
-  category?: PrepCategory;
-  ratioPerCover: number | '';
+export interface PrepItem {
+  id: string;
+  name: string;
+  searchName: string;
+  importDivisor?: number | '';
+  category: PrepCategory;
+  isActive: boolean;
+  ratioHistory: Record<string, number>;
   secondaryDlcHours: number | '';
   targetBuffer: number | '';
   notes?: string;
 }
 
+export type PrepImportsByMonth = Record<string, string>;
 export type PrepForecastsByDate = Record<string, number>;
 
 export interface PrepBatch {

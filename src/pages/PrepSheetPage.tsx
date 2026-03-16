@@ -1,7 +1,7 @@
 import React from 'react';
 import type { View } from '../constants';
-import type { ProductWithHistory } from '../data';
-import type { PrepBatch, PrepCategory, PrepConfig, PrepForecastsByDate } from '../types';
+import type { PrepBatch, PrepCategory, PrepItem } from '../types';
+import type { DailyCoversState } from '../utils/dateHelpers';
 
 const CATEGORY_ORDER: PrepCategory[] = ['poste_chaud', 'poste_entree', 'poste_dessert', 'decongelation'];
 const CATEGORY_LABELS: Record<PrepCategory, string> = {
@@ -11,139 +11,92 @@ const CATEGORY_LABELS: Record<PrepCategory, string> = {
   decongelation: 'Décongélation',
 };
 const CATEGORY_ACCENTS: Record<PrepCategory, string> = {
-  poste_chaud: 'from-[#C85A35] to-[#A93E2A]',
-  poste_entree: 'from-[#B57A37] to-[#8D5C24]',
-  poste_dessert: 'from-[#8A5877] to-[#6B425C]',
-  decongelation: 'from-[#468AA4] to-[#2F6D85]',
+  poste_chaud: 'from-[#A93E2A] to-[#7A231A]',
+  poste_entree: 'from-[#B36A28] to-[#8C4C12]',
+  poste_dessert: 'from-[#8F3D74] to-[#5F2455]',
+  decongelation: 'from-[#2F6DA5] to-[#1C4E78]',
 };
 
 interface PrepSheetPageProps {
   setView: (v: View) => void;
-  products: ProductWithHistory[];
-  prepConfigs: Record<string, PrepConfig>;
+  prepItems: PrepItem[];
   prepBatches: PrepBatch[];
   setPrepBatches: React.Dispatch<React.SetStateAction<PrepBatch[]>>;
-  prepForecasts: PrepForecastsByDate;
-  setPrepForecasts: React.Dispatch<React.SetStateAction<PrepForecastsByDate>>;
-  getProductStats: (product: ProductWithHistory) => { avgRatio: number };
+  dailyCovers: DailyCoversState;
 }
 
-const toNumber = (value: number | '' | undefined) => {
-  const parsed = Number(value ?? 0);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
-const todayValue = () => {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-};
-const dtLocalValue = (d = new Date()) => {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const h = String(d.getHours()).padStart(2, '0');
-  const min = String(d.getMinutes()).padStart(2, '0');
-  return `${y}-${m}-${day}T${h}:${min}`;
-};
-const formatDateTime = (iso: string) => {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+const todayIso = () => new Date().toISOString().slice(0, 10);
+const dtLocalValue = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+const parseDate = (value: string) => { const d = new Date(value); return Number.isNaN(d.getTime()) ? new Date() : d; };
+const formatDateTime = (value: string) => parseDate(value).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+const monthKeys = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+
+const getCoversForDate = (dailyCovers: DailyCoversState, dateValue: string) => {
+  const date = parseDate(dateValue);
+  const monthKey = monthKeys[date.getMonth()];
+  const day = date.getDate() - 1;
+  const line = dailyCovers[monthKey]?.[day];
+  if (!line) return 0;
+  return (Number(line.midi) || 0) + (Number(line.soir) || 0);
 };
 
-const PrepSheetPage: React.FC<PrepSheetPageProps> = ({
-  setView,
-  products,
-  prepConfigs,
-  prepBatches,
-  setPrepBatches,
-  prepForecasts,
-  setPrepForecasts,
-  getProductStats,
-}) => {
-  const [selectedDate, setSelectedDate] = React.useState(todayValue());
+const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, prepBatches, setPrepBatches, dailyCovers }) => {
+  const [selectedDate, setSelectedDate] = React.useState(todayIso());
   const [search, setSearch] = React.useState('');
   const [draftQty, setDraftQty] = React.useState<Record<string, string>>({});
   const [draftProducedAt, setDraftProducedAt] = React.useState<Record<string, string>>({});
   const nowTs = Date.now();
-  const forecast = prepForecasts[selectedDate] ?? 0;
+  const forecast = React.useMemo(() => getCoversForDate(dailyCovers, selectedDate), [dailyCovers, selectedDate]);
 
   const rows = React.useMemo(() => {
     const q = search.trim().toLowerCase();
-    return products
-      .map((product) => {
-        const cfg = prepConfigs[product.id];
-        if (!cfg?.enabled) return null;
-        if (q && !product.name.toLowerCase().includes(q) && !product.searchName.toLowerCase().includes(q)) return null;
-        const ratio = toNumber(cfg.ratioPerCover || getProductStats(product).avgRatio || 0);
-        const buffer = toNumber(cfg.targetBuffer);
-        const dlc = Math.max(1, toNumber(cfg.secondaryDlcHours || 24));
-        const category = cfg.category || 'poste_chaud';
-        const lots = prepBatches
-          .filter((batch) => batch.productId === product.id)
-          .sort((a, b) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime());
-        const usableQty = lots.filter((batch) => batch.remainingQty > 0 && new Date(batch.expiresAt).getTime() >= nowTs)
-          .reduce((sum, batch) => sum + batch.remainingQty, 0);
+    return prepItems
+      .filter((item) => item.isActive)
+      .filter((item) => !q || item.name.toLowerCase().includes(q) || item.searchName.toLowerCase().includes(q))
+      .map((item) => {
+        const lots = prepBatches.filter((batch) => batch.productId === item.id);
+        const usableQty = lots.reduce((sum, batch) => {
+          if (batch.remainingQty <= 0) return sum;
+          if (new Date(batch.expiresAt).getTime() < nowTs) return sum;
+          return sum + batch.remainingQty;
+        }, 0);
+        const monthRatios = Object.values(item.ratioHistory || {}).filter((v) => Number(v) > 0).map(Number);
+        const ratio = monthRatios.length ? monthRatios.reduce((a, b) => a + b, 0) / monthRatios.length : 0;
         const need = ratio * forecast;
-        const toProduce = Math.max(0, Math.ceil(need + buffer - usableQty));
-        return { product, cfg, category, ratio, buffer, dlc, lots, usableQty, need, toProduce };
-      })
-      .filter(Boolean) as Array<{ product: ProductWithHistory; cfg: PrepConfig; category: PrepCategory; ratio: number; buffer: number; dlc: number; lots: PrepBatch[]; usableQty: number; need: number; toProduce: number }>;
-  }, [forecast, getProductStats, nowTs, prepBatches, prepConfigs, products, search]);
+        const buffer = Number(item.targetBuffer || 0);
+        const dlc = Number(item.secondaryDlcHours || 0);
+        const toProduce = Math.max(0, Math.ceil(need - usableQty + buffer));
+        return { item, lots, ratio, usableQty, need, buffer, dlc, toProduce };
+      });
+  }, [forecast, nowTs, prepBatches, prepItems, search]);
 
-  const groupedRows = React.useMemo(() => {
-    return CATEGORY_ORDER.map((category) => ({
-      category,
-      rows: rows.filter((row) => row.category === category),
-    })).filter((group) => group.rows.length > 0);
-  }, [rows]);
+  const groupedRows = React.useMemo(() => CATEGORY_ORDER.map((category) => ({ category, rows: rows.filter((row) => row.item.category === category) })).filter((group) => group.rows.length > 0), [rows]);
+  const totalUsable = rows.reduce((sum, row) => sum + row.usableQty, 0);
+  const totalToProduce = rows.reduce((sum, row) => sum + row.toProduce, 0);
 
-  const updateForecast = (raw: string) => {
-    const next = Math.max(0, Number(raw) || 0);
-    setPrepForecasts((prev) => ({ ...prev, [selectedDate]: next }));
+  const createBatch = (itemId: string, dlcHours: number) => {
+    const quantity = Number(draftQty[itemId] || 0);
+    if (quantity <= 0) return;
+    const producedAtValue = draftProducedAt[itemId] || dtLocalValue(new Date());
+    const producedAt = new Date(producedAtValue);
+    const expiresAt = new Date(producedAt.getTime() + Math.max(0, dlcHours) * 60 * 60 * 1000);
+    setPrepBatches((prev) => [...prev, { id: `prep-batch-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, productId: itemId, quantity, remainingQty: quantity, producedAt: producedAt.toISOString(), expiresAt: expiresAt.toISOString() }]);
+    setDraftQty((prev) => ({ ...prev, [itemId]: '' }));
+    setDraftProducedAt((prev) => ({ ...prev, [itemId]: dtLocalValue(new Date()) }));
   };
 
-  const createBatch = (productId: string, dlcHours: number) => {
-    const quantity = Math.max(0, Number(draftQty[productId] || 0));
-    if (!quantity) return;
-    const producedAtRaw = draftProducedAt[productId] || dtLocalValue(new Date());
-    const producedAt = new Date(producedAtRaw);
-    const expiresAt = new Date(producedAt.getTime() + dlcHours * 60 * 60 * 1000);
-    setPrepBatches((prev) => [
-      {
-        id: `${productId}_${Date.now()}`,
-        productId,
-        quantity,
-        remainingQty: quantity,
-        producedAt: producedAt.toISOString(),
-        expiresAt: expiresAt.toISOString(),
-      },
-      ...prev,
-    ]);
-    setDraftQty((prev) => ({ ...prev, [productId]: '' }));
-    setDraftProducedAt((prev) => ({ ...prev, [productId]: dtLocalValue(new Date()) }));
-  };
-
-  const consumeBatch = (batchId: string, amount: number) => {
-    setPrepBatches((prev) => prev.map((batch) => batch.id === batchId ? { ...batch, remainingQty: Math.max(0, batch.remainingQty - amount) } : batch));
-  };
-
+  const consumeBatch = (batchId: string, amount: number) => setPrepBatches((prev) => prev.map((batch) => batch.id === batchId ? { ...batch, remainingQty: Math.max(0, batch.remainingQty - amount) } : batch));
   const deleteBatch = (batchId: string) => setPrepBatches((prev) => prev.filter((batch) => batch.id !== batchId));
 
-  const totalToProduce = rows.reduce((sum, row) => sum + row.toProduce, 0);
-  const totalUsable = rows.reduce((sum, row) => sum + row.usableQty, 0);
-
   return (
-    <div className="min-h-screen bg-[#f5f1e8] p-3 lg:p-6 text-xs text-slate-800">
-      <div className="max-w-[1750px] mx-auto space-y-4 lg:space-y-6">
-        <div className="bg-white rounded-[28px] shadow-xl border border-slate-200 p-4 lg:p-6">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#F6EFE6_0%,#F2E8DD_45%,#EBDDCE_100%)] text-slate-900">
+      <div className="mx-auto max-w-[1920px] p-3 lg:p-4 space-y-4">
+        <div className="bg-white rounded-[28px] border border-slate-200 shadow-sm p-5 lg:p-6">
           <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
             <div>
               <div className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-600">Production terrain</div>
               <h1 className="text-2xl lg:text-4xl font-black uppercase tracking-tighter text-slate-900">Feuille de mise en place</h1>
-              <p className="mt-1 text-sm text-slate-500 font-semibold">La feuille reprend les produits activés dans Calcul prod ratio et les regroupe par poste.</p>
+              <p className="mt-1 text-sm text-slate-500 font-semibold">La feuille reprend uniquement les productions actives du calcul prod ratio, avec le prévi couverts du jour lié au journalier.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <button onClick={() => setView('home')} className="px-4 py-3 rounded-2xl bg-slate-900 text-white font-black uppercase tracking-widest shadow">Accueil</button>
@@ -159,8 +112,8 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({
           </div>
           <div className="bg-white rounded-[26px] border border-slate-200 p-4 shadow-sm">
             <div className="text-[10px] uppercase tracking-[0.25em] text-slate-400 font-black mb-2">Prévi du jour</div>
-            <input type="number" min="0" value={forecast} onChange={(e) => updateForecast(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-3xl font-black tracking-tight text-slate-900 outline-none" />
-            <div className="mt-2 text-[11px] text-slate-500 font-semibold">Saisie directe dans la feuille, sans passer par le journalier.</div>
+            <div className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-3xl font-black tracking-tight text-slate-900">{forecast}</div>
+            <div className="mt-2 text-[11px] text-slate-500 font-semibold">Valeur récupérée automatiquement depuis le journalier.</div>
           </div>
           <div className="bg-white rounded-[26px] border border-slate-200 p-4 shadow-sm">
             <div className="text-[10px] uppercase tracking-[0.25em] text-slate-400 font-black mb-2">Qté utilisable</div>
@@ -175,13 +128,11 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({
         </div>
 
         <div className="bg-white rounded-[26px] border border-slate-200 p-4 shadow-sm">
-          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un produit de mise en place..." className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none" />
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher une production..." className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none" />
         </div>
 
         {groupedRows.length === 0 ? (
-          <div className="bg-white rounded-[26px] border border-dashed border-slate-300 p-10 text-center text-slate-500 font-semibold">
-            Aucun produit activé pour la mise en place. Va dans <span className="font-black text-slate-800">Calcul prod ratio</span> pour en activer.
-          </div>
+          <div className="bg-white rounded-[26px] border border-dashed border-slate-300 p-10 text-center text-slate-500 font-semibold">Aucune production active. Va dans <span className="font-black text-slate-800">Calcul prod ratio</span> pour créer et activer tes lignes.</div>
         ) : groupedRows.map((group) => (
           <section key={group.category} className="bg-white rounded-[28px] border border-slate-200 shadow-sm overflow-hidden">
             <div className={`px-5 py-4 bg-gradient-to-r ${CATEGORY_ACCENTS[group.category]} text-white`}>
@@ -189,40 +140,35 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({
               <h2 className="text-2xl font-black uppercase tracking-tight">{CATEGORY_LABELS[group.category]}</h2>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-[1450px] w-full">
+              <table className="min-w-[1320px] w-full">
                 <thead className="bg-[#F4E4D2] text-[#6C3C2B]">
                   <tr>
-                    <th className="px-4 py-3 text-left font-black uppercase">Produit</th>
+                    <th className="px-4 py-3 text-left font-black uppercase">Production</th>
                     <th className="px-4 py-3 text-center font-black uppercase">Ratio</th>
                     <th className="px-4 py-3 text-center font-black uppercase">Besoin théo</th>
                     <th className="px-4 py-3 text-center font-black uppercase">Utilisable</th>
                     <th className="px-4 py-3 text-center font-black uppercase">Buffer</th>
                     <th className="px-4 py-3 text-center font-black uppercase">À produire</th>
-                    <th className="px-4 py-3 text-center font-black uppercase">DLC sec.</th>
+                    <th className="px-4 py-3 text-center font-black uppercase">DLC</th>
                     <th className="px-4 py-3 text-center font-black uppercase">Nouveau lot</th>
                     <th className="px-4 py-3 text-left font-black uppercase">Lots existants</th>
                   </tr>
                 </thead>
                 <tbody>
                   {group.rows.map((row, idx) => (
-                    <tr key={row.product.id} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
-                      <td className="border-t border-[#E0CCBA] px-4 py-3 align-top">
-                        <div className="font-black uppercase text-[#4D2B18]">{row.product.name}</div>
-                        {row.cfg.notes ? <div className="mt-1 text-[11px] font-semibold text-slate-500">{row.cfg.notes}</div> : null}
-                      </td>
-                      <td className="border-t border-[#E0CCBA] px-4 py-3 align-top text-center font-black">{row.ratio.toFixed(3)}</td>
-                      <td className="border-t border-[#E0CCBA] px-4 py-3 align-top text-center font-black">{row.need.toFixed(1)}</td>
-                      <td className="border-t border-[#E0CCBA] px-4 py-3 align-top text-center font-black text-emerald-700">{row.usableQty}</td>
-                      <td className="border-t border-[#E0CCBA] px-4 py-3 align-top text-center font-black">{row.buffer}</td>
-                      <td className="border-t border-[#E0CCBA] px-4 py-3 align-top text-center">
-                        <span className="inline-flex items-center justify-center rounded-full bg-[#A93E2A] px-4 py-1.5 text-white font-black text-sm min-w-[70px]">{row.toProduce}</span>
-                      </td>
-                      <td className="border-t border-[#E0CCBA] px-4 py-3 align-top text-center font-black">{row.dlc} h</td>
-                      <td className="border-t border-[#E0CCBA] px-4 py-3 align-top">
+                    <tr key={row.item.id} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
+                      <td className="border-t border-[#E0CCBA] px-4 py-3 align-top"><div className="font-black uppercase text-[#4D2B18]">{row.item.name}</div>{row.item.notes ? <div className="mt-1 text-[11px] font-semibold text-slate-500">{row.item.notes}</div> : null}</td>
+                      <td className="border-t border-[#E0CCBA] px-4 py-3 text-center font-black">{row.ratio.toFixed(3)}</td>
+                      <td className="border-t border-[#E0CCBA] px-4 py-3 text-center font-black">{row.need.toFixed(1)}</td>
+                      <td className="border-t border-[#E0CCBA] px-4 py-3 text-center font-black text-emerald-700">{row.usableQty}</td>
+                      <td className="border-t border-[#E0CCBA] px-4 py-3 text-center font-black">{row.buffer}</td>
+                      <td className="border-t border-[#E0CCBA] px-4 py-3 text-center"><span className="inline-flex items-center justify-center rounded-full bg-[#A93E2A] px-4 py-1.5 text-white font-black text-sm min-w-[70px]">{row.toProduce}</span></td>
+                      <td className="border-t border-[#E0CCBA] px-4 py-3 text-center font-black">{row.dlc} h</td>
+                      <td className="border-t border-[#E0CCBA] px-4 py-3">
                         <div className="grid grid-cols-[90px_1fr_auto] gap-2 items-center">
-                          <input type="number" min="0" placeholder="Qté" value={draftQty[row.product.id] || ''} onChange={(e) => setDraftQty((prev) => ({ ...prev, [row.product.id]: e.target.value }))} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-center font-bold outline-none" />
-                          <input type="datetime-local" value={draftProducedAt[row.product.id] || dtLocalValue(new Date())} onChange={(e) => setDraftProducedAt((prev) => ({ ...prev, [row.product.id]: e.target.value }))} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold outline-none" />
-                          <button onClick={() => createBatch(row.product.id, row.dlc)} className="rounded-xl bg-emerald-600 px-3 py-2 text-white font-black uppercase tracking-wider">Ajouter</button>
+                          <input type="number" min="0" placeholder="Qté" value={draftQty[row.item.id] || ''} onChange={(e) => setDraftQty((prev) => ({ ...prev, [row.item.id]: e.target.value }))} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-center font-bold outline-none" />
+                          <input type="datetime-local" value={draftProducedAt[row.item.id] || dtLocalValue(new Date())} onChange={(e) => setDraftProducedAt((prev) => ({ ...prev, [row.item.id]: e.target.value }))} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold outline-none" />
+                          <button onClick={() => createBatch(row.item.id, row.dlc)} className="rounded-xl bg-emerald-600 px-3 py-2 text-white font-black uppercase tracking-wider">Ajouter</button>
                         </div>
                       </td>
                       <td className="border-t border-[#E0CCBA] px-4 py-3 align-top">

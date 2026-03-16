@@ -16,7 +16,7 @@ import {
   ProductWithHistory,
   DAILY_COVERS_INITIAL,
 } from '../data';
-import { OrderState, SupplierConfig, PrepBatch, PrepConfig, PrepForecastsByDate } from '../types';
+import { OrderState, SupplierConfig, PrepBatch, PrepItem, PrepImportsByMonth, PrepForecastsByDate } from '../types';
 import { MONTHS_ORDER, View, SupplierId } from '../constants';
 import { DailyCoversState } from '../utils/dateHelpers';
 import { getImportedValueForProduct, extractAllNamesFromCsvs } from '../utils/csvHelpers';
@@ -94,8 +94,11 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     createInitialProducts(loadState('products', [] as ProductWithHistory[]))
   );
 
-  const [prepConfigs, setPrepConfigs] =
-    useState<Record<string, PrepConfig>>(() => loadState('prepConfigs', {}));
+  const [prepItems, setPrepItems] =
+    useState<PrepItem[]>(() => loadState('prepItems', [] as PrepItem[]));
+
+  const [prepImportsByMonth, setPrepImportsByMonth] =
+    useState<PrepImportsByMonth>(() => loadState('prepImportsByMonth', {}));
 
   const [prepBatches, setPrepBatches] =
     useState<PrepBatch[]>(() => loadState('prepBatches', [] as PrepBatch[]));
@@ -126,7 +129,8 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     deliveryDateBySupplier,
     nextDeliveryDateBySupplier,
     products,
-    prepConfigs,
+    prepItems,
+    prepImportsByMonth,
     prepBatches,
     prepForecasts,
     setCovers,
@@ -140,7 +144,8 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     setDeliveryDateBySupplier,
     setNextDeliveryDateBySupplier,
     setProducts,
-    setPrepConfigs,
+    setPrepItems,
+    setPrepImportsByMonth,
     setPrepBatches,
     setPrepForecasts,
     onSaveError,
@@ -275,7 +280,8 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     importTargetMonth,
     supplierConfigs, setSupplierConfigs,
     products, setProducts,
-    prepConfigs, setPrepConfigs,
+    prepItems, setPrepItems,
+    prepImportsByMonth, setPrepImportsByMonth,
     prepBatches, setPrepBatches,
     prepForecasts, setPrepForecasts,
 
