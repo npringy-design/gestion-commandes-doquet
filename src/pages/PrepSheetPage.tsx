@@ -1,6 +1,7 @@
 import React from 'react';
-import { type View } from '../constants';
+import { MONTHS_ORDER, type View } from '../constants';
 import type { PrepCategory, PrepItem } from '../types';
+import type { DailyCoversState } from '../utils/dateHelpers';
 
 const CATEGORY_ORDER: PrepCategory[] = ['poste_chaud', 'poste_entree', 'poste_dessert', 'decongelation'];
 const CATEGORY_LABELS: Record<PrepCategory, string> = {
@@ -20,21 +21,24 @@ const CATEGORY_BANNERS: Record<PrepCategory, string> = {
 interface PrepSheetPageProps {
   setView: (v: View) => void;
   prepItems: PrepItem[];
-  dailyCovers: Record<string, number>;
+  dailyCovers: DailyCoversState;
 }
 
-const dateKey = (date: string) => {
-  if (!date) return '';
-  const [y, m, d] = date.split('-');
-  if (!y || !m || !d) return '';
-  return `${d}/${m}/${y}`;
+const getCoversForDate = (date: string, dailyCovers: DailyCoversState): number => {
+  if (!date) return 0;
+  const [year, month, day] = date.split('-').map(Number);
+  if (!year || !month || !day) return 0;
+  const monthKey = MONTHS_ORDER[month - 1];
+  const dayData = dailyCovers[monthKey]?.[day - 1];
+  if (!dayData) return 0;
+  return (Number(dayData.midi) || 0) + (Number(dayData.soir) || 0);
 };
 
 const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, dailyCovers }) => {
   const [selectedDate, setSelectedDate] = React.useState(() => new Date().toISOString().slice(0, 10));
   const [activeCategory, setActiveCategory] = React.useState<PrepCategory | 'all'>('all');
 
-  const coversForDay = Number(dailyCovers[dateKey(selectedDate)] || 0);
+  const coversForDay = React.useMemo(() => getCoversForDate(selectedDate, dailyCovers), [selectedDate, dailyCovers]);
 
   const groupedRows = React.useMemo(() => {
     return CATEGORY_ORDER.map((category) => ({
@@ -59,26 +63,26 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
 
   return (
     <div className="min-h-screen overflow-hidden bg-[linear-gradient(180deg,#F6EFE6_0%,#F1E7DA_45%,#E9DDCF_100%)] text-[#34271F]">
-      <div className="mx-auto flex h-screen max-w-[1920px] flex-col gap-3 p-2 sm:p-3 lg:flex-row lg:gap-4 lg:p-3">
-        <aside className="w-full shrink-0 lg:w-[250px]">
-          <div className="flex flex-col gap-3 lg:sticky lg:top-3">
-            <div className="overflow-hidden rounded-[24px] border border-[#B46E58] bg-[linear-gradient(135deg,#A93E2A_0%,#922F20_48%,#7A231A_100%)] shadow-[0_10px_20px_rgba(122,35,26,0.14)]">
+      <div className="mx-auto flex h-screen max-w-[1920px] flex-col gap-2 p-2 lg:flex-row lg:gap-3 lg:p-3">
+        <aside className="w-full shrink-0 lg:w-[230px]">
+          <div className="flex flex-col gap-2 lg:sticky lg:top-3">
+            <div className="overflow-hidden rounded-[22px] border border-[#B46E58] bg-[linear-gradient(135deg,#A93E2A_0%,#922F20_48%,#7A231A_100%)] shadow-[0_8px_18px_rgba(122,35,26,0.12)]">
               <div className="h-1.5 bg-gradient-to-r from-[#F1C15A] via-[#D86A2C] to-[#A93E2A]" />
-              <div className="p-4">
+              <div className="p-3.5">
                 <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#FFE1B8]">Hippopotamus Thillois</p>
-                <h1 className="mt-2 text-[24px] font-black leading-none text-[#FFF9F3] xl:text-[28px]">Feuille de mise en place</h1>
-                <p className="mt-3 text-xs font-semibold text-[#FFE7CF]">Vue terrain simple par poste, centrée uniquement sur ce qu'il faut produire.</p>
+                <h1 className="mt-2 text-[22px] font-black leading-none text-[#FFF9F3] xl:text-[26px]">Feuille de mise en place</h1>
+                <p className="mt-2.5 text-[11px] font-semibold text-[#FFE7CF]">Vue terrain simple par poste, centrée uniquement sur ce qu'il faut produire.</p>
               </div>
             </div>
 
-            <button onClick={() => setView('home')} className="flex items-center justify-center gap-3 rounded-[20px] border border-[#D9A72B] bg-[linear-gradient(180deg,#F3C63D_0%,#E3A91F_100%)] px-4 py-4 text-center text-sm font-black uppercase tracking-[0.12em] text-[#4D2B18] shadow-[0_4px_0_#B8810F] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#B8810F]">Retour accueil</button>
+            <button onClick={() => setView('home')} className="flex items-center justify-center gap-3 rounded-[18px] border border-[#D9A72B] bg-[linear-gradient(180deg,#F3C63D_0%,#E3A91F_100%)] px-4 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-[#4D2B18] shadow-[0_4px_0_#B8810F] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#B8810F]">Retour accueil</button>
 
-            <div className="rounded-[20px] border border-[#D7B79B] bg-[#FBF7F1] p-2 shadow-sm">
+            <div className="rounded-[18px] border border-[#D7B79B] bg-[#FBF7F1] p-2 shadow-sm">
               <div className="mb-2 px-2 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Postes</div>
               <div className="flex gap-2 overflow-x-auto lg:flex-col">
                 <button
                   onClick={() => setActiveCategory('all')}
-                  className={`min-w-[126px] rounded-xl px-3 py-2.5 text-left text-xs font-black uppercase tracking-[0.06em] transition ${activeCategory === 'all' ? 'bg-[#091433] text-white shadow-lg' : 'border border-[#D7B79B] bg-white text-[#4D2B18]'}`}
+                  className={`min-w-[122px] rounded-xl px-3 py-2 text-left text-[11px] font-black uppercase tracking-[0.06em] transition ${activeCategory === 'all' ? 'bg-[#091433] text-white shadow-lg' : 'border border-[#D7B79B] bg-white text-[#4D2B18]'}`}
                 >
                   Tous
                 </button>
@@ -86,7 +90,7 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
                   <button
                     key={category}
                     onClick={() => setActiveCategory(category)}
-                    className={`min-w-[126px] rounded-xl px-3 py-2.5 text-left text-xs font-black uppercase tracking-[0.06em] transition ${activeCategory === category ? 'bg-[#091433] text-white shadow-lg' : 'border border-[#D7B79B] bg-white text-[#4D2B18]'}`}
+                    className={`min-w-[122px] rounded-xl px-3 py-2 text-left text-[11px] font-black uppercase tracking-[0.06em] transition ${activeCategory === category ? 'bg-[#091433] text-white shadow-lg' : 'border border-[#D7B79B] bg-white text-[#4D2B18]'}`}
                   >
                     {CATEGORY_LABELS[category]}
                   </button>
@@ -97,64 +101,64 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
         </aside>
 
         <main className="flex min-h-0 min-w-0 flex-1">
-          <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[28px] border border-[#D7B79B] bg-[#FAF5EE] shadow-[0_16px_32px_rgba(145,105,75,0.10)]">
-            <div className="border-b border-[#B45439] bg-[linear-gradient(180deg,#A93E2A_0%,#912F20_55%,#782219_100%)] px-5 py-3">
-              <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[24px] border border-[#D7B79B] bg-[#FAF5EE] shadow-[0_14px_28px_rgba(145,105,75,0.10)]">
+            <div className="border-b border-[#B45439] bg-[linear-gradient(180deg,#A93E2A_0%,#912F20_55%,#782219_100%)] px-4 py-3">
+              <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center xl:justify-between">
                 <div>
                   <div className="text-[10px] font-black uppercase tracking-[0.24em] text-[#FFE1B8]">Production du jour</div>
-                  <h2 className="mt-1 text-xl font-black uppercase tracking-[0.08em] text-[#FFF8F1]">Pilotage terrain</h2>
+                  <h2 className="mt-1 text-lg font-black uppercase tracking-[0.08em] text-[#FFF8F1]">Pilotage terrain</h2>
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <label className="rounded-2xl border border-white/15 bg-white/90 px-3 py-2">
+                <div className="grid gap-2 sm:grid-cols-2 xl:min-w-[430px]">
+                  <label className="rounded-xl border border-white/15 bg-white/90 px-3 py-2">
                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Date</div>
                     <input
                       type="date"
                       value={selectedDate}
                       onChange={(e) => setSelectedDate(e.target.value)}
-                      className="mt-1 w-full bg-transparent text-sm font-black text-[#34271F] outline-none"
+                      className="mt-1 w-full bg-transparent text-[13px] font-black text-[#34271F] outline-none"
                     />
                   </label>
-                  <div className="rounded-2xl border border-white/15 bg-white/90 px-3 py-2">
+                  <div className="rounded-xl border border-white/15 bg-white/90 px-3 py-2">
                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Prévi couverts</div>
-                    <div className="mt-1 text-2xl leading-none font-black text-[#0E1B42]">{coversForDay}</div>
+                    <div className="mt-1 text-xl leading-none font-black text-[#0E1B42]">{coversForDay}</div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-auto p-3">
+            <div className="min-h-0 flex-1 overflow-auto p-2.5 lg:p-3">
               {groupedRows.length === 0 ? (
                 <div className="rounded-[20px] border border-dashed border-slate-300 bg-white p-8 text-center text-sm font-semibold text-slate-500">
                   Aucune production enregistrée. Va dans <span className="font-black text-slate-800">Calcul prod ratio</span> pour créer tes lignes.
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {visibleGroups.map((group) => (
-                    <section key={group.category} className="overflow-hidden rounded-[22px] border border-[#D7B79B] bg-white shadow-sm">
-                      <div className={`bg-gradient-to-r ${CATEGORY_BANNERS[group.category]} px-4 py-2.5 text-white`}>
+                    <section key={group.category} className="overflow-hidden rounded-[18px] border border-[#D7B79B] bg-white shadow-sm">
+                      <div className={`bg-gradient-to-r ${CATEGORY_BANNERS[group.category]} px-3.5 py-2 text-white`}>
                         <div className="text-[10px] uppercase tracking-[0.22em] font-black text-white/80">Mise en place</div>
-                        <h3 className="text-lg font-black uppercase tracking-tight">{CATEGORY_LABELS[group.category]}</h3>
+                        <h3 className="text-base font-black uppercase tracking-tight">{CATEGORY_LABELS[group.category]}</h3>
                       </div>
 
                       <div className="overflow-x-auto">
-                        <table className="w-full min-w-[540px] text-sm">
+                        <table className="w-full min-w-[500px] text-sm">
                           <thead className="bg-[#F4E4D2] text-[#6C3C2B]">
                             <tr>
-                              <th className="px-3 py-2 text-left text-xs font-black uppercase">Production</th>
-                              <th className="px-3 py-2 text-center text-xs font-black uppercase">Besoin théo</th>
-                              <th className="px-3 py-2 text-center text-xs font-black uppercase">À produire</th>
+                              <th className="px-3 py-1.5 text-left text-[11px] font-black uppercase">Production</th>
+                              <th className="px-3 py-1.5 text-center text-[11px] font-black uppercase">Besoin théo</th>
+                              <th className="px-3 py-1.5 text-center text-[11px] font-black uppercase">À produire</th>
                             </tr>
                           </thead>
                           <tbody>
                             {group.rows.map((row, idx) => (
                               <tr key={row.item.id} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
-                                <td className="border-t border-[#E0CCBA] px-3 py-2.5 align-middle">
+                                <td className="border-t border-[#E0CCBA] px-3 py-2 align-middle">
                                   <div className="font-black uppercase text-[#4D2B18]">{row.item.name}</div>
-                                  {row.item.notes ? <div className="mt-0.5 text-[10px] font-semibold text-slate-500">{row.item.notes}</div> : null}
+                                  {row.item.notes ? <div className="mt-0.5 text-[9px] font-semibold text-slate-500">{row.item.notes}</div> : null}
                                 </td>
-                                <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center text-sm font-black">{row.need.toFixed(1)}</td>
-                                <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center">
-                                  <span className="inline-flex min-w-[72px] items-center justify-center rounded-xl bg-[#A93E2A] px-3 py-1.5 text-base font-black text-white">
+                                <td className="border-t border-[#E0CCBA] px-3 py-2 text-center text-sm font-black">{row.need.toFixed(1)}</td>
+                                <td className="border-t border-[#E0CCBA] px-3 py-2 text-center">
+                                  <span className="inline-flex min-w-[64px] items-center justify-center rounded-lg bg-[#A93E2A] px-3 py-1 text-sm font-black text-white">
                                     {row.toProduce}
                                   </span>
                                 </td>
