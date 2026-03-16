@@ -11,7 +11,7 @@
 // =============================================================
 
 // ── Types ────────────────────────────────────────────────────
-export interface SupabaseRow {
+interface SupabaseRow {
   key:        string;
   value:      unknown;
   updated_at: string;
@@ -86,15 +86,16 @@ export const loadKeysFromSupabase = async (keys: string[]): Promise<SupabaseRow[
 export const saveToSupabase = async (
   key:   string,
   value: unknown,
-): Promise<SupabaseRow | null> => {
+  ts:    string  // timestamp ISO généré par l'appelant au moment de la frappe
+): Promise<string | null> => {
   if (!isSupabaseConfigured()) return null;
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/${TABLE}?on_conflict=key&select=key,value,updated_at`,
+      `${SUPABASE_URL}/rest/v1/${TABLE}?on_conflict=key`,
       {
         method:  'POST',
-        headers: { ...headers(), 'Prefer': 'resolution=merge-duplicates,return=representation' },
-        body:    JSON.stringify([{ key, value }]),
+        headers: { ...headers(), 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+        body:    JSON.stringify([{ key, value, updated_at: ts }]),
       }
     );
     if (!res.ok) {
@@ -103,8 +104,7 @@ export const saveToSupabase = async (
       console.error('[Supabase save error]', key, res.status, body);
       return null;
     }
-    const rows = await res.json() as SupabaseRow[];
-    return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+    return ts; // Supabase a accepté notre timestamp
   } catch (err) {
     console.error('[Supabase save exception]', key, err);
     return null;
@@ -129,13 +129,23 @@ const debounceTimers: Record<string, ReturnType<typeof setTimeout>> = {};
 export const saveToSupabaseDebounced = (
   key:          string,
   value:        unknown,
-  onSaved:      (row: SupabaseRow) => void,
-  ms           = 450
+  localTs:      string,                                 // ISO timestamp de cette frappe
+  getCloudTs:   (key: string) => string | undefined,    // curseur de polling
+  onSaved:      (key: string, confirmedTs: string) => void,
+  ms           = 1500
 ): void => {
   if (!isSupabaseConfigured()) return;
   if (debounceTimers[key]) clearTimeout(debounceTimers[key]);
   debounceTimers[key] = setTimeout(async () => {
-    const row = await saveToSupabase(key, value);
-    if (row) onSaved(row);
+    // Vérifier last-write-wins avant d'envoyer
+    const cloudTs = getCloudTs(key);
+    if (cloudTs && cloudTs > localTs) {
+      // Le cloud est plus récent → ne pas écraser
+      // (un autre device a écrit après nous, le polling va appliquer sa valeur)
+      console.log(`[LWW] Skipping save for "${key}" — cloud (${cloudTs}) > local (${localTs})`);
+      return;
+    }
+    const confirmedTs = await saveToSupabase(key, value, localTs);
+    if (confirmedTs) onSaved(key, confirmedTs);
   }, ms);
 };

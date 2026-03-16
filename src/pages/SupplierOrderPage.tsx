@@ -259,10 +259,10 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
             </div>
           </div>
 
-          {/* ── Rangée 2 : mode calcul + livraison + couverts (mobile) ── */}
+          {/* ── Rangée 2 : mode calcul + livraison terrain (mobile / tablette) ── */}
           <div className="flex items-center gap-2 lg:hidden">
 
-            {/* Sélecteur mode — compact */}
+            {/* Sélecteur mode — conservé, mais compact */}
             <div className="flex bg-[#FCEEB5] p-1 rounded-xl border border-white/50 shrink-0">
               <button onClick={() => setCalculationMode('margin')}
                 className={`px-3 py-1.5 rounded-lg font-black uppercase text-[9px] transition-all ${calculationMode === 'margin' ? 'bg-white text-orange-600 shadow' : 'text-slate-400'}`}>
@@ -274,8 +274,8 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
               </button>
             </div>
 
-            {/* Livraison courante — calendrier 1 (mobile) */}
-            <div className="relative flex-1">
+            {/* Livraison courante — seul repère utile sur terrain */}
+            <div className="relative flex-1 min-w-0">
               <button
                 onClick={() => {
                   setActiveCalendarSupplier(prev => prev === currentSupplierId ? null : currentSupplierId);
@@ -297,7 +297,6 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                   minDate={minDelivery1}
                   onSelect={d => {
                     setDeliveryDateBySupplier(prev => ({ ...prev, [currentSupplierId]: d.toISOString() }));
-                    // Recaler la livraison suivante à +7j automatiquement
                     const next = new Date(d); next.setDate(d.getDate() + 7);
                     setNextDeliveryDateBySupplier(prev => ({ ...prev, [currentSupplierId]: next.toISOString() }));
                     setActiveCalendarSupplier(null);
@@ -306,8 +305,6 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                 />
               )}
             </div>
-
-            {/* Mobile/tablette terrain : on allège volontairement l'en-tête */}
           </div>
 
           {/* ── VERSION DESKTOP : 1 seule ligne (inchangée) ── */}
@@ -430,70 +427,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
           La colonne "À Commander" est sticky à droite (position: sticky)
       ================================================================ */}
       <div className="max-w-[1600px] mx-auto pb-24">
-
-        {/* VERSION MOBILE / TABLETTE : focus terrain */}
-        <div className="lg:hidden bg-white rounded-2xl shadow-2xl shadow-slate-300/20 border border-slate-100 overflow-hidden">
-          <table className="w-full table-fixed">
-            <thead>
-              <tr className="text-left h-12">
-                <th className="px-4 bg-[#2c1810] text-[#ffd700] font-black uppercase text-[10px] tracking-widest">
-                  Produit
-                </th>
-                <th className="px-2 bg-amber-600 text-white font-black uppercase text-[10px] tracking-widest text-center">
-                  U. Colisage
-                </th>
-                <th className="px-2 bg-amber-500 text-white font-black uppercase text-[10px] tracking-widest text-center">
-                  U. Pièce
-                </th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y-2 divide-slate-200">
-              {displayedProducts.map((p, rowIdx) => {
-                const stockSplit = getStockSplit(p.stock, p.packaging);
-
-                return (
-                  <tr key={p.id} className="hover:bg-amber-50/40 transition-colors">
-                    <td className="px-4 py-3 font-['Roboto_Slab'] font-bold text-slate-800 text-[13px] leading-tight align-middle">
-                      {capitalizeFirstLetter(p.name)}
-                    </td>
-
-                    <td className="p-2 bg-amber-50/20 align-middle">
-                      <input
-                        type="number"
-                        value={p.stock === '' ? '' : stockSplit.stockCases}
-                        onChange={e => updateStockFromSplit(p.id, p.packaging, e.target.value, String(stockSplit.stockPieces))}
-                        tabIndex={TAB_STOCK_CASES + rowIdx}
-                        onKeyDown={e => handleEnterKey(e, TAB_STOCK_CASES, rowIdx)}
-                        enterKeyHint="next"
-                        inputMode="numeric"
-                        className="w-full h-11 rounded-xl border border-amber-200/60 bg-white text-center font-black text-amber-700 text-base outline-none focus:border-amber-400 transition-all shadow-sm"
-                        placeholder="-"
-                      />
-                    </td>
-
-                    <td className="p-2 bg-amber-50/20 align-middle">
-                      <input
-                        type="number"
-                        value={p.stock === '' ? '' : stockSplit.stockPieces}
-                        onChange={e => updateStockFromSplit(p.id, p.packaging, String(stockSplit.stockCases), e.target.value)}
-                        tabIndex={TAB_STOCK_PIECES + rowIdx}
-                        onKeyDown={e => handleEnterKey(e, TAB_STOCK_PIECES, rowIdx)}
-                        enterKeyHint="next"
-                        inputMode="numeric"
-                        className="w-full h-11 rounded-xl border border-amber-200/60 bg-white text-center font-black text-amber-700 text-base outline-none focus:border-amber-400 transition-all shadow-sm"
-                        placeholder="-"
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* VERSION DESKTOP : tableau complet conservé */}
-        <div className="hidden lg:block bg-white rounded-2xl lg:rounded-[32px] shadow-2xl shadow-slate-300/20 border border-slate-100 overflow-x-auto">
+        <div className="bg-white rounded-2xl lg:rounded-[32px] shadow-2xl shadow-slate-300/20 border border-slate-100 overflow-x-auto">
           <table className="w-full" style={{ minWidth: calculationMode === 'margin' ? '760px' : '840px' }}>
             <thead>
               <tr className="text-left h-12 lg:h-16">
@@ -563,9 +497,9 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                     </td>
 
                     {calculationMode === 'margin' ? (<>
-                      <td className="p-2 text-center font-bold text-slate-700 text-sm bg-[#FFE8CC] whitespace-nowrap">{displayInfo1}</td>
-                      <td className="p-2 bg-emerald-50/20">
-                        <input data-cloud-key="products" type="number" value={p.upcomingDelivery}
+                      <td className="hidden lg:table-cell p-2 text-center font-bold text-slate-700 text-sm bg-[#FFE8CC] whitespace-nowrap">{displayInfo1}</td>
+                      <td className="hidden lg:table-cell p-2 bg-emerald-50/20">
+                        <input type="number" value={p.upcomingDelivery}
                           onChange={e => updateProductValue(p.id, 'upcomingDelivery', e.target.value)}
                           tabIndex={TAB_UPCOMING + rowIdx}
                           onKeyDown={e => handleEnterKey(e, TAB_UPCOMING, rowIdx)}
@@ -576,7 +510,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                       </td>
 
                       <td className="p-2 bg-amber-50/20">
-                        <input data-cloud-key="products" type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockCases}
+                        <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockCases}
                           onChange={e => updateStockFromSplit(p.id, p.packaging, e.target.value, String(getStockSplit(p.stock, p.packaging).stockPieces))}
                           tabIndex={TAB_STOCK_CASES + rowIdx}
                           onKeyDown={e => handleEnterKey(e, TAB_STOCK_CASES, rowIdx)}
@@ -587,7 +521,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                       </td>
 
                       <td className="p-2 bg-amber-50/20">
-                        <input data-cloud-key="products" type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockPieces}
+                        <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockPieces}
                           onChange={e => updateStockFromSplit(p.id, p.packaging, String(getStockSplit(p.stock, p.packaging).stockCases), e.target.value)}
                           tabIndex={TAB_STOCK_PIECES + rowIdx}
                           onKeyDown={e => handleEnterKey(e, TAB_STOCK_PIECES, rowIdx)}
@@ -597,15 +531,14 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                           placeholder="-" />
                       </td>
 
-                      <td className="p-2 text-center bg-[#FFE8CC]">
-                        <input data-cloud-key="products" type="number" value={p.packaging} disabled={commandeOnly}
+                      <td className="hidden lg:table-cell p-2 text-center bg-[#FFE8CC]">
+                        <input type="number" value={p.packaging} disabled={commandeOnly}
                           onChange={e => updateProductValue(p.id, 'packaging', e.target.value)}
                           className={`w-12 lg:w-16 text-center border border-slate-200 rounded-lg font-bold text-sm outline-none py-1 ${commandeOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/50 text-slate-600'}`} />
                       </td>
 
-                      <td className="p-2 text-center bg-[#FFE8CC]">
+                      <td className="hidden lg:table-cell p-2 text-center bg-[#FFE8CC]">
                         <select
-                          data-cloud-key="orderStates"
                           value={orderStates[p.id]?.margin ?? 30}
                           disabled={commandeOnly}
                           onChange={e => setOrderStates(pv => ({ ...pv, [p.id]: { ...pv[p.id], margin: Number(e.target.value) } }))}
@@ -616,8 +549,8 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                       </td>
 
                     </>) : (<>
-                      <td className="p-2 relative bg-blue-50/20">
-                        <input data-cloud-key="products" type="number" value={p.targetStock} disabled={commandeOnly}
+                      <td className="hidden lg:table-cell p-2 relative bg-blue-50/20">
+                        <input type="number" value={p.targetStock} disabled={commandeOnly}
                           onChange={e => updateProductValue(p.id, 'targetStock', e.target.value)}
                           className={`w-14 lg:w-full h-9 lg:h-10 rounded-lg border border-blue-200/50 text-center font-black text-sm outline-none transition-all shadow-sm ${commandeOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white text-blue-700 focus:border-blue-400'}`}
                           placeholder="-" />
@@ -628,8 +561,8 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                         )}
                       </td>
 
-                      <td className="p-2 bg-emerald-50/20">
-                        <input data-cloud-key="products" type="number" value={p.upcomingDelivery}
+                      <td className="hidden lg:table-cell p-2 bg-emerald-50/20">
+                        <input type="number" value={p.upcomingDelivery}
                           onChange={e => updateProductValue(p.id, 'upcomingDelivery', e.target.value)}
                           tabIndex={TAB_UPCOMING + rowIdx}
                           onKeyDown={e => handleEnterKey(e, TAB_UPCOMING, rowIdx)}
@@ -640,7 +573,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                       </td>
 
                       <td className="p-2 bg-amber-50/20">
-                        <input data-cloud-key="products" type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockCases}
+                        <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockCases}
                           onChange={e => updateStockFromSplit(p.id, p.packaging, e.target.value, String(getStockSplit(p.stock, p.packaging).stockPieces))}
                           tabIndex={TAB_STOCK_CASES + rowIdx}
                           onKeyDown={e => handleEnterKey(e, TAB_STOCK_CASES, rowIdx)}
@@ -651,7 +584,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                       </td>
 
                       <td className="p-2 bg-amber-50/20">
-                        <input data-cloud-key="products" type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockPieces}
+                        <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockPieces}
                           onChange={e => updateStockFromSplit(p.id, p.packaging, String(getStockSplit(p.stock, p.packaging).stockCases), e.target.value)}
                           tabIndex={TAB_STOCK_PIECES + rowIdx}
                           onKeyDown={e => handleEnterKey(e, TAB_STOCK_PIECES, rowIdx)}
@@ -661,11 +594,11 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                           placeholder="-" />
                       </td>
 
-                      <td className="p-2 text-center bg-[#FFE8CC] whitespace-nowrap">
+                      <td className="hidden lg:table-cell p-2 text-center bg-[#FFE8CC] whitespace-nowrap">
                         <span className="text-slate-600 font-bold text-sm">{displayInfo1}</span>
                       </td>
 
-                      <td className="p-2 text-center bg-[#FFE8CC]">
+                      <td className="hidden lg:table-cell p-2 text-center bg-[#FFE8CC]">
                         {displayInfo2 !== null && displayInfo2 > 0 ? (
                           <span className="text-red-600 font-black bg-white/50 border border-red-200 px-1.5 py-0.5 rounded text-xs">-{displayInfo2}</span>
                         ) : (
@@ -673,15 +606,15 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                         )}
                       </td>
 
-                      <td className="p-2 text-center bg-[#FFE8CC]">
-                        <input data-cloud-key="products" type="number" value={p.packaging} disabled={commandeOnly}
+                      <td className="hidden lg:table-cell p-2 text-center bg-[#FFE8CC]">
+                        <input type="number" value={p.packaging} disabled={commandeOnly}
                           onChange={e => updateProductValue(p.id, 'packaging', e.target.value)}
                           className={`w-12 lg:w-16 text-center border border-slate-200 rounded-lg font-bold text-sm outline-none py-1 ${commandeOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/50 text-slate-600'}`} />
                       </td>
                     </>)}
 
-                    {/* À Commander — sticky droite */}
-                    <td className="p-2 text-center border-l-2 border-slate-200 bg-white"
+                    {/* À Commander — desktop uniquement */}
+                    <td className="hidden lg:table-cell p-2 text-center border-l-2 border-slate-200 bg-white"
                         style={{ position: 'sticky', right: 0, zIndex: 10 }}>
                       <div className={`inline-flex items-center justify-center w-11 lg:w-14 h-9 lg:h-10 rounded-xl font-black text-lg shadow-sm transition-all
                         ${toOrder > 0
@@ -699,9 +632,9 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
           </table>
         </div>
 
-        {/* Hint scroll sur desktop seulement */}
-        <p className="hidden lg:block text-center text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-3">
-          ← Glisser pour voir toutes les colonnes →
+        {/* Hint scroll sur mobile */}
+        <p className="text-center text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-3 lg:hidden">
+          Saisie terrain simplifiée : produit + stock colisage + stock pièce
         </p>
       </div>
     </div>
