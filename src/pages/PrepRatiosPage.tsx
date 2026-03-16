@@ -103,15 +103,19 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   };
 
   const getMonthValue = (item: PrepItem, month: string) => {
-    if (validatedMonths[month]) return Math.round(item.ratioHistory[month] || 0);
-    const imported = getImportedValueForProduct(prepImportsByMonth[month], item.searchName, item.importDivisor);
+    const imported = getImportedValueForProduct(
+      prepImportsByMonth[month],
+      item.searchName,
+      item.importDivisor,
+      ['Nombre']
+    );
     return imported ?? 0;
   };
 
   const getMonthRatio = (item: PrepItem, month: string) => {
     const coversValue = Number(covers[month] || 0);
     if (!coversValue) return 0;
-    if (validatedMonths[month]) return Number(item.ratioHistory[month] || 0);
+    if (validatedMonths[month] && Number(item.ratioHistory[month] || 0) > 0) return Number(item.ratioHistory[month] || 0);
     const imported = getMonthValue(item, month);
     return imported > 0 ? imported / coversValue : 0;
   };
