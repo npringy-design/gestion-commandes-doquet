@@ -10,11 +10,11 @@ const CATEGORY_LABELS: Record<PrepCategory, string> = {
   decongelation: 'Décongélation',
 };
 
-const CATEGORY_ACCENTS: Record<PrepCategory, string> = {
-  poste_chaud: 'from-[#A93E2A] to-[#7E261A]',
-  poste_entree: 'from-[#8A5A2F] to-[#6E421E]',
-  poste_dessert: 'from-[#9B3F7A] to-[#6E2455]',
-  decongelation: 'from-[#2F6F8A] to-[#1E4E68]',
+const CATEGORY_BANNERS: Record<PrepCategory, string> = {
+  poste_chaud: 'from-[#A93E2A] via-[#91301F] to-[#7A231A]',
+  poste_entree: 'from-[#8A5A2F] via-[#784825] to-[#6A3B1D]',
+  poste_dessert: 'from-[#9B3F7A] via-[#833065] to-[#6E2455]',
+  decongelation: 'from-[#2F6F8A] via-[#245F78] to-[#1E4E68]',
 };
 
 interface PrepSheetPageProps {
@@ -33,6 +33,7 @@ const dateKey = (date: string) => {
 const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, dailyCovers }) => {
   const [selectedDate, setSelectedDate] = React.useState(() => new Date().toISOString().slice(0, 10));
   const [activeCategory, setActiveCategory] = React.useState<PrepCategory | 'all'>('all');
+
   const coversForDay = Number(dailyCovers[dateKey(selectedDate)] || 0);
 
   const groupedRows = React.useMemo(() => {
@@ -42,11 +43,11 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
         .filter((item) => item.category === category)
         .map((item) => {
           const ratios = Object.values(item.ratioHistory || {}).filter((value) => Number(value) > 0);
-          const ratio = ratios.length ? ratios.reduce((sum, value) => sum + Number(value), 0) / ratios.length : 0;
-          const need = ratio * coversForDay;
+          const averageRatio = ratios.length ? ratios.reduce((sum, value) => sum + Number(value), 0) / ratios.length : 0;
+          const need = averageRatio * coversForDay;
           const buffer = Number(item.targetBuffer || 0);
           const toProduce = Math.max(0, Math.ceil(need + buffer));
-          return { item, ratio, need, toProduce };
+          return { item, need, toProduce };
         }),
     })).filter((group) => group.rows.length > 0);
   }, [coversForDay, prepItems]);
@@ -57,52 +58,27 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
   }, [activeCategory, groupedRows]);
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#F6EFE6_0%,#F2E8DD_45%,#EBDDCE_100%)] text-[#34271F]">
-      <div className="mx-auto max-w-[1600px] p-2 md:p-3 xl:p-4">
-        <div className="mb-3 rounded-[22px] border border-[#D7B79B] bg-white px-4 py-3 shadow-[0_10px_22px_rgba(145,105,75,0.08)]">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="text-[10px] font-black uppercase tracking-[0.26em] text-[#15A06B]">Production terrain</div>
-              <h1 className="mt-1 text-[30px] leading-none font-black uppercase tracking-tight text-[#0E1B42] md:text-[34px]">Feuille de mise en place</h1>
-              <p className="mt-1 text-xs font-semibold text-slate-500">Lecture terrain simple par poste.</p>
+    <div className="min-h-screen overflow-hidden bg-[linear-gradient(180deg,#F6EFE6_0%,#F1E7DA_45%,#E9DDCF_100%)] text-[#34271F]">
+      <div className="mx-auto flex h-screen max-w-[1920px] flex-col gap-3 p-2 sm:p-3 lg:flex-row lg:gap-4 lg:p-3">
+        <aside className="w-full shrink-0 lg:w-[250px]">
+          <div className="flex flex-col gap-3 lg:sticky lg:top-3">
+            <div className="overflow-hidden rounded-[24px] border border-[#B46E58] bg-[linear-gradient(135deg,#A93E2A_0%,#922F20_48%,#7A231A_100%)] shadow-[0_10px_20px_rgba(122,35,26,0.14)]">
+              <div className="h-1.5 bg-gradient-to-r from-[#F1C15A] via-[#D86A2C] to-[#A93E2A]" />
+              <div className="p-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#FFE1B8]">Hippopotamus Thillois</p>
+                <h1 className="mt-2 text-[24px] font-black leading-none text-[#FFF9F3] xl:text-[28px]">Feuille de mise en place</h1>
+                <p className="mt-3 text-xs font-semibold text-[#FFE7CF]">Vue terrain simple par poste, centrée uniquement sur ce qu'il faut produire.</p>
+              </div>
             </div>
 
-            <button onClick={() => setView('home')} className="rounded-2xl bg-[#091433] px-5 py-3 text-xs font-black uppercase tracking-[0.08em] text-white shadow-lg">
-              Accueil
-            </button>
-          </div>
-        </div>
+            <button onClick={() => setView('home')} className="flex items-center justify-center gap-3 rounded-[20px] border border-[#D9A72B] bg-[linear-gradient(180deg,#F3C63D_0%,#E3A91F_100%)] px-4 py-4 text-center text-sm font-black uppercase tracking-[0.12em] text-[#4D2B18] shadow-[0_4px_0_#B8810F] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#B8810F]">Retour accueil</button>
 
-        <div className="mb-3 grid gap-3 md:grid-cols-2">
-          <div className="rounded-[18px] border border-[#D7B79B] bg-white p-3 shadow-sm">
-            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Date</div>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base font-black outline-none"
-            />
-          </div>
-
-          <div className="rounded-[18px] border border-[#D7B79B] bg-white p-3 shadow-sm">
-            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Prévi couverts</div>
-            <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-2xl font-black text-[#0E1B42]">{coversForDay}</div>
-            <div className="mt-1 text-[11px] font-semibold text-slate-500">Valeur récupérée automatiquement depuis le journalier.</div>
-          </div>
-        </div>
-
-        {groupedRows.length === 0 ? (
-          <div className="rounded-[20px] border border-dashed border-slate-300 bg-white p-8 text-center text-sm font-semibold text-slate-500">
-            Aucune production enregistrée. Va dans <span className="font-black text-slate-800">Calcul prod ratio</span> pour créer tes lignes.
-          </div>
-        ) : (
-          <div className="grid gap-3 xl:grid-cols-[180px_minmax(0,1fr)]">
-            <aside className="rounded-[20px] border border-[#D7B79B] bg-white p-2 shadow-sm xl:sticky xl:top-3 xl:h-fit">
+            <div className="rounded-[20px] border border-[#D7B79B] bg-[#FBF7F1] p-2 shadow-sm">
               <div className="mb-2 px-2 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Postes</div>
-              <div className="flex gap-2 overflow-x-auto xl:flex-col">
+              <div className="flex gap-2 overflow-x-auto lg:flex-col">
                 <button
                   onClick={() => setActiveCategory('all')}
-                  className={`min-w-[126px] rounded-xl px-3 py-2 text-left text-xs font-black uppercase tracking-[0.06em] transition ${activeCategory === 'all' ? 'bg-[#091433] text-white shadow-lg' : 'border border-[#D7B79B] bg-[#FCF8F2] text-[#4D2B18]'}`}
+                  className={`min-w-[126px] rounded-xl px-3 py-2.5 text-left text-xs font-black uppercase tracking-[0.06em] transition ${activeCategory === 'all' ? 'bg-[#091433] text-white shadow-lg' : 'border border-[#D7B79B] bg-white text-[#4D2B18]'}`}
                 >
                   Tous
                 </button>
@@ -110,56 +86,90 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
                   <button
                     key={category}
                     onClick={() => setActiveCategory(category)}
-                    className={`min-w-[126px] rounded-xl px-3 py-2 text-left text-xs font-black uppercase tracking-[0.06em] transition ${activeCategory === category ? 'bg-[#091433] text-white shadow-lg' : 'border border-[#D7B79B] bg-[#FCF8F2] text-[#4D2B18]'}`}
+                    className={`min-w-[126px] rounded-xl px-3 py-2.5 text-left text-xs font-black uppercase tracking-[0.06em] transition ${activeCategory === category ? 'bg-[#091433] text-white shadow-lg' : 'border border-[#D7B79B] bg-white text-[#4D2B18]'}`}
                   >
                     {CATEGORY_LABELS[category]}
                   </button>
                 ))}
               </div>
-            </aside>
-
-            <div>
-              {visibleGroups.map((group) => (
-                <section key={group.category} className="mb-4 overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-sm">
-                  <div className={`bg-gradient-to-r ${CATEGORY_ACCENTS[group.category]} px-4 py-3 text-white`}>
-                    <div className="text-[10px] uppercase tracking-[0.22em] font-black text-white/80">Mise en place</div>
-                    <h2 className="text-xl font-black uppercase tracking-tight">{CATEGORY_LABELS[group.category]}</h2>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[620px]">
-                      <thead className="bg-[#F4E4D2] text-[#6C3C2B]">
-                        <tr>
-                          <th className="px-3 py-2 text-left text-xs font-black uppercase">Production</th>
-                          <th className="px-3 py-2 text-center text-xs font-black uppercase">Ratio</th>
-                          <th className="px-3 py-2 text-center text-xs font-black uppercase">Besoin théo</th>
-                          <th className="px-3 py-2 text-center text-xs font-black uppercase">À produire</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {group.rows.map((row, idx) => (
-                          <tr key={row.item.id} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
-                            <td className="border-t border-[#E0CCBA] px-3 py-3 align-top">
-                              <div className="font-black uppercase text-[#4D2B18]">{row.item.name}</div>
-                              {row.item.notes ? <div className="mt-0.5 text-[10px] font-semibold text-slate-500">{row.item.notes}</div> : null}
-                            </td>
-                            <td className="border-t border-[#E0CCBA] px-3 py-3 text-center text-sm font-black">{row.ratio.toFixed(3)}</td>
-                            <td className="border-t border-[#E0CCBA] px-3 py-3 text-center text-sm font-black">{row.need.toFixed(1)}</td>
-                            <td className="border-t border-[#E0CCBA] px-3 py-3 text-center">
-                              <span className="inline-flex min-w-[84px] items-center justify-center rounded-xl bg-[#A93E2A] px-3 py-1.5 text-base font-black text-white">
-                                {row.toProduce}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
-              ))}
             </div>
           </div>
-        )}
+        </aside>
+
+        <main className="flex min-h-0 min-w-0 flex-1">
+          <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[28px] border border-[#D7B79B] bg-[#FAF5EE] shadow-[0_16px_32px_rgba(145,105,75,0.10)]">
+            <div className="border-b border-[#B45439] bg-[linear-gradient(180deg,#A93E2A_0%,#912F20_55%,#782219_100%)] px-5 py-3">
+              <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.24em] text-[#FFE1B8]">Production du jour</div>
+                  <h2 className="mt-1 text-xl font-black uppercase tracking-[0.08em] text-[#FFF8F1]">Pilotage terrain</h2>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <label className="rounded-2xl border border-white/15 bg-white/90 px-3 py-2">
+                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Date</div>
+                    <input
+                      type="date"
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      className="mt-1 w-full bg-transparent text-sm font-black text-[#34271F] outline-none"
+                    />
+                  </label>
+                  <div className="rounded-2xl border border-white/15 bg-white/90 px-3 py-2">
+                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Prévi couverts</div>
+                    <div className="mt-1 text-2xl leading-none font-black text-[#0E1B42]">{coversForDay}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-auto p-3">
+              {groupedRows.length === 0 ? (
+                <div className="rounded-[20px] border border-dashed border-slate-300 bg-white p-8 text-center text-sm font-semibold text-slate-500">
+                  Aucune production enregistrée. Va dans <span className="font-black text-slate-800">Calcul prod ratio</span> pour créer tes lignes.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {visibleGroups.map((group) => (
+                    <section key={group.category} className="overflow-hidden rounded-[22px] border border-[#D7B79B] bg-white shadow-sm">
+                      <div className={`bg-gradient-to-r ${CATEGORY_BANNERS[group.category]} px-4 py-2.5 text-white`}>
+                        <div className="text-[10px] uppercase tracking-[0.22em] font-black text-white/80">Mise en place</div>
+                        <h3 className="text-lg font-black uppercase tracking-tight">{CATEGORY_LABELS[group.category]}</h3>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[540px] text-sm">
+                          <thead className="bg-[#F4E4D2] text-[#6C3C2B]">
+                            <tr>
+                              <th className="px-3 py-2 text-left text-xs font-black uppercase">Production</th>
+                              <th className="px-3 py-2 text-center text-xs font-black uppercase">Besoin théo</th>
+                              <th className="px-3 py-2 text-center text-xs font-black uppercase">À produire</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {group.rows.map((row, idx) => (
+                              <tr key={row.item.id} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
+                                <td className="border-t border-[#E0CCBA] px-3 py-2.5 align-middle">
+                                  <div className="font-black uppercase text-[#4D2B18]">{row.item.name}</div>
+                                  {row.item.notes ? <div className="mt-0.5 text-[10px] font-semibold text-slate-500">{row.item.notes}</div> : null}
+                                </td>
+                                <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center text-sm font-black">{row.need.toFixed(1)}</td>
+                                <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center">
+                                  <span className="inline-flex min-w-[72px] items-center justify-center rounded-xl bg-[#A93E2A] px-3 py-1.5 text-base font-black text-white">
+                                    {row.toProduce}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        </main>
       </div>
     </div>
   );
