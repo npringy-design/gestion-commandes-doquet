@@ -53,7 +53,6 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   const { profile } = useAuth();
   const canEdit = canEditRatios(profile);
   const [search, setSearch] = React.useState('');
-  const [onlyActive, setOnlyActive] = React.useState(false);
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [activeMappingId, setActiveMappingId] = React.useState<string | null>(null);
 
@@ -65,11 +64,10 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   const rows = React.useMemo(() => {
     const q = search.trim().toLowerCase();
     return prepItems.filter((item) => {
-      if (onlyActive && !item.isActive) return false;
       if (!q) return true;
       return item.name.toLowerCase().includes(q) || item.searchName.toLowerCase().includes(q);
     });
-  }, [onlyActive, prepItems, search]);
+  }, [prepItems, search]);
 
   const updateItem = (id: string, patch: Partial<PrepItem>) => {
     setPrepItems((prev) => prev.map((item) => item.id === id ? { ...item, ...patch } : item));
@@ -153,7 +151,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
               <div className="p-4">
                 <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#FFE1B8]">Hippopotamus Thillois</p>
                 <h1 className="mt-2 text-2xl font-black leading-none text-[#FFF9F3] xl:text-3xl">Calcul prod ratio</h1>
-                <p className="mt-3 text-xs font-semibold text-[#FFE7CF]">Crée ici tes productions maison, mappe l'import production, puis la feuille de mise en place reprend automatiquement les lignes actives.</p>
+                <p className="mt-3 text-xs font-semibold text-[#FFE7CF]">Crée ici tes productions maison, mappe l'import production, puis la feuille de mise en place reprend automatiquement toutes les lignes créées.</p>
               </div>
             </div>
 
@@ -171,10 +169,6 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                 <h2 className="text-xl font-black uppercase tracking-[0.08em] text-[#FFF8F1]">Productions & ratios</h2>
                 <div className="flex flex-wrap gap-2">
                   <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher une production..." className="rounded-2xl border border-white/20 bg-white/95 px-4 py-2 text-sm font-bold text-slate-800 outline-none" />
-                  <label className="inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-white">
-                    <input type="checkbox" checked={onlyActive} onChange={(e) => setOnlyActive(e.target.checked)} className="h-4 w-4" />
-                    Actifs uniquement
-                  </label>
                 </div>
               </div>
             </div>
@@ -184,7 +178,6 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                 <thead className="sticky top-0 z-10 bg-[#F4E4D2] text-[#6C3C2B]">
                   <tr>
                     <th className="px-4 py-3 text-left font-black uppercase">Sel.</th>
-                    <th className="px-4 py-3 text-left font-black uppercase">Actif</th>
                     <th className="px-4 py-3 text-left font-black uppercase">Production</th>
                     <th className="px-4 py-3 text-left font-black uppercase">Poste</th>
                     <th className="px-4 py-3 text-left font-black uppercase">Mapping import</th>
@@ -204,7 +197,6 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                     return (
                       <tr key={item.id} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
                         <td className="border-t border-[#E0CCBA] px-4 py-3 text-center"><input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} className="h-5 w-5" /></td>
-                        <td className="border-t border-[#E0CCBA] px-4 py-3 text-center"><input type="checkbox" checked={item.isActive} disabled={!canEdit} onChange={(e) => updateItem(item.id, { isActive: e.target.checked })} className="h-5 w-5" /></td>
                         <td className="border-t border-[#E0CCBA] px-4 py-3"><input value={item.name} disabled={!canEdit} onChange={(e) => updateItem(item.id, { name: e.target.value })} className="w-[260px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 font-black outline-none" /></td>
                         <td className="border-t border-[#E0CCBA] px-4 py-3">
                           <select value={item.category} disabled={!canEdit} onChange={(e) => updateItem(item.id, { category: e.target.value as PrepCategory })} className="w-[170px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 font-bold outline-none">
@@ -256,7 +248,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                     );
                   })}
                   {rows.length === 0 && (
-                    <tr><td colSpan={20} className="px-6 py-10 text-center text-sm font-semibold text-slate-500">Aucune production. Ajoute d'abord tes lignes ici, puis importe tes fichiers production dans Paramètres.</td></tr>
+                    <tr><td colSpan={19} className="px-6 py-10 text-center text-sm font-semibold text-slate-500">Aucune production. Ajoute d'abord tes lignes ici, puis importe tes fichiers production dans Paramètres.</td></tr>
                   )}
                 </tbody>
               </table>

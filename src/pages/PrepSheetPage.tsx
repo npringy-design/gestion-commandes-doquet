@@ -32,10 +32,11 @@ const dateKey = (date: string) => {
 
 const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, dailyCovers }) => {
   const [selectedDate, setSelectedDate] = React.useState(() => new Date().toISOString().slice(0, 10));
+  const [activeCategory, setActiveCategory] = React.useState<PrepCategory | 'all'>('all');
   const coversForDay = Number(dailyCovers[dateKey(selectedDate)] || 0);
 
   const groupedRows = React.useMemo(() => {
-    const activeItems = prepItems.filter((item) => item.isActive);
+    const activeItems = prepItems;
 
     return CATEGORY_ORDER.map((category) => ({
       category,
@@ -51,7 +52,12 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
     })).filter((group) => group.rows.length > 0);
   }, [coversForDay, prepItems]);
 
-  const totalToProduce = groupedRows.reduce((sum, group) => sum + group.rows.reduce((sub, row) => sub + row.toProduce, 0), 0);
+  const visibleGroups = React.useMemo(() => {
+    if (activeCategory === 'all') return groupedRows;
+    return groupedRows.filter((group) => group.category === activeCategory);
+  }, [activeCategory, groupedRows]);
+
+  const totalToProduce = visibleGroups.reduce((sum, group) => sum + group.rows.reduce((sub, row) => sub + row.toProduce, 0), 0);
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#F6EFE6_0%,#F2E8DD_45%,#EBDDCE_100%)] text-[#34271F]">
@@ -90,8 +96,23 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
         </div>
 
         {groupedRows.length === 0 ? (
-          <div className="rounded-[26px] border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500 font-semibold">Aucune production active. Va dans <span className="font-black text-slate-800">Calcul prod ratio</span> pour créer et activer tes lignes.</div>
-        ) : groupedRows.map((group) => (
+          <div className="rounded-[26px] border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500 font-semibold">Aucune production enregistrée. Va dans <span className="font-black text-slate-800">Calcul prod ratio</span> pour créer tes lignes.</div>
+        ) : (
+          <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)]">
+            <aside className="rounded-[28px] border border-[#D7B79B] bg-white p-3 shadow-sm">
+              <div className="mb-3 px-2 text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Sections</div>
+              <div className="flex gap-2 overflow-x-auto xl:flex-col">
+                <button onClick={() => setActiveCategory('all')} className={`min-w-[140px] rounded-2xl px-4 py-3 text-left text-sm font-black uppercase tracking-[0.08em] transition ${activeCategory === 'all' ? 'bg-[#091433] text-white shadow-lg' : 'border border-[#D7B79B] bg-[#FCF8F2] text-[#4D2B18]'}`}>Tous les postes</button>
+                {CATEGORY_ORDER.filter((category) => groupedRows.some((group) => group.category === category)).map((category) => (
+                  <button key={category} onClick={() => setActiveCategory(category)} className={`min-w-[140px] rounded-2xl px-4 py-3 text-left text-sm font-black uppercase tracking-[0.08em] transition ${activeCategory === category ? 'bg-[#091433] text-white shadow-lg' : 'border border-[#D7B79B] bg-[#FCF8F2] text-[#4D2B18]'}`}>
+                    {CATEGORY_LABELS[category]}
+                  </button>
+                ))}
+              </div>
+            </aside>
+
+            <div>
+              {visibleGroups.map((group) => (
           <section key={group.category} className="mb-5 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
             <div className={`bg-gradient-to-r ${CATEGORY_ACCENTS[group.category]} px-5 py-4 text-white`}>
               <div className="text-[10px] uppercase tracking-[0.24em] font-black text-white/80">Mise en place</div>
@@ -126,7 +147,10 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
               </table>
             </div>
           </section>
-        ))}
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
