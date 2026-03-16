@@ -1,7 +1,8 @@
 import React from 'react';
-import { MONTHS_ORDER, type View } from '../constants';
+import { MONTHS_DISPLAY_CONFIG, MONTHS_ORDER, type View } from '../constants';
 import type { PrepCategory, PrepImportsByMonth, PrepItem } from '../types';
 import { getImportedValueForProduct } from '../utils/csvHelpers';
+import type { DailyCoversState } from '../utils/dateHelpers';
 
 const CATEGORY_ORDER: PrepCategory[] = ['poste_chaud', 'poste_entree', 'poste_dessert', 'decongelation'];
 const CATEGORY_LABELS: Record<PrepCategory, string> = {
@@ -21,16 +22,28 @@ const CATEGORY_BANNERS: Record<PrepCategory, string> = {
 interface PrepSheetPageProps {
   setView: (v: View) => void;
   prepItems: PrepItem[];
-  dailyCovers: Record<string, number>;
+  dailyCovers: DailyCoversState;
   covers: Record<string, number>;
   prepImportsByMonth: PrepImportsByMonth;
 }
 
-const dateKey = (date: string) => {
-  if (!date) return '';
-  const [y, m, d] = date.split('-');
-  if (!y || !m || !d) return '';
-  return `${d}/${m}/${y}`;
+const getMonthKeyFromDate = (date: string) => {
+  if (!date) return 'jan';
+  const monthIndex = new Date(`${date}T12:00:00`).getMonth();
+  return MONTHS_ORDER[monthIndex] ?? 'jan';
+};
+
+const getDayIndexFromDate = (date: string) => {
+  if (!date) return 0;
+  const day = new Date(`${date}T12:00:00`).getDate();
+  return Math.max(0, day - 1);
+};
+
+const getCoversForDate = (date: string, dailyCovers: DailyCoversState) => {
+  const monthKey = getMonthKeyFromDate(date);
+  const dayIndex = getDayIndexFromDate(date);
+  const dayData = dailyCovers?.[monthKey]?.[dayIndex];
+  return Number(dayData?.midi || 0) + Number(dayData?.soir || 0);
 };
 
 const getAverageRatio = (item: PrepItem, covers: Record<string, number>, prepImportsByMonth: PrepImportsByMonth) => {
@@ -68,7 +81,8 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
   const [selectedDate, setSelectedDate] = React.useState(() => new Date().toISOString().slice(0, 10));
   const [activeCategory, setActiveCategory] = React.useState<PrepCategory | 'all'>('all');
 
-  const coversForDay = Number(dailyCovers[dateKey(selectedDate)] || 0);
+  const coversForDay = React.useMemo(() => getCoversForDate(selectedDate, dailyCovers), [selectedDate, dailyCovers]);
+  const monthLabel = React.useMemo(() => MONTHS_DISPLAY_CONFIG.find((m) => m.key === getMonthKeyFromDate(selectedDate))?.label ?? '', [selectedDate]);
 
   const groupedRows = React.useMemo(() => {
     return CATEGORY_ORDER.map((category) => ({
@@ -91,8 +105,8 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
   }, [activeCategory, groupedRows]);
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[linear-gradient(180deg,#F6EFE6_0%,#F2E8DD_45%,#EBDDCE_100%)] text-[#34271F]">
-      <div className="mx-auto flex h-screen max-w-[1760px] flex-col gap-3 p-2 lg:flex-row lg:gap-3 lg:p-3">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#F6EFE6_0%,#F2E8DD_45%,#EBDDCE_100%)] text-[#34271F]">
+      <div className="mx-auto flex min-h-screen max-w-[1760px] flex-col gap-3 p-2 lg:flex-row lg:gap-3 lg:p-3">
         <aside className="w-full shrink-0 lg:w-[230px] xl:w-[240px]">
           <div className="flex h-full flex-col gap-3">
             <div className="overflow-hidden rounded-[22px] border border-[#B46E58] bg-[linear-gradient(135deg,#A93E2A_0%,#922F20_48%,#7A231A_100%)] shadow-[0_10px_20px_rgba(122,35,26,0.14)]">
@@ -100,7 +114,7 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
               <div className="p-4">
                 <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#FFE1B8]">Hippopotamus Thillois</p>
                 <h1 className="mt-2 text-[20px] font-black leading-none text-[#FFF9F3] xl:text-[22px]">Feuille de mise en place</h1>
-                <p className="mt-3 text-[12px] font-semibold leading-5 text-[#FFE7CF]">Vue terrain simple par poste, centrée sur le besoin de production du jour.</p>
+                <p className="mt-3 text-[12px] font-semibold leading-5 text-[#FFE7CF]">Vue terrain simple par poste, centrée uniquement sur ce qu&apos;il faut produire.</p>
               </div>
             </div>
 
@@ -129,13 +143,14 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
                   <h2 className="mt-1 text-[18px] font-black uppercase tracking-[0.08em] text-[#FFF8F1]">Pilotage terrain</h2>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2 sm:min-w-[430px] xl:min-w-[460px]">
-                  <label className="rounded-2xl border border-white/15 bg-white/92 px-3 py-2">
-                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Date</div>
+                  <label className="rounded-2xl border border-[#D9C7B7] bg-[#F8EEE5] px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]">
+                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#9A8C84]">Date</div>
                     <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="mt-1 w-full bg-transparent text-[15px] font-black text-[#34271F] outline-none" />
                   </label>
-                  <div className="rounded-2xl border border-white/15 bg-white/92 px-3 py-2">
-                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Prévi couverts</div>
+                  <div className="rounded-2xl border border-[#D9C7B7] bg-[#F8EEE5] px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]">
+                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#9A8C84]">Prévi couverts</div>
                     <div className="mt-1 text-[18px] leading-none font-black text-[#0E1B42]">{coversForDay}</div>
+                    <div className="mt-1 text-[10px] font-semibold text-[#8A7769]">{monthLabel ? `${monthLabel} • midi + soir` : 'Prévi journalière'}</div>
                   </div>
                 </div>
               </div>
@@ -167,13 +182,13 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
                           <tbody>
                             {group.rows.map((row, idx) => (
                               <tr key={row.item.id} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
-                                <td className="border-t border-[#E0CCBA] px-3 py-3 align-middle">
+                                <td className="border-t border-[#E0CCBA] px-3 py-2.5 align-middle">
                                   <div className="font-black uppercase text-[#4D2B18]">{row.item.name}</div>
                                   {row.item.notes ? <div className="mt-0.5 text-[10px] font-semibold text-slate-500">{row.item.notes}</div> : null}
                                 </td>
-                                <td className="border-t border-[#E0CCBA] px-3 py-3 text-center text-[22px] font-black text-[#4D2B18]">{row.need.toFixed(1)}</td>
-                                <td className="border-t border-[#E0CCBA] px-3 py-3 text-center">
-                                  <span className="inline-flex min-w-[66px] items-center justify-center rounded-xl bg-[#A93E2A] px-3 py-1.5 text-[22px] leading-none font-black text-white">{row.toProduce}</span>
+                                <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center text-[20px] font-black text-[#4D2B18]">{row.need.toFixed(1)}</td>
+                                <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center">
+                                  <span className="inline-flex min-w-[60px] items-center justify-center rounded-xl bg-[#A93E2A] px-3 py-1.5 text-[20px] leading-none font-black text-white">{row.toProduce}</span>
                                 </td>
                               </tr>
                             ))}
