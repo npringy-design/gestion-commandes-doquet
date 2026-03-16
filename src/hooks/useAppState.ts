@@ -16,7 +16,7 @@ import {
   ProductWithHistory,
   DAILY_COVERS_INITIAL,
 } from '../data';
-import { OrderState, SupplierConfig, PrepBatch, PrepConfig } from '../types';
+import { OrderState, SupplierConfig, PrepBatch, PrepConfig, PrepForecastsByDate } from '../types';
 import { MONTHS_ORDER, View, SupplierId } from '../constants';
 import { DailyCoversState } from '../utils/dateHelpers';
 import { getImportedValueForProduct, extractAllNamesFromCsvs } from '../utils/csvHelpers';
@@ -100,6 +100,9 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
   const [prepBatches, setPrepBatches] =
     useState<PrepBatch[]>(() => loadState('prepBatches', [] as PrepBatch[]));
 
+  const [prepForecasts, setPrepForecasts] =
+    useState<PrepForecastsByDate>(() => loadState('prepForecasts', {}));
+
   useEffect(() => {
     try {
       window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -125,6 +128,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     products,
     prepConfigs,
     prepBatches,
+    prepForecasts,
     setCovers,
     setDailyCovers,
     setOrderStates,
@@ -138,6 +142,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     setProducts,
     setPrepConfigs,
     setPrepBatches,
+    setPrepForecasts,
     onSaveError,
   });
 
@@ -272,6 +277,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     products, setProducts,
     prepConfigs, setPrepConfigs,
     prepBatches, setPrepBatches,
+    prepForecasts, setPrepForecasts,
 
     // Valeurs calculées
     totalForecast,

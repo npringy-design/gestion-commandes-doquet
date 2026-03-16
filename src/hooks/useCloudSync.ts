@@ -22,7 +22,7 @@ import {
   loadAllFromSupabase,
   saveToSupabaseDebounced,
 } from '../utils/supabase';
-import { OrderState, SupplierConfig, PrepBatch, PrepConfig } from '../types';
+import { OrderState, SupplierConfig, PrepBatch, PrepConfig, PrepForecastsByDate } from '../types';
 import { ProductWithHistory } from '../data';
 import { DailyCoversState } from '../utils/dateHelpers';
 import {
@@ -48,6 +48,7 @@ type PersistedState = {
   products: ProductWithHistory[];
   prepConfigs: Record<string, PrepConfig>;
   prepBatches: PrepBatch[];
+  prepForecasts: PrepForecastsByDate;
 };
 
 type StateSetters = {
@@ -64,6 +65,7 @@ type StateSetters = {
   setProducts: React.Dispatch<React.SetStateAction<ProductWithHistory[]>>;
   setPrepConfigs: React.Dispatch<React.SetStateAction<Record<string, PrepConfig>>>;
   setPrepBatches: React.Dispatch<React.SetStateAction<PrepBatch[]>>;
+  setPrepForecasts: React.Dispatch<React.SetStateAction<PrepForecastsByDate>>;
 };
 
 type UseCloudSyncParams = PersistedState &
@@ -90,6 +92,7 @@ const EXCLUDE_FROM_REALTIME = new Set<string>([
   'dailyCovers',  // 12 mois × 31 jours — non modifié en session terrain
   'prepConfigs',
   'prepBatches',
+  'prepForecasts',
   // NOTE: products est intentionnellement INCLUS dans le Realtime
   // car il contient stock/upcomingDelivery/targetStock saisis en terrain.
   // Il est protégé contre le clignotement via DEFER_WHILE_TYPING.
@@ -121,6 +124,7 @@ export const useCloudSync = ({
   products,
   prepConfigs,
   prepBatches,
+  prepForecasts,
   setCovers,
   setDailyCovers,
   setOrderStates,
@@ -134,6 +138,7 @@ export const useCloudSync = ({
   setProducts,
   setPrepConfigs,
   setPrepBatches,
+  setPrepForecasts,
   onSaveError,
 }: UseCloudSyncParams) => {
   const [supabaseLoaded, setSupabaseLoaded] = useState(false);
@@ -197,6 +202,9 @@ export const useCloudSync = ({
       case 'prepBatches':
         setPrepBatches(value as PrepBatch[]);
         break;
+      case 'prepForecasts':
+        setPrepForecasts(value as PrepForecastsByDate);
+        break;
       default:
         break;
     }
@@ -206,7 +214,7 @@ export const useCloudSync = ({
     setCostMatterByMonth, setCovers, setDailyCovers,
     setDeliveryDateBySupplier, setDetailedInventory,
     setNextDeliveryDateBySupplier, setOrderStates,
-    setProducts, setPrepConfigs, setPrepBatches, setSalesHtByMonth, setSupplierConfigs, setValidatedMonths,
+    setProducts, setPrepConfigs, setPrepBatches, setPrepForecasts, setSalesHtByMonth, setSupplierConfigs, setValidatedMonths,
   ]);
 
   // ─── Vide la file d'attente (appelé au focusout global) ───────────────────
@@ -287,6 +295,7 @@ export const useCloudSync = ({
           if (cloudMap.products) setProducts(mergeAndNormalizeProducts(cloudMap.products as ProductWithHistory[]));
           if (cloudMap.prepConfigs) setPrepConfigs(cloudMap.prepConfigs as Record<string, PrepConfig>);
           if (cloudMap.prepBatches) setPrepBatches(cloudMap.prepBatches as PrepBatch[]);
+          if (cloudMap.prepForecasts) setPrepForecasts(cloudMap.prepForecasts as PrepForecastsByDate);
 
           setTimeout(() => { isHydratingFromCloud.current = false; }, 600);
         }
@@ -303,7 +312,7 @@ export const useCloudSync = ({
     setCostMatterByMonth, setCovers, setDailyCovers,
     setDeliveryDateBySupplier, setDetailedInventory,
     setNextDeliveryDateBySupplier, setOrderStates,
-    setProducts, setPrepConfigs, setPrepBatches, setSalesHtByMonth, setSupplierConfigs, setValidatedMonths,
+    setProducts, setPrepConfigs, setPrepBatches, setPrepForecasts, setSalesHtByMonth, setSupplierConfigs, setValidatedMonths,
   ]);
 
   // ─── Supabase Realtime — écoute les INSERT/UPDATE sur app_state ───────────
@@ -392,6 +401,7 @@ export const useCloudSync = ({
   useEffect(() => { persistEverywhere('products', products); }, [persistEverywhere, products]);
   useEffect(() => { persistEverywhere('prepConfigs', prepConfigs); }, [persistEverywhere, prepConfigs]);
   useEffect(() => { persistEverywhere('prepBatches', prepBatches); }, [persistEverywhere, prepBatches]);
+  useEffect(() => { persistEverywhere('prepForecasts', prepForecasts); }, [persistEverywhere, prepForecasts]);
 
   return {
     supabaseLoaded,

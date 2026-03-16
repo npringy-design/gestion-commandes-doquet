@@ -17,6 +17,7 @@ const SupplierOrderPage = lazy(() => import('../pages/SupplierOrderPage'));
 const RatiosPage = lazy(() => import('../pages/RatiosPage'));
 const UserManagementPage = lazy(() => import('../pages/UserManagementPage'));
 const PrepSheetPage = lazy(() => import('../pages/PrepSheetPage'));
+const PrepRatiosPage = lazy(() => import('../pages/PrepRatiosPage'));
 
 type ScrollSyncSource = 'main' | 'bottom';
 
@@ -183,15 +184,33 @@ const AppRouter: React.FC<AppRouterProps> = ({
     return renderLazyPage(
       <PrepSheetPage
         setView={setView}
-        dailyCovers={state.dailyCovers}
         products={state.products}
         prepConfigs={state.prepConfigs}
-        setPrepConfigs={state.setPrepConfigs}
         prepBatches={state.prepBatches}
         setPrepBatches={state.setPrepBatches}
+        prepForecasts={state.prepForecasts}
+        setPrepForecasts={state.setPrepForecasts}
         getProductStats={state.getProductStats}
       />,
       'Chargement de la feuille de mise en place…'
+    );
+  }
+
+  if (view === 'prep_ratios' && isMobile) return renderWithShell(<MobileBlocked title="Calcul prod ratio" />);
+
+  if (view === 'prep_ratios') {
+    if (!canAccessRatiosPage(profile)) {
+      return renderWithShell(<AccessDenied message="Cette section est réservée aux rôles autorisés pour ce module." />);
+    }
+    return renderLazyPage(
+      <PrepRatiosPage
+        setView={setView}
+        products={state.products}
+        prepConfigs={state.prepConfigs}
+        setPrepConfigs={state.setPrepConfigs}
+        getProductStats={state.getProductStats}
+      />,
+      'Chargement du calcul prod ratio…'
     );
   }
 

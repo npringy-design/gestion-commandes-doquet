@@ -237,14 +237,25 @@ const StatsPage: React.FC<StatsPageProps> = ({
             </button>
 
             {canOpenRatios && (
-              <button
-                onClick={() => setView('ratios')}
-                className="rounded-[20px] border border-[#B55A3C] bg-[linear-gradient(180deg,#C9603D_0%,#B0472B_55%,#943320_100%)] px-4 py-5 text-center text-xs font-black uppercase tracking-[0.14em] text-[#FFF8F0] shadow-[0_4px_0_#762719] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#762719]"
-              >
-                Calcul
-                <br />
-                Vente ratio
-              </button>
+              <>
+                <button
+                  onClick={() => setView('ratios')}
+                  className="rounded-[20px] border border-[#B55A3C] bg-[linear-gradient(180deg,#C9603D_0%,#B0472B_55%,#943320_100%)] px-4 py-5 text-center text-xs font-black uppercase tracking-[0.14em] text-[#FFF8F0] shadow-[0_4px_0_#762719] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#762719]"
+                >
+                  Calcul
+                  <br />
+                  Vente ratio
+                </button>
+
+                <button
+                  onClick={() => setView('prep_ratios')}
+                  className="rounded-[20px] border border-[#2E8D63] bg-[linear-gradient(180deg,#39B37D_0%,#239062_100%)] px-4 py-5 text-center text-xs font-black uppercase tracking-[0.14em] text-white shadow-[0_4px_0_#196A48] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#196A48]"
+                >
+                  Calcul
+                  <br />
+                  Prod ratio
+                </button>
+              </>
             )}
           </div>
         </aside>
