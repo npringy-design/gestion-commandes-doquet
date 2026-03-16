@@ -57,8 +57,6 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
     return groupedRows.filter((group) => group.category === activeCategory);
   }, [activeCategory, groupedRows]);
 
-  const totalToProduce = visibleGroups.reduce((sum, group) => sum + group.rows.reduce((sub, row) => sub + row.toProduce, 0), 0);
-
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#F6EFE6_0%,#F2E8DD_45%,#EBDDCE_100%)] text-[#34271F]">
       <div className="mx-auto max-w-[1800px] p-3 md:p-4 xl:p-5">
@@ -76,7 +74,7 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
           </div>
         </div>
 
-        <div className="mb-5 grid gap-4 md:grid-cols-3">
+        <div className="mb-5 grid gap-4 md:grid-cols-2">
           <div className="rounded-[26px] border border-[#D7B79B] bg-white p-4 shadow-sm">
             <div className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Date</div>
             <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="mt-3 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xl font-black outline-none" />
@@ -88,11 +86,7 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
             <div className="mt-3 text-xs font-semibold text-slate-500">Valeur récupérée automatiquement depuis le journalier.</div>
           </div>
 
-          <div className="rounded-[26px] border border-[#D7B79B] bg-white p-4 shadow-sm">
-            <div className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Total à produire</div>
-            <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-3xl font-black text-[#A93E2A]">{totalToProduce}</div>
-            <div className="mt-3 text-xs font-semibold text-slate-500">Somme arrondie de toutes les productions actives du jour.</div>
-          </div>
+        </div>
         </div>
 
         {groupedRows.length === 0 ? (
