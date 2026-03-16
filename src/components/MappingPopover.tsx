@@ -31,10 +31,9 @@ const MappingPopover: React.FC<MappingPopoverProps> = ({ orphanNames, onSelect, 
   );
 
   return (
-    // NOTE: z-index très élevé pour passer au-dessus des colonnes sticky du tableau
     <div
       ref={popoverRef}
-      className="absolute right-0 top-full mt-3 z-[99999] bg-white border border-slate-200 p-3 rounded-xl shadow-2xl w-[38rem] max-w-[90vw] animate-in slide-in-from-top-2"
+      className="absolute left-0 top-full mt-2 z-[99999] w-[260px] max-w-[72vw] rounded-2xl border border-[#D8C0AA] bg-white p-2 shadow-[0_16px_32px_rgba(80,40,20,0.16)] animate-in slide-in-from-top-2"
     >
       <input
         autoFocus
@@ -42,19 +41,19 @@ const MappingPopover: React.FC<MappingPopoverProps> = ({ orphanNames, onSelect, 
         placeholder="Rechercher..."
         value={search}
         onChange={e => setSearch(e.target.value)}
-        className="w-full p-2 bg-slate-50 border rounded-lg text-[10px] font-bold mb-2 outline-none focus:ring-1 focus:ring-amber-500"
+        className="mb-2 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 text-[11px] font-bold outline-none focus:ring-1 focus:ring-amber-500"
       />
-      <div className="max-h-48 overflow-y-auto space-y-0.5 custom-scrollbar">
+      <div className="max-h-44 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
         {filtered.length === 0 ? (
-          <p className="text-center text-[9px] text-slate-400 font-bold uppercase py-4">
-            Aucun résultat
+          <p className="py-3 text-center text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
+            Aucun nom disponible
           </p>
         ) : (
           filtered.map(name => (
             <button
               key={name}
               onClick={() => { onSelect(name); onClose(); }}
-              className="w-full text-left p-1.5 rounded hover:bg-amber-50 text-[9px] font-black uppercase text-slate-700 truncate"
+              className="w-full truncate rounded-xl px-3 py-2 text-left text-[11px] font-black text-slate-700 hover:bg-amber-50"
             >
               {name}
             </button>

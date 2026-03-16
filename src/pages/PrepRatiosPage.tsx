@@ -181,7 +181,13 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                 <tbody>
                   {rows.map((item, idx) => {
                     const avgRatio = getAverageRatio(item);
-                    const alert = !item.searchName.trim() || !Array.from(allAvailableImportNames).map((n) => n.trim().toLowerCase()).includes(item.searchName.trim().toLowerCase());
+                    const normalizedAvailableNames = Array.from(allAvailableImportNames).map((n) => n.trim().toLowerCase());
+                    const alert = !item.searchName.trim() || !normalizedAvailableNames.includes(item.searchName.trim().toLowerCase());
+                    const rowOrphanNames = Array.from(allAvailableImportNames).filter((name) => {
+                      const normalized = name.trim().toLowerCase();
+                      return !prepItems.some((other) => other.id !== item.id && other.searchName.trim().toLowerCase() === normalized);
+                    });
+                    const canOpenMapping = rowOrphanNames.length > 0;
                     return (
                       <tr key={item.id} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
                         <td className="border-t border-[#E0CCBA] px-3 py-2 text-center"><input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} className="h-4 w-4" /></td>
@@ -194,14 +200,17 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                         <td className="border-t border-[#E0CCBA] px-2 py-2">
                           <div className="relative flex items-center gap-1 min-w-[165px]">
                             <input value={item.searchName} disabled={!canEdit} onChange={(e) => updateItem(item.id, { searchName: e.target.value })} placeholder="nom dans l'import" className={`flex-1 rounded-xl border px-2 py-2 text-xs font-bold outline-none ${alert ? 'border-amber-300 text-amber-700 bg-amber-50' : 'border-[#D0B08D] bg-[#FFFDF9]'}`} />
-                            <button onClick={() => setActiveMappingId(activeMappingId === item.id ? null : item.id)} className="h-9 w-9 rounded-xl bg-slate-100 text-slate-600">⌄</button>
-                            {activeMappingId === item.id && (
+                            <button
+                              type="button"
+                              disabled={!canOpenMapping}
+                              onClick={() => canOpenMapping && setActiveMappingId(activeMappingId === item.id ? null : item.id)}
+                              className="h-9 w-9 rounded-xl bg-slate-100 text-slate-600 disabled:cursor-not-allowed disabled:opacity-35"
+                              title={canOpenMapping ? 'Choisir un nom import' : 'Aucun nom disponible'}
+                            >⌄</button>
+                            {activeMappingId === item.id && canOpenMapping && (
                               <div className="absolute left-0 top-full z-[999] mt-1">
                                 <MappingPopover
-                                  orphanNames={Array.from(allAvailableImportNames).filter((name) => {
-                                    const normalized = name.trim().toLowerCase();
-                                    return !prepItems.some((other) => other.id !== item.id && other.searchName.trim().toLowerCase() === normalized);
-                                  })}
+                                  orphanNames={rowOrphanNames}
                                   onSelect={(name) => { updateItem(item.id, { searchName: name }); setActiveMappingId(null); }}
                                   onClose={() => setActiveMappingId(null)}
                                 />
