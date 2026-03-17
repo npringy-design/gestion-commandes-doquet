@@ -72,7 +72,7 @@ export type PrepCategory = 'poste_chaud' | 'poste_entree' | 'poste_dessert' | 'd
 export interface PrepItem {
   id: string;
   name: string;
-  searchName: string;
+  searchName: string; // Peut contenir plusieurs références séparées par " || "
   importDivisor?: number | '';
   category: PrepCategory;
   isActive: boolean;
@@ -80,6 +80,8 @@ export interface PrepItem {
   secondaryDlcHours: number | '';
   targetBuffer: number | '';
   notes?: string;
+  baseProduction?: string;
+  unitWeightGrams?: number | '';
 }
 
 export type PrepImportsByMonth = Record<string, string>;

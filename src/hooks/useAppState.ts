@@ -87,6 +87,9 @@ export const useAppState = () => {
   const [validatedMonths, setValidatedMonths] =
     useState<Record<string, boolean>>(() => loadState('validatedMonths', {}));
 
+  const [prepValidatedMonths, setPrepValidatedMonths] =
+    useState<Record<string, boolean>>(() => loadState('prepValidatedMonths', {}));
+
   const [supplierConfigs, setSupplierConfigs] =
 useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(loadState<Record<string, SupplierConfig>>('supplierConfigs', {})));
 
@@ -125,6 +128,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     salesHtByMonth,
     costMatterByMonth,
     validatedMonths,
+    prepValidatedMonths,
     supplierConfigs,
     deliveryDateBySupplier,
     nextDeliveryDateBySupplier,
@@ -140,6 +144,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     setSalesHtByMonth,
     setCostMatterByMonth,
     setValidatedMonths,
+    setPrepValidatedMonths,
     setSupplierConfigs,
     setDeliveryDateBySupplier,
     setNextDeliveryDateBySupplier,
@@ -162,13 +167,21 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     return sum;
   }, [dailyCovers]);
 
-  // Mois cible d'import: premier mois non figé disposant d'un CSV, sinon fallback sur le premier mois importé
+  // Mois cible d'import inventaire: premier mois non figé disposant d'un CSV, sinon fallback sur le premier mois importé
   const importTargetMonth = useMemo(() => {
     const firstOpenWithCsv = MONTHS_ORDER.find(m => !validatedMonths[m] && !!detailedInventory[m]);
     if (firstOpenWithCsv) return firstOpenWithCsv;
     const firstWithCsv = MONTHS_ORDER.find(m => !!detailedInventory[m]);
     return firstWithCsv ?? MONTHS_ORDER[0];
   }, [detailedInventory, validatedMonths]);
+
+  // Mois cible d'import production: indépendant du figé ventes
+  const prepImportTargetMonth = useMemo(() => {
+    const firstOpenWithCsv = MONTHS_ORDER.find(m => !prepValidatedMonths[m] && !!prepImportsByMonth[m]);
+    if (firstOpenWithCsv) return firstOpenWithCsv;
+    const firstWithCsv = MONTHS_ORDER.find(m => !!prepImportsByMonth[m]);
+    return firstWithCsv ?? MONTHS_ORDER[0];
+  }, [prepImportsByMonth, prepValidatedMonths]);
 
   // Ensemble des noms disponibles dans le CSV du mois cible (pour le mapping et les alertes unmatched)
   const allAvailableImportNames = useMemo(
@@ -232,6 +245,33 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     setValidatedMonths(prev => ({ ...prev, [m]: next }));
   };
 
+  // Valide / dévalide un mois production (fige les valeurs importées dans ratioHistory des prepItems)
+  const togglePrepValidateMonth = (m: string) => {
+    const next = !prepValidatedMonths[m];
+    if (next) {
+      setPrepItems(prev => prev.map(item => {
+        let importedVal = 0;
+        const mappingNames = String(item.searchName || '')
+          .split(' || ')
+          .map(name => name.trim())
+          .filter(Boolean);
+
+        mappingNames.forEach(mappingName => {
+          importedVal += Number(getImportedValueForProduct(prepImportsByMonth[m], mappingName, item.importDivisor, ['Nombre']) || 0);
+        });
+
+        const monthCovers = Number(covers[m] || 0);
+        const ratio = monthCovers > 0 ? importedVal / monthCovers : 0;
+
+        return {
+          ...item,
+          ratioHistory: { ...item.ratioHistory, [m]: ratio },
+        };
+      }));
+    }
+    setPrepValidatedMonths(prev => ({ ...prev, [m]: next }));
+  };
+
   const {
     updateProductValue,
     performReset,
@@ -277,7 +317,9 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     salesHtByMonth, setSalesHtByMonth,
     costMatterByMonth, setCostMatterByMonth,
     validatedMonths,
+    prepValidatedMonths,
     importTargetMonth,
+    prepImportTargetMonth,
     supplierConfigs, setSupplierConfigs,
     products, setProducts,
     prepItems, setPrepItems,
@@ -292,6 +334,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     // Actions
     getProductStats,
     toggleValidateMonth,
+    togglePrepValidateMonth,
     updateProductValue,
     syncStatus,
     supabaseLoaded,
