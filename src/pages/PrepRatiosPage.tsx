@@ -273,14 +273,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                                 <span className="text-[11px] font-bold text-amber-700">Ajoute une ou plusieurs références import</span>
                               ) : null}
                             </div>
-                            <div className="mt-2 flex items-center gap-1">
-                              <input
-                                value={currentMappings.join(MAPPING_SEPARATOR)}
-                                disabled={!canEdit}
-                                onChange={(e) => updateItem(item.id, { searchName: e.target.value })}
-                                placeholder={`Réf 1${MAPPING_SEPARATOR}Réf 2`}
-                                className="flex-1 rounded-xl border border-[#D0B08D] bg-white px-2 py-2 text-[11px] font-bold outline-none"
-                              />
+                            <div className="mt-2 flex items-center justify-end">
                               <button
                                 type="button"
                                 disabled={!canOpenMapping}
