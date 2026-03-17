@@ -18,6 +18,8 @@ const MONTH_LABELS: Record<string, string> = {
   jul: 'Jul', aug: 'Aoû', sep: 'Sep', oct: 'Oct', nov: 'Nov', dec: 'Déc',
 };
 
+const MAPPING_SEPARATOR = ' || ';
+
 interface PrepRatiosPageProps {
   setView: (v: View) => void;
   covers: Record<string, number>;
@@ -30,7 +32,6 @@ interface PrepRatiosPageProps {
 type PrepItemExtended = PrepItem & {
   baseProduction?: string;
   unitWeightGrams?: number | '';
-  assemblyGroup?: string;
 };
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -48,12 +49,19 @@ const defaultItem = (): PrepItemExtended => ({
   notes: '',
   baseProduction: '',
   unitWeightGrams: '',
-  assemblyGroup: '',
 });
 
 const getBaseProduction = (item: PrepItem) => String((item as PrepItemExtended).baseProduction || '');
 const getUnitWeight = (item: PrepItem) => (item as PrepItemExtended).unitWeightGrams ?? '';
-const getAssemblyGroup = (item: PrepItem) => String((item as PrepItemExtended).assemblyGroup || '');
+
+const parseMappingNames = (value?: string) =>
+  String(value || '')
+    .split(MAPPING_SEPARATOR)
+    .map((name) => name.trim())
+    .filter(Boolean);
+
+const joinMappingNames = (names: string[]) =>
+  Array.from(new Set(names.map((name) => name.trim()).filter(Boolean))).join(MAPPING_SEPARATOR);
 
 const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   setView,
@@ -86,6 +94,16 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
     setPrepItems((prev) => prev.map((item) => item.id === id ? ({ ...item, ...patch } as PrepItem) : item));
   };
 
+  const addMappingName = (item: PrepItem, name: string) => {
+    const current = parseMappingNames(item.searchName);
+    updateItem(item.id, { searchName: joinMappingNames([...current, name]) });
+  };
+
+  const removeMappingName = (item: PrepItem, name: string) => {
+    const current = parseMappingNames(item.searchName);
+    updateItem(item.id, { searchName: joinMappingNames(current.filter((value) => value !== name)) });
+  };
+
   const toggleSelected = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -115,13 +133,18 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   };
 
   const getMonthValue = (item: PrepItem, month: string) => {
-    const imported = getImportedValueForProduct(
-      prepImportsByMonth[month],
-      item.searchName,
-      item.importDivisor,
-      ['Nombre']
-    );
-    return imported ?? 0;
+    const mappingNames = parseMappingNames(item.searchName);
+    if (mappingNames.length === 0) return 0;
+
+    return mappingNames.reduce((sum, mappingName) => {
+      const imported = getImportedValueForProduct(
+        prepImportsByMonth[month],
+        mappingName,
+        item.importDivisor,
+        ['Nombre']
+      );
+      return sum + Number(imported || 0);
+    }, 0);
   };
 
   const getMonthRatio = (item: PrepItem, month: string) => {
@@ -146,15 +169,15 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   };
 
   const basePreview = React.useMemo(() => {
-    const grouped = new Map<string, { count: number; totalWeight: number; assemblyCount: number }>();
+    const grouped = new Map<string, { count: number; totalWeight: number; mappingsCount: number }>();
     prepItems.forEach((item) => {
       const base = getBaseProduction(item).trim();
       const weight = Number(getUnitWeight(item) || 0);
       if (!base || weight <= 0) return;
-      const current = grouped.get(base) ?? { count: 0, totalWeight: 0, assemblyCount: 0 };
+      const current = grouped.get(base) ?? { count: 0, totalWeight: 0, mappingsCount: 0 };
       current.count += 1;
       current.totalWeight += weight;
-      if (getAssemblyGroup(item).trim()) current.assemblyCount += 1;
+      current.mappingsCount += parseMappingNames(item.searchName).length;
       grouped.set(base, current);
     });
     return Array.from(grouped.entries());
@@ -170,7 +193,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
               <div className="p-4">
                 <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#FFE1B8]">Hippopotamus Thillois</p>
                 <h1 className="mt-2 text-2xl font-black leading-none text-[#FFF9F3] xl:text-[28px]">Calcul prod ratio</h1>
-                <p className="mt-3 text-xs font-semibold text-[#FFE7CF]">Crée tes productions, mappe l&apos;import production et prépare le regroupement base + assemblage.</p>
+                <p className="mt-3 text-xs font-semibold text-[#FFE7CF]">1 ligne = 1 nom final affiché. Tu peux ajouter plusieurs références import sur la même ligne.</p>
               </div>
             </div>
 
@@ -191,7 +214,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
             </div>
 
             <div className="min-h-0 flex-1 overflow-auto">
-              <table className="min-w-[1740px] w-full text-sm">
+              <table className="min-w-[1700px] w-full text-sm">
                 <thead className="sticky top-0 z-10 bg-[#F4E4D2] text-[#6C3C2B]">
                   <tr>
                     <th className="px-3 py-2 text-left font-black uppercase">Sel.</th>
@@ -200,7 +223,6 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                     <th className="px-2 py-2 text-left font-black uppercase">Mapping import</th>
                     <th className="px-2 py-2 text-center font-black uppercase">Base</th>
                     <th className="px-2 py-2 text-center font-black uppercase">Poids g</th>
-                    <th className="px-2 py-2 text-center font-black uppercase">Assemblage</th>
                     <th className="px-2 py-2 text-center font-black uppercase">÷</th>
                     {MONTHS_ORDER.map((month) => <th key={month} className="px-2 py-2 text-center font-black uppercase">{MONTH_LABELS[month]}</th>)}
                     <th className="px-3 py-2 text-center font-black uppercase">Ratio moy.</th>
@@ -213,13 +235,19 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                 <tbody>
                   {rows.map((item, idx) => {
                     const avgRatio = getAverageRatio(item);
-                    const normalizedAvailableNames = Array.from(allAvailableImportNames).map((n) => n.trim().toLowerCase());
-                    const alert = !item.searchName.trim() || !normalizedAvailableNames.includes(item.searchName.trim().toLowerCase());
+                    const currentMappings = parseMappingNames(item.searchName);
+                    const allUsedMappings = prepItems.flatMap((other) => parseMappingNames(other.searchName));
                     const rowOrphanNames = Array.from(allAvailableImportNames).filter((name) => {
                       const normalized = name.trim().toLowerCase();
-                      return !prepItems.some((other) => other.id !== item.id && other.searchName.trim().toLowerCase() === normalized);
+                      const alreadyOnCurrentRow = currentMappings.some((value) => value.trim().toLowerCase() === normalized);
+                      const alreadyUsedElsewhere = prepItems.some((other) => {
+                        if (other.id === item.id) return false;
+                        return parseMappingNames(other.searchName).some((value) => value.trim().toLowerCase() === normalized);
+                      });
+                      return alreadyOnCurrentRow || !alreadyUsedElsewhere;
                     });
                     const canOpenMapping = rowOrphanNames.length > 0;
+                    const alert = currentMappings.length === 0;
 
                     return (
                       <tr key={item.id} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
@@ -231,19 +259,51 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                           </select>
                         </td>
                         <td className="border-t border-[#E0CCBA] px-2 py-2">
-                          <div className="relative flex items-center gap-1 min-w-[165px]">
-                            <input value={item.searchName} disabled={!canEdit} onChange={(e) => updateItem(item.id, { searchName: e.target.value })} placeholder="nom dans l'import" className={`flex-1 rounded-xl border px-2 py-2 text-xs font-bold outline-none ${alert ? 'border-amber-300 text-amber-700 bg-amber-50' : 'border-[#D0B08D] bg-[#FFFDF9]'}`} />
-                            <button type="button" disabled={!canOpenMapping} onClick={() => canOpenMapping && setActiveMappingId(activeMappingId === item.id ? null : item.id)} className="h-9 w-9 rounded-xl bg-slate-100 text-slate-600 disabled:cursor-not-allowed disabled:opacity-35" title={canOpenMapping ? 'Choisir un nom import' : 'Aucun nom disponible'}>⌄</button>
+                          <div className={`min-w-[250px] rounded-xl border px-2 py-2 ${alert ? 'border-amber-300 bg-amber-50' : 'border-[#D0B08D] bg-[#FFFDF9]'}`}>
+                            <div className="flex flex-wrap gap-1.5">
+                              {currentMappings.map((mapping) => (
+                                <span key={mapping} className="inline-flex items-center gap-1 rounded-full border border-[#D0B08D] bg-white px-2 py-1 text-[11px] font-bold text-[#5A3928]">
+                                  {mapping}
+                                  {canEdit ? (
+                                    <button type="button" onClick={() => removeMappingName(item, mapping)} className="text-[#A93E2A]">×</button>
+                                  ) : null}
+                                </span>
+                              ))}
+                              {currentMappings.length === 0 ? (
+                                <span className="text-[11px] font-bold text-amber-700">Ajoute une ou plusieurs références import</span>
+                              ) : null}
+                            </div>
+                            <div className="mt-2 flex items-center gap-1">
+                              <input
+                                value={currentMappings.join(MAPPING_SEPARATOR)}
+                                disabled={!canEdit}
+                                onChange={(e) => updateItem(item.id, { searchName: e.target.value })}
+                                placeholder={`Réf 1${MAPPING_SEPARATOR}Réf 2`}
+                                className="flex-1 rounded-xl border border-[#D0B08D] bg-white px-2 py-2 text-[11px] font-bold outline-none"
+                              />
+                              <button
+                                type="button"
+                                disabled={!canOpenMapping}
+                                onClick={() => canOpenMapping && setActiveMappingId(activeMappingId === item.id ? null : item.id)}
+                                className="h-9 w-9 rounded-xl bg-slate-100 text-slate-600 disabled:cursor-not-allowed disabled:opacity-35"
+                                title={canOpenMapping ? 'Ajouter une référence import' : 'Aucun nom disponible'}
+                              >⌄</button>
+                            </div>
                             {activeMappingId === item.id && canOpenMapping && (
-                              <div className="absolute left-0 top-full z-[999] mt-1">
-                                <MappingPopover orphanNames={rowOrphanNames} onSelect={(name) => { updateItem(item.id, { searchName: name }); setActiveMappingId(null); }} onClose={() => setActiveMappingId(null)} />
+                              <div className="relative">
+                                <div className="absolute left-0 top-1 z-[999]">
+                                  <MappingPopover
+                                    orphanNames={rowOrphanNames}
+                                    onSelect={(name) => { addMappingName(item, name); setActiveMappingId(null); }}
+                                    onClose={() => setActiveMappingId(null)}
+                                  />
+                                </div>
                               </div>
                             )}
                           </div>
                         </td>
                         <td className="border-t border-[#E0CCBA] px-2 py-2"><input value={getBaseProduction(item)} disabled={!canEdit} onChange={(e) => updateItem(item.id, { baseProduction: e.target.value })} placeholder="Base mousse" className="w-[112px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2.5 py-2 text-xs font-bold outline-none" /></td>
                         <td className="border-t border-[#E0CCBA] px-2 py-2"><input type="number" value={getUnitWeight(item)} disabled={!canEdit} onChange={(e) => updateItem(item.id, { unitWeightGrams: e.target.value === '' ? '' : Number(e.target.value) || '' })} placeholder="100" className="w-[68px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" /></td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-2"><input value={getAssemblyGroup(item)} disabled={!canEdit} onChange={(e) => updateItem(item.id, { assemblyGroup: e.target.value })} placeholder="menu-kids" className="w-[110px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2.5 py-2 text-xs font-bold outline-none" /></td>
                         <td className="border-t border-[#E0CCBA] px-2 py-2"><input type="number" value={item.importDivisor ?? ''} disabled={!canEdit} onChange={(e) => updateItem(item.id, { importDivisor: e.target.value === '' ? '' : Number(e.target.value) || '' })} className="w-[54px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" /></td>
                         {MONTHS_ORDER.map((month) => {
                           const monthValue = getMonthValue(item, month);
@@ -265,7 +325,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                       </tr>
                     );
                   })}
-                  {rows.length === 0 && (<tr><td colSpan={21} className="px-6 py-10 text-center text-sm font-semibold text-slate-500">Aucune production. Ajoute d&apos;abord tes lignes ici, puis importe tes fichiers production dans Paramètres.</td></tr>)}
+                  {rows.length === 0 && (<tr><td colSpan={20} className="px-6 py-10 text-center text-sm font-semibold text-slate-500">Aucune production. Ajoute d&apos;abord tes lignes ici, puis importe tes fichiers production dans Paramètres.</td></tr>)}
                 </tbody>
               </table>
             </div>
@@ -280,7 +340,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                     <div key={base} className="rounded-xl border border-[#E7C78C] bg-[#FFF2D8] px-3 py-2 text-xs text-[#6C3C2B]">
                       <div className="font-black uppercase">{base}</div>
                       <div className="font-semibold">{info.count} ligne(s) • {info.totalWeight} g référencés</div>
-                      {info.assemblyCount > 0 ? <div className="text-[10px] font-bold text-[#8A5A2F]">{info.assemblyCount} ligne(s) avec assemblage</div> : null}
+                      <div className="text-[10px] font-bold text-[#8A5A2F]">{info.mappingsCount} référence(s) import liées</div>
                     </div>
                   ))
                 )}

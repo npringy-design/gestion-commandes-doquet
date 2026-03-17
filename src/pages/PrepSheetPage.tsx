@@ -19,6 +19,8 @@ const CATEGORY_BANNERS: Record<PrepCategory, string> = {
   decongelation: 'from-[#2F6F8A] via-[#245F78] to-[#1E4E68]',
 };
 
+const MAPPING_SEPARATOR = ' || ';
+
 interface PrepSheetPageProps {
   setView: (v: View) => void;
   prepItems: PrepItem[];
@@ -30,7 +32,6 @@ interface PrepSheetPageProps {
 type PrepItemExtended = PrepItem & {
   baseProduction?: string;
   unitWeightGrams?: number | '';
-  assemblyGroup?: string;
 };
 
 type ChildCalcRow = {
@@ -54,21 +55,28 @@ type BaseParentRow = {
 
 type StandaloneRow = {
   kind: 'item';
-  item: PrepItem;
+  label: string;
   need: number;
   stock: number;
   toProduce: number;
   stockKey: string;
+  notes?: string;
+  maxDlcHours: number;
 };
 
 type DisplayRow = BaseParentRow | StandaloneRow;
 type StockState = Record<string, number>;
 
-const STOCK_STORAGE_KEY = 'prep-sheet-stocks-v2';
+const STOCK_STORAGE_KEY = 'prep-sheet-stocks-v3';
 
 const getBaseProduction = (item: PrepItem) => String((item as PrepItemExtended).baseProduction || '').trim();
 const getUnitWeight = (item: PrepItem) => Number((item as PrepItemExtended).unitWeightGrams || 0);
-const getAssemblyGroup = (item: PrepItem) => String((item as PrepItemExtended).assemblyGroup || '').trim();
+
+const parseMappingNames = (value?: string) =>
+  String(value || '')
+    .split(MAPPING_SEPARATOR)
+    .map((name) => name.trim())
+    .filter(Boolean);
 
 const getMonthKeyFromDate = (date: string) => {
   if (!date) return 'jan';
@@ -107,21 +115,30 @@ const getFutureCoversForWindow = (date: string, dailyCovers: DailyCoversState, d
 const getAverageRatio = (item: PrepItem, covers: Record<string, number>, prepImportsByMonth: PrepImportsByMonth) => {
   let total = 0;
   let count = 0;
+
   MONTHS_ORDER.forEach((month) => {
     const coversValue = Number(covers[month] || 0);
     if (!coversValue) return;
+
     const manualRatio = Number(item.ratioHistory?.[month] || 0);
     if (manualRatio > 0) {
       total += manualRatio;
       count += 1;
       return;
     }
-    const imported = getImportedValueForProduct(prepImportsByMonth[month], item.searchName, item.importDivisor, ['Nombre']);
-    if (Number(imported) > 0) {
-      total += Number(imported) / coversValue;
+
+    const imported = parseMappingNames(item.searchName).reduce((sum, mappingName) => {
+      return sum + Number(
+        getImportedValueForProduct(prepImportsByMonth[month], mappingName, item.importDivisor, ['Nombre']) || 0
+      );
+    }, 0);
+
+    if (imported > 0) {
+      total += imported / coversValue;
       count += 1;
     }
   });
+
   return count > 0 ? total / count : 0;
 };
 
@@ -176,12 +193,11 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
           dlcHours,
           baseProduction: getBaseProduction(item),
           weightGrams: getUnitWeight(item),
-          assemblyGroup: getAssemblyGroup(item),
         };
       });
 
       const baseGroups = new Map<string, typeof calcRows>();
-      const standaloneRows: StandaloneRow[] = [];
+      const standaloneMap = new Map<string, StandaloneRow>();
 
       calcRows.forEach((row) => {
         if (row.baseProduction && row.weightGrams > 0) {
@@ -189,16 +205,25 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
           current.push(row);
           baseGroups.set(row.baseProduction, current);
         } else {
-          const stockKey = buildStockKey(selectedDate, category, `item::${row.item.id}`);
-          const stock = Number(stocks[stockKey] || 0);
-          standaloneRows.push({
-            kind: 'item',
-            item: row.item,
-            need: row.need,
-            stock,
-            toProduce: Math.max(0, Math.ceil(row.need + Number(row.item.targetBuffer || 0) - stock)),
-            stockKey,
-          });
+          const rowKey = `itemname::${row.item.name.trim().toLowerCase()}`;
+          const stockKey = buildStockKey(selectedDate, category, rowKey);
+          const existing = standaloneMap.get(rowKey);
+          if (!existing) {
+            standaloneMap.set(rowKey, {
+              kind: 'item',
+              label: row.item.name,
+              need: row.need,
+              stock: Number(stocks[stockKey] || 0),
+              toProduce: 0,
+              stockKey,
+              notes: row.item.notes || '',
+              maxDlcHours: row.dlcHours,
+            });
+          } else {
+            existing.need += row.need;
+            existing.notes = [existing.notes, row.item.notes || ''].filter(Boolean).join(' • ');
+            existing.maxDlcHours = Math.max(existing.maxDlcHours, row.dlcHours);
+          }
         }
       });
 
@@ -208,12 +233,12 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
         const merged = new Map<string, ChildCalcRow>();
 
         children.forEach((child) => {
-          const assemblyKey = child.assemblyGroup || child.item.id;
-          const stockKey = buildStockKey(selectedDate, category, `assembly::${baseProduction}::${assemblyKey}`);
-          const existing = merged.get(assemblyKey);
+          const labelKey = child.item.name.trim().toLowerCase();
+          const stockKey = buildStockKey(selectedDate, category, `base::${baseProduction}::${labelKey}`);
+          const existing = merged.get(labelKey);
 
           if (!existing) {
-            merged.set(assemblyKey, {
+            merged.set(labelKey, {
               label: child.item.name,
               need: child.need,
               stock: Number(stocks[stockKey] || 0),
@@ -226,7 +251,6 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
             return;
           }
 
-          existing.label = `${existing.label} + ${child.item.name}`;
           existing.need += child.need;
           existing.weightGrams = Math.max(existing.weightGrams, child.weightGrams);
           existing.notes = [existing.notes, child.item.notes || ''].filter(Boolean).join(' • ');
@@ -250,7 +274,11 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
         });
       });
 
-      standaloneRows.forEach((row) => displayRows.push(row));
+      standaloneMap.forEach((row) => {
+        row.toProduce = Math.max(0, Math.ceil(row.need - row.stock));
+        displayRows.push(row);
+      });
+
       return { category, rows: displayRows };
     }).filter((group) => group.rows.length > 0);
   }, [covers, dailyCovers, prepImportsByMonth, prepItems, selectedDate, stocks]);
@@ -377,11 +405,11 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
                               }
 
                               return (
-                                <tr key={row.item.id} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
+                                <tr key={`${row.label}-${idx}`} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
                                   <td className="border-t border-[#E0CCBA] px-3 py-2.5 align-middle">
-                                    <div className="font-black uppercase text-[#4D2B18]">{row.item.name}</div>
-                                    <div className="mt-0.5 text-[10px] font-semibold text-slate-500">{getWindowLabel(Number(row.item.secondaryDlcHours || 24))}</div>
-                                    {row.item.notes ? <div className="mt-0.5 text-[10px] font-semibold text-slate-500">{row.item.notes}</div> : null}
+                                    <div className="font-black uppercase text-[#4D2B18]">{row.label}</div>
+                                    <div className="mt-0.5 text-[10px] font-semibold text-slate-500">{getWindowLabel(row.maxDlcHours)}</div>
+                                    {row.notes ? <div className="mt-0.5 text-[10px] font-semibold text-slate-500">{row.notes}</div> : null}
                                   </td>
                                   <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center text-[20px] font-black text-[#4D2B18]">{row.need.toFixed(1)}</td>
                                   <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center">
