@@ -163,6 +163,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
         prepImportsByMonth={state.prepImportsByMonth}
         setPrepImportsByMonth={state.setPrepImportsByMonth}
         validatedMonths={state.validatedMonths}
+              prepValidatedMonths={state.prepValidatedMonths}
       />,
       'Chargement des paramètres…'
     );

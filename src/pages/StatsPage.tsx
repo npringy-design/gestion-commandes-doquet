@@ -31,6 +31,7 @@ interface StatsPageProps {
   prepImportsByMonth: Record<string, string>;
   setPrepImportsByMonth: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   validatedMonths: Record<string, boolean>;
+  prepValidatedMonths?: Record<string, boolean>;
 }
 
 type EditableField = 'sales' | 'cm' | 'covers';
@@ -76,6 +77,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
   prepImportsByMonth,
   setPrepImportsByMonth,
   validatedMonths,
+  prepValidatedMonths = {},
 }) => {
   const { profile } = useAuth();
   const canImport = canImportData(profile);
@@ -90,14 +92,15 @@ const StatsPage: React.FC<StatsPageProps> = ({
 
   const editableColumns = useMemo<EditableField[]>(() => ['sales', 'cm', 'covers'], []);
 
-  const resolveImportTargetMonth = (requestedMonth: string) => {
-    if (!validatedMonths[requestedMonth]) return requestedMonth;
+  const resolveImportTargetMonth = (requestedMonth: string, target: 'inventory' | 'production') => {
+    const lockMap = target === 'production' ? prepValidatedMonths : validatedMonths;
+    if (!lockMap[requestedMonth]) return requestedMonth;
     const startIndex = MONTHS_DISPLAY_CONFIG.findIndex((m) => m.key === requestedMonth);
     if (startIndex === -1) return requestedMonth;
 
     for (let i = startIndex + 1; i < MONTHS_DISPLAY_CONFIG.length; i++) {
       const key = MONTHS_DISPLAY_CONFIG[i].key;
-      if (!validatedMonths[key]) return key;
+      if (!lockMap[key]) return key;
     }
 
     return requestedMonth;
@@ -108,7 +111,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
 
     try {
       const content = await readFileAsCSV(file);
-      const targetMonth = resolveImportTargetMonth(modalState.month);
+      const targetMonth = resolveImportTargetMonth(modalState.month, modalState.target);
 
       if (modalState.target === 'inventory') {
         setDetailedInventory((prev) => ({ ...prev, [targetMonth]: content }));
