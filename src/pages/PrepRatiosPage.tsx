@@ -30,6 +30,7 @@ interface PrepRatiosPageProps {
 type PrepItemExtended = PrepItem & {
   baseProduction?: string;
   unitWeightGrams?: number | '';
+  assemblyGroup?: string;
 };
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -47,10 +48,12 @@ const defaultItem = (): PrepItemExtended => ({
   notes: '',
   baseProduction: '',
   unitWeightGrams: '',
+  assemblyGroup: '',
 });
 
 const getBaseProduction = (item: PrepItem) => String((item as PrepItemExtended).baseProduction || '');
 const getUnitWeight = (item: PrepItem) => (item as PrepItemExtended).unitWeightGrams ?? '';
+const getAssemblyGroup = (item: PrepItem) => String((item as PrepItemExtended).assemblyGroup || '');
 
 const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   setView,
@@ -104,6 +107,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   };
 
   const addItem = () => setPrepItems((prev) => [...prev, defaultItem() as PrepItem]);
+
   const deleteSelected = () => {
     if (selectedIds.size === 0) return;
     setPrepItems((prev) => prev.filter((item) => !selectedIds.has(item.id)));
@@ -142,14 +146,15 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   };
 
   const basePreview = React.useMemo(() => {
-    const grouped = new Map<string, { count: number; totalWeight: number }>();
+    const grouped = new Map<string, { count: number; totalWeight: number; assemblyCount: number }>();
     prepItems.forEach((item) => {
       const base = getBaseProduction(item).trim();
       const weight = Number(getUnitWeight(item) || 0);
       if (!base || weight <= 0) return;
-      const current = grouped.get(base) ?? { count: 0, totalWeight: 0 };
+      const current = grouped.get(base) ?? { count: 0, totalWeight: 0, assemblyCount: 0 };
       current.count += 1;
       current.totalWeight += weight;
+      if (getAssemblyGroup(item).trim()) current.assemblyCount += 1;
       grouped.set(base, current);
     });
     return Array.from(grouped.entries());
@@ -165,7 +170,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
               <div className="p-4">
                 <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#FFE1B8]">Hippopotamus Thillois</p>
                 <h1 className="mt-2 text-2xl font-black leading-none text-[#FFF9F3] xl:text-[28px]">Calcul prod ratio</h1>
-                <p className="mt-3 text-xs font-semibold text-[#FFE7CF]">Crée tes productions, mappe l'import production et laisse l'appli calculer les ratios mensuels.</p>
+                <p className="mt-3 text-xs font-semibold text-[#FFE7CF]">Crée tes productions, mappe l&apos;import production et prépare le regroupement base + assemblage.</p>
               </div>
             </div>
 
@@ -186,7 +191,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
             </div>
 
             <div className="min-h-0 flex-1 overflow-auto">
-              <table className="min-w-[1600px] w-full text-sm">
+              <table className="min-w-[1740px] w-full text-sm">
                 <thead className="sticky top-0 z-10 bg-[#F4E4D2] text-[#6C3C2B]">
                   <tr>
                     <th className="px-3 py-2 text-left font-black uppercase">Sel.</th>
@@ -195,10 +200,11 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                     <th className="px-2 py-2 text-left font-black uppercase">Mapping import</th>
                     <th className="px-2 py-2 text-center font-black uppercase">Base</th>
                     <th className="px-2 py-2 text-center font-black uppercase">Poids g</th>
+                    <th className="px-2 py-2 text-center font-black uppercase">Assemblage</th>
                     <th className="px-2 py-2 text-center font-black uppercase">÷</th>
                     {MONTHS_ORDER.map((month) => <th key={month} className="px-2 py-2 text-center font-black uppercase">{MONTH_LABELS[month]}</th>)}
                     <th className="px-3 py-2 text-center font-black uppercase">Ratio moy.</th>
-                    <th className="px-2 py-2 text-center font-black uppercase">DLC</th>
+                    <th className="px-2 py-2 text-center font-black uppercase">DLC h</th>
                     <th className="px-2 py-2 text-center font-black uppercase">Buffer</th>
                     <th className="px-2 py-2 text-left font-black uppercase">Notes</th>
                     <th className="px-3 py-2 text-center font-black uppercase">Ordre</th>
@@ -214,6 +220,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                       return !prepItems.some((other) => other.id !== item.id && other.searchName.trim().toLowerCase() === normalized);
                     });
                     const canOpenMapping = rowOrphanNames.length > 0;
+
                     return (
                       <tr key={item.id} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
                         <td className="border-t border-[#E0CCBA] px-3 py-2 text-center"><input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} className="h-4 w-4" /></td>
@@ -226,43 +233,17 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                         <td className="border-t border-[#E0CCBA] px-2 py-2">
                           <div className="relative flex items-center gap-1 min-w-[165px]">
                             <input value={item.searchName} disabled={!canEdit} onChange={(e) => updateItem(item.id, { searchName: e.target.value })} placeholder="nom dans l'import" className={`flex-1 rounded-xl border px-2 py-2 text-xs font-bold outline-none ${alert ? 'border-amber-300 text-amber-700 bg-amber-50' : 'border-[#D0B08D] bg-[#FFFDF9]'}`} />
-                            <button
-                              type="button"
-                              disabled={!canOpenMapping}
-                              onClick={() => canOpenMapping && setActiveMappingId(activeMappingId === item.id ? null : item.id)}
-                              className="h-9 w-9 rounded-xl bg-slate-100 text-slate-600 disabled:cursor-not-allowed disabled:opacity-35"
-                              title={canOpenMapping ? 'Choisir un nom import' : 'Aucun nom disponible'}
-                            >⌄</button>
+                            <button type="button" disabled={!canOpenMapping} onClick={() => canOpenMapping && setActiveMappingId(activeMappingId === item.id ? null : item.id)} className="h-9 w-9 rounded-xl bg-slate-100 text-slate-600 disabled:cursor-not-allowed disabled:opacity-35" title={canOpenMapping ? 'Choisir un nom import' : 'Aucun nom disponible'}>⌄</button>
                             {activeMappingId === item.id && canOpenMapping && (
                               <div className="absolute left-0 top-full z-[999] mt-1">
-                                <MappingPopover
-                                  orphanNames={rowOrphanNames}
-                                  onSelect={(name) => { updateItem(item.id, { searchName: name }); setActiveMappingId(null); }}
-                                  onClose={() => setActiveMappingId(null)}
-                                />
+                                <MappingPopover orphanNames={rowOrphanNames} onSelect={(name) => { updateItem(item.id, { searchName: name }); setActiveMappingId(null); }} onClose={() => setActiveMappingId(null)} />
                               </div>
                             )}
                           </div>
                         </td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-2">
-                          <input
-                            value={getBaseProduction(item)}
-                            disabled={!canEdit}
-                            onChange={(e) => updateItem(item.id, { baseProduction: e.target.value })}
-                            placeholder="Base mousse"
-                            className="w-[112px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2.5 py-2 text-xs font-bold outline-none"
-                          />
-                        </td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-2">
-                          <input
-                            type="number"
-                            value={getUnitWeight(item)}
-                            disabled={!canEdit}
-                            onChange={(e) => updateItem(item.id, { unitWeightGrams: e.target.value === '' ? '' : Number(e.target.value) || '' })}
-                            placeholder="100"
-                            className="w-[68px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none"
-                          />
-                        </td>
+                        <td className="border-t border-[#E0CCBA] px-2 py-2"><input value={getBaseProduction(item)} disabled={!canEdit} onChange={(e) => updateItem(item.id, { baseProduction: e.target.value })} placeholder="Base mousse" className="w-[112px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2.5 py-2 text-xs font-bold outline-none" /></td>
+                        <td className="border-t border-[#E0CCBA] px-2 py-2"><input type="number" value={getUnitWeight(item)} disabled={!canEdit} onChange={(e) => updateItem(item.id, { unitWeightGrams: e.target.value === '' ? '' : Number(e.target.value) || '' })} placeholder="100" className="w-[68px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" /></td>
+                        <td className="border-t border-[#E0CCBA] px-2 py-2"><input value={getAssemblyGroup(item)} disabled={!canEdit} onChange={(e) => updateItem(item.id, { assemblyGroup: e.target.value })} placeholder="menu-kids" className="w-[110px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2.5 py-2 text-xs font-bold outline-none" /></td>
                         <td className="border-t border-[#E0CCBA] px-2 py-2"><input type="number" value={item.importDivisor ?? ''} disabled={!canEdit} onChange={(e) => updateItem(item.id, { importDivisor: e.target.value === '' ? '' : Number(e.target.value) || '' })} className="w-[54px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" /></td>
                         {MONTHS_ORDER.map((month) => {
                           const monthValue = getMonthValue(item, month);
@@ -280,18 +261,11 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                         <td className="border-t border-[#E0CCBA] px-2 py-2"><input type="number" value={item.secondaryDlcHours} disabled={!canEdit} onChange={(e) => updateItem(item.id, { secondaryDlcHours: e.target.value === '' ? '' : Number(e.target.value) || '' })} className="w-[58px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" /></td>
                         <td className="border-t border-[#E0CCBA] px-2 py-2"><input type="number" value={item.targetBuffer} disabled={!canEdit} onChange={(e) => updateItem(item.id, { targetBuffer: e.target.value === '' ? '' : Number(e.target.value) || '' })} className="w-[58px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" /></td>
                         <td className="border-t border-[#E0CCBA] px-2 py-2"><input value={item.notes || ''} disabled={!canEdit} onChange={(e) => updateItem(item.id, { notes: e.target.value })} className="w-[96px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2.5 py-2 font-semibold outline-none" /></td>
-                        <td className="border-t border-[#E0CCBA] px-3 py-2">
-                          <div className="flex gap-1.5 justify-center">
-                            <button onClick={() => moveItem(item.id, 'up')} disabled={!canEdit || idx === 0} className="h-8 w-8 rounded-xl bg-slate-900 text-[#ffd700] disabled:opacity-20">↑</button>
-                            <button onClick={() => moveItem(item.id, 'down')} disabled={!canEdit || idx === rows.length - 1} className="h-8 w-8 rounded-xl bg-slate-900 text-[#ffd700] disabled:opacity-20">↓</button>
-                          </div>
-                        </td>
+                        <td className="border-t border-[#E0CCBA] px-3 py-2"><div className="flex gap-1.5 justify-center"><button onClick={() => moveItem(item.id, 'up')} disabled={!canEdit || idx === 0} className="h-8 w-8 rounded-xl bg-slate-900 text-[#ffd700] disabled:opacity-20">↑</button><button onClick={() => moveItem(item.id, 'down')} disabled={!canEdit || idx === rows.length - 1} className="h-8 w-8 rounded-xl bg-slate-900 text-[#ffd700] disabled:opacity-20">↓</button></div></td>
                       </tr>
                     );
                   })}
-                  {rows.length === 0 && (
-                    <tr><td colSpan={20} className="px-6 py-10 text-center text-sm font-semibold text-slate-500">Aucune production. Ajoute d'abord tes lignes ici, puis importe tes fichiers production dans Paramètres.</td></tr>
-                  )}
+                  {rows.length === 0 && (<tr><td colSpan={21} className="px-6 py-10 text-center text-sm font-semibold text-slate-500">Aucune production. Ajoute d&apos;abord tes lignes ici, puis importe tes fichiers production dans Paramètres.</td></tr>)}
                 </tbody>
               </table>
             </div>
@@ -300,14 +274,13 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
               <div className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#7B5A46]">Aperçu bases production</div>
               <div className="flex flex-wrap gap-2">
                 {basePreview.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-[#D7B79B] bg-white px-3 py-2 text-xs font-semibold text-slate-500">
-                    Renseigne une base et un poids sur au moins une ligne pour activer le regroupement.
-                  </div>
+                  <div className="rounded-xl border border-dashed border-[#D7B79B] bg-white px-3 py-2 text-xs font-semibold text-slate-500">Renseigne une base et un poids sur au moins une ligne pour activer le regroupement.</div>
                 ) : (
                   basePreview.map(([base, info]) => (
                     <div key={base} className="rounded-xl border border-[#E7C78C] bg-[#FFF2D8] px-3 py-2 text-xs text-[#6C3C2B]">
                       <div className="font-black uppercase">{base}</div>
                       <div className="font-semibold">{info.count} ligne(s) • {info.totalWeight} g référencés</div>
+                      {info.assemblyCount > 0 ? <div className="text-[10px] font-bold text-[#8A5A2F]">{info.assemblyCount} ligne(s) avec assemblage</div> : null}
                     </div>
                   ))
                 )}

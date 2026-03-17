@@ -30,14 +30,18 @@ interface PrepSheetPageProps {
 type PrepItemExtended = PrepItem & {
   baseProduction?: string;
   unitWeightGrams?: number | '';
+  assemblyGroup?: string;
 };
 
-type BaseChildRow = {
-  item: PrepItem;
+type ChildCalcRow = {
+  label: string;
   need: number;
+  stock: number;
   toProduce: number;
-  averageRatio: number;
   weightGrams: number;
+  notes?: string;
+  stockKey: string;
+  maxDlcHours: number;
 };
 
 type BaseParentRow = {
@@ -45,20 +49,26 @@ type BaseParentRow = {
   baseProduction: string;
   theoreticalKg: number;
   toProduceKg: number;
-  children: BaseChildRow[];
+  children: ChildCalcRow[];
 };
 
 type StandaloneRow = {
   kind: 'item';
   item: PrepItem;
   need: number;
+  stock: number;
   toProduce: number;
+  stockKey: string;
 };
 
 type DisplayRow = BaseParentRow | StandaloneRow;
+type StockState = Record<string, number>;
+
+const STOCK_STORAGE_KEY = 'prep-sheet-stocks-v2';
 
 const getBaseProduction = (item: PrepItem) => String((item as PrepItemExtended).baseProduction || '').trim();
 const getUnitWeight = (item: PrepItem) => Number((item as PrepItemExtended).unitWeightGrams || 0);
+const getAssemblyGroup = (item: PrepItem) => String((item as PrepItemExtended).assemblyGroup || '').trim();
 
 const getMonthKeyFromDate = (date: string) => {
   if (!date) return 'jan';
@@ -66,47 +76,52 @@ const getMonthKeyFromDate = (date: string) => {
   return MONTHS_ORDER[monthIndex] ?? 'jan';
 };
 
-const getDayIndexFromDate = (date: string) => {
-  if (!date) return 0;
-  const day = new Date(`${date}T12:00:00`).getDate();
-  return Math.max(0, day - 1);
+const getDatePlusDays = (date: string, days: number) => {
+  const base = new Date(`${date}T12:00:00`);
+  base.setDate(base.getDate() + days);
+  return base.toISOString().slice(0, 10);
 };
 
 const getCoversForDate = (date: string, dailyCovers: DailyCoversState) => {
   const monthKey = getMonthKeyFromDate(date);
-  const dayIndex = getDayIndexFromDate(date);
+  const dayIndex = new Date(`${date}T12:00:00`).getDate() - 1;
   const dayData = dailyCovers?.[monthKey]?.[dayIndex];
   return Number(dayData?.midi || 0) + Number(dayData?.soir || 0);
+};
+
+const getCoveredDaysCount = (dlcHours: number) => {
+  const safeHours = Number(dlcHours || 24);
+  if (safeHours <= 24) return 1;
+  return Math.max(1, Math.ceil(safeHours / 24));
+};
+
+const getFutureCoversForWindow = (date: string, dailyCovers: DailyCoversState, dlcHours: number) => {
+  const dayCount = getCoveredDaysCount(dlcHours);
+  let total = 0;
+  for (let i = 0; i < dayCount; i += 1) {
+    total += getCoversForDate(getDatePlusDays(date, i), dailyCovers);
+  }
+  return total;
 };
 
 const getAverageRatio = (item: PrepItem, covers: Record<string, number>, prepImportsByMonth: PrepImportsByMonth) => {
   let total = 0;
   let count = 0;
-
   MONTHS_ORDER.forEach((month) => {
     const coversValue = Number(covers[month] || 0);
     if (!coversValue) return;
-
     const manualRatio = Number(item.ratioHistory?.[month] || 0);
     if (manualRatio > 0) {
       total += manualRatio;
       count += 1;
       return;
     }
-
-    const imported = getImportedValueForProduct(
-      prepImportsByMonth[month],
-      item.searchName,
-      item.importDivisor,
-      ['Nombre']
-    );
-
+    const imported = getImportedValueForProduct(prepImportsByMonth[month], item.searchName, item.importDivisor, ['Nombre']);
     if (Number(imported) > 0) {
       total += Number(imported) / coversValue;
       count += 1;
     }
   });
-
   return count > 0 ? total / count : 0;
 };
 
@@ -116,46 +131,73 @@ const roundUpToHalfKg = (valueKg: number) => {
 };
 
 const formatKg = (value: number) => `${value.toFixed(1).replace('.', ',')} kg`;
+const buildStockKey = (date: string, category: PrepCategory, rowKey: string) => `${date}__${category}__${rowKey}`;
 
 const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, dailyCovers, covers, prepImportsByMonth }) => {
   const [selectedDate, setSelectedDate] = React.useState(() => new Date().toISOString().slice(0, 10));
   const [activeCategory, setActiveCategory] = React.useState<PrepCategory | 'all'>('all');
+  const [stocks, setStocks] = React.useState<StockState>({});
+
+  React.useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STOCK_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') setStocks(parsed);
+    } catch {}
+  }, []);
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem(STOCK_STORAGE_KEY, JSON.stringify(stocks));
+    } catch {}
+  }, [stocks]);
 
   const coversForDay = React.useMemo(() => getCoversForDate(selectedDate, dailyCovers), [selectedDate, dailyCovers]);
   const monthLabel = React.useMemo(() => MONTHS_DISPLAY_CONFIG.find((m) => m.key === getMonthKeyFromDate(selectedDate))?.label ?? '', [selectedDate]);
+
+  const setStockValue = (key: string, value: number) => {
+    setStocks((prev) => ({ ...prev, [key]: Math.max(0, value) }));
+  };
 
   const groupedRows = React.useMemo(() => {
     return CATEGORY_ORDER.map((category) => {
       const itemsForCategory = prepItems.filter((item) => item.category === category);
 
-      const itemRows = itemsForCategory.map((item) => {
+      const calcRows = itemsForCategory.map((item) => {
         const averageRatio = getAverageRatio(item, covers, prepImportsByMonth);
-        const need = averageRatio * coversForDay;
-        const buffer = Number(item.targetBuffer || 0);
-        const toProduce = Math.max(0, Math.ceil(need + buffer));
-        return { item, need, toProduce, averageRatio, baseProduction: getBaseProduction(item), weightGrams: getUnitWeight(item) };
+        const dlcHours = Number(item.secondaryDlcHours || 24);
+        const coversWindow = getFutureCoversForWindow(selectedDate, dailyCovers, dlcHours);
+        const need = averageRatio * coversWindow;
+        return {
+          item,
+          need,
+          averageRatio,
+          dlcHours,
+          baseProduction: getBaseProduction(item),
+          weightGrams: getUnitWeight(item),
+          assemblyGroup: getAssemblyGroup(item),
+        };
       });
 
-      const baseGroups = new Map<string, BaseChildRow[]>();
+      const baseGroups = new Map<string, typeof calcRows>();
       const standaloneRows: StandaloneRow[] = [];
 
-      itemRows.forEach((row) => {
+      calcRows.forEach((row) => {
         if (row.baseProduction && row.weightGrams > 0) {
           const current = baseGroups.get(row.baseProduction) ?? [];
-          current.push({
-            item: row.item,
-            need: row.need,
-            toProduce: row.toProduce,
-            averageRatio: row.averageRatio,
-            weightGrams: row.weightGrams,
-          });
+          current.push(row);
           baseGroups.set(row.baseProduction, current);
         } else {
+          const stockKey = buildStockKey(selectedDate, category, `item::${row.item.id}`);
+          const stock = Number(stocks[stockKey] || 0);
           standaloneRows.push({
             kind: 'item',
             item: row.item,
             need: row.need,
-            toProduce: row.toProduce,
+            stock,
+            toProduce: Math.max(0, Math.ceil(row.need + Number(row.item.targetBuffer || 0) - stock)),
+            stockKey,
           });
         }
       });
@@ -163,31 +205,65 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
       const displayRows: DisplayRow[] = [];
 
       baseGroups.forEach((children, baseProduction) => {
-        const theoreticalKg = children.reduce((sum, child) => sum + (child.toProduce * child.weightGrams), 0) / 1000;
-        const toProduceKg = roundUpToHalfKg(theoreticalKg);
+        const merged = new Map<string, ChildCalcRow>();
+
+        children.forEach((child) => {
+          const assemblyKey = child.assemblyGroup || child.item.id;
+          const stockKey = buildStockKey(selectedDate, category, `assembly::${baseProduction}::${assemblyKey}`);
+          const existing = merged.get(assemblyKey);
+
+          if (!existing) {
+            merged.set(assemblyKey, {
+              label: child.item.name,
+              need: child.need,
+              stock: Number(stocks[stockKey] || 0),
+              toProduce: 0,
+              weightGrams: child.weightGrams,
+              notes: child.item.notes || '',
+              stockKey,
+              maxDlcHours: child.dlcHours,
+            });
+            return;
+          }
+
+          existing.label = `${existing.label} + ${child.item.name}`;
+          existing.need += child.need;
+          existing.weightGrams = Math.max(existing.weightGrams, child.weightGrams);
+          existing.notes = [existing.notes, child.item.notes || ''].filter(Boolean).join(' • ');
+          existing.maxDlcHours = Math.max(existing.maxDlcHours, child.dlcHours);
+        });
+
+        const childrenRows = Array.from(merged.values()).map((child) => ({
+          ...child,
+          toProduce: Math.max(0, Math.ceil(child.need - child.stock)),
+        }));
+
+        const theoreticalKg = childrenRows.reduce((sum, child) => sum + (child.need * child.weightGrams), 0) / 1000;
+        const netKg = childrenRows.reduce((sum, child) => sum + (child.toProduce * child.weightGrams), 0) / 1000;
 
         displayRows.push({
           kind: 'base',
           baseProduction,
           theoreticalKg,
-          toProduceKg,
-          children,
+          toProduceKg: roundUpToHalfKg(netKg),
+          children: childrenRows,
         });
       });
 
       standaloneRows.forEach((row) => displayRows.push(row));
-
-      return {
-        category,
-        rows: displayRows,
-      };
+      return { category, rows: displayRows };
     }).filter((group) => group.rows.length > 0);
-  }, [covers, coversForDay, prepImportsByMonth, prepItems]);
+  }, [covers, dailyCovers, prepImportsByMonth, prepItems, selectedDate, stocks]);
 
   const visibleGroups = React.useMemo(() => {
     if (activeCategory === 'all') return groupedRows;
     return groupedRows.filter((group) => group.category === activeCategory);
   }, [activeCategory, groupedRows]);
+
+  const getWindowLabel = (hours: number) => {
+    const days = getCoveredDaysCount(hours);
+    return `${hours} h • ${days * 2} services`;
+  };
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#F6EFE6_0%,#F2E8DD_45%,#EBDDCE_100%)] text-[#34271F]">
@@ -210,9 +286,7 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
               <div className="flex gap-2 overflow-x-auto lg:flex-col">
                 <button onClick={() => setActiveCategory('all')} className={`min-w-[126px] rounded-xl px-3 py-2.5 text-left text-xs font-black uppercase tracking-[0.06em] transition ${activeCategory === 'all' ? 'bg-[#091433] text-white shadow-lg' : 'border border-[#D7B79B] bg-white text-[#4D2B18]'}`}>Tous</button>
                 {CATEGORY_ORDER.filter((category) => groupedRows.some((group) => group.category === category)).map((category) => (
-                  <button key={category} onClick={() => setActiveCategory(category)} className={`min-w-[126px] rounded-xl px-3 py-2.5 text-left text-xs font-black uppercase tracking-[0.06em] transition ${activeCategory === category ? 'bg-[#091433] text-white shadow-lg' : 'border border-[#D7B79B] bg-white text-[#4D2B18]'}`}>
-                    {CATEGORY_LABELS[category]}
-                  </button>
+                  <button key={category} onClick={() => setActiveCategory(category)} className={`min-w-[126px] rounded-xl px-3 py-2.5 text-left text-xs font-black uppercase tracking-[0.06em] transition ${activeCategory === category ? 'bg-[#091433] text-white shadow-lg' : 'border border-[#D7B79B] bg-white text-[#4D2B18]'}`}>{CATEGORY_LABELS[category]}</button>
                 ))}
               </div>
             </div>
@@ -256,12 +330,13 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
                       </div>
 
                       <div className="overflow-x-auto">
-                        <table className="w-full min-w-[460px] text-sm">
+                        <table className="w-full min-w-[720px] text-sm">
                           <thead className="bg-[#F4E4D2] text-[#6C3C2B]">
                             <tr>
                               <th className="px-3 py-2 text-left text-[11px] font-black uppercase">Production</th>
-                              <th className="w-[160px] px-3 py-2 text-center text-[11px] font-black uppercase">Besoin théo</th>
-                              <th className="w-[170px] px-3 py-2 text-center text-[11px] font-black uppercase">À produire</th>
+                              <th className="w-[150px] px-3 py-2 text-center text-[11px] font-black uppercase">Besoin théo</th>
+                              <th className="w-[120px] px-3 py-2 text-center text-[11px] font-black uppercase">Stock</th>
+                              <th className="w-[150px] px-3 py-2 text-center text-[11px] font-black uppercase">À produire</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -272,21 +347,26 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
                                     <tr className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
                                       <td className="border-t border-[#E0CCBA] px-3 py-2.5 align-middle">
                                         <div className="font-black uppercase text-[#4D2B18]">{row.baseProduction}</div>
-                                        <div className="mt-0.5 text-[10px] font-semibold text-slate-500">Base regroupée • détail juste en dessous</div>
+                                        <div className="mt-0.5 text-[10px] font-semibold text-slate-500">Base recalculée selon les stocks portions • pas de stock base</div>
                                       </td>
                                       <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center text-[18px] font-black text-[#4D2B18]">{formatKg(row.theoreticalKg)}</td>
+                                      <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center text-[11px] font-bold text-slate-400">—</td>
                                       <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center">
                                         <span className="inline-flex min-w-[86px] items-center justify-center rounded-xl bg-[#A93E2A] px-3 py-1.5 text-[18px] leading-none font-black text-white">{formatKg(row.toProduceKg)}</span>
                                       </td>
                                     </tr>
 
                                     {row.children.map((child, childIdx) => (
-                                      <tr key={`${row.baseProduction}-${child.item.id}`} className={childIdx % 2 === 0 ? 'bg-[#FFF9F3]' : 'bg-[#FBF2E8]'}>
+                                      <tr key={`${row.baseProduction}-${child.label}-${childIdx}`} className={childIdx % 2 === 0 ? 'bg-[#FFF9F3]' : 'bg-[#FBF2E8]'}>
                                         <td className="border-t border-[#EAD9C9] px-3 py-2.5 align-middle">
-                                          <div className="pl-4 font-black uppercase text-[#6A4A37]">— {child.item.name}</div>
-                                          {child.item.notes ? <div className="mt-0.5 pl-4 text-[10px] font-semibold text-slate-500">{child.item.notes}</div> : null}
+                                          <div className="pl-4 font-black uppercase text-[#6A4A37]">— {child.label}</div>
+                                          <div className="mt-0.5 pl-4 text-[10px] font-semibold text-slate-500">{getWindowLabel(child.maxDlcHours)}</div>
+                                          {child.notes ? <div className="mt-0.5 pl-4 text-[10px] font-semibold text-slate-500">{child.notes}</div> : null}
                                         </td>
                                         <td className="border-t border-[#EAD9C9] px-3 py-2.5 text-center text-[18px] font-black text-[#6A4A37]">{child.need.toFixed(1)}</td>
+                                        <td className="border-t border-[#EAD9C9] px-3 py-2.5 text-center">
+                                          <input type="number" min={0} value={child.stock} onChange={(e) => setStockValue(child.stockKey, Number(e.target.value || 0))} className="w-[72px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-1.5 text-center font-black outline-none" />
+                                        </td>
                                         <td className="border-t border-[#EAD9C9] px-3 py-2.5 text-center">
                                           <span className="inline-flex min-w-[60px] items-center justify-center rounded-xl bg-[#C98C57] px-3 py-1.5 text-[18px] leading-none font-black text-white">{child.toProduce}</span>
                                         </td>
@@ -300,9 +380,13 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
                                 <tr key={row.item.id} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
                                   <td className="border-t border-[#E0CCBA] px-3 py-2.5 align-middle">
                                     <div className="font-black uppercase text-[#4D2B18]">{row.item.name}</div>
+                                    <div className="mt-0.5 text-[10px] font-semibold text-slate-500">{getWindowLabel(Number(row.item.secondaryDlcHours || 24))}</div>
                                     {row.item.notes ? <div className="mt-0.5 text-[10px] font-semibold text-slate-500">{row.item.notes}</div> : null}
                                   </td>
                                   <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center text-[20px] font-black text-[#4D2B18]">{row.need.toFixed(1)}</td>
+                                  <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center">
+                                    <input type="number" min={0} value={row.stock} onChange={(e) => setStockValue(row.stockKey, Number(e.target.value || 0))} className="w-[72px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-1.5 text-center font-black outline-none" />
+                                  </td>
                                   <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center">
                                     <span className="inline-flex min-w-[60px] items-center justify-center rounded-xl bg-[#A93E2A] px-3 py-1.5 text-[20px] leading-none font-black text-white">{row.toProduce}</span>
                                   </td>
