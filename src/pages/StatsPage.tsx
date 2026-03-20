@@ -32,8 +32,6 @@ interface StatsPageProps {
   setPrepImportsByMonth: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   validatedMonths: Record<string, boolean>;
   prepValidatedMonths?: Record<string, boolean>;
-  toggleValidateMonth?: (month: string) => void;
-  togglePrepValidateMonth?: (month: string) => void;
 }
 
 type EditableField = 'sales' | 'cm' | 'covers';
@@ -80,8 +78,6 @@ const StatsPage: React.FC<StatsPageProps> = ({
   setPrepImportsByMonth,
   validatedMonths,
   prepValidatedMonths = {},
-  toggleValidateMonth,
-  togglePrepValidateMonth,
 }) => {
   const { profile } = useAuth();
   const canImport = canImportData(profile);
@@ -160,13 +156,6 @@ const StatsPage: React.FC<StatsPageProps> = ({
     const hasImport = !!detailedInventory[monthKey];
     if (hasImport) return 'imported';
     if (validatedMonths[monthKey]) return 'validated';
-    return 'empty';
-  };
-
-  const getProductionImportState = (monthKey: string) => {
-    const hasImport = !!prepImportsByMonth[monthKey];
-    if (hasImport) return 'imported';
-    if (prepValidatedMonths[monthKey]) return 'validated';
     return 'empty';
   };
 
@@ -469,53 +458,30 @@ const StatsPage: React.FC<StatsPageProps> = ({
                               </div>
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="text-[10px] font-black uppercase tracking-[0.08em] text-[#8E6A4E]">Production</span>
-                                {(() => {
-                                  const productionState = getProductionImportState(m.key);
-                                  return (
-                                    <>
-                                      <button
-                                        onClick={() => canImport && setModalState({ month: m.key, target: 'production' })}
-                                        disabled={!canImport}
-                                        className={`inline-flex rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.05em] border transition ${
-                                          productionState === 'imported'
-                                            ? 'border-[#9FC9A7] bg-[#E6F3E8] text-[#3F6B4A] hover:bg-[#DDEEE0]'
-                                            : productionState === 'validated'
-                                              ? 'border-[#B7A7D8] bg-[#EEE7FA] text-[#5B4A86] hover:bg-[#E6DDF7]'
-                                              : 'border-[#D8C1AB] bg-[#F3E7DA] text-[#8E6A4E] hover:bg-[#ECDECE]'
-                                        } ${!canImport ? 'cursor-not-allowed opacity-50' : ''}`}
-                                      >
-                                        {productionState === 'imported' ? 'Importé' : productionState === 'validated' ? 'Figé' : 'Importer'}
-                                      </button>
-
-                                      <button
-                                        type="button"
-                                        onClick={() => togglePrepValidateMonth?.(m.key)}
-                                        disabled={!togglePrepValidateMonth}
-                                        className={`inline-flex rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.05em] border transition ${
-                                          prepValidatedMonths[m.key]
-                                            ? 'border-[#7A5AF8] bg-[#EFEAFF] text-[#5B35E5] hover:bg-[#E7E0FF]'
-                                            : 'border-[#D8C1AB] bg-white text-[#8E6A4E] hover:bg-[#F7EFE5]'
-                                        } ${!togglePrepValidateMonth ? 'cursor-not-allowed opacity-50' : ''}`}
-                                      >
-                                        {prepValidatedMonths[m.key] ? 'Défiger' : 'Figer'}
-                                      </button>
-
-                                      {prepImportsByMonth[m.key] && (
-                                        <button
-                                          type="button"
-                                          onClick={() => removeProductionImportForMonth(m.key)}
-                                          disabled={!canRemoveImport}
-                                          title={`Supprimer l'import production ${m.label}`}
-                                          className="flex h-7 w-7 items-center justify-center rounded-full border border-[#D6B293] bg-[#F7EBDD] text-[#A5502F] shadow-sm transition hover:bg-[#F0DECB] disabled:cursor-not-allowed disabled:opacity-40"
-                                        >
-                                          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 6l12 12M18 6L6 18" />
-                                          </svg>
-                                        </button>
-                                      )}
-                                    </>
-                                  );
-                                })()}
+                                <button
+                                  onClick={() => canImport && setModalState({ month: m.key, target: 'production' })}
+                                  disabled={!canImport}
+                                  className={`inline-flex rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.05em] border transition ${
+                                    prepImportsByMonth[m.key]
+                                      ? 'border-[#9FC9A7] bg-[#E6F3E8] text-[#3F6B4A] hover:bg-[#DDEEE0]'
+                                      : 'border-[#D8C1AB] bg-[#F3E7DA] text-[#8E6A4E] hover:bg-[#ECDECE]'
+                                  } ${!canImport ? 'cursor-not-allowed opacity-50' : ''}`}
+                                >
+                                  {prepImportsByMonth[m.key] ? 'Importé' : 'Importer'}
+                                </button>
+                                {prepImportsByMonth[m.key] && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeProductionImportForMonth(m.key)}
+                                    disabled={!canRemoveImport}
+                                    title={`Supprimer l'import production ${m.label}`}
+                                    className="flex h-7 w-7 items-center justify-center rounded-full border border-[#D6B293] bg-[#F7EBDD] text-[#A5502F] shadow-sm transition hover:bg-[#F0DECB] disabled:cursor-not-allowed disabled:opacity-40"
+                                  >
+                                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 6l12 12M18 6L6 18" />
+                                    </svg>
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>
