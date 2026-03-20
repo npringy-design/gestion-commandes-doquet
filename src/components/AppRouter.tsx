@@ -163,9 +163,6 @@ const AppRouter: React.FC<AppRouterProps> = ({
         prepImportsByMonth={state.prepImportsByMonth}
         setPrepImportsByMonth={state.setPrepImportsByMonth}
         validatedMonths={state.validatedMonths}
-        prepValidatedMonths={state.prepValidatedMonths}
-        toggleValidateMonth={state.toggleValidateMonth}
-        togglePrepValidateMonth={state.togglePrepValidateMonth}
       />,
       'Chargement des paramètres…'
     );
@@ -208,7 +205,8 @@ const AppRouter: React.FC<AppRouterProps> = ({
       <PrepRatiosPage
         setView={setView}
         covers={state.covers}
-        validatedMonths={state.validatedMonths}
+        prepValidatedMonths={state.prepValidatedMonths}
+        togglePrepValidateMonth={state.togglePrepValidateMonth}
         prepItems={state.prepItems}
         setPrepItems={state.setPrepItems}
         prepImportsByMonth={state.prepImportsByMonth}
