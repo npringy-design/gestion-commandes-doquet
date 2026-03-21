@@ -324,8 +324,8 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                           const monthRatio = getMonthRatio(item, month);
                           return (
                             <td key={`${item.id}-${month}`} className="border-t border-[#E0CCBA] px-1.5 py-2 text-center">
-                              <div className={`rounded-lg p-1 ${validatedMonths[month] ? 'bg-indigo-50 border border-indigo-100' : monthValue > 0 ? 'bg-emerald-50' : 'bg-slate-50'}`}>
-                                <div className={`font-black text-[11px] leading-none ${validatedMonths[month] ? 'text-indigo-800' : monthValue > 0 ? 'text-emerald-700' : 'text-slate-400'}`}>{monthValue || '–'}</div>
+                              <div className={`rounded-lg p-1 ${prepValidatedMonths[month] ? 'bg-indigo-50 border border-indigo-100' : monthValue > 0 ? 'bg-emerald-50' : 'bg-slate-50'}`}>
+                                <div className={`font-black text-[11px] leading-none ${prepValidatedMonths[month] ? 'text-indigo-800' : monthValue > 0 ? 'text-emerald-700' : 'text-slate-400'}`}>{monthValue || '–'}</div>
                                 <div className="mt-1 text-[9px] font-mono text-slate-500">{monthRatio.toFixed(3)}</div>
                               </div>
                             </td>
