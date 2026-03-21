@@ -19,6 +19,7 @@ const MONTH_LABELS: Record<string, string> = {
 };
 
 const MAPPING_SEPARATOR = ' || ';
+const INPUT_DEBOUNCE_MS = 180;
 
 interface PrepRatiosPageProps {
   setView: (v: View) => void;
@@ -33,6 +34,15 @@ interface PrepRatiosPageProps {
 type PrepItemExtended = PrepItem & {
   baseProduction?: string;
   unitWeightGrams?: number | '';
+};
+
+type DraftFields = {
+  name: string;
+  baseProduction: string;
+  unitWeightGrams: number | '';
+  secondaryDlcHours: number | '';
+  targetBuffer: number | '';
+  notes: string;
 };
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -63,6 +73,355 @@ const parseMappingNames = (value?: string) =>
 
 const joinMappingNames = (names: string[]) =>
   Array.from(new Map(names.map((name) => [normalizeMappingName(name), name.trim()])).values()).join(MAPPING_SEPARATOR);
+
+const buildDraftFromItem = (item: PrepItem): DraftFields => ({
+  name: item.name || '',
+  baseProduction: getBaseProduction(item),
+  unitWeightGrams: getUnitWeight(item),
+  secondaryDlcHours: item.secondaryDlcHours ?? '',
+  targetBuffer: item.targetBuffer ?? '',
+  notes: item.notes || '',
+});
+
+const areDraftsEqual = (a: DraftFields, b: DraftFields) => (
+  a.name === b.name &&
+  a.baseProduction === b.baseProduction &&
+  a.unitWeightGrams === b.unitWeightGrams &&
+  a.secondaryDlcHours === b.secondaryDlcHours &&
+  a.targetBuffer === b.targetBuffer &&
+  a.notes === b.notes
+);
+
+interface PrepRowProps {
+  item: PrepItem;
+  idx: number;
+  rowCount: number;
+  canEdit: boolean;
+  isSelected: boolean;
+  toggleSelected: (id: string) => void;
+  moveItem: (id: string, direction: 'up' | 'down') => void;
+  updateItem: (id: string, patch: Partial<PrepItemExtended>) => void;
+  prepValidatedMonths: Record<string, boolean>;
+  togglePrepValidateMonth?: (month: string) => void;
+  covers: Record<string, number>;
+  prepImportsByMonth: PrepImportsByMonth;
+  allAvailableImportNames: string[];
+  usedMappingNamesElsewhere: Set<string>;
+  activeMappingId: string | null;
+  setActiveMappingId: React.Dispatch<React.SetStateAction<string | null>>;
+  mappingSearchValue: string;
+  setMappingSearchValue: (id: string, value: string) => void;
+  expanded: boolean;
+  toggleExpandedMappings: (id: string) => void;
+}
+
+const PrepRow = React.memo(function PrepRow({
+  item,
+  idx,
+  rowCount,
+  canEdit,
+  isSelected,
+  toggleSelected,
+  moveItem,
+  updateItem,
+  prepValidatedMonths,
+  covers,
+  prepImportsByMonth,
+  allAvailableImportNames,
+  usedMappingNamesElsewhere,
+  activeMappingId,
+  setActiveMappingId,
+  mappingSearchValue,
+  setMappingSearchValue,
+  expanded,
+  toggleExpandedMappings,
+}: PrepRowProps) {
+  const [draft, setDraft] = React.useState<DraftFields>(() => buildDraftFromItem(item));
+  const debounceRef = React.useRef<number | null>(null);
+
+  React.useEffect(() => {
+    const nextDraft = buildDraftFromItem(item);
+    setDraft((prev) => (areDraftsEqual(prev, nextDraft) ? prev : nextDraft));
+  }, [item]);
+
+  React.useEffect(() => () => {
+    if (debounceRef.current) window.clearTimeout(debounceRef.current);
+  }, []);
+
+  const commitDraftPatch = React.useCallback((patch: Partial<DraftFields>) => {
+    const nextDraft = { ...draft, ...patch };
+    const payload: Partial<PrepItemExtended> = {};
+
+    if ('name' in patch) payload.name = nextDraft.name;
+    if ('baseProduction' in patch) {
+      payload.baseProduction = nextDraft.baseProduction;
+      if (!nextDraft.name.trim()) payload.name = nextDraft.baseProduction;
+    }
+    if ('unitWeightGrams' in patch) payload.unitWeightGrams = nextDraft.unitWeightGrams;
+    if ('secondaryDlcHours' in patch) payload.secondaryDlcHours = nextDraft.secondaryDlcHours;
+    if ('targetBuffer' in patch) payload.targetBuffer = nextDraft.targetBuffer;
+    if ('notes' in patch) payload.notes = nextDraft.notes;
+
+    updateItem(item.id, payload);
+  }, [draft, item.id, updateItem]);
+
+  const scheduleCommit = React.useCallback((patch: Partial<DraftFields>) => {
+    if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    debounceRef.current = window.setTimeout(() => commitDraftPatch(patch), INPUT_DEBOUNCE_MS);
+  }, [commitDraftPatch]);
+
+  const updateDraftField = React.useCallback(<K extends keyof DraftFields>(key: K, value: DraftFields[K]) => {
+    setDraft((prev) => {
+      const next = { ...prev, [key]: value };
+      return next;
+    });
+    scheduleCommit({ [key]: value } as Partial<DraftFields>);
+  }, [scheduleCommit]);
+
+  const flushField = React.useCallback((key: keyof DraftFields) => {
+    if (debounceRef.current) {
+      window.clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    commitDraftPatch({ [key]: draft[key] } as Partial<DraftFields>);
+  }, [commitDraftPatch, draft]);
+
+  const currentMappings = React.useMemo(() => parseMappingNames(item.searchName), [item.searchName]);
+  const selectedOnRow = React.useMemo(() => new Set(currentMappings.map((name) => normalizeMappingName(name))), [currentMappings]);
+  const query = mappingSearchValue.trim().toLowerCase();
+
+  const rowOrphanNames = React.useMemo(
+    () => allAvailableImportNames
+      .filter((name) => {
+        const normalized = normalizeMappingName(name);
+        if (selectedOnRow.has(normalized) || usedMappingNamesElsewhere.has(normalized)) return false;
+        if (!query) return true;
+        return name.toLowerCase().includes(query);
+      })
+      .sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' })),
+    [allAvailableImportNames, query, selectedOnRow, usedMappingNamesElsewhere]
+  );
+
+  const getMonthValue = React.useCallback((month: string) => {
+    if (currentMappings.length === 0) return 0;
+    return currentMappings.reduce((sum, mappingName) => {
+      const imported = getImportedValueForProduct(prepImportsByMonth[month], mappingName, '', ['Nombre']);
+      return sum + Number(imported || 0);
+    }, 0);
+  }, [currentMappings, prepImportsByMonth]);
+
+  const getMonthRatio = React.useCallback((month: string) => {
+    const coversValue = Number(covers[month] || 0);
+    if (!coversValue) return 0;
+    if (prepValidatedMonths[month] && Number(item.ratioHistory[month] || 0) > 0) return Number(item.ratioHistory[month] || 0);
+    const imported = getMonthValue(month);
+    return imported > 0 ? imported / coversValue : 0;
+  }, [covers, getMonthValue, item.ratioHistory, prepValidatedMonths]);
+
+  const monthCells = React.useMemo(() => {
+    return MONTHS_ORDER.map((month) => {
+      const monthValue = getMonthValue(month);
+      const monthRatio = getMonthRatio(month);
+      return { month, monthValue, monthRatio };
+    });
+  }, [getMonthRatio, getMonthValue]);
+
+  const avgRatio = React.useMemo(() => {
+    let total = 0;
+    let count = 0;
+    monthCells.forEach(({ monthRatio }) => {
+      if (monthRatio > 0) {
+        total += monthRatio;
+        count += 1;
+      }
+    });
+    return count > 0 ? total / count : 0;
+  }, [monthCells]);
+
+  const alert = currentMappings.length === 0;
+
+  const addMappingName = React.useCallback((name: string) => {
+    updateItem(item.id, { searchName: joinMappingNames([...currentMappings, name]) });
+  }, [currentMappings, item.id, updateItem]);
+
+  const removeMappingName = React.useCallback((name: string) => {
+    const normalizedToRemove = normalizeMappingName(name);
+    updateItem(item.id, {
+      searchName: joinMappingNames(currentMappings.filter((value) => normalizeMappingName(value) !== normalizedToRemove)),
+    });
+  }, [currentMappings, item.id, updateItem]);
+
+  return (
+    <tr className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
+      <td className="border-t border-[#E0CCBA] px-3 py-3 text-center align-middle">
+        <input type="checkbox" checked={isSelected} onChange={() => toggleSelected(item.id)} className="h-4 w-4" />
+      </td>
+
+      <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle">
+        <input
+          value={draft.name}
+          disabled={!canEdit}
+          onChange={(e) => updateDraftField('name', e.target.value)}
+          onBlur={() => flushField('name')}
+          placeholder={draft.baseProduction || 'Nom produit'}
+          className="w-[180px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 font-black outline-none"
+        />
+      </td>
+
+      <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle">
+        <input
+          value={draft.baseProduction}
+          disabled={!canEdit}
+          onChange={(e) => updateDraftField('baseProduction', e.target.value)}
+          onBlur={() => flushField('baseProduction')}
+          placeholder="Base"
+          className="w-[140px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 font-bold outline-none"
+        />
+      </td>
+
+      <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle">
+        <select
+          value={item.category}
+          disabled={!canEdit}
+          onChange={(e) => updateItem(item.id, { category: e.target.value as PrepCategory })}
+          className="w-[140px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 font-bold outline-none"
+        >
+          {CATEGORY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+        </select>
+      </td>
+
+      <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle">
+        <div className={`relative min-w-[330px] rounded-2xl border px-3 py-3 shadow-sm ${alert ? 'border-amber-300 bg-amber-50/70' : 'border-[#D0B08D] bg-[#FFFDF9]'}`}>
+          <div className="flex items-start gap-2">
+            <input
+              type="text"
+              value={mappingSearchValue}
+              disabled={!canEdit}
+              onChange={(e) => {
+                setMappingSearchValue(item.id, e.target.value);
+                setActiveMappingId(item.id);
+              }}
+              onFocus={() => setActiveMappingId(item.id)}
+              placeholder="Rechercher produit import"
+              className="flex-1 rounded-xl border border-[#D0B08D] bg-white px-3 py-2 font-semibold outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => toggleExpandedMappings(item.id)}
+              className="h-10 w-10 shrink-0 rounded-xl border border-[#D0B08D] bg-[#F1ECF8] text-[#7A53A3]"
+              title="Voir les produits liés"
+            >
+              {expanded ? '⌃' : '⌄'}
+            </button>
+          </div>
+
+          {expanded && (
+            <div className="mt-2 max-h-[104px] overflow-y-auto pr-1">
+              <div className="flex flex-wrap gap-1.5">
+                {currentMappings.map((mapping) => (
+                  <span key={mapping} className="inline-flex items-center gap-1 rounded-full border border-[#D0B08D] bg-white px-2 py-1 text-[11px] font-bold text-[#5A3928]">
+                    {mapping}
+                    {canEdit ? (
+                      <button type="button" onClick={() => removeMappingName(mapping)} className="text-[#A93E2A]">×</button>
+                    ) : null}
+                  </span>
+                ))}
+                {currentMappings.length === 0 ? (
+                  <span className="text-[11px] font-bold text-amber-700">Aucun produit lié</span>
+                ) : null}
+              </div>
+            </div>
+          )}
+
+          {activeMappingId === item.id && canEdit && (
+            <div className="absolute left-0 top-[calc(100%+6px)] z-[999]">
+              <MappingPopover
+                orphanNames={rowOrphanNames}
+                onSelect={(name) => {
+                  addMappingName(name);
+                  setMappingSearchValue(item.id, '');
+                  setActiveMappingId(item.id);
+                }}
+                onClose={() => setActiveMappingId(null)}
+              />
+            </div>
+          )}
+        </div>
+      </td>
+
+      <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle">
+        <input
+          type="number"
+          value={draft.unitWeightGrams}
+          disabled={!canEdit}
+          onChange={(e) => updateDraftField('unitWeightGrams', e.target.value === '' ? '' : Number(e.target.value) || '')}
+          onBlur={() => flushField('unitWeightGrams')}
+          placeholder="100"
+          className="w-[74px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none"
+        />
+      </td>
+
+      {monthCells.map(({ month, monthValue, monthRatio }) => (
+        <td key={`${item.id}-${month}`} className="border-t border-[#E0CCBA] px-1.5 py-3 text-center align-middle">
+          <div className={`rounded-lg p-1 ${prepValidatedMonths[month] ? 'border border-indigo-100 bg-indigo-50' : monthValue > 0 ? 'bg-emerald-50' : 'bg-slate-50'}`}>
+            <div className={`font-black text-[11px] leading-none ${prepValidatedMonths[month] ? 'text-indigo-800' : monthValue > 0 ? 'text-emerald-700' : 'text-slate-400'}`}>{monthValue || '–'}</div>
+            <div className="mt-1 text-[9px] font-mono text-slate-500">{monthRatio.toFixed(3)}</div>
+          </div>
+        </td>
+      ))}
+
+      <td className="border-t border-[#E0CCBA] px-3 py-3 text-center align-middle font-black text-[#A93E2A]">{avgRatio.toFixed(3)}</td>
+      <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle">
+        <input
+          type="number"
+          value={draft.secondaryDlcHours}
+          disabled={!canEdit}
+          onChange={(e) => updateDraftField('secondaryDlcHours', e.target.value === '' ? '' : Number(e.target.value) || '')}
+          onBlur={() => flushField('secondaryDlcHours')}
+          className="w-[58px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none"
+        />
+      </td>
+      <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle">
+        <input
+          type="number"
+          value={draft.targetBuffer}
+          disabled={!canEdit}
+          onChange={(e) => updateDraftField('targetBuffer', e.target.value === '' ? '' : Number(e.target.value) || '')}
+          onBlur={() => flushField('targetBuffer')}
+          className="w-[58px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none"
+        />
+      </td>
+      <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle">
+        <input
+          value={draft.notes}
+          disabled={!canEdit}
+          onChange={(e) => updateDraftField('notes', e.target.value)}
+          onBlur={() => flushField('notes')}
+          placeholder="Notes"
+          className="w-[118px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2.5 py-2 font-semibold outline-none"
+        />
+      </td>
+      <td className="border-t border-[#E0CCBA] px-3 py-3 align-middle">
+        <div className="flex justify-center gap-1.5">
+          <button onClick={() => moveItem(item.id, 'up')} disabled={!canEdit || idx === 0} className="h-8 w-8 rounded-xl bg-slate-900 text-[#ffd700] disabled:opacity-20">↑</button>
+          <button onClick={() => moveItem(item.id, 'down')} disabled={!canEdit || idx === rowCount - 1} className="h-8 w-8 rounded-xl bg-slate-900 text-[#ffd700] disabled:opacity-20">↓</button>
+        </div>
+      </td>
+    </tr>
+  );
+}, (prev, next) => (
+  prev.item === next.item &&
+  prev.idx === next.idx &&
+  prev.rowCount === next.rowCount &&
+  prev.canEdit === next.canEdit &&
+  prev.isSelected === next.isSelected &&
+  prev.prepValidatedMonths === next.prepValidatedMonths &&
+  prev.activeMappingId === next.activeMappingId &&
+  prev.mappingSearchValue === next.mappingSearchValue &&
+  prev.expanded === next.expanded &&
+  prev.usedMappingNamesElsewhere === next.usedMappingNamesElsewhere &&
+  prev.allAvailableImportNames === next.allAvailableImportNames
+));
 
 const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   setView,
@@ -101,38 +460,50 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
     });
   }, [prepItems, search]);
 
-  const updateItem = (id: string, patch: Partial<PrepItemExtended>) => {
+  const usedMappingNamesById = React.useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    const normalizedByItem = prepItems.map((item) => ({
+      id: item.id,
+      names: parseMappingNames(item.searchName).map((name) => normalizeMappingName(name)),
+    }));
+    const allNames = normalizedByItem.flatMap((entry) => entry.names);
+
+    normalizedByItem.forEach((entry) => {
+      const own = new Set(entry.names);
+      map.set(
+        entry.id,
+        new Set(allNames.filter((name) => !own.has(name)))
+      );
+    });
+
+    return map;
+  }, [prepItems]);
+
+  const updateItem = React.useCallback((id: string, patch: Partial<PrepItemExtended>) => {
     setPrepItems((prev) => prev.map((item) => item.id === id ? ({ ...item, ...patch } as PrepItem) : item));
-  };
+  }, [setPrepItems]);
 
-  const addMappingName = (item: PrepItem, name: string) => {
-    const current = parseMappingNames(item.searchName);
-    updateItem(item.id, { searchName: joinMappingNames([...current, name]) });
-  };
-
-  const removeMappingName = (item: PrepItem, name: string) => {
-    const normalizedToRemove = normalizeMappingName(name);
-    const current = parseMappingNames(item.searchName);
-    updateItem(item.id, { searchName: joinMappingNames(current.filter((value) => normalizeMappingName(value) !== normalizedToRemove)) });
-  };
-
-  const toggleSelected = (id: string) => {
+  const toggleSelected = React.useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
-  };
+  }, []);
 
-  const toggleExpandedMappings = (id: string) => {
+  const setMappingSearchValue = React.useCallback((id: string, value: string) => {
+    setMappingSearchById((prev) => (prev[id] === value ? prev : { ...prev, [id]: value }));
+  }, []);
+
+  const toggleExpandedMappings = React.useCallback((id: string) => {
     setExpandedMappings((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
-  };
+  }, []);
 
-  const moveItem = (id: string, direction: 'up' | 'down') => {
+  const moveItem = React.useCallback((id: string, direction: 'up' | 'down') => {
     setPrepItems((prev) => {
       const index = prev.findIndex((item) => item.id === id);
       if (index === -1) return prev;
@@ -142,51 +513,15 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
       [next[index], next[target]] = [next[target], next[index]];
       return next;
     });
-  };
+  }, [setPrepItems]);
 
-  const addItem = () => setPrepItems((prev) => [...prev, defaultItem() as PrepItem]);
+  const addItem = React.useCallback(() => setPrepItems((prev) => [...prev, defaultItem() as PrepItem]), [setPrepItems]);
 
-  const deleteSelected = () => {
+  const deleteSelected = React.useCallback(() => {
     if (selectedIds.size === 0) return;
     setPrepItems((prev) => prev.filter((item) => !selectedIds.has(item.id)));
     setSelectedIds(new Set());
-  };
-
-  const getMonthValue = (item: PrepItem, month: string) => {
-    const mappingNames = parseMappingNames(item.searchName);
-    if (mappingNames.length === 0) return 0;
-
-    return mappingNames.reduce((sum, mappingName) => {
-      const imported = getImportedValueForProduct(
-        prepImportsByMonth[month],
-        mappingName,
-        '',
-        ['Nombre']
-      );
-      return sum + Number(imported || 0);
-    }, 0);
-  };
-
-  const getMonthRatio = (item: PrepItem, month: string) => {
-    const coversValue = Number(covers[month] || 0);
-    if (!coversValue) return 0;
-    if (prepValidatedMonths[month] && Number(item.ratioHistory[month] || 0) > 0) return Number(item.ratioHistory[month] || 0);
-    const imported = getMonthValue(item, month);
-    return imported > 0 ? imported / coversValue : 0;
-  };
-
-  const getAverageRatio = (item: PrepItem) => {
-    let total = 0;
-    let count = 0;
-    MONTHS_ORDER.forEach((month) => {
-      const ratio = getMonthRatio(item, month);
-      if (ratio > 0) {
-        total += ratio;
-        count += 1;
-      }
-    });
-    return count > 0 ? total / count : 0;
-  };
+  }, [selectedIds, setPrepItems]);
 
   return (
     <div className="min-h-screen overflow-hidden bg-[linear-gradient(180deg,#F6EFE6_0%,#F2E8DD_45%,#EBDDCE_100%)] text-[#34271F]">
@@ -261,153 +596,31 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((item, idx) => {
-                    const avgRatio = getAverageRatio(item);
-                    const currentMappings = parseMappingNames(item.searchName);
-                    const usedElsewhere = new Set(
-                      prepItems
-                        .filter((other) => other.id !== item.id)
-                        .flatMap((other) => parseMappingNames(other.searchName))
-                        .map((name) => normalizeMappingName(name))
-                    );
-                    const selectedOnRow = new Set(currentMappings.map((name) => normalizeMappingName(name)));
-                    const query = (mappingSearchById[item.id] || '').trim().toLowerCase();
-                    const rowOrphanNames = Array.from(allAvailableImportNames)
-                      .filter((name) => {
-                        const normalized = normalizeMappingName(name);
-                        if (selectedOnRow.has(normalized) || usedElsewhere.has(normalized)) return false;
-                        if (!query) return true;
-                        return name.toLowerCase().includes(query);
-                      })
-                      .sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
-                    const canOpenMapping = rowOrphanNames.length > 0;
-                    const alert = currentMappings.length === 0;
-                    const baseName = getBaseProduction(item).trim();
-                    const expanded = expandedMappings.has(item.id);
-
-                    return (
-                      <tr key={item.id} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
-                        <td className="border-t border-[#E0CCBA] px-3 py-3 text-center align-middle">
-                          <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} className="h-4 w-4" />
-                        </td>
-
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle">
-                          <input
-                            value={item.name}
-                            disabled={!canEdit}
-                            onChange={(e) => updateItem(item.id, { name: e.target.value })}
-                            placeholder={baseName || 'Nom produit'}
-                            className="w-[180px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 font-black outline-none"
-                          />
-                        </td>
-
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle">
-                          <input
-                            value={baseName}
-                            disabled={!canEdit}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              updateItem(item.id, {
-                                baseProduction: value,
-                                ...(item.name.trim() ? {} : { name: value }),
-                              });
-                            }}
-                            placeholder="Base"
-                            className="w-[140px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 font-bold outline-none"
-                          />
-                        </td>
-
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle">
-                          <select value={item.category} disabled={!canEdit} onChange={(e) => updateItem(item.id, { category: e.target.value as PrepCategory })} className="w-[140px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 font-bold outline-none">
-                            {CATEGORY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                          </select>
-                        </td>
-
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle">
-                          <div className={`relative min-w-[330px] rounded-2xl border px-3 py-3 shadow-sm ${alert ? 'border-amber-300 bg-amber-50/70' : 'border-[#D0B08D] bg-[#FFFDF9]'}`}>
-                            <div className="flex items-start gap-2">
-                              <input
-                                type="text"
-                                value={mappingSearchById[item.id] || ''}
-                                disabled={!canEdit}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  setMappingSearchById((prev) => ({ ...prev, [item.id]: value }));
-                                  setActiveMappingId(item.id);
-                                }}
-                                onFocus={() => setActiveMappingId(item.id)}
-                                placeholder="Rechercher produit import"
-                                className="flex-1 rounded-xl border border-[#D0B08D] bg-white px-3 py-2 font-semibold outline-none"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => toggleExpandedMappings(item.id)}
-                                className="h-10 w-10 shrink-0 rounded-xl border border-[#D0B08D] bg-[#F1ECF8] text-[#7A53A3]"
-                                title="Voir les produits liés"
-                              >
-                                {expanded ? '⌃' : '⌄'}
-                              </button>
-                            </div>
-
-                            {expanded && (
-                              <div className="mt-2 max-h-[104px] overflow-y-auto pr-1">
-                                <div className="flex flex-wrap gap-1.5">
-                                  {currentMappings.map((mapping) => (
-                                    <span key={mapping} className="inline-flex items-center gap-1 rounded-full border border-[#D0B08D] bg-white px-2 py-1 text-[11px] font-bold text-[#5A3928]">
-                                      {mapping}
-                                      {canEdit ? (
-                                        <button type="button" onClick={() => removeMappingName(item, mapping)} className="text-[#A93E2A]">×</button>
-                                      ) : null}
-                                    </span>
-                                  ))}
-                                  {currentMappings.length === 0 ? (
-                                    <span className="text-[11px] font-bold text-amber-700">Aucun produit lié</span>
-                                  ) : null}
-                                </div>
-                              </div>
-                            )}
-
-                            {activeMappingId === item.id && canEdit && (
-                              <div className="absolute left-0 top-[calc(100%+6px)] z-[999]">
-                                <MappingPopover
-                                  orphanNames={rowOrphanNames}
-                                  onSelect={(name) => {
-                                    addMappingName(item, name);
-                                    setMappingSearchById((prev) => ({ ...prev, [item.id]: '' }));
-                                    setActiveMappingId(item.id);
-                                  }}
-                                  onClose={() => setActiveMappingId(null)}
-                                />
-                              </div>
-                            )}
-                          </div>
-                        </td>
-
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle">
-                          <input type="number" value={getUnitWeight(item)} disabled={!canEdit} onChange={(e) => updateItem(item.id, { unitWeightGrams: e.target.value === '' ? '' : Number(e.target.value) || '' })} placeholder="100" className="w-[74px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" />
-                        </td>
-
-                        {MONTHS_ORDER.map((month) => {
-                          const monthValue = getMonthValue(item, month);
-                          const monthRatio = getMonthRatio(item, month);
-                          return (
-                            <td key={`${item.id}-${month}`} className="border-t border-[#E0CCBA] px-1.5 py-3 text-center align-middle">
-                              <div className={`rounded-lg p-1 ${prepValidatedMonths[month] ? 'border border-indigo-100 bg-indigo-50' : monthValue > 0 ? 'bg-emerald-50' : 'bg-slate-50'}`}>
-                                <div className={`font-black text-[11px] leading-none ${prepValidatedMonths[month] ? 'text-indigo-800' : monthValue > 0 ? 'text-emerald-700' : 'text-slate-400'}`}>{monthValue || '–'}</div>
-                                <div className="mt-1 text-[9px] font-mono text-slate-500">{monthRatio.toFixed(3)}</div>
-                              </div>
-                            </td>
-                          );
-                        })}
-
-                        <td className="border-t border-[#E0CCBA] px-3 py-3 text-center align-middle font-black text-[#A93E2A]">{avgRatio.toFixed(3)}</td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle"><input type="number" value={item.secondaryDlcHours} disabled={!canEdit} onChange={(e) => updateItem(item.id, { secondaryDlcHours: e.target.value === '' ? '' : Number(e.target.value) || '' })} className="w-[58px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" /></td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle"><input type="number" value={item.targetBuffer} disabled={!canEdit} onChange={(e) => updateItem(item.id, { targetBuffer: e.target.value === '' ? '' : Number(e.target.value) || '' })} className="w-[58px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" /></td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle"><input value={item.notes || ''} disabled={!canEdit} onChange={(e) => updateItem(item.id, { notes: e.target.value })} placeholder="Notes" className="w-[118px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2.5 py-2 font-semibold outline-none" /></td>
-                        <td className="border-t border-[#E0CCBA] px-3 py-3 align-middle"><div className="flex justify-center gap-1.5"><button onClick={() => moveItem(item.id, 'up')} disabled={!canEdit || idx === 0} className="h-8 w-8 rounded-xl bg-slate-900 text-[#ffd700] disabled:opacity-20">↑</button><button onClick={() => moveItem(item.id, 'down')} disabled={!canEdit || idx === rows.length - 1} className="h-8 w-8 rounded-xl bg-slate-900 text-[#ffd700] disabled:opacity-20">↓</button></div></td>
-                      </tr>
-                    );
-                  })}
+                  {rows.map((item, idx) => (
+                    <PrepRow
+                      key={item.id}
+                      item={item}
+                      idx={idx}
+                      rowCount={rows.length}
+                      canEdit={canEdit}
+                      isSelected={selectedIds.has(item.id)}
+                      toggleSelected={toggleSelected}
+                      moveItem={moveItem}
+                      updateItem={updateItem}
+                      prepValidatedMonths={prepValidatedMonths}
+                      togglePrepValidateMonth={togglePrepValidateMonth}
+                      covers={covers}
+                      prepImportsByMonth={prepImportsByMonth}
+                      allAvailableImportNames={allAvailableImportNames}
+                      usedMappingNamesElsewhere={usedMappingNamesById.get(item.id) || new Set()}
+                      activeMappingId={activeMappingId}
+                      setActiveMappingId={setActiveMappingId}
+                      mappingSearchValue={mappingSearchById[item.id] || ''}
+                      setMappingSearchValue={setMappingSearchValue}
+                      expanded={expandedMappings.has(item.id)}
+                      toggleExpandedMappings={toggleExpandedMappings}
+                    />
+                  ))}
                   {rows.length === 0 && (<tr><td colSpan={20} className="px-6 py-10 text-center text-sm font-semibold text-slate-500">Aucune production. Ajoute d&apos;abord tes lignes ici, puis importe tes fichiers production dans Paramètres.</td></tr>)}
                 </tbody>
               </table>
