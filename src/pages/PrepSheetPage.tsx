@@ -53,6 +53,15 @@ type BaseParentRow = {
   children: ChildCalcRow[];
 };
 
+type SingleBaseRow = {
+  kind: 'single_base';
+  baseProduction: string;
+  theoreticalKg: number;
+  stockKg: number;
+  toProduceKg: number;
+  stockKey: string;
+};
+
 type StandaloneRow = {
   kind: 'item';
   label: string;
@@ -64,7 +73,7 @@ type StandaloneRow = {
   maxDlcHours: number;
 };
 
-type DisplayRow = BaseParentRow | StandaloneRow;
+type DisplayRow = BaseParentRow | SingleBaseRow | StandaloneRow;
 type StockState = Record<string, number>;
 
 const STOCK_STORAGE_KEY = 'prep-sheet-stocks-v3';
@@ -263,6 +272,23 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
         }));
 
         const theoreticalKg = childrenRows.reduce((sum, child) => sum + (child.need * child.weightGrams), 0) / 1000;
+
+        if (childrenRows.length === 1) {
+          const stockKey = buildStockKey(selectedDate, category, `singlebase::${baseProduction.toLowerCase()}`);
+          const stockKg = Number(stocks[stockKey] || 0);
+          const toProduceKg = roundUpToHalfKg(Math.max(0, theoreticalKg - stockKg));
+
+          displayRows.push({
+            kind: 'single_base',
+            baseProduction,
+            theoreticalKg,
+            stockKg,
+            toProduceKg,
+            stockKey,
+          });
+          return;
+        }
+
         const netKg = childrenRows.reduce((sum, child) => sum + (child.toProduce * child.weightGrams), 0) / 1000;
 
         displayRows.push({
@@ -375,7 +401,6 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
                                     <tr className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
                                       <td className="border-t border-[#E0CCBA] px-3 py-2.5 align-middle">
                                         <div className="font-black uppercase text-[#4D2B18]">{row.baseProduction}</div>
-                                        <div className="mt-0.5 text-[10px] font-semibold text-slate-500">Base recalculée selon les stocks portions • pas de stock base</div>
                                       </td>
                                       <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center text-[18px] font-black text-[#4D2B18]">{formatKg(row.theoreticalKg)}</td>
                                       <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center text-[11px] font-bold text-slate-400">—</td>
@@ -388,8 +413,6 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
                                       <tr key={`${row.baseProduction}-${child.label}-${childIdx}`} className={childIdx % 2 === 0 ? 'bg-[#FFF9F3]' : 'bg-[#FBF2E8]'}>
                                         <td className="border-t border-[#EAD9C9] px-3 py-2.5 align-middle">
                                           <div className="pl-4 font-black uppercase text-[#6A4A37]">— {child.label}</div>
-                                          <div className="mt-0.5 pl-4 text-[10px] font-semibold text-slate-500">{getWindowLabel(child.maxDlcHours)}</div>
-                                          {child.notes ? <div className="mt-0.5 pl-4 text-[10px] font-semibold text-slate-500">{child.notes}</div> : null}
                                         </td>
                                         <td className="border-t border-[#EAD9C9] px-3 py-2.5 text-center text-[18px] font-black text-[#6A4A37]">{child.need.toFixed(1)}</td>
                                         <td className="border-t border-[#EAD9C9] px-3 py-2.5 text-center">
@@ -404,12 +427,27 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
                                 );
                               }
 
+                              if (row.kind === 'single_base') {
+                                return (
+                                  <tr key={`${group.category}-${row.baseProduction}-${idx}`} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
+                                    <td className="border-t border-[#E0CCBA] px-3 py-2.5 align-middle">
+                                      <div className="font-black uppercase text-[#4D2B18]">{row.baseProduction}</div>
+                                    </td>
+                                    <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center text-[18px] font-black text-[#4D2B18]">{formatKg(row.theoreticalKg)}</td>
+                                    <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center">
+                                      <input type="number" min={0} step="0.1" value={row.stockKg} onChange={(e) => setStockValue(row.stockKey, Number(e.target.value || 0))} className="w-[72px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-1.5 text-center font-black outline-none" />
+                                    </td>
+                                    <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center">
+                                      <span className="inline-flex min-w-[86px] items-center justify-center rounded-xl bg-[#A93E2A] px-3 py-1.5 text-[18px] leading-none font-black text-white">{formatKg(row.toProduceKg)}</span>
+                                    </td>
+                                  </tr>
+                                );
+                              }
+
                               return (
                                 <tr key={`${row.label}-${idx}`} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
                                   <td className="border-t border-[#E0CCBA] px-3 py-2.5 align-middle">
                                     <div className="font-black uppercase text-[#4D2B18]">{row.label}</div>
-                                    <div className="mt-0.5 text-[10px] font-semibold text-slate-500">{getWindowLabel(row.maxDlcHours)}</div>
-                                    {row.notes ? <div className="mt-0.5 text-[10px] font-semibold text-slate-500">{row.notes}</div> : null}
                                   </td>
                                   <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center text-[20px] font-black text-[#4D2B18]">{row.need.toFixed(1)}</td>
                                   <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center">
