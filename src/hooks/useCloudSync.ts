@@ -16,7 +16,7 @@
 //   récent que celui reçu, on ignore l'update entrante.
 // =============================================================
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import {
   loadAllFromSupabase,
@@ -54,22 +54,22 @@ type PersistedState = {
 };
 
 type StateSetters = {
-  setCovers: React.Dispatch<React.SetStateAction<Record<string, number>>>;
-  setDailyCovers: React.Dispatch<React.SetStateAction<DailyCoversState>>;
-  setOrderStates: React.Dispatch<React.SetStateAction<Record<string, OrderState>>>;
-  setDetailedInventory: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  setSalesHtByMonth: React.Dispatch<React.SetStateAction<Record<string, number>>>;
-  setCostMatterByMonth: React.Dispatch<React.SetStateAction<Record<string, number>>>;
-  setValidatedMonths: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
-  setPrepValidatedMonths: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
-  setSupplierConfigs: React.Dispatch<React.SetStateAction<Record<string, SupplierConfig>>>;
-  setDeliveryDateBySupplier: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  setNextDeliveryDateBySupplier: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  setProducts: React.Dispatch<React.SetStateAction<ProductWithHistory[]>>;
-  setPrepItems: React.Dispatch<React.SetStateAction<PrepItem[]>>;
-  setPrepImportsByMonth: React.Dispatch<React.SetStateAction<PrepImportsByMonth>>;
-  setPrepBatches: React.Dispatch<React.SetStateAction<PrepBatch[]>>;
-  setPrepForecasts: React.Dispatch<React.SetStateAction<PrepForecastsByDate>>;
+  setCovers: Dispatch<SetStateAction<Record<string, number>>>;
+  setDailyCovers: Dispatch<SetStateAction<DailyCoversState>>;
+  setOrderStates: Dispatch<SetStateAction<Record<string, OrderState>>>;
+  setDetailedInventory: Dispatch<SetStateAction<Record<string, string>>>;
+  setSalesHtByMonth: Dispatch<SetStateAction<Record<string, number>>>;
+  setCostMatterByMonth: Dispatch<SetStateAction<Record<string, number>>>;
+  setValidatedMonths: Dispatch<SetStateAction<Record<string, boolean>>>;
+  setPrepValidatedMonths: Dispatch<SetStateAction<Record<string, boolean>>>;
+  setSupplierConfigs: Dispatch<SetStateAction<Record<string, SupplierConfig>>>;
+  setDeliveryDateBySupplier: Dispatch<SetStateAction<Record<string, string>>>;
+  setNextDeliveryDateBySupplier: Dispatch<SetStateAction<Record<string, string>>>;
+  setProducts: Dispatch<SetStateAction<ProductWithHistory[]>>;
+  setPrepItems: Dispatch<SetStateAction<PrepItem[]>>;
+  setPrepImportsByMonth: Dispatch<SetStateAction<PrepImportsByMonth>>;
+  setPrepBatches: Dispatch<SetStateAction<PrepBatch[]>>;
+  setPrepForecasts: Dispatch<SetStateAction<PrepForecastsByDate>>;
 };
 
 type UseCloudSyncParams = PersistedState &
@@ -82,27 +82,60 @@ type UseCloudSyncParams = PersistedState &
 const DEFER_WHILE_TYPING = new Set<string>([
   'orderStates',
   'products',
-  'covers',
-  'dailyCovers',
 ]);
 
-// Clés exclues du Realtime entrant : trop volumineuses pour être
-// streamées en temps réel (CSV bruts, historique produits lourd).
-// Elles sont toujours sauvegardées vers Supabase normalement,
-// mais ne sont PAS appliquées quand elles arrivent via Realtime.
-// Un rechargement de page récupère toujours la dernière version.
-const EXCLUDE_FROM_REALTIME = new Set<string>([
-  'inventory',    // CSV bruts — peut peser plusieurs Mo
-  'dailyCovers',  // 12 mois × 31 jours — non modifié en session terrain
-  'prepValidatedMonths',
-  'prepItems',
-  'prepImportsByMonth',
-  'prepBatches',
-  'prepForecasts',
-  // NOTE: products est intentionnellement INCLUS dans le Realtime
-  // car il contient stock/upcomingDelivery/targetStock saisis en terrain.
-  // Il est protégé contre le clignotement via DEFER_WHILE_TYPING.
+// Le Realtime reste volontairement limité au flux commande.
+// Tout le reste reste sauvegardé dans Supabase, mais n'est relu
+// qu'au chargement de l'application pour éviter du trafic WebSocket
+// inutile et des re-renders sur des écrans non opérationnels.
+const REALTIME_KEYS = new Set<string>([
+  'orderStates',
+  'products',
+  'deliveryDateBySupplier',
+  'nextDeliveryDateBySupplier',
 ]);
+
+const SAVE_DEBOUNCE_MS_BY_KEY: Record<string, number> = {
+  orderStates: 1200,
+  products: 1200,
+  deliveryDateBySupplier: 1200,
+  nextDeliveryDateBySupplier: 1200,
+  covers: 2000,
+  dailyCovers: 2500,
+  salesHtByMonth: 2500,
+  costMatterByMonth: 2500,
+  validatedMonths: 2000,
+  prepValidatedMonths: 2000,
+  supplierConfigs: 2500,
+  prepItems: 3000,
+  prepForecasts: 3000,
+  prepBatches: 3500,
+  prepImportsByMonth: 5000,
+  inventory: 8000,
+};
+
+const stableStringify = (value: unknown): string => {
+  const seen = new WeakSet<object>();
+  const normalize = (input: unknown): unknown => {
+    if (input === null || typeof input !== 'object') return input;
+    if (input instanceof Date) return input.toISOString();
+    if (Array.isArray(input)) return input.map(normalize);
+    if (seen.has(input as object)) return '[Circular]';
+    seen.add(input as object);
+    return Object.keys(input as Record<string, unknown>)
+      .sort()
+      .reduce<Record<string, unknown>>((acc, key) => {
+        acc[key] = normalize((input as Record<string, unknown>)[key]);
+        return acc;
+      }, {});
+  };
+
+  try {
+    return JSON.stringify(normalize(value));
+  } catch {
+    return String(value);
+  }
+};
 
 const hasDailyCoverData = (state: DailyCoversState): boolean =>
   Object.values(state).some(
@@ -158,6 +191,7 @@ export const useCloudSync = ({
   const isHydratingFromCloud = useRef(false);
   const lastCloudUpdatedAtByKey = useRef<Record<string, string>>({});
   const localTsByKey = useRef<Record<string, string>>({});
+  const lastPersistedSignatureByKey = useRef<Record<string, string>>({});
 
   // File d'attente des updates Realtime reçues pendant une saisie active
   const pendingRealtimeRef = useRef<Map<string, { ts: string; value: unknown }>>(new Map());
@@ -249,8 +283,8 @@ export const useCloudSync = ({
 
   // ─── Réception d'un event Realtime ────────────────────────────────────────
   const handleRealtimeEvent = useCallback((key: string, cloudTs: string, value: unknown) => {
-    // Ignorer les clés volumineuses — pas de sync Realtime pour elles
-    if (EXCLUDE_FROM_REALTIME.has(key)) return;
+    // Realtime strictement limité au flux commande
+    if (!REALTIME_KEYS.has(key)) return;
 
     // Ignorer nos propres écritures (timestamp local >= cloud)
     const localTs = localTsByKey.current[key];
@@ -291,6 +325,7 @@ export const useCloudSync = ({
 
           cloud.forEach((row: any) => {
             lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
+            lastPersistedSignatureByKey.current[row.key] = stableStringify(row.value);
             cloudMap[row.key] = row.value;
           });
 
@@ -365,9 +400,14 @@ export const useCloudSync = ({
     };
   }, [supabaseLoaded, handleRealtimeEvent, flushPending]);
 
-  // ─── Sauvegarde locale + cloud (debounced 1.5s) ───────────────────────────
-  const persistEverywhere = useCallback((key: string, value: unknown) => {
+  // ─── Sauvegarde locale + cloud (debounced + anti-écriture inutile) ────────
+  const persistEverywhere = useCallback((key: string, value: unknown, debounceMs?: number) => {
+    const signature = stableStringify(value);
+    if (lastPersistedSignatureByKey.current[key] === signature) return;
+
     saveState(key, value, onSaveError);
+    lastPersistedSignatureByKey.current[key] = signature;
+
     if (isHydratingFromCloud.current || !supabaseLoaded || !isSupabaseConfigured()) return;
 
     const ts = nowIso();
@@ -382,34 +422,22 @@ export const useCloudSync = ({
       (confirmedKey, confirmedTs) => {
         lastCloudUpdatedAtByKey.current[confirmedKey] = confirmedTs;
         delete localTsByKey.current[confirmedKey];
-      }
+        lastPersistedSignatureByKey.current[confirmedKey] = signature;
+      },
+      debounceMs ?? SAVE_DEBOUNCE_MS_BY_KEY[key] ?? 1500,
     );
 
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
-    syncTimerRef.current = setTimeout(() => setSyncStatus('saved'), 1700);
+    syncTimerRef.current = setTimeout(() => setSyncStatus('saved'), Math.max(1700, (debounceMs ?? SAVE_DEBOUNCE_MS_BY_KEY[key] ?? 1500) + 250));
   }, [onSaveError, supabaseLoaded]);
 
   useEffect(() => { persistEverywhere('covers', covers); }, [covers, persistEverywhere]);
   useEffect(() => { persistEverywhere('dailyCovers', dailyCovers); }, [dailyCovers, persistEverywhere]);
   useEffect(() => { persistEverywhere('orderStates', orderStates); }, [orderStates, persistEverywhere]);
-  // inventory = CSV bruts → debounce long (5s) pour limiter la bande passante
+  // inventory = CSV bruts → debounce très long pour limiter la bande passante
   useEffect(() => {
-    saveState('inventory', detailedInventory, onSaveError);
-    if (isHydratingFromCloud.current || !supabaseLoaded || !isSupabaseConfigured()) return;
-    const ts = nowIso();
-    localTsByKey.current['inventory'] = ts;
-    saveToSupabaseDebounced(
-      'inventory',
-      detailedInventory,
-      ts,
-      currentKey => lastCloudUpdatedAtByKey.current[currentKey],
-      (confirmedKey, confirmedTs) => {
-        lastCloudUpdatedAtByKey.current[confirmedKey] = confirmedTs;
-        delete localTsByKey.current[confirmedKey];
-      },
-      5000 // 5s au lieu de 1.5s
-    );
-  }, [detailedInventory, onSaveError, supabaseLoaded]);
+    persistEverywhere('inventory', detailedInventory, SAVE_DEBOUNCE_MS_BY_KEY.inventory);
+  }, [detailedInventory, persistEverywhere]);
   useEffect(() => { persistEverywhere('salesHtByMonth', salesHtByMonth); }, [persistEverywhere, salesHtByMonth]);
   useEffect(() => { persistEverywhere('costMatterByMonth', costMatterByMonth); }, [costMatterByMonth, persistEverywhere]);
   useEffect(() => { persistEverywhere('validatedMonths', validatedMonths); }, [persistEverywhere, validatedMonths]);

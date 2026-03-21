@@ -260,7 +260,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                     const currentMappings = parseMappingNames(item.searchName);
                     const allUsedMappings = prepItems.flatMap((other) => parseMappingNames(other.searchName));
                     const rowOrphanNames = Array.from(allAvailableImportNames).filter((name) => {
-                      const normalized = name.trim().toLowerCase();
+                      const normalized = String(name).trim().toLowerCase();
                       const alreadyOnCurrentRow = currentMappings.some((value) => value.trim().toLowerCase() === normalized);
                       const alreadyUsedElsewhere = prepItems.some((other) => {
                         if (other.id === item.id) return false;

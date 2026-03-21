@@ -1,9 +1,9 @@
-import { useCallback } from 'react';
+import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import { ProductWithHistory } from '../data';
 import { SupplierId } from '../constants';
 import { getSupplierIdForResetView, getSupplierIdForView } from './appStateHelpers';
 
-type Setter<T> = React.Dispatch<React.SetStateAction<T>>;
+type Setter<T> = Dispatch<SetStateAction<T>>;
 
 interface UseProductActionsParams {
   products: ProductWithHistory[];

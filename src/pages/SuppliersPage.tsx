@@ -14,7 +14,7 @@ interface SuppliersPageProps {
 }
 
 const SuppliersPage: React.FC<SuppliersPageProps> = ({ setView, supplierConfigs }) => {
-  const cards = Object.values(supplierConfigs)
+  const cards = (Object.values(supplierConfigs) as import('../types').SupplierConfig[])
     .filter(card => !card.isArchived)
     .map(card => ({
       view: card.id as View,

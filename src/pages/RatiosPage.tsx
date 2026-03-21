@@ -125,7 +125,7 @@ const ProductCard: React.FC<{
                   <div className="absolute top-full left-0 z-50 mt-1">
                     <MappingPopover
                       orphanNames={Array.from(allAvailableImportNames).filter((name) => {
-                        const normalizedName = name.trim().toLowerCase();
+                        const normalizedName = String(name).trim().toLowerCase();
                         return !products.some((pr) => (
                           pr.id !== p.id &&
                           pr.supplierId === p.supplierId &&
@@ -496,7 +496,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                         {state.activeMappingId === p.id && (
                           <MappingPopover
                             orphanNames={Array.from(state.allAvailableImportNames).filter((name) => {
-                              const normalizedName = name.trim().toLowerCase();
+                              const normalizedName = String(name).trim().toLowerCase();
                               return !state.products.some((pr) => (
                                 pr.id !== p.id &&
                                 pr.supplierId === p.supplierId &&

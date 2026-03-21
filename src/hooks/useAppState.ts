@@ -161,7 +161,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
   // Total couverts prévisionnels (toutes périodes confondues)
   const totalForecast = useMemo(() => {
     let sum = 0;
-    Object.values(dailyCovers).forEach(m =>
+    (Object.values(dailyCovers) as DailyCoversState[string][]).forEach(m =>
       m.forEach(d => { sum += (Number(d.midi) || 0) + (Number(d.soir) || 0); })
     );
     return sum;

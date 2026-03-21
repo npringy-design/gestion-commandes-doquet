@@ -56,7 +56,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  const SupplierViews: View[] = Object.values(state.supplierConfigs)
+  const SupplierViews: View[] = (Object.values(state.supplierConfigs) as import('../types').SupplierConfig[])
     .filter((config) => !config.isArchived)
     .map((config) => config.id as View);
 

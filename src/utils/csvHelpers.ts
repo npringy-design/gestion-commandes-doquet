@@ -7,13 +7,11 @@ import Papa from 'papaparse';
 
 const parseCSV = (csvData: string): string[][] => {
   const result = Papa.parse<string[]>(csvData, {
-    delimiter: '',
-    newline: '',
     dynamicTyping: false,
     skipEmptyLines: true,
   });
 
-  return result.data;
+  return (result.data as unknown as string[][]) ?? [];
 };
 
 const normalizeHeader = (value: string) => value.trim().toLowerCase();
@@ -98,15 +96,14 @@ export const readFileAsCSV = (file: File): Promise<string> => {
       return;
     }
 
-    Papa.parse(file, {
+    Papa.parse<string[]>(file, {
       download: false,
       skipEmptyLines: true,
-      encoding: '',
       complete: (results) => {
-        const cleanCSV = Papa.unparse(results.data as string[][]);
+        const cleanCSV = Papa.unparse((results.data as unknown as string[][]) ?? []);
         resolve(cleanCSV);
       },
-      error: (err: { message: string }) => {
+      error: (err) => {
         reject(new Error('Impossible de lire le fichier CSV : ' + err.message));
       },
     });

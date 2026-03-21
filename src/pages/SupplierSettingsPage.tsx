@@ -94,12 +94,12 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
   const [formError, setFormError] = React.useState('');
 
   const visibleConfigs = React.useMemo(
-    () => Object.values(configs).filter((config) => !config.isArchived),
+    () => (Object.values(configs) as import('../types').SupplierConfig[]).filter((config) => !config.isArchived),
     [configs],
   );
 
   const archivedConfigs = React.useMemo(
-    () => Object.values(configs).filter((config) => config.isArchived),
+    () => (Object.values(configs) as import('../types').SupplierConfig[]).filter((config) => config.isArchived),
     [configs],
   );
 

@@ -27,28 +27,41 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   commande: 'COMMANDE',
 };
 
+const hasRole = (profile: AppProfile | null, roles: readonly AppRole[]) => (
+  !!profile?.role && roles.includes(profile.role)
+);
+
+const ADMIN_DASHBOARD_ROLES: AppRole[] = [ROLES.SUPER_ADMIN, ROLES.GLOBAL_ADMIN, ROLES.DIRECTOR, ROLES.MANAGER_PLUS];
+const USER_MANAGEMENT_ROLES: AppRole[] = [ROLES.SUPER_ADMIN, ROLES.GLOBAL_ADMIN, ROLES.DIRECTOR, ROLES.MANAGER_PLUS, ROLES.MANAGER];
+const SUPPLIER_SETTINGS_ROLES: AppRole[] = [ROLES.SUPER_ADMIN, ROLES.GLOBAL_ADMIN, ROLES.DIRECTOR];
+const STATS_ROLES: AppRole[] = [ROLES.SUPER_ADMIN, ROLES.GLOBAL_ADMIN, ROLES.DIRECTOR, ROLES.MANAGER_PLUS, ROLES.MANAGER];
+const EDIT_ROLES: AppRole[] = [ROLES.SUPER_ADMIN, ROLES.GLOBAL_ADMIN, ROLES.DIRECTOR, ROLES.MANAGER_PLUS];
+const GLOBAL_ADMIN_MANAGEABLE: AppRole[] = [ROLES.DIRECTOR, ROLES.MANAGER_PLUS, ROLES.MANAGER, ROLES.COMMANDE];
+const DIRECTOR_MANAGEABLE: AppRole[] = [ROLES.MANAGER_PLUS, ROLES.MANAGER, ROLES.COMMANDE];
+const MANAGER_PLUS_MANAGEABLE: AppRole[] = [ROLES.MANAGER, ROLES.COMMANDE];
+
 export function canAccessAdminDashboard(profile: AppProfile | null) {
-  return [ROLES.SUPER_ADMIN, ROLES.GLOBAL_ADMIN, ROLES.DIRECTOR, ROLES.MANAGER_PLUS].includes((profile?.role ?? '') as AppRole);
+  return hasRole(profile, ADMIN_DASHBOARD_ROLES);
 }
 
 export function canAccessUserManagement(profile: AppProfile | null) {
-  return [ROLES.SUPER_ADMIN, ROLES.GLOBAL_ADMIN, ROLES.DIRECTOR, ROLES.MANAGER_PLUS, ROLES.MANAGER].includes((profile?.role ?? '') as AppRole);
+  return hasRole(profile, USER_MANAGEMENT_ROLES);
 }
 
 export function canAccessSupplierSettings(profile: AppProfile | null) {
-  return [ROLES.SUPER_ADMIN, ROLES.GLOBAL_ADMIN, ROLES.DIRECTOR].includes((profile?.role ?? '') as AppRole);
+  return hasRole(profile, SUPPLIER_SETTINGS_ROLES);
 }
 
 export function canAccessStatsPage(profile: AppProfile | null) {
-  return [ROLES.SUPER_ADMIN, ROLES.GLOBAL_ADMIN, ROLES.DIRECTOR, ROLES.MANAGER_PLUS, ROLES.MANAGER].includes((profile?.role ?? '') as AppRole);
+  return hasRole(profile, STATS_ROLES);
 }
 
 export function canEditRatios(profile: AppProfile | null) {
-  return [ROLES.SUPER_ADMIN, ROLES.GLOBAL_ADMIN, ROLES.DIRECTOR, ROLES.MANAGER_PLUS].includes((profile?.role ?? '') as AppRole);
+  return hasRole(profile, EDIT_ROLES);
 }
 
 export function canEditPreviCouverts(profile: AppProfile | null) {
-  return [ROLES.SUPER_ADMIN, ROLES.GLOBAL_ADMIN, ROLES.DIRECTOR, ROLES.MANAGER_PLUS].includes((profile?.role ?? '') as AppRole);
+  return hasRole(profile, EDIT_ROLES);
 }
 
 export function canAccessDailyForecast(profile: AppProfile | null) {
@@ -56,15 +69,15 @@ export function canAccessDailyForecast(profile: AppProfile | null) {
 }
 
 export function canAccessRatiosPage(profile: AppProfile | null) {
-  return [ROLES.SUPER_ADMIN, ROLES.GLOBAL_ADMIN, ROLES.DIRECTOR, ROLES.MANAGER_PLUS].includes((profile?.role ?? '') as AppRole);
+  return hasRole(profile, EDIT_ROLES);
 }
 
 export function canImportData(profile: AppProfile | null) {
-  return [ROLES.SUPER_ADMIN, ROLES.GLOBAL_ADMIN, ROLES.DIRECTOR, ROLES.MANAGER_PLUS, ROLES.MANAGER].includes((profile?.role ?? '') as AppRole);
+  return hasRole(profile, STATS_ROLES);
 }
 
 export function canDeleteImport(profile: AppProfile | null) {
-  return [ROLES.SUPER_ADMIN, ROLES.GLOBAL_ADMIN, ROLES.DIRECTOR, ROLES.MANAGER_PLUS].includes((profile?.role ?? '') as AppRole);
+  return hasRole(profile, EDIT_ROLES);
 }
 
 export function canEditSettingsFields(profile: AppProfile | null) {
@@ -108,11 +121,11 @@ export function canManageTarget(profile: AppProfile | null, target: Pick<AppProf
 
   switch (profile.role) {
     case ROLES.GLOBAL_ADMIN:
-      return [ROLES.DIRECTOR, ROLES.MANAGER_PLUS, ROLES.MANAGER, ROLES.COMMANDE].includes(target.role);
+      return GLOBAL_ADMIN_MANAGEABLE.includes(target.role);
     case ROLES.DIRECTOR:
-      return [ROLES.MANAGER_PLUS, ROLES.MANAGER, ROLES.COMMANDE].includes(target.role);
+      return DIRECTOR_MANAGEABLE.includes(target.role);
     case ROLES.MANAGER_PLUS:
-      return [ROLES.MANAGER, ROLES.COMMANDE].includes(target.role);
+      return MANAGER_PLUS_MANAGEABLE.includes(target.role);
     case ROLES.MANAGER:
       return target.role === ROLES.COMMANDE;
     default:
