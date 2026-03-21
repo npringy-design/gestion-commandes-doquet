@@ -39,7 +39,7 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 
 const defaultItem = (): PrepItemExtended => ({
   id: `prep-${uid()}`,
-  name: 'Nouvelle production',
+  name: '',
   searchName: '',
   category: 'poste_chaud',
   isActive: true,
@@ -53,7 +53,6 @@ const defaultItem = (): PrepItemExtended => ({
 
 const getBaseProduction = (item: PrepItem) => String((item as PrepItemExtended).baseProduction || '');
 const getUnitWeight = (item: PrepItem) => (item as PrepItemExtended).unitWeightGrams ?? '';
-
 const normalizeMappingName = (value?: string) => String(value || '').trim().toLowerCase();
 
 const parseMappingNames = (value?: string) =>
@@ -64,9 +63,6 @@ const parseMappingNames = (value?: string) =>
 
 const joinMappingNames = (names: string[]) =>
   Array.from(new Map(names.map((name) => [normalizeMappingName(name), name.trim()])).values()).join(MAPPING_SEPARATOR);
-
-const getCategoryLabel = (value: PrepCategory) =>
-  CATEGORY_OPTIONS.find((option) => option.value === value)?.label || value;
 
 const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   setView,
@@ -82,6 +78,8 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   const [search, setSearch] = React.useState('');
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [activeMappingId, setActiveMappingId] = React.useState<string | null>(null);
+  const [mappingSearchById, setMappingSearchById] = React.useState<Record<string, string>>({});
+  const [expandedMappings, setExpandedMappings] = React.useState<Set<string>>(new Set());
 
   const allAvailableImportNames = React.useMemo(
     () => extractAllNamesFromCsvs(prepImportsByMonth),
@@ -103,18 +101,6 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
     });
   }, [prepItems, search]);
 
-  const stats = React.useMemo(() => {
-    let mapped = 0;
-    let weighted = 0;
-    let bases = 0;
-    prepItems.forEach((item) => {
-      if (parseMappingNames(item.searchName).length > 0) mapped += 1;
-      if (Number(getUnitWeight(item) || 0) > 0) weighted += 1;
-      if (getBaseProduction(item).trim()) bases += 1;
-    });
-    return { total: prepItems.length, mapped, weighted, bases };
-  }, [prepItems]);
-
   const updateItem = (id: string, patch: Partial<PrepItemExtended>) => {
     setPrepItems((prev) => prev.map((item) => item.id === id ? ({ ...item, ...patch } as PrepItem) : item));
   };
@@ -132,6 +118,14 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
 
   const toggleSelected = (id: string) => {
     setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleExpandedMappings = (id: string) => {
+    setExpandedMappings((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
@@ -204,7 +198,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
               <div className="p-4">
                 <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#FFE1B8]">Hippopotamus Thillois</p>
                 <h1 className="mt-2 text-2xl font-black leading-none text-[#FFF9F3] xl:text-[28px]">Calcul prod ratio</h1>
-                <p className="mt-3 text-xs font-semibold text-[#FFE7CF]">Une ligne = une production affichée. Les références import sont exclusives et ne peuvent appartenir qu&apos;à une seule ligne.</p>
+                <p className="mt-3 text-xs font-semibold text-[#FFE7CF]">Une ligne = une production. Les références import sont exclusives à une seule ligne.</p>
               </div>
             </div>
 
@@ -221,42 +215,20 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
               <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <div>
                   <h2 className="text-lg font-black uppercase tracking-[0.08em] text-[#FFF8F1]">Productions & ratios</h2>
-                  <p className="mt-1 text-[11px] font-semibold text-[#FFE7CF]">Page recentrée sur l&apos;utile : nom affiché, import lié, base, poids, ratios et réglages de production.</p>
                 </div>
-                <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher une production, une base ou un import..." className="rounded-2xl border border-white/20 bg-white/95 px-4 py-2 text-sm font-bold text-slate-800 outline-none xl:w-[340px]" />
-              </div>
-            </div>
-
-            <div className="border-b border-[#E0CCBA] bg-[#FFF9F3] px-4 py-3">
-              <div className="grid gap-2 md:grid-cols-4">
-                <div className="rounded-2xl border border-[#E7D5C4] bg-white px-3 py-2">
-                  <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A5A2F]">Lignes</div>
-                  <div className="mt-1 text-xl font-black text-[#6C3C2B]">{stats.total}</div>
-                </div>
-                <div className="rounded-2xl border border-[#E7D5C4] bg-white px-3 py-2">
-                  <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A5A2F]">Avec imports</div>
-                  <div className="mt-1 text-xl font-black text-[#6C3C2B]">{stats.mapped}</div>
-                </div>
-                <div className="rounded-2xl border border-[#E7D5C4] bg-white px-3 py-2">
-                  <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A5A2F]">Avec base</div>
-                  <div className="mt-1 text-xl font-black text-[#6C3C2B]">{stats.bases}</div>
-                </div>
-                <div className="rounded-2xl border border-[#E7D5C4] bg-white px-3 py-2">
-                  <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A5A2F]">Poids saisi</div>
-                  <div className="mt-1 text-xl font-black text-[#6C3C2B]">{stats.weighted}</div>
-                </div>
+                <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher une production..." className="rounded-2xl border border-white/20 bg-white/95 px-4 py-2 text-sm font-bold text-slate-800 outline-none xl:w-[280px]" />
               </div>
             </div>
 
             <div className="min-h-0 flex-1 overflow-auto">
-              <table className="min-w-[1650px] w-full text-sm">
+              <table className="min-w-[1750px] w-full text-sm">
                 <thead className="sticky top-0 z-10 bg-[#F4E4D2] text-[#6C3C2B] shadow-[0_1px_0_#E8D6C6]">
                   <tr>
                     <th className="px-3 py-3 text-left font-black uppercase">Sel.</th>
-                    <th className="px-2 py-3 text-left font-black uppercase">Production affichée</th>
+                    <th className="px-2 py-3 text-left font-black uppercase">Produit</th>
+                    <th className="px-2 py-3 text-left font-black uppercase">Base</th>
                     <th className="px-2 py-3 text-left font-black uppercase">Poste</th>
                     <th className="px-2 py-3 text-left font-black uppercase">Mapping import</th>
-                    <th className="px-2 py-3 text-center font-black uppercase">Base</th>
                     <th className="px-2 py-3 text-center font-black uppercase">Poids g</th>
                     {MONTHS_ORDER.map((month) => <th key={month} className="px-2 py-3 text-center font-black uppercase">{MONTH_LABELS[month]}</th>)}
                     <th className="px-3 py-3 text-center font-black uppercase">Ratio moy.</th>
@@ -299,119 +271,127 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                         .map((name) => normalizeMappingName(name))
                     );
                     const selectedOnRow = new Set(currentMappings.map((name) => normalizeMappingName(name)));
+                    const query = (mappingSearchById[item.id] || '').trim().toLowerCase();
                     const rowOrphanNames = Array.from(allAvailableImportNames)
                       .filter((name) => {
                         const normalized = normalizeMappingName(name);
-                        return !selectedOnRow.has(normalized) && !usedElsewhere.has(normalized);
+                        if (selectedOnRow.has(normalized) || usedElsewhere.has(normalized)) return false;
+                        if (!query) return true;
+                        return name.toLowerCase().includes(query);
                       })
                       .sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
                     const canOpenMapping = rowOrphanNames.length > 0;
                     const alert = currentMappings.length === 0;
                     const baseName = getBaseProduction(item).trim();
-                    const displayName = item.name?.trim();
-                    const displayLabel = displayName || baseName || 'Production sans nom';
-                    const hasWeight = Number(getUnitWeight(item) || 0) > 0;
+                    const expanded = expandedMappings.has(item.id);
 
                     return (
                       <tr key={item.id} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
-                        <td className="border-t border-[#E0CCBA] px-3 py-3 text-center align-top">
-                          <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} className="mt-2 h-4 w-4" />
+                        <td className="border-t border-[#E0CCBA] px-3 py-3 text-center align-middle">
+                          <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} className="h-4 w-4" />
                         </td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-top">
-                          <div className="space-y-2">
-                            <input
-                              value={item.name}
-                              disabled={!canEdit}
-                              onChange={(e) => updateItem(item.id, { name: e.target.value })}
-                              placeholder={baseName || 'Nom affiché sur la feuille'}
-                              className="w-[170px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 font-black outline-none"
-                            />
-                            <div className="text-[10px] font-semibold leading-tight text-slate-500">
-                              Affichage terrain : <span className="font-black text-[#6C3C2B]">{displayLabel}</span>
-                            </div>
-                          </div>
+
+                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle">
+                          <input
+                            value={item.name}
+                            disabled={!canEdit}
+                            onChange={(e) => updateItem(item.id, { name: e.target.value })}
+                            placeholder={baseName || 'Nom produit'}
+                            className="w-[180px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 font-black outline-none"
+                          />
                         </td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-top">
-                          <div className="space-y-2">
-                            <select value={item.category} disabled={!canEdit} onChange={(e) => updateItem(item.id, { category: e.target.value as PrepCategory })} className="w-[126px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 font-bold outline-none">
-                              {CATEGORY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                            </select>
-                            <div className="text-[10px] font-semibold text-slate-500">{getCategoryLabel(item.category)}</div>
-                          </div>
+
+                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle">
+                          <input
+                            value={baseName}
+                            disabled={!canEdit}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              updateItem(item.id, {
+                                baseProduction: value,
+                                ...(item.name.trim() ? {} : { name: value }),
+                              });
+                            }}
+                            placeholder="Base"
+                            className="w-[140px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 font-bold outline-none"
+                          />
                         </td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-top">
-                          <div className={`relative min-w-[260px] rounded-2xl border px-3 py-3 shadow-sm ${alert ? 'border-amber-300 bg-amber-50/70' : 'border-[#D0B08D] bg-[#FFFDF9]'}`}>
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <div className="text-[10px] font-black uppercase tracking-[0.12em] text-[#8A5A2F]">Imports liés</div>
-                                <div className="text-[11px] font-bold text-slate-500">
-                                  {currentMappings.length} sélection{currentMappings.length > 1 ? 's' : ''}
-                                  {currentMappings.length > 0 ? ' • exclusives à cette ligne' : ''}
-                                </div>
-                              </div>
+
+                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle">
+                          <select value={item.category} disabled={!canEdit} onChange={(e) => updateItem(item.id, { category: e.target.value as PrepCategory })} className="w-[140px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 font-bold outline-none">
+                            {CATEGORY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                          </select>
+                        </td>
+
+                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle">
+                          <div className={`relative min-w-[330px] rounded-2xl border px-3 py-3 shadow-sm ${alert ? 'border-amber-300 bg-amber-50/70' : 'border-[#D0B08D] bg-[#FFFDF9]'}`}>
+                            <div className="flex items-start gap-2">
+                              <input
+                                type="text"
+                                value={mappingSearchById[item.id] || ''}
+                                disabled={!canEdit}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  setMappingSearchById((prev) => ({ ...prev, [item.id]: value }));
+                                  setActiveMappingId(item.id);
+                                }}
+                                onFocus={() => setActiveMappingId(item.id)}
+                                placeholder="Rechercher produit import"
+                                className="flex-1 rounded-xl border border-[#D0B08D] bg-white px-3 py-2 font-semibold outline-none"
+                              />
                               <button
                                 type="button"
-                                disabled={!canOpenMapping}
-                                onClick={() => canOpenMapping && setActiveMappingId(activeMappingId === item.id ? null : item.id)}
-                                className="h-9 w-9 shrink-0 rounded-xl bg-slate-100 text-slate-600 disabled:cursor-not-allowed disabled:opacity-35"
-                                title={canOpenMapping ? 'Ajouter une référence import' : 'Aucun nom disponible'}
-                              >⌄</button>
+                                onClick={() => toggleExpandedMappings(item.id)}
+                                className="h-10 w-10 shrink-0 rounded-xl border border-[#D0B08D] bg-[#F1ECF8] text-[#7A53A3]"
+                                title="Voir les produits liés"
+                              >
+                                {expanded ? '⌃' : '⌄'}
+                              </button>
                             </div>
-                            <div className="mt-3 max-h-[108px] overflow-y-auto pr-1">
-                              <div className="flex flex-wrap gap-1.5">
-                                {currentMappings.map((mapping) => (
-                                  <span key={mapping} className="inline-flex items-center gap-1 rounded-full border border-[#D0B08D] bg-white px-2 py-1 text-[11px] font-bold text-[#5A3928]">
-                                    {mapping}
-                                    {canEdit ? (
-                                      <button type="button" onClick={() => removeMappingName(item, mapping)} className="text-[#A93E2A]">×</button>
-                                    ) : null}
-                                  </span>
-                                ))}
-                                {currentMappings.length === 0 ? (
-                                  <span className="text-[11px] font-bold text-amber-700">Ajoute une ou plusieurs références import</span>
-                                ) : null}
+
+                            {expanded && (
+                              <div className="mt-2 max-h-[104px] overflow-y-auto pr-1">
+                                <div className="flex flex-wrap gap-1.5">
+                                  {currentMappings.map((mapping) => (
+                                    <span key={mapping} className="inline-flex items-center gap-1 rounded-full border border-[#D0B08D] bg-white px-2 py-1 text-[11px] font-bold text-[#5A3928]">
+                                      {mapping}
+                                      {canEdit ? (
+                                        <button type="button" onClick={() => removeMappingName(item, mapping)} className="text-[#A93E2A]">×</button>
+                                      ) : null}
+                                    </span>
+                                  ))}
+                                  {currentMappings.length === 0 ? (
+                                    <span className="text-[11px] font-bold text-amber-700">Aucun produit lié</span>
+                                  ) : null}
+                                </div>
                               </div>
-                            </div>
-                            {activeMappingId === item.id && canOpenMapping && (
-                              <div className="absolute right-0 top-[calc(100%-6px)] z-[999]">
+                            )}
+
+                            {activeMappingId === item.id && canEdit && (
+                              <div className="absolute left-0 top-[calc(100%+6px)] z-[999]">
                                 <MappingPopover
                                   orphanNames={rowOrphanNames}
-                                  onSelect={(name) => { addMappingName(item, name); setActiveMappingId(null); }}
+                                  onSelect={(name) => {
+                                    addMappingName(item, name);
+                                    setMappingSearchById((prev) => ({ ...prev, [item.id]: '' }));
+                                    setActiveMappingId(item.id);
+                                  }}
                                   onClose={() => setActiveMappingId(null)}
                                 />
                               </div>
                             )}
                           </div>
                         </td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-top">
-                          <div className="space-y-2">
-                            <input
-                              value={baseName}
-                              disabled={!canEdit}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                updateItem(item.id, {
-                                  baseProduction: value,
-                                  ...(item.name.trim() ? {} : { name: value }),
-                                });
-                              }}
-                              placeholder="Base mousse"
-                              className="w-[130px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2.5 py-2 text-xs font-bold outline-none"
-                            />
-                            <div className="text-[10px] font-semibold text-slate-500">{baseName ? 'Base utilisée pour le regroupement' : 'Optionnel si ligne simple'}</div>
-                          </div>
+
+                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle">
+                          <input type="number" value={getUnitWeight(item)} disabled={!canEdit} onChange={(e) => updateItem(item.id, { unitWeightGrams: e.target.value === '' ? '' : Number(e.target.value) || '' })} placeholder="100" className="w-[74px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" />
                         </td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-top">
-                          <div className="space-y-2">
-                            <input type="number" value={getUnitWeight(item)} disabled={!canEdit} onChange={(e) => updateItem(item.id, { unitWeightGrams: e.target.value === '' ? '' : Number(e.target.value) || '' })} placeholder="100" className="w-[72px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" />
-                            <div className={`text-[10px] font-semibold ${hasWeight ? 'text-emerald-700' : 'text-slate-500'}`}>{hasWeight ? 'Poids OK' : 'À renseigner'}</div>
-                          </div>
-                        </td>
+
                         {MONTHS_ORDER.map((month) => {
                           const monthValue = getMonthValue(item, month);
                           const monthRatio = getMonthRatio(item, month);
                           return (
-                            <td key={`${item.id}-${month}`} className="border-t border-[#E0CCBA] px-1.5 py-3 text-center align-top">
+                            <td key={`${item.id}-${month}`} className="border-t border-[#E0CCBA] px-1.5 py-3 text-center align-middle">
                               <div className={`rounded-lg p-1 ${prepValidatedMonths[month] ? 'border border-indigo-100 bg-indigo-50' : monthValue > 0 ? 'bg-emerald-50' : 'bg-slate-50'}`}>
                                 <div className={`font-black text-[11px] leading-none ${prepValidatedMonths[month] ? 'text-indigo-800' : monthValue > 0 ? 'text-emerald-700' : 'text-slate-400'}`}>{monthValue || '–'}</div>
                                 <div className="mt-1 text-[9px] font-mono text-slate-500">{monthRatio.toFixed(3)}</div>
@@ -419,11 +399,12 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                             </td>
                           );
                         })}
-                        <td className="border-t border-[#E0CCBA] px-3 py-3 text-center align-top font-black text-[#A93E2A]">{avgRatio.toFixed(3)}</td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-top"><input type="number" value={item.secondaryDlcHours} disabled={!canEdit} onChange={(e) => updateItem(item.id, { secondaryDlcHours: e.target.value === '' ? '' : Number(e.target.value) || '' })} className="w-[58px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" /></td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-top"><input type="number" value={item.targetBuffer} disabled={!canEdit} onChange={(e) => updateItem(item.id, { targetBuffer: e.target.value === '' ? '' : Number(e.target.value) || '' })} className="w-[58px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" /></td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-top"><input value={item.notes || ''} disabled={!canEdit} onChange={(e) => updateItem(item.id, { notes: e.target.value })} placeholder="Optionnel" className="w-[118px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2.5 py-2 font-semibold outline-none" /></td>
-                        <td className="border-t border-[#E0CCBA] px-3 py-3 align-top"><div className="flex justify-center gap-1.5"><button onClick={() => moveItem(item.id, 'up')} disabled={!canEdit || idx === 0} className="h-8 w-8 rounded-xl bg-slate-900 text-[#ffd700] disabled:opacity-20">↑</button><button onClick={() => moveItem(item.id, 'down')} disabled={!canEdit || idx === rows.length - 1} className="h-8 w-8 rounded-xl bg-slate-900 text-[#ffd700] disabled:opacity-20">↓</button></div></td>
+
+                        <td className="border-t border-[#E0CCBA] px-3 py-3 text-center align-middle font-black text-[#A93E2A]">{avgRatio.toFixed(3)}</td>
+                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle"><input type="number" value={item.secondaryDlcHours} disabled={!canEdit} onChange={(e) => updateItem(item.id, { secondaryDlcHours: e.target.value === '' ? '' : Number(e.target.value) || '' })} className="w-[58px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" /></td>
+                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle"><input type="number" value={item.targetBuffer} disabled={!canEdit} onChange={(e) => updateItem(item.id, { targetBuffer: e.target.value === '' ? '' : Number(e.target.value) || '' })} className="w-[58px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" /></td>
+                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-middle"><input value={item.notes || ''} disabled={!canEdit} onChange={(e) => updateItem(item.id, { notes: e.target.value })} placeholder="Notes" className="w-[118px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2.5 py-2 font-semibold outline-none" /></td>
+                        <td className="border-t border-[#E0CCBA] px-3 py-3 align-middle"><div className="flex justify-center gap-1.5"><button onClick={() => moveItem(item.id, 'up')} disabled={!canEdit || idx === 0} className="h-8 w-8 rounded-xl bg-slate-900 text-[#ffd700] disabled:opacity-20">↑</button><button onClick={() => moveItem(item.id, 'down')} disabled={!canEdit || idx === rows.length - 1} className="h-8 w-8 rounded-xl bg-slate-900 text-[#ffd700] disabled:opacity-20">↓</button></div></td>
                       </tr>
                     );
                   })}
