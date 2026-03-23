@@ -30,13 +30,13 @@ interface PrepRatiosPageProps {
   prepImportsByMonth: PrepImportsByMonth;
 }
 
+type PrepStockUnit = 'unit' | 'kg';
+
 type PrepItemExtended = PrepItem & {
   baseProduction?: string;
   unitWeightGrams?: number | '';
+  stockUnit?: PrepStockUnit;
 };
-
-type MonthStat = { value: number; ratio: number };
-type MonthStatsById = Record<string, Record<string, MonthStat>>;
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -52,11 +52,18 @@ const defaultItem = (): PrepItemExtended => ({
   notes: '',
   baseProduction: '',
   unitWeightGrams: '',
+  stockUnit: 'unit',
 });
 
 const getBaseProduction = (item: PrepItem) => String((item as PrepItemExtended).baseProduction || '');
 const getUnitWeight = (item: PrepItem) => (item as PrepItemExtended).unitWeightGrams ?? '';
-const normalizeName = (value?: string) => String(value || '').trim().toLowerCase();
+const getStockUnit = (item: PrepItem): PrepStockUnit => {
+  const explicit = (item as PrepItemExtended).stockUnit;
+  if (explicit === 'kg' || explicit === 'unit') return explicit;
+  return getBaseProduction(item) && Number(getUnitWeight(item) || 0) > 0 ? 'kg' : 'unit';
+};
+
+const normalizeMappingName = (value?: string) => String(value || '').trim().toLowerCase();
 
 const parseMappingNames = (value?: string) =>
   String(value || '')
@@ -65,96 +72,7 @@ const parseMappingNames = (value?: string) =>
     .filter(Boolean);
 
 const joinMappingNames = (names: string[]) =>
-  Array.from(new Map(names.map((name) => [normalizeName(name), name.trim()])).values()).join(MAPPING_SEPARATOR);
-
-const LocalTextInput = React.memo(function LocalTextInput({
-  value,
-  onCommit,
-  disabled,
-  className,
-  placeholder,
-}: {
-  value: string;
-  onCommit: (value: string) => void;
-  disabled?: boolean;
-  className: string;
-  placeholder?: string;
-}) {
-  const [draft, setDraft] = React.useState(value);
-
-  React.useEffect(() => {
-    setDraft(value);
-  }, [value]);
-
-  const commit = React.useCallback(() => {
-    if (draft !== value) onCommit(draft);
-  }, [draft, value, onCommit]);
-
-  return (
-    <input
-      value={draft}
-      disabled={disabled}
-      placeholder={placeholder}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          e.currentTarget.blur();
-        }
-      }}
-      className={className}
-    />
-  );
-});
-
-const LocalNumberInput = React.memo(function LocalNumberInput({
-  value,
-  onCommit,
-  disabled,
-  className,
-  placeholder,
-}: {
-  value: number | '';
-  onCommit: (value: number | '') => void;
-  disabled?: boolean;
-  className: string;
-  placeholder?: string;
-}) {
-  const stringValue = value === '' || value === undefined || value === null ? '' : String(value);
-  const [draft, setDraft] = React.useState(stringValue);
-
-  React.useEffect(() => {
-    setDraft(stringValue);
-  }, [stringValue]);
-
-  const commit = React.useCallback(() => {
-    const trimmed = draft.trim();
-    if (trimmed === '') {
-      if (stringValue !== '') onCommit('');
-      return;
-    }
-    const parsed = Number(trimmed.replace(',', '.'));
-    const next: number | '' = Number.isFinite(parsed) ? parsed : '';
-    if (String(next) !== stringValue) onCommit(next);
-  }, [draft, stringValue, onCommit]);
-
-  return (
-    <input
-      type="number"
-      value={draft}
-      disabled={disabled}
-      placeholder={placeholder}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          e.currentTarget.blur();
-        }
-      }}
-      className={className}
-    />
-  );
-});
+  Array.from(new Map(names.map((name) => [normalizeMappingName(name), name.trim()])).values()).join(MAPPING_SEPARATOR);
 
 const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   setView,
@@ -168,51 +86,46 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   const { profile } = useAuth();
   const canEdit = canEditRatios(profile);
   const [search, setSearch] = React.useState('');
-  const deferredSearch = React.useDeferredValue(search);
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [activeMappingId, setActiveMappingId] = React.useState<string | null>(null);
 
   const allAvailableImportNames = React.useMemo(
-    () => Array.from(extractAllNamesFromCsvs(prepImportsByMonth)).sort((a, b) => a.localeCompare(b)),
+    () => extractAllNamesFromCsvs(prepImportsByMonth),
     [prepImportsByMonth]
   );
 
   const rows = React.useMemo(() => {
-    const q = deferredSearch.trim().toLowerCase();
+    const q = search.trim().toLowerCase();
     return prepItems.filter((item) => {
       if (!q) return true;
-      return item.name.toLowerCase().includes(q)
-        || item.searchName.toLowerCase().includes(q)
-        || getBaseProduction(item).toLowerCase().includes(q);
+      return item.name.toLowerCase().includes(q) || item.searchName.toLowerCase().includes(q) || getBaseProduction(item).toLowerCase().includes(q);
     });
-  }, [prepItems, deferredSearch]);
+  }, [prepItems, search]);
 
-  const updateItem = React.useCallback((id: string, patch: Partial<PrepItemExtended>) => {
+  const updateItem = (id: string, patch: Partial<PrepItemExtended>) => {
     setPrepItems((prev) => prev.map((item) => item.id === id ? ({ ...item, ...patch } as PrepItem) : item));
-  }, [setPrepItems]);
+  };
 
-  const addMappingName = React.useCallback((item: PrepItem, name: string) => {
+  const addMappingName = (item: PrepItem, name: string) => {
     const current = parseMappingNames(item.searchName);
     updateItem(item.id, { searchName: joinMappingNames([...current, name]) });
-  }, [updateItem]);
+  };
 
-  const removeMappingName = React.useCallback((item: PrepItem, name: string) => {
-    const normalizedToRemove = normalizeName(name);
+  const removeMappingName = (item: PrepItem, name: string) => {
+    const normalizedToRemove = normalizeMappingName(name);
     const current = parseMappingNames(item.searchName);
-    updateItem(item.id, {
-      searchName: joinMappingNames(current.filter((value) => normalizeName(value) !== normalizedToRemove)),
-    });
-  }, [updateItem]);
+    updateItem(item.id, { searchName: joinMappingNames(current.filter((value) => normalizeMappingName(value) !== normalizedToRemove)) });
+  };
 
-  const toggleSelected = React.useCallback((id: string) => {
+  const toggleSelected = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
-  }, []);
+  };
 
-  const moveItem = React.useCallback((id: string, direction: 'up' | 'down') => {
+  const moveItem = (id: string, direction: 'up' | 'down') => {
     setPrepItems((prev) => {
       const index = prev.findIndex((item) => item.id === id);
       if (index === -1) return prev;
@@ -222,90 +135,66 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
       [next[index], next[target]] = [next[target], next[index]];
       return next;
     });
-  }, [setPrepItems]);
+  };
 
-  const addItem = React.useCallback(() => setPrepItems((prev) => [...prev, defaultItem() as PrepItem]), [setPrepItems]);
+  const addItem = () => setPrepItems((prev) => [...prev, defaultItem() as PrepItem]);
 
-  const deleteSelected = React.useCallback(() => {
+  const deleteSelected = () => {
     if (selectedIds.size === 0) return;
     setPrepItems((prev) => prev.filter((item) => !selectedIds.has(item.id)));
     setSelectedIds(new Set());
-  }, [selectedIds, setPrepItems]);
+  };
 
-  const monthStatsById = React.useMemo<MonthStatsById>(() => {
-    const stats: MonthStatsById = {};
+  const getMonthValue = (item: PrepItem, month: string) => {
+    const mappingNames = parseMappingNames(item.searchName);
+    if (mappingNames.length === 0) return 0;
 
-    prepItems.forEach((item) => {
-      const mappings = parseMappingNames(item.searchName);
-      const rowStats: Record<string, MonthStat> = {};
+    return mappingNames.reduce((sum, mappingName) => {
+      const imported = getImportedValueForProduct(
+        prepImportsByMonth[month],
+        mappingName,
+        '',
+        ['Nombre']
+      );
+      return sum + Number(imported || 0);
+    }, 0);
+  };
 
-      MONTHS_ORDER.forEach((month) => {
-        let value = 0;
-        if (mappings.length > 0) {
-          value = mappings.reduce((sum, mappingName) => {
-            const imported = getImportedValueForProduct(prepImportsByMonth[month], mappingName, '', ['Nombre']);
-            return sum + Number(imported || 0);
-          }, 0);
-        }
+  const getMonthRatio = (item: PrepItem, month: string) => {
+    const coversValue = Number(covers[month] || 0);
+    if (!coversValue) return 0;
+    if (prepValidatedMonths[month] && Number(item.ratioHistory[month] || 0) > 0) return Number(item.ratioHistory[month] || 0);
+    const imported = getMonthValue(item, month);
+    return imported > 0 ? imported / coversValue : 0;
+  };
 
-        const coversValue = Number(covers[month] || 0);
-        const lockedRatio = Number(item.ratioHistory[month] || 0);
-        const ratio = prepValidatedMonths[month] && lockedRatio > 0
-          ? lockedRatio
-          : (coversValue > 0 && value > 0 ? value / coversValue : 0);
-
-        rowStats[month] = { value, ratio };
-      });
-
-      stats[item.id] = rowStats;
+  const getAverageRatio = (item: PrepItem) => {
+    let total = 0;
+    let count = 0;
+    MONTHS_ORDER.forEach((month) => {
+      const ratio = getMonthRatio(item, month);
+      if (ratio > 0) {
+        total += ratio;
+        count += 1;
+      }
     });
+    return count > 0 ? total / count : 0;
+  };
 
-    return stats;
-  }, [prepItems, prepImportsByMonth, covers, prepValidatedMonths]);
-
-  const averageRatioById = React.useMemo<Record<string, number>>(() => {
-    const result: Record<string, number> = {};
+  const basePreview = React.useMemo(() => {
+    const grouped = new Map<string, { count: number; totalWeight: number; mappingsCount: number }>();
     prepItems.forEach((item) => {
-      const rowStats = monthStatsById[item.id] || {};
-      let total = 0;
-      let count = 0;
-      MONTHS_ORDER.forEach((month) => {
-        const ratio = Number(rowStats[month]?.ratio || 0);
-        if (ratio > 0) {
-          total += ratio;
-          count += 1;
-        }
-      });
-      result[item.id] = count > 0 ? total / count : 0;
+      const base = getBaseProduction(item).trim();
+      const weight = Number(getUnitWeight(item) || 0);
+      if (!base || weight <= 0) return;
+      const current = grouped.get(base) ?? { count: 0, totalWeight: 0, mappingsCount: 0 };
+      current.count += 1;
+      current.totalWeight += weight;
+      current.mappingsCount += parseMappingNames(item.searchName).length;
+      grouped.set(base, current);
     });
-    return result;
-  }, [prepItems, monthStatsById]);
-
-  const mappingUsageCount = React.useMemo(() => {
-    const counts = new Map<string, number>();
-    prepItems.forEach((item) => {
-      parseMappingNames(item.searchName).forEach((name) => {
-        const key = normalizeName(name);
-        counts.set(key, (counts.get(key) || 0) + 1);
-      });
-    });
-    return counts;
+    return Array.from(grouped.entries());
   }, [prepItems]);
-
-  const availableNamesByRowId = React.useMemo(() => {
-    const result: Record<string, string[]> = {};
-
-    prepItems.forEach((item) => {
-      const currentMappings = new Set(parseMappingNames(item.searchName).map(normalizeName));
-      result[item.id] = allAvailableImportNames.filter((name) => {
-        const key = normalizeName(name);
-        const usage = mappingUsageCount.get(key) || 0;
-        return currentMappings.has(key) || usage === 0;
-      });
-    });
-
-    return result;
-  }, [prepItems, allAvailableImportNames, mappingUsageCount]);
 
   return (
     <div className="min-h-screen overflow-hidden bg-[linear-gradient(180deg,#F6EFE6_0%,#F2E8DD_45%,#EBDDCE_100%)] text-[#34271F]">
@@ -344,6 +233,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                     <th className="px-3 py-2 text-left font-black uppercase">Sel.</th>
                     <th className="px-2 py-2 text-left font-black uppercase">Produit</th>
                     <th className="px-2 py-2 text-left font-black uppercase">Base</th>
+                    <th className="px-2 py-2 text-center font-black uppercase">Unité</th>
                     <th className="px-2 py-2 text-left font-black uppercase">Poste</th>
                     <th className="px-2 py-2 text-left font-black uppercase">Recherche import</th>
                     <th className="px-2 py-2 text-center font-black uppercase">Poids g</th>
@@ -355,7 +245,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                     <th className="px-3 py-2 text-center font-black uppercase">Ordre</th>
                   </tr>
                   <tr className="border-t border-[#E8D6C6] bg-[#F8EBDD]">
-                    <th colSpan={6} className="px-2 py-2 text-right text-[10px] font-black uppercase tracking-[0.14em] text-[#8A5A2F]">Figer mois prod</th>
+                    <th colSpan={7} className="px-2 py-2 text-right text-[10px] font-black uppercase tracking-[0.14em] text-[#8A5A2F]">Figer mois prod</th>
                     {MONTHS_ORDER.map((month) => {
                       const locked = !!prepValidatedMonths[month];
                       return (
@@ -374,69 +264,65 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                         </th>
                       );
                     })}
-                    <th colSpan={5} />
+                    <th colSpan={4} />
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((item, idx) => {
+                    const avgRatio = getAverageRatio(item);
                     const currentMappings = parseMappingNames(item.searchName);
-                    const rowAvailableNames = availableNamesByRowId[item.id] || [];
-                    const canOpenMapping = rowAvailableNames.length > 0;
-                    const monthStats = monthStatsById[item.id] || {};
-                    const avgRatio = averageRatioById[item.id] || 0;
+                    const usedElsewhere = new Set(
+                      prepItems
+                        .filter((other) => other.id !== item.id)
+                        .flatMap((other) => parseMappingNames(other.searchName))
+                        .map((name) => normalizeMappingName(name))
+                    );
+                    const selectedOnRow = new Set(currentMappings.map((name) => normalizeMappingName(name)));
+                    const rowOrphanNames = Array.from(allAvailableImportNames)
+                      .filter((name) => {
+                        const normalized = normalizeMappingName(name);
+                        return !selectedOnRow.has(normalized) && !usedElsewhere.has(normalized);
+                      })
+                      .sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
+                    const canOpenMapping = rowOrphanNames.length > 0;
+                    const alert = currentMappings.length === 0;
 
                     return (
                       <tr key={item.id} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
                         <td className="border-t border-[#E0CCBA] px-3 py-2 text-center"><input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} className="h-4 w-4" /></td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-2">
-                          <LocalTextInput
-                            value={item.name}
-                            disabled={!canEdit}
-                            onCommit={(value) => updateItem(item.id, { name: value })}
-                            className="w-[170px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 font-black outline-none"
-                          />
+                        <td className="border-t border-[#E0CCBA] px-2 py-2"><input value={item.name} disabled={!canEdit} onChange={(e) => updateItem(item.id, { name: e.target.value })} className="w-[170px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 font-black outline-none" /></td>
+                        <td className="border-t border-[#E0CCBA] px-2 py-2"><input value={getBaseProduction(item)} disabled={!canEdit} onChange={(e) => updateItem(item.id, { baseProduction: e.target.value })} className="w-[145px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2.5 py-2 text-xs font-bold outline-none" /></td>
+                        <td className="border-t border-[#E0CCBA] px-2 py-2 text-center">
+                          <select value={getStockUnit(item)} disabled={!canEdit} onChange={(e) => updateItem(item.id, { stockUnit: e.target.value as PrepStockUnit })} className="w-[92px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none">
+                            <option value="unit">Pièce</option>
+                            <option value="kg">Kg</option>
+                          </select>
                         </td>
                         <td className="border-t border-[#E0CCBA] px-2 py-2">
-                          <LocalTextInput
-                            value={getBaseProduction(item)}
-                            disabled={!canEdit}
-                            placeholder="Base mousse"
-                            onCommit={(value) => updateItem(item.id, { baseProduction: value })}
-                            className="w-[145px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 font-bold outline-none"
-                          />
-                        </td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-2">
-                          <select value={item.category} disabled={!canEdit} onChange={(e) => updateItem(item.id, { category: e.target.value as PrepCategory })} className="w-[130px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 font-bold outline-none">
+                          <select value={item.category} disabled={!canEdit} onChange={(e) => updateItem(item.id, { category: e.target.value as PrepCategory })} className="w-[128px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 font-bold outline-none">
                             {CATEGORY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                           </select>
                         </td>
                         <td className="border-t border-[#E0CCBA] px-2 py-2">
-                          <div className="min-w-[290px] rounded-2xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2">
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                disabled={currentMappings.length === 0}
-                                onClick={() => setActiveMappingId(activeMappingId === item.id ? null : item.id)}
-                                className="h-8 w-8 rounded-xl border border-[#D0B08D] bg-white text-[#6C3C2B] disabled:cursor-not-allowed disabled:opacity-40"
-                              >
-                                ▶
-                              </button>
+                          <div className={`min-w-[290px] rounded-2xl border px-3 py-3 shadow-sm ${alert ? 'border-amber-300 bg-amber-50/70' : 'border-[#D0B08D] bg-[#FFFDF9]'}`}>
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="text-[11px] font-bold text-slate-500">{currentMappings.length > 0 ? `${currentMappings.length} produit${currentMappings.length > 1 ? 's' : ''}` : 'Aucun produit lié'}</div>
                               <button
                                 type="button"
                                 disabled={!canOpenMapping}
                                 onClick={() => canOpenMapping && setActiveMappingId(activeMappingId === item.id ? null : item.id)}
-                                className="rounded-xl border border-[#D0B08D] bg-white px-5 py-2 text-xs font-black uppercase tracking-[0.12em] text-[#7A3B23] disabled:cursor-not-allowed disabled:opacity-40"
-                              >
-                                Ajouter
-                              </button>
-                              <span className="text-xs font-bold text-slate-500">
-                                {currentMappings.length > 0 ? `${currentMappings.length} produit${currentMappings.length > 1 ? 's' : ''}` : 'Aucun produit lié'}
-                              </span>
+                                className="h-9 w-9 shrink-0 rounded-xl border border-[#D0B08D] bg-white text-slate-600 disabled:cursor-not-allowed disabled:opacity-35"
+                                title={canOpenMapping ? 'Ajouter une référence import' : 'Aucun nom disponible'}
+                              >▶</button>
+                            </div>
+                            <div className="mt-2 flex items-center gap-2">
+                              <button type="button" disabled={!canOpenMapping} onClick={() => canOpenMapping && setActiveMappingId(activeMappingId === item.id ? null : item.id)} className="rounded-xl border border-[#D0B08D] bg-white px-4 py-1.5 text-sm font-black uppercase tracking-[0.08em] text-[#8A4A24] disabled:cursor-not-allowed disabled:opacity-40">Ajouter</button>
+                              <div className="text-[11px] font-bold text-slate-500">{currentMappings.length > 0 ? `${currentMappings.length} produit${currentMappings.length > 1 ? 's' : ''}` : 'Aucun produit lié'}</div>
                             </div>
                             {activeMappingId === item.id && (
                               <div className="relative mt-2">
                                 {currentMappings.length > 0 ? (
-                                  <div className="mb-2 flex flex-wrap gap-1.5 rounded-xl border border-[#E6D5C7] bg-[#FAF5EE] p-2">
+                                  <div className="mb-2 flex flex-wrap gap-1.5">
                                     {currentMappings.map((mapping) => (
                                       <span key={mapping} className="inline-flex items-center gap-1 rounded-full border border-[#D0B08D] bg-white px-2 py-1 text-[11px] font-bold text-[#5A3928]">
                                         {mapping}
@@ -449,27 +335,21 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                                 ) : null}
                                 {canOpenMapping ? (
                                   <MappingPopover
-                                    orphanNames={rowAvailableNames}
-                                    onSelect={(name) => { addMappingName(item, name); setActiveMappingId(item.id); }}
+                                    orphanNames={rowOrphanNames}
+                                    onSelect={(name) => { addMappingName(item, name); }}
                                     onClose={() => setActiveMappingId(null)}
                                   />
-                                ) : null}
+                                ) : (
+                                  <div className="rounded-xl border border-dashed border-[#D0B08D] bg-white px-3 py-2 text-[11px] font-bold text-slate-500">Toutes les références disponibles sont déjà utilisées.</div>
+                                )}
                               </div>
                             )}
                           </div>
                         </td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-2">
-                          <LocalNumberInput
-                            value={getUnitWeight(item)}
-                            disabled={!canEdit}
-                            placeholder="100"
-                            onCommit={(value) => updateItem(item.id, { unitWeightGrams: value })}
-                            className="w-[68px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none"
-                          />
-                        </td>
+                        <td className="border-t border-[#E0CCBA] px-2 py-2"><input type="number" value={getUnitWeight(item)} disabled={!canEdit} onChange={(e) => updateItem(item.id, { unitWeightGrams: e.target.value === '' ? '' : Number(e.target.value) || '' })} placeholder="100" className="w-[76px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" /></td>
                         {MONTHS_ORDER.map((month) => {
-                          const monthValue = Number(monthStats[month]?.value || 0);
-                          const monthRatio = Number(monthStats[month]?.ratio || 0);
+                          const monthValue = getMonthValue(item, month);
+                          const monthRatio = getMonthRatio(item, month);
                           return (
                             <td key={`${item.id}-${month}`} className="border-t border-[#E0CCBA] px-1.5 py-2 text-center">
                               <div className={`rounded-lg p-1 ${prepValidatedMonths[month] ? 'bg-indigo-50 border border-indigo-100' : monthValue > 0 ? 'bg-emerald-50' : 'bg-slate-50'}`}>
@@ -480,30 +360,9 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                           );
                         })}
                         <td className="border-t border-[#E0CCBA] px-3 py-2 text-center font-black text-[#A93E2A]">{avgRatio.toFixed(3)}</td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-2">
-                          <LocalNumberInput
-                            value={item.secondaryDlcHours ?? ''}
-                            disabled={!canEdit}
-                            onCommit={(value) => updateItem(item.id, { secondaryDlcHours: value })}
-                            className="w-[58px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none"
-                          />
-                        </td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-2">
-                          <LocalNumberInput
-                            value={item.targetBuffer as number | ''}
-                            disabled={!canEdit}
-                            onCommit={(value) => updateItem(item.id, { targetBuffer: value })}
-                            className="w-[58px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none"
-                          />
-                        </td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-2">
-                          <LocalTextInput
-                            value={item.notes || ''}
-                            disabled={!canEdit}
-                            onCommit={(value) => updateItem(item.id, { notes: value })}
-                            className="w-[96px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2.5 py-2 font-semibold outline-none"
-                          />
-                        </td>
+                        <td className="border-t border-[#E0CCBA] px-2 py-2"><input type="number" value={item.secondaryDlcHours} disabled={!canEdit} onChange={(e) => updateItem(item.id, { secondaryDlcHours: e.target.value === '' ? '' : Number(e.target.value) || '' })} className="w-[58px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" /></td>
+                        <td className="border-t border-[#E0CCBA] px-2 py-2"><input type="number" value={item.targetBuffer} disabled={!canEdit} onChange={(e) => updateItem(item.id, { targetBuffer: e.target.value === '' ? '' : Number(e.target.value) || '' })} className="w-[58px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" /></td>
+                        <td className="border-t border-[#E0CCBA] px-2 py-2"><input value={item.notes || ''} disabled={!canEdit} onChange={(e) => updateItem(item.id, { notes: e.target.value })} placeholder="Optionnel" className="w-[118px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2.5 py-2 font-semibold outline-none" /></td>
                         <td className="border-t border-[#E0CCBA] px-3 py-2"><div className="flex gap-1.5 justify-center"><button onClick={() => moveItem(item.id, 'up')} disabled={!canEdit || idx === 0} className="h-8 w-8 rounded-xl bg-slate-900 text-[#ffd700] disabled:opacity-20">↑</button><button onClick={() => moveItem(item.id, 'down')} disabled={!canEdit || idx === rows.length - 1} className="h-8 w-8 rounded-xl bg-slate-900 text-[#ffd700] disabled:opacity-20">↓</button></div></td>
                       </tr>
                     );
@@ -511,6 +370,23 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                   {rows.length === 0 && (<tr><td colSpan={20} className="px-6 py-10 text-center text-sm font-semibold text-slate-500">Aucune production. Ajoute d&apos;abord tes lignes ici, puis importe tes fichiers production dans Paramètres.</td></tr>)}
                 </tbody>
               </table>
+            </div>
+
+            <div className="border-t border-[#E0CCBA] bg-[#FFF9F3] px-4 py-3">
+              <div className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#7B5A46]">Aperçu bases production</div>
+              <div className="flex flex-wrap gap-2">
+                {basePreview.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-[#D7B79B] bg-white px-3 py-2 text-xs font-semibold text-slate-500">Renseigne une base et un poids sur au moins une ligne pour activer le regroupement.</div>
+                ) : (
+                  basePreview.map(([base, info]) => (
+                    <div key={base} className="rounded-xl border border-[#E7C78C] bg-[#FFF2D8] px-3 py-2 text-xs text-[#6C3C2B]">
+                      <div className="font-black uppercase">{base}</div>
+                      <div className="font-semibold">{info.count} ligne(s) • {info.totalWeight} g référencés</div>
+                      <div className="text-[10px] font-bold text-[#8A5A2F]">{info.mappingsCount} référence(s) import liées</div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </section>
         </main>
