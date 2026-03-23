@@ -45,6 +45,12 @@ type PrepItemExtended = PrepItem & {
   unitWeightGrams?: number | '';
 };
 
+type MonthStats = {
+  values: Record<string, number>;
+  ratios: Record<string, number>;
+  average: number;
+};
+
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 const defaultItem = (): PrepItemExtended => ({
@@ -74,6 +80,303 @@ const parseMappingNames = (value?: string) =>
 const joinMappingNames = (names: string[]) =>
   Array.from(new Map(names.map((name) => [normalizeMappingName(name), name.trim()])).values()).join(MAPPING_SEPARATOR);
 
+const textInputClass = 'rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 outline-none';
+
+const DraftTextInput = React.memo(function DraftTextInput({
+  value,
+  disabled,
+  placeholder,
+  className,
+  onCommit,
+}: {
+  value: string;
+  disabled?: boolean;
+  placeholder?: string;
+  className?: string;
+  onCommit: (value: string) => void;
+}) {
+  const [draft, setDraft] = React.useState(value);
+
+  React.useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
+  const commit = React.useCallback(() => {
+    if (draft !== value) onCommit(draft);
+  }, [draft, onCommit, value]);
+
+  return (
+    <input
+      value={draft}
+      disabled={disabled}
+      placeholder={placeholder}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          (e.currentTarget as HTMLInputElement).blur();
+        }
+      }}
+      className={className}
+    />
+  );
+});
+
+const DraftNumberInput = React.memo(function DraftNumberInput({
+  value,
+  disabled,
+  placeholder,
+  className,
+  onCommit,
+}: {
+  value: number | '';
+  disabled?: boolean;
+  placeholder?: string;
+  className?: string;
+  onCommit: (value: number | '') => void;
+}) {
+  const [draft, setDraft] = React.useState(value === '' ? '' : String(value));
+
+  React.useEffect(() => {
+    setDraft(value === '' ? '' : String(value));
+  }, [value]);
+
+  const commit = React.useCallback(() => {
+    const trimmed = draft.trim();
+    const nextValue = trimmed === '' ? '' : Number(trimmed);
+    const normalized = nextValue === '' || Number.isNaN(nextValue) ? '' : nextValue;
+    if (String(normalized) !== String(value)) onCommit(normalized);
+  }, [draft, onCommit, value]);
+
+  return (
+    <input
+      type="number"
+      value={draft}
+      disabled={disabled}
+      placeholder={placeholder}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          (e.currentTarget as HTMLInputElement).blur();
+        }
+      }}
+      className={className}
+    />
+  );
+});
+
+const PrepRatioRow = React.memo(function PrepRatioRow({
+  item,
+  idx,
+  totalRows,
+  monthStats,
+  prepValidatedMonths,
+  allAvailableImportNames,
+  mappingUsageCount,
+  selected,
+  canEdit,
+  onToggleSelected,
+  onUpdateItem,
+  onMoveItem,
+  onAddMappingName,
+  onRemoveMappingName,
+}: {
+  item: PrepItem;
+  idx: number;
+  totalRows: number;
+  monthStats: MonthStats;
+  prepValidatedMonths: Record<string, boolean>;
+  allAvailableImportNames: string[];
+  mappingUsageCount: Map<string, number>;
+  selected: boolean;
+  canEdit: boolean;
+  onToggleSelected: (id: string) => void;
+  onUpdateItem: (id: string, patch: Partial<PrepItemExtended>) => void;
+  onMoveItem: (id: string, direction: 'up' | 'down') => void;
+  onAddMappingName: (item: PrepItem, name: string) => void;
+  onRemoveMappingName: (item: PrepItem, name: string) => void;
+}) {
+  const [isExpanded, setIsExpanded] = React.useState(false);
+  const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
+
+  const currentMappings = React.useMemo(() => parseMappingNames(item.searchName), [item.searchName]);
+  const currentMappingSet = React.useMemo(
+    () => new Set(currentMappings.map((name) => normalizeMappingName(name))),
+    [currentMappings]
+  );
+
+  const rowOrphanNames = React.useMemo(
+    () =>
+      allAvailableImportNames
+        .filter((name) => {
+          const normalized = normalizeMappingName(name);
+          if (currentMappingSet.has(normalized)) return false;
+          return (mappingUsageCount.get(normalized) || 0) === 0;
+        })
+        .sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' })),
+    [allAvailableImportNames, currentMappingSet, mappingUsageCount]
+  );
+
+  const canOpenMapping = rowOrphanNames.length > 0;
+  const baseName = React.useMemo(() => getBaseProduction(item).trim(), [item]);
+
+  React.useEffect(() => {
+    if (!canOpenMapping && isPopoverOpen) setIsPopoverOpen(false);
+  }, [canOpenMapping, isPopoverOpen]);
+
+  return (
+    <tr className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
+      <td className="border-t border-[#E0CCBA] px-3 py-3 text-center align-top">
+        <input type="checkbox" checked={selected} onChange={() => onToggleSelected(item.id)} className="mt-2 h-4 w-4" />
+      </td>
+      <td className="border-t border-[#E0CCBA] px-2 py-3 align-top">
+        <DraftTextInput
+          value={item.name}
+          disabled={!canEdit}
+          onCommit={(value) => onUpdateItem(item.id, { name: value })}
+          placeholder={baseName || 'Nom affiché'}
+          className={`w-[170px] ${textInputClass} font-black`}
+        />
+      </td>
+      <td className="border-t border-[#E0CCBA] px-2 py-3 align-top">
+        <DraftTextInput
+          value={baseName}
+          disabled={!canEdit}
+          onCommit={(value) =>
+            onUpdateItem(item.id, {
+              baseProduction: value,
+              ...(String(item.name || '').trim() ? {} : { name: value }),
+            })
+          }
+          placeholder="Base mousse"
+          className={`w-[145px] ${textInputClass} font-bold`}
+        />
+      </td>
+      <td className="border-t border-[#E0CCBA] px-2 py-3 align-top">
+        <select
+          value={item.category}
+          disabled={!canEdit}
+          onChange={(e) => onUpdateItem(item.id, { category: e.target.value as PrepCategory })}
+          className="w-[130px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 font-bold outline-none"
+        >
+          {CATEGORY_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </td>
+      <td className="border-t border-[#E0CCBA] px-2 py-3 align-top">
+        <div className="relative min-w-[290px] rounded-2xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 shadow-sm">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsExpanded((prev) => !prev)}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-[#D0B08D] bg-white text-sm font-black text-[#6C3C2B]"
+              title={isExpanded ? 'Masquer les produits liés' : 'Voir les produits liés'}
+            >
+              {isExpanded ? '▾' : '▸'}
+            </button>
+            <button
+              type="button"
+              disabled={!canOpenMapping}
+              onClick={() => canOpenMapping && setIsPopoverOpen((prev) => !prev)}
+              className="inline-flex h-8 min-w-[110px] items-center justify-center rounded-xl border border-[#D0B08D] bg-white px-3 text-xs font-black uppercase tracking-[0.08em] text-[#6C3C2B] disabled:cursor-not-allowed disabled:opacity-35"
+            >
+              Ajouter
+            </button>
+            <div className="truncate text-xs font-bold text-slate-500">
+              {currentMappings.length > 0 ? `${currentMappings.length} produit${currentMappings.length > 1 ? 's' : ''}` : 'Aucun produit lié'}
+            </div>
+          </div>
+
+          {isExpanded && currentMappings.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-1.5 border-t border-[#E8D6C6] pt-2">
+              {currentMappings.map((mapping) => (
+                <span key={mapping} className="inline-flex items-center gap-1 rounded-full border border-[#D0B08D] bg-white px-2 py-1 text-[11px] font-bold text-[#5A3928]">
+                  {mapping}
+                  {canEdit ? (
+                    <button type="button" onClick={() => onRemoveMappingName(item, mapping)} className="text-[#A93E2A]">
+                      ×
+                    </button>
+                  ) : null}
+                </span>
+              ))}
+            </div>
+          ) : null}
+
+          {isPopoverOpen && canOpenMapping ? (
+            <div className="absolute left-0 top-[calc(100%+4px)] z-[999]">
+              <MappingPopover
+                orphanNames={rowOrphanNames}
+                onSelect={(name) => {
+                  onAddMappingName(item, name);
+                  setIsPopoverOpen(false);
+                }}
+                onClose={() => setIsPopoverOpen(false)}
+              />
+            </div>
+          ) : null}
+        </div>
+      </td>
+      <td className="border-t border-[#E0CCBA] px-2 py-3 align-top">
+        <DraftNumberInput
+          value={getUnitWeight(item)}
+          disabled={!canEdit}
+          onCommit={(value) => onUpdateItem(item.id, { unitWeightGrams: value })}
+          placeholder="100"
+          className="w-[72px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none"
+        />
+      </td>
+      {MONTHS_ORDER.map((month) => {
+        const monthValue = monthStats.values[month] || 0;
+        const monthRatio = monthStats.ratios[month] || 0;
+        return (
+          <td key={`${item.id}-${month}`} className="border-t border-[#E0CCBA] px-1.5 py-3 text-center align-top">
+            <div className={`rounded-lg p-1 ${prepValidatedMonths[month] ? 'border border-indigo-100 bg-indigo-50' : monthValue > 0 ? 'bg-emerald-50' : 'bg-slate-50'}`}>
+              <div className={`font-black text-[11px] leading-none ${prepValidatedMonths[month] ? 'text-indigo-800' : monthValue > 0 ? 'text-emerald-700' : 'text-slate-400'}`}>{monthValue || '–'}</div>
+              <div className="mt-1 text-[9px] font-mono text-slate-500">{monthRatio.toFixed(3)}</div>
+            </div>
+          </td>
+        );
+      })}
+      <td className="border-t border-[#E0CCBA] px-3 py-3 text-center align-top font-black text-[#A93E2A]">{monthStats.average.toFixed(3)}</td>
+      <td className="border-t border-[#E0CCBA] px-2 py-3 align-top">
+        <DraftNumberInput
+          value={item.secondaryDlcHours}
+          disabled={!canEdit}
+          onCommit={(value) => onUpdateItem(item.id, { secondaryDlcHours: value })}
+          className="w-[58px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none"
+        />
+      </td>
+      <td className="border-t border-[#E0CCBA] px-2 py-3 align-top">
+        <DraftNumberInput
+          value={item.targetBuffer}
+          disabled={!canEdit}
+          onCommit={(value) => onUpdateItem(item.id, { targetBuffer: value })}
+          className="w-[58px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none"
+        />
+      </td>
+      <td className="border-t border-[#E0CCBA] px-2 py-3 align-top">
+        <DraftTextInput
+          value={item.notes || ''}
+          disabled={!canEdit}
+          onCommit={(value) => onUpdateItem(item.id, { notes: value })}
+          placeholder="Optionnel"
+          className="w-[118px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2.5 py-2 font-semibold outline-none"
+        />
+      </td>
+      <td className="border-t border-[#E0CCBA] px-3 py-3 align-top">
+        <div className="flex justify-center gap-1.5">
+          <button onClick={() => onMoveItem(item.id, 'up')} disabled={!canEdit || idx === 0} className="h-8 w-8 rounded-xl bg-slate-900 text-[#ffd700] disabled:opacity-20">↑</button>
+          <button onClick={() => onMoveItem(item.id, 'down')} disabled={!canEdit || idx === totalRows - 1} className="h-8 w-8 rounded-xl bg-slate-900 text-[#ffd700] disabled:opacity-20">↓</button>
+        </div>
+      </td>
+    </tr>
+  );
+});
+
 const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   setView,
   covers,
@@ -87,25 +390,86 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   const canEdit = canEditRatios(profile);
 
   const [search, setSearch] = React.useState('');
+  const deferredSearch = React.useDeferredValue(search);
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
-  const [activeMappingId, setActiveMappingId] = React.useState<string | null>(null);
-  const [expandedMappings, setExpandedMappings] = React.useState<Set<string>>(new Set());
 
   const allAvailableImportNames = React.useMemo(
     () => extractAllNamesFromCsvs(prepImportsByMonth),
     [prepImportsByMonth]
   );
 
+  const mappingNamesById = React.useMemo(() => {
+    const map = new Map<string, string[]>();
+    prepItems.forEach((item) => {
+      map.set(item.id, parseMappingNames(item.searchName));
+    });
+    return map;
+  }, [prepItems]);
+
+  const mappingUsageCount = React.useMemo(() => {
+    const counts = new Map<string, number>();
+    mappingNamesById.forEach((names) => {
+      new Set(names.map((name) => normalizeMappingName(name))).forEach((normalized) => {
+        counts.set(normalized, (counts.get(normalized) || 0) + 1);
+      });
+    });
+    return counts;
+  }, [mappingNamesById]);
+
+  const monthStatsById = React.useMemo(() => {
+    const stats = new Map<string, MonthStats>();
+
+    prepItems.forEach((item) => {
+      const mappingNames = mappingNamesById.get(item.id) || [];
+      const values: Record<string, number> = {};
+      const ratios: Record<string, number> = {};
+      let total = 0;
+      let count = 0;
+
+      MONTHS_ORDER.forEach((month) => {
+        const monthValue = mappingNames.reduce((sum, mappingName) => {
+          const imported = getImportedValueForProduct(prepImportsByMonth[month], mappingName, '', ['Nombre']);
+          return sum + Number(imported || 0);
+        }, 0);
+
+        values[month] = monthValue;
+
+        const coversValue = Number(covers[month] || 0);
+        const frozenRatio = Number(item.ratioHistory?.[month] || 0);
+        const ratio = prepValidatedMonths[month] && frozenRatio > 0
+          ? frozenRatio
+          : coversValue > 0 && monthValue > 0
+            ? monthValue / coversValue
+            : 0;
+
+        ratios[month] = ratio;
+        if (ratio > 0) {
+          total += ratio;
+          count += 1;
+        }
+      });
+
+      stats.set(item.id, {
+        values,
+        ratios,
+        average: count > 0 ? total / count : 0,
+      });
+    });
+
+    return stats;
+  }, [covers, mappingNamesById, prepImportsByMonth, prepItems, prepValidatedMonths]);
+
   const rows = React.useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = deferredSearch.trim().toLowerCase();
+    if (!q) return prepItems;
+
     return prepItems.filter((item) => {
-      if (!q) return true;
       const name = String(item.name || '').toLowerCase();
       const base = getBaseProduction(item).toLowerCase();
-      const mappings = parseMappingNames(item.searchName).join(' ').toLowerCase();
+      const mappings = (mappingNamesById.get(item.id) || []).join(' ').toLowerCase();
       return name.includes(q) || base.includes(q) || mappings.includes(q);
     });
-  }, [prepItems, search]);
+  }, [deferredSearch, mappingNamesById, prepItems]);
 
   const updateItem = React.useCallback((id: string, patch: Partial<PrepItemExtended>) => {
     setPrepItems((prev) => prev.map((item) => (item.id === id ? ({ ...item, ...patch } as PrepItem) : item)));
@@ -154,63 +518,6 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
       searchName: joinMappingNames(current.filter((value) => normalizeMappingName(value) !== normalizedToRemove)),
     });
   }, [updateItem]);
-
-  const toggleExpandedMappings = React.useCallback((id: string) => {
-    setExpandedMappings((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
-
-  const getMonthValue = React.useCallback((item: PrepItem, month: string) => {
-    const mappingNames = parseMappingNames(item.searchName);
-    if (mappingNames.length === 0) return 0;
-
-    return mappingNames.reduce((sum, mappingName) => {
-      const imported = getImportedValueForProduct(prepImportsByMonth[month], mappingName, '', ['Nombre']);
-      return sum + Number(imported || 0);
-    }, 0);
-  }, [prepImportsByMonth]);
-
-  const getMonthRatio = React.useCallback((item: PrepItem, month: string) => {
-    const coversValue = Number(covers[month] || 0);
-    if (!coversValue) return 0;
-    if (prepValidatedMonths[month] && Number(item.ratioHistory[month] || 0) > 0) {
-      return Number(item.ratioHistory[month] || 0);
-    }
-    const imported = getMonthValue(item, month);
-    return imported > 0 ? imported / coversValue : 0;
-  }, [covers, getMonthValue, prepValidatedMonths]);
-
-  const getAverageRatio = React.useCallback((item: PrepItem) => {
-    let total = 0;
-    let count = 0;
-    MONTHS_ORDER.forEach((month) => {
-      const ratio = getMonthRatio(item, month);
-      if (ratio > 0) {
-        total += ratio;
-        count += 1;
-      }
-    });
-    return count > 0 ? total / count : 0;
-  }, [getMonthRatio]);
-
-  const usedMappingsByOtherRow = React.useMemo(() => {
-    const map = new Map<string, Set<string>>();
-    prepItems.forEach((item) => {
-      const own = new Set(parseMappingNames(item.searchName).map((name) => normalizeMappingName(name)));
-      const others = new Set<string>();
-      prepItems.forEach((other) => {
-        if (other.id === item.id) return;
-        parseMappingNames(other.searchName).forEach((name) => others.add(normalizeMappingName(name)));
-      });
-      own.forEach((name) => others.delete(name));
-      map.set(item.id, others);
-    });
-    return map;
-  }, [prepItems]);
 
   return (
     <div className="min-h-screen overflow-hidden bg-[linear-gradient(180deg,#F6EFE6_0%,#F2E8DD_45%,#EBDDCE_100%)] text-[#34271F]">
@@ -290,176 +597,25 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((item, idx) => {
-                    const avgRatio = getAverageRatio(item);
-                    const currentMappings = parseMappingNames(item.searchName);
-                    const selectedOnRow = new Set(currentMappings.map((name) => normalizeMappingName(name)));
-                    const usedElsewhere = usedMappingsByOtherRow.get(item.id) ?? new Set<string>();
-                    const rowOrphanNames = Array.from(allAvailableImportNames)
-                      .filter((name) => {
-                        const normalized = normalizeMappingName(name);
-                        return !selectedOnRow.has(normalized) && !usedElsewhere.has(normalized);
-                      })
-                      .sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
-                    const canOpenMapping = rowOrphanNames.length > 0;
-                    const baseName = getBaseProduction(item).trim();
-                    const isExpanded = expandedMappings.has(item.id);
-
-                    return (
-                      <tr key={item.id} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
-                        <td className="border-t border-[#E0CCBA] px-3 py-3 text-center align-top">
-                          <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} className="mt-2 h-4 w-4" />
-                        </td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-top">
-                          <input
-                            value={item.name}
-                            disabled={!canEdit}
-                            onChange={(e) => updateItem(item.id, { name: e.target.value })}
-                            placeholder={baseName || 'Nom affiché'}
-                            className="w-[170px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 font-black outline-none"
-                          />
-                        </td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-top">
-                          <input
-                            value={baseName}
-                            disabled={!canEdit}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              updateItem(item.id, {
-                                baseProduction: value,
-                                ...(String(item.name || '').trim() ? {} : { name: value }),
-                              });
-                            }}
-                            placeholder="Base mousse"
-                            className="w-[145px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 font-bold outline-none"
-                          />
-                        </td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-top">
-                          <select
-                            value={item.category}
-                            disabled={!canEdit}
-                            onChange={(e) => updateItem(item.id, { category: e.target.value as PrepCategory })}
-                            className="w-[130px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 font-bold outline-none"
-                          >
-                            {CATEGORY_OPTIONS.map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-top">
-                          <div className="relative min-w-[290px] rounded-2xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 shadow-sm">
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => toggleExpandedMappings(item.id)}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-[#D0B08D] bg-white text-sm font-black text-[#6C3C2B]"
-                                title={isExpanded ? 'Masquer les produits liés' : 'Voir les produits liés'}
-                              >
-                                {isExpanded ? '▾' : '▸'}
-                              </button>
-                              <button
-                                type="button"
-                                disabled={!canOpenMapping}
-                                onClick={() => canOpenMapping && setActiveMappingId(activeMappingId === item.id ? null : item.id)}
-                                className="inline-flex h-8 min-w-[110px] items-center justify-center rounded-xl border border-[#D0B08D] bg-white px-3 text-xs font-black uppercase tracking-[0.08em] text-[#6C3C2B] disabled:cursor-not-allowed disabled:opacity-35"
-                              >
-                                Ajouter
-                              </button>
-                              <div className="truncate text-xs font-bold text-slate-500">
-                                {currentMappings.length > 0 ? `${currentMappings.length} produit${currentMappings.length > 1 ? 's' : ''}` : 'Aucun produit lié'}
-                              </div>
-                            </div>
-
-                            {isExpanded && currentMappings.length > 0 ? (
-                              <div className="mt-2 flex flex-wrap gap-1.5 border-t border-[#E8D6C6] pt-2">
-                                {currentMappings.map((mapping) => (
-                                  <span key={mapping} className="inline-flex items-center gap-1 rounded-full border border-[#D0B08D] bg-white px-2 py-1 text-[11px] font-bold text-[#5A3928]">
-                                    {mapping}
-                                    {canEdit ? (
-                                      <button type="button" onClick={() => removeMappingName(item, mapping)} className="text-[#A93E2A]">
-                                        ×
-                                      </button>
-                                    ) : null}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : null}
-
-                            {activeMappingId === item.id && canOpenMapping ? (
-                              <div className="absolute left-0 top-[calc(100%+4px)] z-[999]">
-                                <MappingPopover
-                                  orphanNames={rowOrphanNames}
-                                  onSelect={(name) => {
-                                    addMappingName(item, name);
-                                    setActiveMappingId(null);
-                                  }}
-                                  onClose={() => setActiveMappingId(null)}
-                                />
-                              </div>
-                            ) : null}
-                          </div>
-                        </td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-top">
-                          <input
-                            type="number"
-                            value={getUnitWeight(item)}
-                            disabled={!canEdit}
-                            onChange={(e) => updateItem(item.id, { unitWeightGrams: e.target.value === '' ? '' : Number(e.target.value) || '' })}
-                            placeholder="100"
-                            className="w-[72px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none"
-                          />
-                        </td>
-                        {MONTHS_ORDER.map((month) => {
-                          const monthValue = getMonthValue(item, month);
-                          const monthRatio = getMonthRatio(item, month);
-                          return (
-                            <td key={`${item.id}-${month}`} className="border-t border-[#E0CCBA] px-1.5 py-3 text-center align-top">
-                              <div className={`rounded-lg p-1 ${prepValidatedMonths[month] ? 'border border-indigo-100 bg-indigo-50' : monthValue > 0 ? 'bg-emerald-50' : 'bg-slate-50'}`}>
-                                <div className={`font-black text-[11px] leading-none ${prepValidatedMonths[month] ? 'text-indigo-800' : monthValue > 0 ? 'text-emerald-700' : 'text-slate-400'}`}>{monthValue || '–'}</div>
-                                <div className="mt-1 text-[9px] font-mono text-slate-500">{monthRatio.toFixed(3)}</div>
-                              </div>
-                            </td>
-                          );
-                        })}
-                        <td className="border-t border-[#E0CCBA] px-3 py-3 text-center align-top font-black text-[#A93E2A]">{avgRatio.toFixed(3)}</td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-top">
-                          <input
-                            type="number"
-                            value={item.secondaryDlcHours}
-                            disabled={!canEdit}
-                            onChange={(e) => updateItem(item.id, { secondaryDlcHours: e.target.value === '' ? '' : Number(e.target.value) || '' })}
-                            className="w-[58px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none"
-                          />
-                        </td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-top">
-                          <input
-                            type="number"
-                            value={item.targetBuffer}
-                            disabled={!canEdit}
-                            onChange={(e) => updateItem(item.id, { targetBuffer: e.target.value === '' ? '' : Number(e.target.value) || '' })}
-                            className="w-[58px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none"
-                          />
-                        </td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-3 align-top">
-                          <input
-                            value={item.notes || ''}
-                            disabled={!canEdit}
-                            onChange={(e) => updateItem(item.id, { notes: e.target.value })}
-                            placeholder="Optionnel"
-                            className="w-[118px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2.5 py-2 font-semibold outline-none"
-                          />
-                        </td>
-                        <td className="border-t border-[#E0CCBA] px-3 py-3 align-top">
-                          <div className="flex justify-center gap-1.5">
-                            <button onClick={() => moveItem(item.id, 'up')} disabled={!canEdit || idx === 0} className="h-8 w-8 rounded-xl bg-slate-900 text-[#ffd700] disabled:opacity-20">↑</button>
-                            <button onClick={() => moveItem(item.id, 'down')} disabled={!canEdit || idx === rows.length - 1} className="h-8 w-8 rounded-xl bg-slate-900 text-[#ffd700] disabled:opacity-20">↓</button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {rows.map((item, idx) => (
+                    <PrepRatioRow
+                      key={item.id}
+                      item={item}
+                      idx={idx}
+                      totalRows={rows.length}
+                      monthStats={monthStatsById.get(item.id) || { values: {}, ratios: {}, average: 0 }}
+                      prepValidatedMonths={prepValidatedMonths}
+                      allAvailableImportNames={allAvailableImportNames}
+                      mappingUsageCount={mappingUsageCount}
+                      selected={selectedIds.has(item.id)}
+                      canEdit={canEdit}
+                      onToggleSelected={toggleSelected}
+                      onUpdateItem={updateItem}
+                      onMoveItem={moveItem}
+                      onAddMappingName={addMappingName}
+                      onRemoveMappingName={removeMappingName}
+                    />
+                  ))}
                   {rows.length === 0 ? (
                     <tr>
                       <td colSpan={20} className="px-6 py-10 text-center text-sm font-semibold text-slate-500">
