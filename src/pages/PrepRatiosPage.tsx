@@ -115,9 +115,9 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
     setPrepItems((prev) => prev.map((item) => item.id === id ? ({ ...item, ...patch } as PrepItem) : item));
   }, [setPrepItems]);
 
-  const addMappingName = (item: PrepItem, name: string) => {
+  const addMappingNames = (item: PrepItem, names: string[]) => {
     const current = parseMappingNames(item.searchName);
-    updateItem(item.id, { searchName: joinMappingNames([...current, name]) });
+    updateItem(item.id, { searchName: joinMappingNames([...current, ...names]) });
   };
 
   const removeMappingName = (item: PrepItem, name: string) => {
@@ -350,7 +350,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                                 <MappingPopover
                                   orphanNames={rowOrphanNames}
                                   selectedNames={currentMappings}
-                                  onSelect={(name) => { addMappingName(item, name); }}
+                                  onSelectMany={(names) => { addMappingNames(item, names); }}
                                   onRemove={(name) => removeMappingName(item, name)}
                                   onClose={() => setActiveMappingId(null)}
                                 />
