@@ -20,6 +20,7 @@ const CATEGORY_BANNERS: Record<PrepCategory, string> = {
 };
 
 const MAPPING_SEPARATOR = ' || ';
+type UnitType = 'piece' | 'kg';
 
 interface PrepSheetPageProps {
   setView: (v: View) => void;
@@ -29,76 +30,69 @@ interface PrepSheetPageProps {
   prepImportsByMonth: PrepImportsByMonth;
 }
 
-type PrepStockUnit = 'unit' | 'kg';
-
 type PrepItemExtended = PrepItem & {
   baseProduction?: string;
   unitWeightGrams?: number | '';
-  stockUnit?: PrepStockUnit;
+  unitType?: UnitType;
+  baseUnitType?: UnitType;
 };
 
 type ChildCalcRow = {
   label: string;
   needUnits: number;
-  need: number;
+  needKg: number;
   stock: number;
   toProduce: number;
+  toProduceKg: number;
   weightGrams: number;
-  stockUnit: PrepStockUnit;
-  notes?: string;
   stockKey: string;
-  maxDlcHours: number;
+  unitType: UnitType;
 };
 
 type BaseParentRow = {
   kind: 'base';
   baseProduction: string;
+  baseUnitType: UnitType;
   theoreticalKg: number;
+  theoreticalUnits: number;
   toProduceKg: number;
+  toProduceUnits: number;
   children: ChildCalcRow[];
 };
 
 type SingleBaseRow = {
   kind: 'single_base';
-  label: string;
+  baseProduction: string;
+  unitType: UnitType;
   theoreticalKg: number;
-  stockKg: number;
+  theoreticalUnits: number;
+  stock: number;
   toProduceKg: number;
-  stockKey: string;
-};
-
-type StandaloneKgRow = {
-  kind: 'item_kg';
-  label: string;
-  theoreticalKg: number;
-  stockKg: number;
-  toProduceKg: number;
+  toProduceUnits: number;
   stockKey: string;
 };
 
 type StandaloneRow = {
   kind: 'item';
   label: string;
-  need: number;
+  unitType: UnitType;
+  needUnits: number;
+  needKg: number;
   stock: number;
   toProduce: number;
+  toProduceKg: number;
   stockKey: string;
-  notes?: string;
-  maxDlcHours: number;
 };
 
-type DisplayRow = BaseParentRow | SingleBaseRow | StandaloneKgRow | StandaloneRow;
+type DisplayRow = BaseParentRow | SingleBaseRow | StandaloneRow;
 type StockState = Record<string, number>;
 
-const STOCK_STORAGE_KEY = 'prep-sheet-stocks-v3';
+const STOCK_STORAGE_KEY = 'prep-sheet-stocks-v4';
 
 const getBaseProduction = (item: PrepItem) => String((item as PrepItemExtended).baseProduction || '').trim();
 const getUnitWeight = (item: PrepItem) => Number((item as PrepItemExtended).unitWeightGrams || 0);
-const getStockUnit = (item: PrepItem): PrepStockUnit => {
-  const explicit = (item as PrepItemExtended).stockUnit;
-  if (explicit === 'kg' || explicit === 'unit') return explicit;
-  return getBaseProduction(item) && getUnitWeight(item) > 0 ? 'kg' : 'unit';
-};
+const getUnitType = (item: PrepItem): UnitType => ((item as PrepItemExtended).unitType === 'kg' ? 'kg' : 'piece');
+const getBaseUnitType = (item: PrepItem): UnitType => ((item as PrepItemExtended).baseUnitType === 'piece' ? 'piece' : 'kg');
 
 const parseMappingNames = (value?: string) =>
   String(value || '')
@@ -176,6 +170,7 @@ const roundUpToHalfKg = (valueKg: number) => {
 };
 
 const formatKg = (value: number) => `${value.toFixed(1).replace('.', ',')} kg`;
+const formatUnits = (value: number) => Number.isInteger(value) ? String(value) : value.toFixed(1);
 const buildStockKey = (date: string, category: PrepCategory, rowKey: string) => `${date}__${category}__${rowKey}`;
 
 const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, dailyCovers, covers, prepImportsByMonth }) => {
@@ -213,20 +208,22 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
         const averageRatio = getAverageRatio(item, covers, prepImportsByMonth);
         const dlcHours = Number(item.secondaryDlcHours || 24);
         const coversWindow = getFutureCoversForWindow(selectedDate, dailyCovers, dlcHours);
-        const need = averageRatio * coversWindow;
+        const needUnits = averageRatio * coversWindow;
+        const weightGrams = getUnitWeight(item);
         return {
           item,
-          need,
-          averageRatio,
+          needUnits,
+          needKg: (needUnits * weightGrams) / 1000,
           dlcHours,
           baseProduction: getBaseProduction(item),
-          weightGrams: getUnitWeight(item),
-          stockUnit: getStockUnit(item),
+          weightGrams,
+          unitType: getUnitType(item),
+          baseUnitType: getBaseUnitType(item),
         };
       });
 
       const baseGroups = new Map<string, typeof calcRows>();
-      const standaloneMap = new Map<string, StandaloneRow | StandaloneKgRow>();
+      const standaloneMap = new Map<string, StandaloneRow>();
 
       calcRows.forEach((row) => {
         if (row.baseProduction && row.weightGrams > 0) {
@@ -234,37 +231,24 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
           current.push(row);
           baseGroups.set(row.baseProduction, current);
         } else {
-          const rowKey = `itemname::${row.item.name.trim().toLowerCase()}::${row.stockUnit}`;
+          const rowKey = `itemname::${row.item.name.trim().toLowerCase()}::${row.unitType}`;
           const stockKey = buildStockKey(selectedDate, category, rowKey);
           const existing = standaloneMap.get(rowKey);
           if (!existing) {
-            if (row.stockUnit === 'kg' && row.weightGrams > 0) {
-              standaloneMap.set(rowKey, {
-                kind: 'item_kg',
-                label: row.item.name,
-                theoreticalKg: (row.need * row.weightGrams) / 1000,
-                stockKg: Number(stocks[stockKey] || 0),
-                toProduceKg: 0,
-                stockKey,
-              });
-            } else {
-              standaloneMap.set(rowKey, {
-                kind: 'item',
-                label: row.item.name,
-                need: row.need,
-                stock: Number(stocks[stockKey] || 0),
-                toProduce: 0,
-                stockKey,
-                notes: row.item.notes || '',
-                maxDlcHours: row.dlcHours,
-              });
-            }
-          } else if (existing.kind === 'item_kg') {
-            existing.theoreticalKg += (row.need * row.weightGrams) / 1000;
+            standaloneMap.set(rowKey, {
+              kind: 'item',
+              label: row.item.name,
+              unitType: row.unitType,
+              needUnits: row.needUnits,
+              needKg: row.needKg,
+              stock: Number(stocks[stockKey] || 0),
+              toProduce: 0,
+              toProduceKg: 0,
+              stockKey,
+            });
           } else {
-            existing.need += row.need;
-            existing.notes = [existing.notes, row.item.notes || ''].filter(Boolean).join(' • ');
-            existing.maxDlcHours = Math.max(existing.maxDlcHours, row.dlcHours);
+            existing.needUnits += row.needUnits;
+            existing.needKg += row.needKg;
           }
         }
       });
@@ -273,106 +257,77 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
 
       baseGroups.forEach((children, baseProduction) => {
         const merged = new Map<string, ChildCalcRow>();
+        const baseUnitType = children.find((child) => child.baseUnitType)?.baseUnitType ?? 'kg';
 
         children.forEach((child) => {
           const labelKey = child.item.name.trim().toLowerCase();
-          const stockKey = buildStockKey(selectedDate, category, `base::${baseProduction}::${labelKey}`);
+          const stockKey = buildStockKey(selectedDate, category, `base::${baseProduction}::${labelKey}::${child.unitType}`);
           const existing = merged.get(labelKey);
 
           if (!existing) {
+            const stock = Number(stocks[stockKey] || 0);
+            const toProduce = Math.max(0, Math.ceil(child.needUnits - (child.unitType === 'piece' ? stock : 0)));
+            const toProduceKg = roundUpToHalfKg(Math.max(0, child.needKg - (child.unitType === 'kg' ? stock : 0)));
             merged.set(labelKey, {
               label: child.item.name,
-              needUnits: child.need,
-              need: 0,
-              stock: Number(stocks[stockKey] || 0),
-              toProduce: 0,
+              needUnits: child.needUnits,
+              needKg: child.needKg,
+              stock,
+              toProduce,
+              toProduceKg,
               weightGrams: child.weightGrams,
-              stockUnit: child.stockUnit,
-              notes: child.item.notes || '',
               stockKey,
-              maxDlcHours: child.dlcHours,
+              unitType: child.unitType,
             });
             return;
           }
 
-          existing.needUnits += child.need;
+          existing.needUnits += child.needUnits;
+          existing.needKg += child.needKg;
           existing.weightGrams = Math.max(existing.weightGrams, child.weightGrams);
-          existing.stockUnit = existing.stockUnit === 'kg' || child.stockUnit === 'kg' ? 'kg' : 'unit';
-          existing.notes = [existing.notes, child.item.notes || ''].filter(Boolean).join(' • ');
-          existing.maxDlcHours = Math.max(existing.maxDlcHours, child.dlcHours);
+          existing.toProduce = Math.max(0, Math.ceil(existing.needUnits - (existing.unitType === 'piece' ? existing.stock : 0)));
+          existing.toProduceKg = roundUpToHalfKg(Math.max(0, existing.needKg - (existing.unitType === 'kg' ? existing.stock : 0)));
         });
 
-        const childrenRows = Array.from(merged.values()).map((child) => {
-          if (child.stockUnit === 'kg' && child.weightGrams > 0) {
-            const theoreticalKg = (child.needUnits * child.weightGrams) / 1000;
-            const netKg = Math.max(0, theoreticalKg - child.stock);
-            return {
-              ...child,
-              need: theoreticalKg,
-              toProduce: netKg,
-            };
-          }
-
-          return {
-            ...child,
-            need: child.needUnits,
-            toProduce: Math.max(0, Math.ceil(child.needUnits - child.stock)),
-          };
-        });
-
-        const theoreticalKg = childrenRows.reduce((sum, child) => sum + ((child.needUnits * child.weightGrams) / 1000), 0);
+        const childrenRows = Array.from(merged.values());
+        const theoreticalKg = childrenRows.reduce((sum, child) => sum + child.needKg, 0);
+        const theoreticalUnits = childrenRows.reduce((sum, child) => sum + child.needUnits, 0);
+        const toProduceKg = childrenRows.reduce((sum, child) => sum + (child.unitType === 'kg' ? child.toProduceKg : (child.toProduce * child.weightGrams) / 1000), 0);
+        const toProduceUnits = childrenRows.reduce((sum, child) => sum + child.toProduce, 0);
 
         if (childrenRows.length === 1) {
           const child = childrenRows[0];
-
-          if (child.stockUnit === 'kg' && child.weightGrams > 0) {
-            const stockKey = buildStockKey(selectedDate, category, `singlekg::${child.label.trim().toLowerCase()}`);
-            const stockKg = Number(stocks[stockKey] || 0);
-            const toProduceKg = roundUpToHalfKg(Math.max(0, theoreticalKg - stockKg));
-
-            displayRows.push({
-              kind: 'single_base',
-              label: child.label,
-              theoreticalKg,
-              stockKg,
-              toProduceKg,
-              stockKey,
-            });
-            return;
-          }
-
+          const stockKey = buildStockKey(selectedDate, category, `singlebase::${baseProduction.toLowerCase()}::${baseUnitType}`);
+          const stock = Number(stocks[stockKey] || 0);
           displayRows.push({
-            kind: 'item',
-            label: child.label,
-            need: child.need,
-            stock: child.stock,
-            toProduce: child.toProduce,
-            stockKey: child.stockKey,
-            notes: child.notes,
-            maxDlcHours: child.maxDlcHours,
+            kind: 'single_base',
+            baseProduction,
+            unitType: baseUnitType,
+            theoreticalKg,
+            theoreticalUnits,
+            stock,
+            toProduceKg: roundUpToHalfKg(Math.max(0, theoreticalKg - (baseUnitType === 'kg' ? stock : 0))),
+            toProduceUnits: Math.max(0, Math.ceil(theoreticalUnits - (baseUnitType === 'piece' ? stock : 0))),
+            stockKey,
           });
           return;
         }
 
-        const netKg = childrenRows.reduce((sum, child) => sum + (child.stockUnit === 'kg' ? child.toProduce : ((child.toProduce * child.weightGrams) / 1000)), 0);
-
         displayRows.push({
           kind: 'base',
           baseProduction,
+          baseUnitType,
           theoreticalKg,
-          toProduceKg: roundUpToHalfKg(netKg),
+          theoreticalUnits,
+          toProduceKg: roundUpToHalfKg(toProduceKg),
+          toProduceUnits,
           children: childrenRows,
         });
       });
 
       standaloneMap.forEach((row) => {
-        if (row.kind === 'item_kg') {
-          row.toProduceKg = roundUpToHalfKg(Math.max(0, row.theoreticalKg - row.stockKg));
-          displayRows.push(row);
-          return;
-        }
-
-        row.toProduce = Math.max(0, Math.ceil(row.need - row.stock));
+        row.toProduce = Math.max(0, Math.ceil(row.needUnits - (row.unitType === 'piece' ? row.stock : 0)));
+        row.toProduceKg = roundUpToHalfKg(Math.max(0, row.needKg - (row.unitType === 'kg' ? row.stock : 0)));
         displayRows.push(row);
       });
 
@@ -385,10 +340,8 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
     return groupedRows.filter((group) => group.category === activeCategory);
   }, [activeCategory, groupedRows]);
 
-  const getWindowLabel = (hours: number) => {
-    const days = getCoveredDaysCount(hours);
-    return `${hours} h • ${days * 2} services`;
-  };
+  const renderNeed = (unitType: UnitType, units: number, kg: number) => unitType === 'kg' ? formatKg(kg) : formatUnits(units);
+  const renderToProduce = (unitType: UnitType, units: number, kg: number) => unitType === 'kg' ? formatKg(kg) : formatUnits(units);
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#F6EFE6_0%,#F2E8DD_45%,#EBDDCE_100%)] text-[#34271F]">
@@ -473,10 +426,10 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
                                       <td className="border-t border-[#E0CCBA] px-3 py-2.5 align-middle">
                                         <div className="font-black uppercase text-[#4D2B18]">{row.baseProduction}</div>
                                       </td>
-                                      <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center text-[18px] font-black text-[#4D2B18]">{formatKg(row.theoreticalKg)}</td>
+                                      <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center text-[18px] font-black text-[#4D2B18]">{renderNeed(row.baseUnitType, row.theoreticalUnits, row.theoreticalKg)}</td>
                                       <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center text-[11px] font-bold text-slate-400">—</td>
                                       <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center">
-                                        <span className="inline-flex min-w-[86px] items-center justify-center rounded-xl bg-[#A93E2A] px-3 py-1.5 text-[18px] leading-none font-black text-white">{formatKg(row.toProduceKg)}</span>
+                                        <span className="inline-flex min-w-[86px] items-center justify-center rounded-xl bg-[#A93E2A] px-3 py-1.5 text-[18px] leading-none font-black text-white">{renderToProduce(row.baseUnitType, row.toProduceUnits, row.toProduceKg)}</span>
                                       </td>
                                     </tr>
 
@@ -485,12 +438,12 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
                                         <td className="border-t border-[#EAD9C9] px-3 py-2.5 align-middle">
                                           <div className="pl-4 font-black uppercase text-[#6A4A37]">— {child.label}</div>
                                         </td>
-                                        <td className="border-t border-[#EAD9C9] px-3 py-2.5 text-center text-[18px] font-black text-[#6A4A37]">{child.stockUnit === 'kg' ? formatKg(child.need) : child.need.toFixed(1)}</td>
+                                        <td className="border-t border-[#EAD9C9] px-3 py-2.5 text-center text-[18px] font-black text-[#6A4A37]">{renderNeed(child.unitType, child.needUnits, child.needKg)}</td>
                                         <td className="border-t border-[#EAD9C9] px-3 py-2.5 text-center">
-                                          <input type="number" min={0} step={child.stockUnit === 'kg' ? '0.1' : '1'} value={child.stock} onChange={(e) => setStockValue(child.stockKey, Number(e.target.value || 0))} className="w-[72px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-1.5 text-center font-black outline-none" />
+                                          <input type="number" min={0} step={child.unitType === 'kg' ? '0.1' : '1'} value={child.stock} onChange={(e) => setStockValue(child.stockKey, Number(e.target.value || 0))} className="w-[72px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-1.5 text-center font-black outline-none" />
                                         </td>
                                         <td className="border-t border-[#EAD9C9] px-3 py-2.5 text-center">
-                                          <span className="inline-flex min-w-[60px] items-center justify-center rounded-xl bg-[#C98C57] px-3 py-1.5 text-[18px] leading-none font-black text-white">{child.stockUnit === 'kg' ? formatKg(child.toProduce) : child.toProduce}</span>
+                                          <span className="inline-flex min-w-[60px] items-center justify-center rounded-xl bg-[#C98C57] px-3 py-1.5 text-[18px] leading-none font-black text-white">{renderToProduce(child.unitType, child.toProduce, child.toProduceKg)}</span>
                                         </td>
                                       </tr>
                                     ))}
@@ -500,33 +453,16 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
 
                               if (row.kind === 'single_base') {
                                 return (
-                                  <tr key={`${group.category}-${row.label}-${idx}`} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
+                                  <tr key={`${group.category}-${row.baseProduction}-${idx}`} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
                                     <td className="border-t border-[#E0CCBA] px-3 py-2.5 align-middle">
-                                      <div className="font-black uppercase text-[#4D2B18]">{row.label}</div>
+                                      <div className="font-black uppercase text-[#4D2B18]">{row.baseProduction}</div>
                                     </td>
-                                    <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center text-[18px] font-black text-[#4D2B18]">{formatKg(row.theoreticalKg)}</td>
+                                    <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center text-[18px] font-black text-[#4D2B18]">{renderNeed(row.unitType, row.theoreticalUnits, row.theoreticalKg)}</td>
                                     <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center">
-                                      <input type="number" min={0} step="0.1" value={row.stockKg} onChange={(e) => setStockValue(row.stockKey, Number(e.target.value || 0))} className="w-[72px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-1.5 text-center font-black outline-none" />
-                                    </td>
-                                    <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center">
-                                      <span className="inline-flex min-w-[86px] items-center justify-center rounded-xl bg-[#A93E2A] px-3 py-1.5 text-[18px] leading-none font-black text-white">{formatKg(row.toProduceKg)}</span>
-                                    </td>
-                                  </tr>
-                                );
-                              }
-
-                              if (row.kind === 'item_kg') {
-                                return (
-                                  <tr key={`${row.label}-${idx}`} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
-                                    <td className="border-t border-[#E0CCBA] px-3 py-2.5 align-middle">
-                                      <div className="font-black uppercase text-[#4D2B18]">{row.label}</div>
-                                    </td>
-                                    <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center text-[20px] font-black text-[#4D2B18]">{formatKg(row.theoreticalKg)}</td>
-                                    <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center">
-                                      <input type="number" min={0} step="0.1" value={row.stockKg} onChange={(e) => setStockValue(row.stockKey, Number(e.target.value || 0))} className="w-[72px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-1.5 text-center font-black outline-none" />
+                                      <input type="number" min={0} step={row.unitType === 'kg' ? '0.1' : '1'} value={row.stock} onChange={(e) => setStockValue(row.stockKey, Number(e.target.value || 0))} className="w-[72px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-1.5 text-center font-black outline-none" />
                                     </td>
                                     <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center">
-                                      <span className="inline-flex min-w-[86px] items-center justify-center rounded-xl bg-[#A93E2A] px-3 py-1.5 text-[20px] leading-none font-black text-white">{formatKg(row.toProduceKg)}</span>
+                                      <span className="inline-flex min-w-[86px] items-center justify-center rounded-xl bg-[#A93E2A] px-3 py-1.5 text-[18px] leading-none font-black text-white">{renderToProduce(row.unitType, row.toProduceUnits, row.toProduceKg)}</span>
                                     </td>
                                   </tr>
                                 );
@@ -537,12 +473,12 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
                                   <td className="border-t border-[#E0CCBA] px-3 py-2.5 align-middle">
                                     <div className="font-black uppercase text-[#4D2B18]">{row.label}</div>
                                   </td>
-                                  <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center text-[20px] font-black text-[#4D2B18]">{row.need.toFixed(1)}</td>
+                                  <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center text-[20px] font-black text-[#4D2B18]">{renderNeed(row.unitType, row.needUnits, row.needKg)}</td>
                                   <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center">
-                                    <input type="number" min={0} value={row.stock} onChange={(e) => setStockValue(row.stockKey, Number(e.target.value || 0))} className="w-[72px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-1.5 text-center font-black outline-none" />
+                                    <input type="number" min={0} step={row.unitType === 'kg' ? '0.1' : '1'} value={row.stock} onChange={(e) => setStockValue(row.stockKey, Number(e.target.value || 0))} className="w-[72px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-1.5 text-center font-black outline-none" />
                                   </td>
                                   <td className="border-t border-[#E0CCBA] px-3 py-2.5 text-center">
-                                    <span className="inline-flex min-w-[60px] items-center justify-center rounded-xl bg-[#A93E2A] px-3 py-1.5 text-[20px] leading-none font-black text-white">{row.toProduce}</span>
+                                    <span className="inline-flex min-w-[60px] items-center justify-center rounded-xl bg-[#A93E2A] px-3 py-1.5 text-[20px] leading-none font-black text-white">{renderToProduce(row.unitType, row.toProduce, row.toProduceKg)}</span>
                                   </td>
                                 </tr>
                               );
