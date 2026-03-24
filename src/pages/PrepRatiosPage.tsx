@@ -19,7 +19,9 @@ const MONTH_LABELS: Record<string, string> = {
 };
 
 const MAPPING_SEPARATOR = ' || ';
+
 type UnitType = 'piece' | 'kg';
+type MappingPopoverMode = 'selected' | 'picker';
 
 interface PrepRatiosPageProps {
   setView: (v: View) => void;
@@ -72,9 +74,11 @@ const parseMappingNames = (value?: string) =>
 const joinMappingNames = (names: string[]) =>
   Array.from(new Map(names.map((name) => [normalizeMappingName(name), name.trim()])).values()).join(MAPPING_SEPARATOR);
 
-const mappingCountLabel = (count: number) => {
-  if (count <= 0) return 'Aucun produit lié';
-  return `${count} produit${count > 1 ? 's' : ''}`;
+const onEnterBlur: React.KeyboardEventHandler<HTMLInputElement | HTMLTextAreaElement> = (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    event.currentTarget.blur();
+  }
 };
 
 const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
@@ -90,7 +94,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   const canEdit = canEditRatios(profile);
   const [search, setSearch] = React.useState('');
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
-  const [activeMappingId, setActiveMappingId] = React.useState<string | null>(null);
+  const [activePopover, setActivePopover] = React.useState<{ id: string; mode: MappingPopoverMode } | null>(null);
 
   const allAvailableImportNames = React.useMemo(
     () => extractAllNamesFromCsvs(prepImportsByMonth),
@@ -109,12 +113,13 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   }, [prepItems, search]);
 
   const updateItem = React.useCallback((id: string, patch: Partial<PrepItemExtended>) => {
-    setPrepItems((prev) => prev.map((item) => (item.id === id ? ({ ...item, ...patch } as PrepItem) : item)));
+    setPrepItems((prev) => prev.map((item) => item.id === id ? ({ ...item, ...patch } as PrepItem) : item));
   }, [setPrepItems]);
 
-  const addMappingName = React.useCallback((item: PrepItem, name: string) => {
+  const addMappingNames = React.useCallback((item: PrepItem, names: string[]) => {
+    if (names.length === 0) return;
     const current = parseMappingNames(item.searchName);
-    updateItem(item.id, { searchName: joinMappingNames([...current, name]) });
+    updateItem(item.id, { searchName: joinMappingNames([...current, ...names]) });
   }, [updateItem]);
 
   const removeMappingName = React.useCallback((item: PrepItem, name: string) => {
@@ -156,7 +161,12 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
     if (mappingNames.length === 0) return 0;
 
     return mappingNames.reduce((sum, mappingName) => {
-      const imported = getImportedValueForProduct(prepImportsByMonth[month], mappingName, '', ['Nombre']);
+      const imported = getImportedValueForProduct(
+        prepImportsByMonth[month],
+        mappingName,
+        '',
+        ['Nombre']
+      );
       return sum + Number(imported || 0);
     }, 0);
   };
@@ -195,7 +205,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
               </div>
             </div>
 
-            <button onClick={() => setView('home')} className="flex items-center justify-center gap-3 rounded-[20px] border border-[#D9A72B] bg-[linear-gradient(180deg,#F3C63D_0%,#E3A91F_100%)] px-4 py-4 text-center text-sm font-black uppercase tracking-[0.12em] text-[#4D2B18] shadow-[0_4px_0_#B8810F] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#B8810F]">Retour accueil</button>
+            <button onClick={() => setView('home')} className="rounded-[20px] border border-slate-300 bg-white px-4 py-4 text-sm font-black uppercase tracking-[0.12em] text-slate-700 shadow-sm">Retour accueil</button>
             <button onClick={() => setView('stats')} className="flex items-center justify-center gap-3 rounded-[20px] border border-[#D9A72B] bg-[linear-gradient(180deg,#F3C63D_0%,#E3A91F_100%)] px-4 py-4 text-center text-sm font-black uppercase tracking-[0.12em] text-[#4D2B18] shadow-[0_4px_0_#B8810F] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#B8810F]">Retour paramètres</button>
             <button onClick={() => setView('prep_sheet')} className="rounded-[20px] border border-[#2E8D63] bg-[linear-gradient(180deg,#39B37D_0%,#239062_100%)] px-4 py-4 text-center text-xs font-black uppercase tracking-[0.14em] text-white shadow-[0_4px_0_#196A48] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#196A48]">Ouvrir feuille de mise en place</button>
             <button onClick={addItem} disabled={!canEdit} className="rounded-[20px] border border-slate-300 bg-white px-4 py-4 text-sm font-black uppercase tracking-[0.12em] text-slate-700 shadow-sm disabled:opacity-50">Ajouter une production</button>
@@ -252,7 +262,6 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                     <th colSpan={5} />
                   </tr>
                 </thead>
-
                 <tbody>
                   {rows.map((item, idx) => {
                     const avgRatio = getAverageRatio(item);
@@ -270,100 +279,106 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                         return !selectedOnRow.has(normalized) && !usedElsewhere.has(normalized);
                       })
                       .sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
-                    const canOpenMapping = rowOrphanNames.length > 0;
+                    const canOpenPicker = rowOrphanNames.length > 0;
+                    const unitType = getUnitType(item);
+                    const baseUnitType = getBaseUnitType(item);
+                    const isSelectedPopoverOpen = activePopover?.id === item.id && activePopover.mode === 'selected';
+                    const isPickerPopoverOpen = activePopover?.id === item.id && activePopover.mode === 'picker';
 
                     return (
                       <tr key={item.id} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
-                        <td className="border-t border-[#E0CCBA] px-3 py-2 text-center">
-                          <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} className="h-4 w-4" />
-                        </td>
-
+                        <td className="border-t border-[#E0CCBA] px-3 py-2 text-center"><input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} className="h-4 w-4" /></td>
                         <td className="border-t border-[#E0CCBA] px-2 py-2">
                           <div className="flex items-center gap-2">
                             <input
-                              value={item.name || ''}
+                              key={`${item.id}-name-${item.name}`}
+                              defaultValue={item.name}
                               disabled={!canEdit}
-                              onChange={(e) => updateItem(item.id, { name: e.target.value })}
+                              onBlur={(e) => updateItem(item.id, { name: e.target.value })}
+                              onKeyDown={onEnterBlur}
                               className="w-[160px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 font-black outline-none"
                             />
-                            <select
-                              value={getUnitType(item)}
-                              disabled={!canEdit}
-                              onChange={(e) => updateItem(item.id, { unitType: e.target.value as UnitType })}
-                              className="w-[92px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 font-bold outline-none"
-                            >
+                            <select value={unitType} disabled={!canEdit} onChange={(e) => updateItem(item.id, { unitType: e.target.value as UnitType })} className="w-[92px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 font-bold outline-none">
                               <option value="piece">Pièce</option>
                               <option value="kg">Kg</option>
                             </select>
                           </div>
                         </td>
-
                         <td className="border-t border-[#E0CCBA] px-2 py-2">
                           <div className="flex items-center gap-2">
                             <input
-                              value={getBaseProduction(item)}
+                              key={`${item.id}-base-${getBaseProduction(item)}`}
+                              defaultValue={getBaseProduction(item)}
                               disabled={!canEdit}
-                              onChange={(e) => updateItem(item.id, { baseProduction: e.target.value })}
-                              className="w-[150px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 font-bold outline-none"
+                              onBlur={(e) => updateItem(item.id, { baseProduction: e.target.value })}
+                              onKeyDown={onEnterBlur}
+                              placeholder=""
+                              className="w-[145px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2.5 py-2 text-sm font-bold outline-none"
                             />
-                            <select
-                              value={getBaseUnitType(item)}
-                              disabled={!canEdit}
-                              onChange={(e) => updateItem(item.id, { baseUnitType: e.target.value as UnitType })}
-                              className="w-[92px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 font-bold outline-none"
-                            >
+                            <select value={baseUnitType} disabled={!canEdit} onChange={(e) => updateItem(item.id, { baseUnitType: e.target.value as UnitType })} className="w-[92px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 font-bold outline-none">
                               <option value="kg">Kg</option>
                               <option value="piece">Pièce</option>
                             </select>
                           </div>
                         </td>
-
                         <td className="border-t border-[#E0CCBA] px-2 py-2">
                           <select value={item.category} disabled={!canEdit} onChange={(e) => updateItem(item.id, { category: e.target.value as PrepCategory })} className="w-[118px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 font-bold outline-none">
                             {CATEGORY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                           </select>
                         </td>
-
                         <td className="border-t border-[#E0CCBA] px-2 py-2">
-                          <div className="relative flex w-[290px] items-center gap-2 rounded-2xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 shadow-sm">
-                            <button
-                              type="button"
-                              disabled={!canOpenMapping}
-                              onClick={() => canOpenMapping && setActiveMappingId(activeMappingId === item.id ? null : item.id)}
-                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#D0B08D] bg-white text-[#7B4B2F] disabled:cursor-not-allowed disabled:opacity-35"
-                              title={canOpenMapping ? 'Ajouter une référence import' : 'Aucun nom disponible'}
-                            >
-                              ▶
-                            </button>
-                            <button
-                              type="button"
-                              disabled={!canOpenMapping}
-                              onClick={() => canOpenMapping && setActiveMappingId(activeMappingId === item.id ? null : item.id)}
-                              className="min-w-[110px] rounded-xl border border-[#D0B08D] bg-white px-4 py-2 text-sm font-black uppercase tracking-[0.12em] text-[#8A4F27] disabled:cursor-not-allowed disabled:opacity-35"
-                            >
-                              Ajouter
-                            </button>
-                            <span className="text-xs font-bold text-slate-500">{mappingCountLabel(currentMappings.length)}</span>
-
-                            {activeMappingId === item.id && canOpenMapping && (
+                          <div className="relative w-[290px] rounded-2xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-2 shadow-sm">
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                disabled={currentMappings.length === 0}
+                                onClick={() => setActivePopover(isSelectedPopoverOpen ? null : { id: item.id, mode: 'selected' })}
+                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#D0B08D] bg-[#FFFDF9] text-[#6C3C2B] disabled:cursor-not-allowed disabled:opacity-35"
+                                title={currentMappings.length > 0 ? 'Voir les produits liés' : 'Aucun produit lié'}
+                              >
+                                ▶
+                              </button>
+                              <button
+                                type="button"
+                                disabled={!canOpenPicker}
+                                onClick={() => setActivePopover(isPickerPopoverOpen ? null : { id: item.id, mode: 'picker' })}
+                                className="h-9 min-w-[110px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 font-black uppercase tracking-[0.12em] text-[#A05A28] disabled:cursor-not-allowed disabled:opacity-35"
+                              >
+                                Ajouter
+                              </button>
+                              <div className="text-xs font-bold text-slate-500">
+                                {currentMappings.length > 0 ? `${currentMappings.length} produit${currentMappings.length > 1 ? 's' : ''}` : 'Aucun produit lié'}
+                              </div>
+                            </div>
+                            {(isSelectedPopoverOpen || isPickerPopoverOpen) && (
                               <div className="absolute left-0 top-[calc(100%+8px)] z-[999]">
                                 <MappingPopover
+                                  mode={isSelectedPopoverOpen ? 'selected' : 'picker'}
                                   orphanNames={rowOrphanNames}
-                                  onSelect={(name) => {
-                                    addMappingName(item, name);
-                                    setActiveMappingId(null);
+                                  selectedNames={currentMappings}
+                                  onSelectMany={(names) => {
+                                    addMappingNames(item, names);
+                                    setActivePopover(null);
                                   }}
-                                  onClose={() => setActiveMappingId(null)}
+                                  onRemove={(name) => removeMappingName(item, name)}
+                                  onClose={() => setActivePopover(null)}
                                 />
                               </div>
                             )}
                           </div>
                         </td>
-
                         <td className="border-t border-[#E0CCBA] px-2 py-2">
-                          <input type="number" value={getUnitWeight(item)} disabled={!canEdit} onChange={(e) => updateItem(item.id, { unitWeightGrams: e.target.value === '' ? '' : Number(e.target.value) || '' })} className="w-[68px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" />
+                          <input
+                            key={`${item.id}-weight-${getUnitWeight(item)}`}
+                            type="number"
+                            defaultValue={getUnitWeight(item) === '' ? '' : String(getUnitWeight(item))}
+                            disabled={!canEdit}
+                            onBlur={(e) => updateItem(item.id, { unitWeightGrams: e.target.value === '' ? '' : Number(e.target.value) || '' })}
+                            onKeyDown={onEnterBlur}
+                            placeholder="100"
+                            className="w-[68px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none"
+                          />
                         </td>
-
                         {MONTHS_ORDER.map((month) => {
                           const monthValue = getMonthValue(item, month);
                           const monthRatio = getMonthRatio(item, month);
@@ -376,25 +391,45 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                             </td>
                           );
                         })}
-
                         <td className="border-t border-[#E0CCBA] px-3 py-2 text-center font-black text-[#A93E2A]">{avgRatio.toFixed(3)}</td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-2"><input type="number" value={item.secondaryDlcHours} disabled={!canEdit} onChange={(e) => updateItem(item.id, { secondaryDlcHours: e.target.value === '' ? '' : Number(e.target.value) || '' })} className="w-[58px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" /></td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-2"><input type="number" value={item.targetBuffer} disabled={!canEdit} onChange={(e) => updateItem(item.id, { targetBuffer: e.target.value === '' ? '' : Number(e.target.value) || '' })} className="w-[58px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none" /></td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-2"><input value={item.notes || ''} disabled={!canEdit} onChange={(e) => updateItem(item.id, { notes: e.target.value })} placeholder="Optionnel" className="w-[118px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2.5 py-2 font-semibold outline-none" /></td>
-                        <td className="border-t border-[#E0CCBA] px-3 py-2">
-                          <div className="flex justify-center gap-1.5">
-                            <button onClick={() => moveItem(item.id, 'up')} disabled={!canEdit || idx === 0} className="h-8 w-8 rounded-xl bg-slate-900 text-[#ffd700] disabled:opacity-20">↑</button>
-                            <button onClick={() => moveItem(item.id, 'down')} disabled={!canEdit || idx === rows.length - 1} className="h-8 w-8 rounded-xl bg-slate-900 text-[#ffd700] disabled:opacity-20">↓</button>
-                          </div>
+                        <td className="border-t border-[#E0CCBA] px-2 py-2">
+                          <input
+                            key={`${item.id}-dlc-${item.secondaryDlcHours}`}
+                            type="number"
+                            defaultValue={item.secondaryDlcHours}
+                            disabled={!canEdit}
+                            onBlur={(e) => updateItem(item.id, { secondaryDlcHours: e.target.value === '' ? '' : Number(e.target.value) || '' })}
+                            onKeyDown={onEnterBlur}
+                            className="w-[58px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none"
+                          />
                         </td>
+                        <td className="border-t border-[#E0CCBA] px-2 py-2">
+                          <input
+                            key={`${item.id}-buffer-${item.targetBuffer}`}
+                            type="number"
+                            defaultValue={item.targetBuffer === '' ? '' : String(item.targetBuffer)}
+                            disabled={!canEdit}
+                            onBlur={(e) => updateItem(item.id, { targetBuffer: e.target.value === '' ? '' : Number(e.target.value) || '' })}
+                            onKeyDown={onEnterBlur}
+                            className="w-[58px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 py-2 text-center font-black outline-none"
+                          />
+                        </td>
+                        <td className="border-t border-[#E0CCBA] px-2 py-2">
+                          <input
+                            key={`${item.id}-notes-${item.notes || ''}`}
+                            defaultValue={item.notes || ''}
+                            disabled={!canEdit}
+                            onBlur={(e) => updateItem(item.id, { notes: e.target.value })}
+                            onKeyDown={onEnterBlur}
+                            placeholder="Optionnel"
+                            className="w-[118px] rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2.5 py-2 font-semibold outline-none"
+                          />
+                        </td>
+                        <td className="border-t border-[#E0CCBA] px-3 py-2"><div className="flex gap-1.5 justify-center"><button onClick={() => moveItem(item.id, 'up')} disabled={!canEdit || idx === 0} className="h-8 w-8 rounded-xl bg-slate-900 text-[#ffd700] disabled:opacity-20">↑</button><button onClick={() => moveItem(item.id, 'down')} disabled={!canEdit || idx === rows.length - 1} className="h-8 w-8 rounded-xl bg-slate-900 text-[#ffd700] disabled:opacity-20">↓</button></div></td>
                       </tr>
                     );
                   })}
-                  {rows.length === 0 && (
-                    <tr>
-                      <td colSpan={20} className="px-6 py-10 text-center text-sm font-semibold text-slate-500">Aucune production. Ajoute d'abord tes lignes ici, puis importe tes fichiers production dans Paramètres.</td>
-                    </tr>
-                  )}
+                  {rows.length === 0 && (<tr><td colSpan={22} className="px-6 py-10 text-center text-sm font-semibold text-slate-500">Aucune production. Ajoute d&apos;abord tes lignes ici, puis importe tes fichiers production dans Paramètres.</td></tr>)}
                 </tbody>
               </table>
             </div>
