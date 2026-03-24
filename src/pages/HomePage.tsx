@@ -14,6 +14,8 @@ type HomeCardProps = {
   accent: string;
   accent2: string;
   shadow: string;
+  edge: string;
+  iconTone: string;
   onClick: () => void;
   icon: React.ReactNode;
 };
@@ -23,6 +25,8 @@ const HomeCard: React.FC<HomeCardProps> = ({
   accent,
   accent2,
   shadow,
+  edge,
+  iconTone,
   onClick,
   icon,
 }) => {
@@ -32,26 +36,50 @@ const HomeCard: React.FC<HomeCardProps> = ({
       className="group relative mx-auto w-full max-w-[350px]"
     >
       <div
-        className="absolute inset-0 translate-x-[10px] translate-y-[10px] rounded-[26px] border border-black/20"
+        className="absolute inset-0 translate-x-[12px] translate-y-[12px] rounded-[28px]"
         style={{
-          background: 'linear-gradient(180deg, rgba(58,45,38,0.82) 0%, rgba(88,70,58,0.72) 100%)',
-          boxShadow: '0 16px 28px rgba(0,0,0,0.28)',
+          background: 'linear-gradient(180deg, rgba(74,53,41,0.95) 0%, rgba(47,31,23,0.96) 100%)',
+          boxShadow: '0 18px 34px rgba(0,0,0,0.34)',
         }}
       />
 
       <div
-        className="relative overflow-hidden rounded-[26px] border border-white/22 px-7 py-7"
+        className="relative overflow-hidden rounded-[28px] border border-white/55 px-7 py-7"
         style={{
-          background: `linear-gradient(180deg, ${accent} 0%, ${accent2} 58%, ${shadow} 100%)`,
+          background: `linear-gradient(180deg, ${accent} 0%, ${accent2} 52%, ${shadow} 100%)`,
           boxShadow:
-            'inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -1px 0 rgba(70,40,25,0.18), 0 10px 24px rgba(48,22,12,0.22)',
+            'inset 0 2px 0 rgba(255,255,255,0.65), inset 0 -2px 0 rgba(82,48,27,0.30), 0 12px 28px rgba(63,33,18,0.26)',
         }}
       >
-        <div className="absolute inset-x-6 top-0 h-[4px] rounded-b-full bg-white/55" />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.18)_0%,rgba(255,255,255,0.03)_35%,rgba(0,0,0,0.06)_100%)]" />
+        <div
+          className="absolute inset-x-8 top-0 h-[4px] rounded-b-full"
+          style={{ background: 'rgba(255,255,255,0.65)' }}
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(180deg, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.10) 22%, rgba(255,255,255,0.02) 44%, rgba(0,0,0,0.03) 74%, rgba(0,0,0,0.12) 100%)',
+          }}
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'radial-gradient(circle at 50% 8%, rgba(255,255,255,0.22), transparent 32%), radial-gradient(circle at 50% 100%, rgba(0,0,0,0.10), transparent 38%)',
+          }}
+        />
 
-        <div className="relative flex min-h-[148px] flex-col items-center justify-center gap-5 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/35 bg-white/18 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]">
+        <div className="relative flex min-h-[150px] flex-col items-center justify-center gap-5 text-center">
+          <div
+            className="flex h-12 w-12 items-center justify-center rounded-full border"
+            style={{
+              borderColor: 'rgba(255,255,255,0.35)',
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.06) 100%)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.28)',
+              color: iconTone,
+            }}
+          >
             {icon}
           </div>
 
@@ -62,6 +90,11 @@ const HomeCard: React.FC<HomeCardProps> = ({
             {title}
           </h2>
         </div>
+
+        <div
+          className="pointer-events-none absolute inset-0 rounded-[28px]"
+          style={{ boxShadow: `0 0 0 1px ${edge} inset` }}
+        />
       </div>
     </button>
   );
@@ -104,7 +137,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         className="pointer-events-none absolute inset-0 z-0"
         style={{
           background:
-            'linear-gradient(180deg, rgba(78,34,18,0.20) 0%, rgba(50,20,11,0.18) 45%, rgba(31,13,8,0.28) 100%)',
+            'linear-gradient(180deg, rgba(78,34,18,0.16) 0%, rgba(50,20,11,0.15) 45%, rgba(31,13,8,0.24) 100%)',
         }}
       />
 
@@ -112,7 +145,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         className="pointer-events-none absolute inset-0 z-0"
         style={{
           background:
-            'radial-gradient(circle at 50% 18%, rgba(204,128,74,0.16), transparent 32%), radial-gradient(circle at 50% 100%, rgba(137,70,38,0.16), transparent 34%)',
+            'radial-gradient(circle at 50% 18%, rgba(204,128,74,0.10), transparent 32%), radial-gradient(circle at 50% 100%, rgba(137,70,38,0.12), transparent 34%)',
         }}
       />
 
@@ -139,12 +172,14 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           >
             <HomeCard
               title="Commandes"
-              accent="#f7b0aa"
-              accent2="#e77268"
-              shadow="#be4138"
+              accent="#ef9a93"
+              accent2="#d75a4f"
+              shadow="#ab332a"
+              edge="rgba(255,255,255,0.26)"
+              iconTone="#b52a22"
               onClick={() => setView('suppliers')}
               icon={
-                <svg className="h-5 w-5 text-[#b42d24]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 10H4L5 9z" />
                 </svg>
               }
@@ -153,12 +188,14 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
             {showStats && (
               <HomeCard
                 title="Paramètres"
-                accent="#f8e08b"
-                accent2="#ddb138"
-                shadow="#b98414"
+                accent="#efd36f"
+                accent2="#d8aa28"
+                shadow="#ae7e10"
+                edge="rgba(255,255,255,0.24)"
+                iconTone="#9e6a06"
                 onClick={() => setView('stats')}
                 icon={
-                  <svg className="h-5 w-5 text-[#a06b08]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M7 5v14M12 5v14M17 5v14" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M5 8h4M10 15h4M15 10h4" />
                   </svg>
@@ -168,12 +205,14 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
 
             <HomeCard
               title={'Feuille de\nMise en Place'}
-              accent="#f2c294"
-              accent2="#d88b53"
-              shadow="#b56632"
+              accent="#e8b382"
+              accent2="#cf7d42"
+              shadow="#a95d2b"
+              edge="rgba(255,255,255,0.23)"
+              iconTone="#9f5122"
               onClick={() => setView('prep_sheet')}
               icon={
-                <svg className="h-5 w-5 text-[#a85626]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <rect x="7" y="4" width="10" height="16" rx="2" strokeWidth="2.2" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M10 9h4M10 13h4" />
                 </svg>
@@ -182,12 +221,14 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
 
             <HomeCard
               title={'Analyse\nCoût Matière'}
-              accent="#f4d28a"
-              accent2="#d79a35"
-              shadow="#b87518"
+              accent="#e8c06a"
+              accent2="#cb9322"
+              shadow="#a86f0f"
+              edge="rgba(255,255,255,0.22)"
+              iconTone="#99610d"
               onClick={() => setView('cost_analysis')}
               icon={
-                <svg className="h-5 w-5 text-[#a96a11]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M5 18h14" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M7 16V9M12 16V6M17 16V11" />
                 </svg>
