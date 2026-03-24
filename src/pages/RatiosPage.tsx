@@ -309,7 +309,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
   );
 
   return (
-    <div className="min-h-screen bg-[#f1f5f9] p-2 lg:p-4 pb-24 lg:pb-12 font-sans text-[10px]">
+    <div className="min-h-screen bg-[#EFE5D8] p-2 lg:p-3 pb-24 lg:pb-10 font-sans text-[10px]">
 
       {Header}
 
@@ -370,12 +370,12 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
         <div
           ref={ratiosScrollRef}
           onScroll={() => syncRatiosScroll('main')}
-          className="bg-white border border-slate-200 rounded-[40px] shadow-2xl overflow-x-auto overflow-y-visible [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="relative overflow-x-auto overflow-y-visible rounded-[28px] border border-[#D7B79B] bg-[#FAF5EE] shadow-[0_16px_32px_rgba(145,105,75,0.10)] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          <table className="border-collapse min-w-[3400px]">
+          <table className="min-w-[3400px] border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-900 text-white">
-                <th className="border-r border-slate-700 p-5 text-center w-16 sticky left-0 z-40 bg-slate-900 font-black text-xs" rowSpan={3}>
+              <tr className="bg-[#F4E4D2] text-[#6C3C2B]">
+                <th className="border-r border-[#E0CCBA] p-4 text-center w-16 font-black uppercase" rowSpan={3}>
                   <input
                     type="checkbox"
                     className="w-5 h-5 accent-indigo-500 cursor-pointer"
@@ -388,51 +388,51 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                     )}
                   />
                 </th>
-                <th className="border-r border-slate-700 p-5 text-left w-[420px] sticky left-16 z-30 bg-slate-900 font-black text-sm" rowSpan={3}>
+                <th className="sticky left-0 z-30 border-r border-[#E0CCBA] bg-[#F4E4D2] px-4 py-4 text-left font-black uppercase min-w-[420px]" rowSpan={3}>
                   Produit Hippopotamus
                 </th>
-                <th className="border-r border-slate-700 p-5 text-left w-64 sticky left-[calc(4rem+420px)] z-30 bg-slate-900 font-black text-sm" rowSpan={3}>
+                <th className="border-r border-[#E0CCBA] px-4 py-4 text-left font-black uppercase min-w-[260px]" rowSpan={3}>
                   Mapping Import
                 </th>
-                <th className="border-r border-slate-700 p-5 text-center w-40 bg-slate-900 font-black text-sm" rowSpan={3}>
+                <th className="border-r border-[#E0CCBA] px-3 py-4 text-center font-black uppercase min-w-[140px]" rowSpan={3}>
                   ÷ KG→U
                 </th>
-                <th className="border-b border-slate-700 p-3 bg-blue-600 text-white font-black uppercase tracking-widest text-[12px]" colSpan={12}>
+                <th className="border-b border-[#E0CCBA] bg-[linear-gradient(180deg,#A93E2A_0%,#912F20_55%,#782219_100%)] p-3 text-[12px] font-black uppercase tracking-[0.14em] text-[#FFF8F1]" colSpan={12}>
                   Volumes de Ventes
                 </th>
-                <th className="border-b border-slate-700 p-3 bg-emerald-600 text-white font-black uppercase tracking-widest text-[12px]" colSpan={12}>
+                <th className="border-b border-[#E0CCBA] bg-[linear-gradient(180deg,#39B37D_0%,#239062_100%)] p-3 text-[12px] font-black uppercase tracking-[0.14em] text-white" colSpan={12}>
                   Analyse Ratios
                 </th>
-                <th className="p-3 bg-amber-500 font-black text-xs text-white" rowSpan={3}>
+                <th className="bg-[#E3A91F] p-3 text-xs font-black text-white" rowSpan={3}>
                   Moyenne Ratios
                 </th>
               </tr>
-              <tr className="bg-slate-800 text-white">
+              <tr className="bg-[#6C3C2B] text-[#FFF8F1]">
                 {MONTHS_ORDER.map(m => (
-                  <th key={m} className={`border-r border-slate-700 p-2 min-w-[100px] text-[9px] font-black ${validatedMonths[m] ? 'bg-indigo-900' : ''}`}>
+                  <th key={m} className={`border-r border-[#8C5B45] p-2 min-w-[100px] text-[9px] font-black ${validatedMonths[m] ? 'bg-[#8B2D22]' : ''}`}>
                     {m.toUpperCase()}
                   </th>
                 ))}
                 {MONTHS_ORDER.map(m => (
-                  <th key={m + 'r'} className="border-r border-slate-700 p-2 min-w-[100px] text-[9px] font-black">
+                  <th key={m + 'r'} className="border-r border-[#8C5B45] p-2 min-w-[100px] text-[9px] font-black">
                     {m.toUpperCase()}
                   </th>
                 ))}
               </tr>
-              <tr className="bg-slate-700 text-white">
+              <tr className="bg-[#F8EBDD] text-[#6C3C2B]">
                 {MONTHS_ORDER.map(m => (
-                  <th key={m + 'b'} className={`border-r border-slate-600 p-2 ${validatedMonths[m] ? 'bg-indigo-800' : ''}`}>
+                  <th key={m + 'b'} className={`border-r border-[#E0CCBA] p-2 ${validatedMonths[m] ? 'bg-[#F3E7D7]' : ''}`}>
                     <button
                       onClick={() => state.toggleValidateMonth(m)}
                     disabled={!canEdit}
-                      className={`w-full py-2 px-3 rounded-lg font-black text-[9px] uppercase disabled:opacity-50 disabled:cursor-not-allowed ${validatedMonths[m] ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'}`}
+                      className={`w-full rounded-xl px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] disabled:opacity-50 disabled:cursor-not-allowed ${validatedMonths[m] ? 'border border-emerald-700 bg-emerald-600 text-white' : 'border border-amber-300 bg-white text-[#8A5A2F]'}`}
                     >
                       {validatedMonths[m] ? 'Figé' : 'Valider'}
                     </button>
                   </th>
                 ))}
                 {MONTHS_ORDER.map(m => (
-                  <th key={m + 'ri'} className="border-r border-slate-600 p-2 bg-emerald-900/20 text-[8px] italic">
+                  <th key={m + 'ri'} className="border-r border-[#E0CCBA] bg-[#F8EBDD] p-2 text-[8px] italic text-[#8A5A2F]">
                     Auto-Calcul
                   </th>
                 ))}
@@ -448,9 +448,9 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                 return (
                   <tr
                     key={p.id}
-                    className={`hover:bg-slate-50 border-b border-slate-100 h-16 group transition-colors ${selectedProductIds.has(p.id) ? 'bg-indigo-50/30' : ''}`}
+                    className={`group h-16 border-b border-[#E0CCBA] transition-colors ${selectedProductIds.has(p.id) ? 'bg-[#F3E7D7]' : idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}`}
                   >
-                    <td className={`border-r border-slate-200 text-center sticky left-0 z-20 ${selectedProductIds.has(p.id) ? 'bg-indigo-50' : 'bg-white'}`}>
+                    <td className="border-r border-[#E0CCBA] text-center">
                       <input type="checkbox" className="w-5 h-5 accent-indigo-600 cursor-pointer"
                         checked={selectedProductIds.has(p.id)}
                         onChange={() => state.toggleProductSelection(p.id)}
@@ -458,10 +458,10 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                       />
                     </td>
 
-                    <td className={`border-r border-slate-200 p-0 sticky left-16 z-20 font-black uppercase text-[11px] ${selectedProductIds.has(p.id) ? 'bg-indigo-50' : 'bg-white'}`}>
+                    <td className="sticky left-0 z-20 border-r border-[#E0CCBA] bg-inherit p-0 text-[11px] font-black uppercase">
                       <div className="flex items-center w-full h-full pr-4 gap-2">
                         <input
-                          className="flex-1 h-full bg-transparent px-4 outline-none focus:bg-white font-black text-slate-900"
+                          className="h-full flex-1 bg-transparent px-4 font-black text-[#24160F] outline-none focus:bg-[#FFFDF9]"
                           value={p.name}
                           placeholder="NOM PRODUIT..."
                           onChange={e => state.handleNameChange(p.id, e.target.value)}
@@ -469,27 +469,27 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                         />
                         <div className="flex flex-col items-center justify-center gap-1 opacity-20 group-hover:opacity-100 transition-opacity pr-2">
                           <button onClick={() => state.moveProduct(p.id, 'up')} disabled={!canEdit || idx === 0}
-                            className="text-[#ffd700] hover:text-white disabled:opacity-0 active:scale-110 p-1 bg-slate-900 rounded shadow-md border border-[#ffd700]/20">
+                            className="rounded-md border border-[#D0B08D] bg-[#CFC9C3] p-1 text-[#FFF6C9] shadow-sm disabled:opacity-30">
                             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"/></svg>
                           </button>
                           <button onClick={() => state.moveProduct(p.id, 'down')} disabled={!canEdit || idx === displayedRatioProducts.length - 1}
-                            className="text-[#ffd700] hover:text-white disabled:opacity-0 active:scale-110 p-1 bg-slate-900 rounded shadow-md border border-[#ffd700]/20">
+                            className="rounded-md border border-[#D0B08D] bg-[#CFC9C3] p-1 text-[#FFF6C9] shadow-sm disabled:opacity-30">
                             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
                           </button>
                         </div>
                       </div>
                     </td>
 
-                    <td className={`border-r border-slate-200 p-0 sticky left-[calc(4rem+420px)] ${state.activeMappingId === p.id ? 'z-[9999]' : 'z-20'} ${selectedProductIds.has(p.id) ? 'bg-indigo-50' : 'bg-white'}`}>
+                    <td className={`border-r border-[#E0CCBA] p-0 ${state.activeMappingId === p.id ? 'z-[9999] relative' : ''}`}>
                       <div className="w-full h-full flex items-center px-4 relative">
                         <input
-                          className={`flex-1 h-full bg-transparent outline-none font-bold italic text-[11px] ${alert ? 'text-amber-600' : 'text-slate-500'}`}
+                          className={`h-full flex-1 bg-transparent text-[11px] font-bold italic outline-none ${alert ? 'text-amber-600' : 'text-[#6C3C2B]'}`}
                           value={p.searchName}
                           onChange={e => state.updateSearchName(p.id, e.target.value)}
                           disabled={!canEdit}
                         />
                         <button onClick={() => canEdit && state.setActiveMappingId(state.activeMappingId === p.id ? null : p.id)} disabled={!canEdit}
-                          className={`w-7 h-7 rounded-full flex items-center justify-center ml-2 ${alert ? 'bg-amber-100 hover:bg-amber-200 text-amber-600' : 'bg-slate-100 hover:bg-slate-200 text-slate-500'}`}
+                          className={`ml-2 flex h-7 w-7 items-center justify-center rounded-full ${alert ? 'bg-amber-100 text-amber-600' : 'bg-[#EAECEF] text-slate-500'}`}
                           title="Rechercher un mapping">
                           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"/></svg>
                         </button>
@@ -510,29 +510,29 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                       </div>
                     </td>
 
-                    <td className="border-r border-slate-100 p-0 bg-inherit">
+                    <td className="border-r border-[#E0CCBA] p-0 bg-inherit">
                       <div className="w-full h-full flex items-center justify-center px-2">
                         <input type="number" value={p.importDivisor ?? ''}
                           onChange={e => state.updateImportDivisor(p.id, e.target.value)}
                           disabled={!canEdit}
-                          className="w-24 h-10 bg-white/70 border border-slate-200 rounded-xl text-center font-black text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all text-[11px]"
+                          className="h-10 w-24 rounded-xl border border-[#D0B08D] bg-[#FFFDF9] text-center text-[11px] font-black text-[#6C3C2B] outline-none"
                         />
                       </div>
                     </td>
 
                     {MONTHS_ORDER.map(m => (
-                      <td key={m} className={`border-r border-slate-100 p-2 text-center text-[12px] font-black ${mS[m].isValidated ? 'text-indigo-800 bg-indigo-50/50' : mS[m].isImported ? 'text-indigo-600' : 'text-slate-400'}`}>
+                      <td key={m} className={`border-r border-[#E0CCBA] p-2 text-center text-[12px] font-black ${mS[m].isValidated ? 'bg-indigo-50 text-indigo-800' : mS[m].isImported ? 'text-emerald-700' : 'text-slate-400'}`}>
                         {mS[m].value}
                       </td>
                     ))}
 
                     {MONTHS_ORDER.map(m => (
-                      <td key={m + 'rv'} className="border-r border-slate-100 p-2 text-center font-mono text-[11px] text-emerald-700 font-bold bg-emerald-50/10">
+                      <td key={m + 'rv'} className="border-r border-[#E0CCBA] bg-[#F7EFE5] p-2 text-center font-mono text-[11px] font-bold text-emerald-700">
                         {mR[m].toFixed(4)}
                       </td>
                     ))}
 
-                    <td className="p-2 text-center font-black bg-amber-50 text-amber-700 text-sm shadow-inner">
+                    <td className="bg-[#FFF5E2] p-2 text-center text-sm font-black text-[#B86100]">
                       {avgRatio.toFixed(4)}
                     </td>
                   </tr>
@@ -546,7 +546,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
         <div
           ref={ratiosBottomScrollRef}
           onScroll={() => syncRatiosScroll('bottom')}
-          className="fixed bottom-2 left-4 right-4 h-6 overflow-x-auto overflow-y-hidden bg-white/95 backdrop-blur border border-slate-200 rounded-full shadow-lg z-[9999] custom-scrollbar"
+          className="fixed bottom-0 left-[280px] right-4 h-5 overflow-x-auto overflow-y-hidden rounded-t-xl border border-[#D7B79B] bg-[#FFF9F3] shadow-[0_-6px_18px_rgba(145,105,75,0.18)] z-[9999]"
         >
           <div style={{ width: ratiosScrollWidth, height: 1 }} />
         </div>
