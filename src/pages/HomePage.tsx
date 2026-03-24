@@ -14,8 +14,10 @@ type IconName = 'bag' | 'sliders' | 'clipboard' | 'chart';
 type HomeCardProps = {
   title: string;
   accent: string;
-  fill: string;
-  fillSoft: string;
+  metalTop: string;
+  metalMid: string;
+  metalBottom: string;
+  shadow: string;
   icon: IconName;
   onClick: () => void;
 };
@@ -32,25 +34,25 @@ const HomeIcon: React.FC<{ name: IconName; color: string }> = ({ name, color }) 
   switch (name) {
     case 'bag':
       return (
-        <svg viewBox="0 0 24 24" className="h-7 w-7" aria-hidden="true">
+        <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
           <path {...common} d="M6.5 9.5h11l-1 9h-9z" />
           <path {...common} d="M9 9.5V8a3 3 0 0 1 6 0v1.5" />
         </svg>
       );
     case 'sliders':
       return (
-        <svg viewBox="0 0 24 24" className="h-7 w-7" aria-hidden="true">
+        <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
           <path {...common} d="M6 5v14" />
           <path {...common} d="M12 5v14" />
           <path {...common} d="M18 5v14" />
-          <circle cx="6" cy="9" r="1.8" fill={color} />
-          <circle cx="12" cy="15" r="1.8" fill={color} />
-          <circle cx="18" cy="11" r="1.8" fill={color} />
+          <circle cx="6" cy="9" r="1.4" fill={color} />
+          <circle cx="12" cy="15" r="1.4" fill={color} />
+          <circle cx="18" cy="11" r="1.4" fill={color} />
         </svg>
       );
     case 'clipboard':
       return (
-        <svg viewBox="0 0 24 24" className="h-7 w-7" aria-hidden="true">
+        <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
           <rect {...common} x="7" y="5.5" width="10" height="14" rx="2" />
           <path {...common} d="M10 5.5h4" />
           <path {...common} d="M9.5 10.5h5" />
@@ -59,7 +61,7 @@ const HomeIcon: React.FC<{ name: IconName; color: string }> = ({ name, color }) 
       );
     case 'chart':
       return (
-        <svg viewBox="0 0 24 24" className="h-7 w-7" aria-hidden="true">
+        <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
           <path {...common} d="M5 18.5h14" />
           <path {...common} d="M7.5 16v-4" />
           <path {...common} d="M12 16v-7" />
@@ -72,42 +74,53 @@ const HomeIcon: React.FC<{ name: IconName; color: string }> = ({ name, color }) 
   }
 };
 
-const HomeCard: React.FC<HomeCardProps> = ({ title, accent, fill, fillSoft, icon, onClick }) => {
+const HomeCard: React.FC<HomeCardProps> = ({
+  title,
+  accent,
+  metalTop,
+  metalMid,
+  metalBottom,
+  shadow,
+  icon,
+  onClick,
+}) => {
   return (
     <button
       onClick={onClick}
-      className="group relative mx-auto h-[188px] w-full max-w-[320px] text-left transition-all duration-300 hover:-translate-y-1.5"
+      className="group relative mx-auto h-[184px] w-full max-w-[320px] text-left transition-all duration-300 hover:-translate-y-1"
     >
       <div
-        className="absolute inset-0 translate-x-[10px] translate-y-[10px] rounded-[28px] border"
+        className="absolute inset-x-[8px] bottom-[-10px] top-[8px] rounded-[28px]"
         style={{
-          background: `linear-gradient(180deg, ${fillSoft} 0%, rgba(120,68,40,0.22) 100%)`,
-          borderColor: `${accent}55`,
-          boxShadow: '0 18px 28px rgba(36, 18, 10, 0.26)',
+          background: `linear-gradient(180deg, ${shadow} 0%, rgba(70,39,22,0.92) 100%)`,
+          boxShadow: '0 16px 28px rgba(34, 16, 8, 0.34)',
         }}
       />
 
       <div
         className="relative flex h-full w-full flex-col overflow-hidden rounded-[28px] border px-7 py-6"
         style={{
-          background: fill,
-          borderColor: `${accent}88`,
+          background: `linear-gradient(180deg, ${metalTop} 0%, ${metalMid} 52%, ${metalBottom} 100%)`,
+          borderColor: `${accent}aa`,
           boxShadow:
-            '0 14px 26px rgba(44, 21, 11, 0.22), inset 0 1px 0 rgba(255,255,255,0.62), inset 0 -14px 22px rgba(109, 60, 35, 0.08)',
+            'inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -2px 0 rgba(105,58,31,0.28), inset 0 18px 24px rgba(255,255,255,0.12)',
         }}
       >
         <div
-          className="absolute inset-x-6 top-0 h-[5px] rounded-b-full"
-          style={{ background: `linear-gradient(90deg, ${accent} 0%, ${accent}bb 100%)` }}
+          className="absolute inset-x-5 top-0 h-[5px] rounded-b-full"
+          style={{
+            background: `linear-gradient(90deg, ${accent} 0%, ${accent}cc 50%, ${accent} 100%)`,
+            boxShadow: `0 2px 8px ${accent}55`,
+          }}
         />
 
         <div
-          className="absolute right-5 top-5 flex h-11 w-11 items-center justify-center rounded-2xl border"
+          className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-2xl border"
           style={{
             color: accent,
             borderColor: `${accent}55`,
-            background: `linear-gradient(180deg, rgba(255,255,255,0.55) 0%, ${fillSoft} 100%)`,
-            boxShadow: `0 8px 16px ${accent}20`,
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.12) 100%)',
+            boxShadow: `inset 0 1px 0 rgba(255,255,255,0.45), 0 6px 12px ${accent}22`,
           }}
         >
           <HomeIcon name={icon} color={accent} />
@@ -115,7 +128,7 @@ const HomeCard: React.FC<HomeCardProps> = ({ title, accent, fill, fillSoft, icon
 
         <div className="flex h-full items-center justify-center">
           <h2
-            className="max-w-[80%] whitespace-pre-line text-center font-black uppercase leading-[0.92] tracking-[-0.045em] text-[#0d2b57]"
+            className="max-w-[82%] whitespace-pre-line text-center font-black uppercase leading-[0.92] tracking-[-0.045em] text-[#0d2b57]"
             style={{ fontSize: 'clamp(1.15rem, 1.8vw, 2rem)' }}
           >
             {title}
@@ -155,7 +168,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           backgroundSize: 'cover',
           backgroundPosition: isMobile ? '72% center' : '68% center',
           backgroundRepeat: 'no-repeat',
-          filter: 'brightness(0.96) saturate(1.08)',
+          filter: 'brightness(0.94) saturate(1.08)',
         }}
       />
 
@@ -163,7 +176,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         className="pointer-events-none absolute inset-0 z-0"
         style={{
           background:
-            'linear-gradient(180deg, rgba(177,95,48,0.18) 0%, rgba(152,83,45,0.22) 40%, rgba(77,37,19,0.30) 100%)',
+            'linear-gradient(180deg, rgba(182,109,61,0.18) 0%, rgba(160,92,52,0.22) 44%, rgba(87,45,24,0.28) 100%)',
         }}
       />
 
@@ -171,7 +184,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         className="pointer-events-none absolute inset-0 z-0"
         style={{
           background:
-            'radial-gradient(circle at 50% 18%, rgba(229,150,92,0.17), transparent 34%), radial-gradient(circle at 50% 100%, rgba(182,103,58,0.16), transparent 40%)',
+            'radial-gradient(circle at 50% 16%, rgba(230,164,112,0.16), transparent 34%), radial-gradient(circle at 50% 100%, rgba(166,92,54,0.16), transparent 38%)',
         }}
       />
 
@@ -200,9 +213,11 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           >
             <HomeCard
               title="Commandes"
-              accent="#e45449"
-              fill="linear-gradient(145deg, rgba(253,220,214,0.98) 0%, rgba(244,183,171,0.98) 55%, rgba(237,167,154,0.98) 100%)"
-              fillSoft="rgba(237,167,154,0.72)"
+              accent="#df5f54"
+              metalTop="#f3cdc8"
+              metalMid="#eaaba2"
+              metalBottom="#d78d83"
+              shadow="rgba(171,86,74,0.95)"
               icon="bag"
               onClick={() => setView('suppliers')}
             />
@@ -210,9 +225,11 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
             {showStats && (
               <HomeCard
                 title="Paramètres"
-                accent="#d79a16"
-                fill="linear-gradient(145deg, rgba(252,234,187,0.98) 0%, rgba(245,213,132,0.98) 55%, rgba(238,196,95,0.98) 100%)"
-                fillSoft="rgba(238,196,95,0.72)"
+                accent="#cf9b1d"
+                metalTop="#f4df9a"
+                metalMid="#e3bd52"
+                metalBottom="#c7921c"
+                shadow="rgba(140,103,22,0.96)"
                 icon="sliders"
                 onClick={() => setView('stats')}
               />
@@ -220,18 +237,22 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
 
             <HomeCard
               title={'Feuille de\nMise en Place'}
-              accent="#d06f3c"
-              fill="linear-gradient(145deg, rgba(252,225,197,0.98) 0%, rgba(244,191,146,0.98) 55%, rgba(231,160,112,0.98) 100%)"
-              fillSoft="rgba(231,160,112,0.72)"
+              accent="#c96e38"
+              metalTop="#efc6a4"
+              metalMid="#de9b67"
+              metalBottom="#c67843"
+              shadow="rgba(131,76,42,0.96)"
               icon="clipboard"
               onClick={() => setView('prep_sheet')}
             />
 
             <HomeCard
               title={'Analyse\nCoût Matière'}
-              accent="#e78927"
-              fill="linear-gradient(145deg, rgba(252,225,186,0.98) 0%, rgba(245,193,122,0.98) 55%, rgba(236,170,72,0.98) 100%)"
-              fillSoft="rgba(236,170,72,0.72)"
+              accent="#d9821d"
+              metalTop="#f0d2a3"
+              metalMid="#deae63"
+              metalBottom="#c78426"
+              shadow="rgba(131,86,28,0.96)"
               icon="chart"
               onClick={() => setView('cost_analysis')}
             />
