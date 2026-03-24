@@ -190,7 +190,6 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
 }) => {
   const { profile } = useAuth();
   const canEdit = canEditRatios(profile);
-  const [search, setSearch] = React.useState('');
 
   const {
     setView,
@@ -217,67 +216,52 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
   }, [ratioTab, safeRatioTab, setRatioTab]);
 
   const displayedRatioProducts = React.useMemo(() => {
-    const base = products.filter(p => p.supplierId === safeRatioTab);
-    const q = search.trim().toLowerCase();
-    if (!q) return base;
-    return base.filter((p) =>
-      String(p.name || '').toLowerCase().includes(q) ||
-      String(p.searchName || '').toLowerCase().includes(q)
-    );
-  }, [products, safeRatioTab, search]);
+    return products.filter(p => p.supplierId === safeRatioTab);
+  }, [products, safeRatioTab]);
 
   return (
     <div className="min-h-screen overflow-hidden bg-[linear-gradient(180deg,#F6EFE6_0%,#F2E8DD_45%,#EBDDCE_100%)] text-[#34271F] pb-24">
-      <div className="mx-auto flex h-screen max-w-[1920px] flex-col gap-3 p-3 lg:flex-row lg:gap-4">
-        <aside className="w-full shrink-0 lg:w-[250px]">
-          <div className="flex flex-col gap-3 lg:sticky lg:top-3">
-            <div className="overflow-hidden rounded-[24px] border border-[#B46E58] bg-[linear-gradient(135deg,#A93E2A_0%,#922F20_48%,#7A231A_100%)] shadow-[0_10px_20px_rgba(122,35,26,0.14)]">
-              <div className="h-1.5 bg-gradient-to-r from-[#F1C15A] via-[#D86A2C] to-[#A93E2A]" />
-              <div className="p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#FFE1B8]">Hippopotamus Thillois</p>
-                <h1 className="mt-2 text-2xl font-black leading-none text-[#FFF9F3] xl:text-[28px]">Calcul vente ratio</h1>
-                <p className="mt-3 text-xs font-semibold text-[#FFE7CF]">Version PC uniquement. Même logique métier, visuel aligné sur la page calcul prod ratio.</p>
-              </div>
-            </div>
-
-            <button onClick={() => setView('stats')} className="rounded-[20px] border border-[#D9A72B] bg-[linear-gradient(180deg,#F3C63D_0%,#E3A91F_100%)] px-4 py-4 text-center text-sm font-black uppercase tracking-[0.12em] text-[#4D2B18] shadow-[0_4px_0_#B8810F] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#B8810F]">Retour paramètres</button>
-            <button onClick={addNewProduct} disabled={!canEdit} className="rounded-[20px] border border-slate-300 bg-white px-4 py-4 text-sm font-black uppercase tracking-[0.12em] text-slate-700 shadow-sm disabled:opacity-50">Ajouter un produit</button>
-            <button onClick={deleteSelectedProducts} disabled={!canEdit || selectedProductIds.size === 0} className="rounded-[20px] border border-red-200 bg-red-50 px-4 py-4 text-sm font-black uppercase tracking-[0.12em] text-red-700 shadow-sm disabled:opacity-50">Supprimer la sélection</button>
-          </div>
-        </aside>
-
+      <div className="mx-auto flex h-screen max-w-[1920px] flex-col gap-3 p-3">
         <main className="flex min-h-0 min-w-0 flex-1">
           <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[28px] border border-[#D7B79B] bg-[#FAF5EE] shadow-[0_16px_32px_rgba(145,105,75,0.10)]">
-            <div className="border-b border-[#B45439] bg-[linear-gradient(180deg,#A93E2A_0%,#912F20_55%,#782219_100%)] px-5 py-3">
-              <div className="flex items-center justify-between gap-4">
+            <div className="border-b border-[#B45439] bg-[linear-gradient(180deg,#A93E2A_0%,#912F20_55%,#782219_100%)] px-5 py-4">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-black uppercase tracking-[0.08em] text-[#FFF8F1]">Produits & ratios</h2>
-                  <p className="mt-1 text-[11px] font-semibold text-[#FFE7CF]">Nom Hippopotamus, mapping import, volumes, ratios et validation mensuelle.</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#FFE1B8]">Hippopotamus Thillois</p>
+                  <h2 className="mt-1 text-[30px] font-black leading-none text-[#FFF8F1]">Calcul vente ratio</h2>
                 </div>
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Rechercher un produit..."
-                  className="w-[320px] rounded-2xl border border-white/20 bg-white/95 px-4 py-2 text-sm font-bold text-slate-800 outline-none"
-                />
+                <div className="rounded-2xl bg-white/95 px-4 py-3 text-right shadow-sm">
+                  <div className="text-[10px] font-black uppercase tracking-[0.12em] text-[#8A5A2F]">Mois de travail</div>
+                  <div className="text-base font-black text-[#6C3C2B]">{state.importTargetMonth?.toUpperCase?.() ?? state.importTargetMonth}</div>
+                </div>
               </div>
             </div>
 
             <div className="border-b border-[#E0CCBA] bg-[#FFF9F3] px-4 py-3">
-              <div className="flex flex-wrap items-center gap-2">
-                {supplierTabs.map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setRatioTab(tab.id)}
-                    className={`rounded-2xl border px-4 py-2 text-[11px] font-black uppercase tracking-[0.08em] transition ${safeRatioTab === tab.id ? 'border-[#D0B08D] bg-white text-[#6C3C2B] shadow-sm' : 'border-transparent bg-transparent text-slate-400 hover:text-[#6C3C2B]'}`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-                <div className="ml-auto text-right">
-                  <div className="text-[10px] font-black uppercase tracking-[0.12em] text-[#8A5A2F]">Mois de travail</div>
-                  <div className="text-sm font-black text-[#6C3C2B]">{state.importTargetMonth?.toUpperCase?.() ?? state.importTargetMonth}</div>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setView('stats')} className="rounded-[16px] border border-[#D9A72B] bg-[linear-gradient(180deg,#F3C63D_0%,#E3A91F_100%)] px-4 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-[#4D2B18] shadow-[0_4px_0_#B8810F] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#B8810F]">Retour paramètres</button>
+                <button onClick={addNewProduct} disabled={!canEdit} className="rounded-[16px] border border-slate-300 bg-white px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-slate-700 shadow-sm disabled:opacity-50">Ajouter un produit</button>
+                <button onClick={deleteSelectedProducts} disabled={!canEdit || selectedProductIds.size === 0} className="rounded-[16px] border border-red-200 bg-red-50 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-red-700 shadow-sm disabled:opacity-50">Supprimer la sélection</button>
+              </div>
+            </div>
+
+            <div className="border-b border-[#E0CCBA] bg-[#FFF9F3] px-4 py-3">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1 rounded-[18px] border border-[#E6D7C8] bg-white/85 px-3 py-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {supplierTabs.map(tab => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setRatioTab(tab.id)}
+                        className={`rounded-2xl border px-4 py-2 text-[11px] font-black uppercase tracking-[0.08em] transition ${safeRatioTab === tab.id ? 'border-[#D0B08D] bg-white text-[#6C3C2B] shadow-sm' : 'border-transparent bg-transparent text-slate-400 hover:text-[#6C3C2B]'}`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="shrink-0 pt-2 text-right text-[10px] font-black uppercase tracking-[0.12em] text-[#8A5A2F]">
+                  Fournisseurs
                 </div>
               </div>
             </div>
@@ -291,7 +275,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
             <div
               ref={ratiosScrollRef}
               onScroll={() => syncRatiosScroll('main')}
-              className="min-h-0 flex-1 overflow-x-auto overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              className="min-h-0 flex-1 overflow-x-auto overflow-y-auto pb-6 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
               <table className="min-w-[3400px] w-max text-sm">
                 <thead className="sticky top-0 z-20">
@@ -450,7 +434,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
       <div
         ref={ratiosBottomScrollRef}
         onScroll={() => syncRatiosScroll('bottom')}
-        className="fixed bottom-3 left-[285px] right-4 z-[9999] h-4 overflow-x-auto overflow-y-hidden rounded-full border border-[#D7B79B] bg-[#FFF9F3] shadow-[0_4px_14px_rgba(145,105,75,0.18)]"
+        className="fixed bottom-3 left-3 right-3 z-[9999] h-4 overflow-x-auto overflow-y-hidden rounded-full border border-[#D7B79B] bg-[#FFF9F3] shadow-[0_4px_14px_rgba(145,105,75,0.18)]"
       >
         <div style={{ width: ratiosScrollWidth, height: 1 }} />
       </div>
