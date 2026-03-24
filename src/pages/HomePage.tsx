@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ClipboardList, Settings2, ChefHat, ChartColumnBig } from 'lucide-react';
 import { View } from '../constants';
 import { PasswordModal } from '../components/Modals';
 import { useAuth } from '../auth/AuthProvider';
@@ -12,24 +13,31 @@ interface HomePageProps {
 type HomeCardProps = {
   title: string;
   accent: string;
+  fill: string;
+  icon: React.ComponentType<{ className?: string }>;
   onClick: () => void;
 };
 
-const HomeCard: React.FC<HomeCardProps> = ({ title, accent, onClick }) => {
+const HomeCard: React.FC<HomeCardProps> = ({ title, accent, fill, icon: Icon, onClick }) => {
   return (
     <button
       onClick={onClick}
-      className="group relative w-full max-w-[270px] mx-auto rounded-[26px] border border-[#e8c9a8] bg-[#f6eee2] px-6 py-5 text-left shadow-[0_14px_30px_rgba(0,0,0,0.22)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_36px_rgba(0,0,0,0.28)]"
+      className="group relative mx-auto flex w-full max-w-[270px] items-center justify-center overflow-hidden rounded-[26px] border border-[#e8c9a8] px-6 py-6 text-center shadow-[0_14px_30px_rgba(0,0,0,0.22)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_36px_rgba(0,0,0,0.28)]"
+      style={{ background: fill }}
     >
       <div
         className="absolute inset-x-7 top-0 h-[4px] rounded-b-full"
         style={{ backgroundColor: accent }}
       />
 
-      <div className="flex min-h-[126px] items-end">
+      <div className="flex min-h-[138px] flex-col items-center justify-center gap-4">
+        <Icon
+          className="h-8 w-8 transition-transform duration-300 group-hover:scale-105"
+          style={{ color: accent }}
+        />
         <h2
-          className="whitespace-pre-line break-words font-black uppercase leading-[0.94] tracking-[-0.05em] text-[#0d2b57] transition-transform duration-300 group-hover:translate-y-[-2px]"
-          style={{ fontSize: 'clamp(1.25rem, 1.9vw, 2.2rem)' }}
+          className="whitespace-pre-line text-center font-black uppercase leading-[0.94] tracking-[-0.05em] text-[#0d2b57]"
+          style={{ fontSize: 'clamp(1.1rem, 1.7vw, 2rem)' }}
         >
           {title}
         </h2>
@@ -75,7 +83,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         className="pointer-events-none absolute inset-0 z-0"
         style={{
           background:
-            'linear-gradient(180deg, rgba(96,44,23,0.30) 0%, rgba(67,31,16,0.34) 45%, rgba(41,18,10,0.40) 100%)',
+            'linear-gradient(180deg, rgba(121,63,34,0.22) 0%, rgba(94,47,25,0.28) 45%, rgba(51,24,14,0.34) 100%)',
         }}
       />
 
@@ -83,7 +91,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         className="pointer-events-none absolute inset-0 z-0"
         style={{
           background:
-            'radial-gradient(circle at 50% 20%, rgba(190,105,58,0.18), transparent 34%), radial-gradient(circle at 50% 100%, rgba(137,60,29,0.18), transparent 36%)',
+            'radial-gradient(circle at 50% 20%, rgba(205,118,68,0.16), transparent 34%), radial-gradient(circle at 50% 100%, rgba(149,74,40,0.16), transparent 36%)',
         }}
       />
 
@@ -112,27 +120,35 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           >
             <HomeCard
               title="Commandes"
-              accent="#ef5350"
+              accent="#e45449"
+              fill="linear-gradient(180deg, rgba(248,232,226,0.97) 0%, rgba(244,223,214,0.97) 100%)"
+              icon={ClipboardList}
               onClick={() => setView('suppliers')}
             />
 
             {showStats && (
               <HomeCard
                 title="Paramètres"
-                accent="#d8a108"
+                accent="#d69a15"
+                fill="linear-gradient(180deg, rgba(248,239,222,0.97) 0%, rgba(243,229,201,0.97) 100%)"
+                icon={Settings2}
                 onClick={() => setView('stats')}
               />
             )}
 
             <HomeCard
               title={'Feuille de\nMise en Place'}
-              accent="#2cb673"
+              accent="#c97a2b"
+              fill="linear-gradient(180deg, rgba(248,236,223,0.97) 0%, rgba(243,223,203,0.97) 100%)"
+              icon={ChefHat}
               onClick={() => setView('prep_sheet')}
             />
 
             <HomeCard
               title={'Analyse\nCoût Matière'}
-              accent="#ea7a1f"
+              accent="#e78927"
+              fill="linear-gradient(180deg, rgba(248,236,225,0.97) 0%, rgba(244,225,207,0.97) 100%)"
+              icon={ChartColumnBig}
               onClick={() => setView('cost_analysis')}
             />
           </div>
