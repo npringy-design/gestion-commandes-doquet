@@ -377,10 +377,9 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
         <div
           ref={ratiosScrollRef}
           onScroll={() => syncRatiosScroll('main')}
-          className="flex-1 min-h-0 bg-[#FAF5EE] border border-[#D7B79B] rounded-[28px] shadow-[0_16px_32px_rgba(145,105,75,0.10)] overflow-x-auto overflow-y-auto pr-4 pb-3 hide-ratios-main-scrollbar"
-          style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}
+          className="flex-1 min-h-0 bg-[#FAF5EE] border border-[#D7B79B] rounded-[28px] shadow-[0_16px_32px_rgba(145,105,75,0.10)] overflow-x-auto overflow-y-auto pb-10 pr-6"
         >
-          <table className="border-collapse min-w-[3400px] mr-6">
+          <table className="border-collapse min-w-[3400px] mr-16">
             <thead>
               <tr className="bg-slate-900 text-white">
                 <th className="border-r border-slate-700 p-5 text-center w-16 bg-slate-900 font-black text-xs" rowSpan={3}>
@@ -551,12 +550,14 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
         </div>
 
         {/* Barre scroll bas — PC uniquement */}
-        <div
-          ref={ratiosBottomScrollRef}
-          onScroll={() => syncRatiosScroll('bottom')}
-          className="sticky bottom-0 z-30 h-5 overflow-x-auto overflow-y-hidden bg-[#F3E9DE] border-t border-[#D7B79B] custom-scrollbar"
-        >
-          <div style={{ width: ratiosScrollWidth, height: 1 }} />
+        <div className="pointer-events-none absolute bottom-2 left-4 right-4 z-40">
+          <div
+            ref={ratiosBottomScrollRef}
+            onScroll={() => syncRatiosScroll('bottom')}
+            className="pointer-events-auto h-4 overflow-x-auto overflow-y-hidden rounded-full bg-[#EDE0D1] border border-[#D7B79B] shadow-[0_-1px_0_rgba(255,255,255,0.7)_inset] custom-scrollbar"
+          >
+            <div style={{ width: ratiosScrollWidth, height: 1 }} />
+          </div>
         </div>
       </div>
 
