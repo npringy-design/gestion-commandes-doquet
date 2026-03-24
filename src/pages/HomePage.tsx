@@ -90,37 +90,37 @@ const HomeCard: React.FC<HomeCardProps> = ({
       className="group relative mx-auto h-[184px] w-full max-w-[320px] text-left transition-all duration-300 hover:-translate-y-1"
     >
       <div
-        className="absolute inset-x-[8px] bottom-[-10px] top-[8px] rounded-[28px]"
+        className="absolute inset-x-[10px] bottom-[-12px] top-[8px] rounded-[28px]"
         style={{
-          background: `linear-gradient(180deg, ${shadow} 0%, rgba(70,39,22,0.92) 100%)`,
-          boxShadow: '0 16px 28px rgba(34, 16, 8, 0.34)',
+          background: 'linear-gradient(180deg, rgba(245,245,245,0.92) 0%, rgba(186,186,186,0.98) 100%)',
+          boxShadow: '0 14px 22px rgba(24, 10, 5, 0.32)',
         }}
       />
 
       <div
         className="relative flex h-full w-full flex-col overflow-hidden rounded-[28px] border px-7 py-6"
         style={{
-          background: `linear-gradient(180deg, ${metalTop} 0%, ${metalMid} 52%, ${metalBottom} 100%)`,
+          background: `linear-gradient(180deg, ${metalTop} 0%, ${metalMid} 55%, ${metalBottom} 100%)`,
           borderColor: `${accent}aa`,
           boxShadow:
-            'inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -2px 0 rgba(105,58,31,0.28), inset 0 18px 24px rgba(255,255,255,0.12)',
+            'inset 0 1px 0 rgba(255,255,255,0.65), inset 0 -2px 0 rgba(86,48,24,0.3), inset 0 20px 18px rgba(255,255,255,0.09)',
         }}
       >
         <div
           className="absolute inset-x-5 top-0 h-[5px] rounded-b-full"
           style={{
-            background: `linear-gradient(90deg, ${accent} 0%, ${accent}cc 50%, ${accent} 100%)`,
+            background: `linear-gradient(90deg, ${accent} 0%, ${accent}dd 50%, ${accent} 100%)`,
             boxShadow: `0 2px 8px ${accent}55`,
           }}
         />
 
         <div
-          className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-2xl border"
+          className="absolute right-5 top-5 flex h-11 w-11 items-center justify-center rounded-2xl border"
           style={{
             color: accent,
             borderColor: `${accent}55`,
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.12) 100%)',
-            boxShadow: `inset 0 1px 0 rgba(255,255,255,0.45), 0 6px 12px ${accent}22`,
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.14) 100%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45)',
           }}
         >
           <HomeIcon name={icon} color={accent} />
@@ -213,11 +213,11 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           >
             <HomeCard
               title="Commandes"
-              accent="#df5f54"
-              metalTop="#f3cdc8"
-              metalMid="#eaaba2"
-              metalBottom="#d78d83"
-              shadow="rgba(171,86,74,0.95)"
+              accent="#df3e32"
+              metalTop="#f0bab3"
+              metalMid="#d95b49"
+              metalBottom="#b63d32"
+              shadow="rgba(111,111,111,0.96)"
               icon="bag"
               onClick={() => setView('suppliers')}
             />
@@ -226,52 +226,39 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
               <HomeCard
                 title="Paramètres"
                 accent="#cf9b1d"
-                metalTop="#f4df9a"
-                metalMid="#e3bd52"
-                metalBottom="#c7921c"
-                shadow="rgba(140,103,22,0.96)"
+                metalTop="#ead18a"
+                metalMid="#cb9d2f"
+                metalBottom="#9b7312"
+                shadow="rgba(111,111,111,0.96)"
                 icon="sliders"
                 onClick={() => setView('stats')}
               />
             )}
 
             <HomeCard
-              title={'Feuille de\nMise en Place'}
+              title={'Feuille de
+Mise en Place'}
               accent="#c96e38"
-              metalTop="#efc6a4"
-              metalMid="#de9b67"
-              metalBottom="#c67843"
-              shadow="rgba(131,76,42,0.96)"
+              metalTop="#e6b18a"
+              metalMid="#c97a45"
+              metalBottom="#964d2a"
+              shadow="rgba(111,111,111,0.96)"
               icon="clipboard"
               onClick={() => setView('prep_sheet')}
             />
 
             <HomeCard
-              title={'Analyse\nCoût Matière'}
+              title={'Analyse
+Coût Matière'}
               accent="#d9821d"
-              metalTop="#f0d2a3"
-              metalMid="#deae63"
-              metalBottom="#c78426"
-              shadow="rgba(131,86,28,0.96)"
+              metalTop="#deb578"
+              metalMid="#c4882f"
+              metalBottom="#935d18"
+              shadow="rgba(111,111,111,0.96)"
               icon="chart"
               onClick={() => setView('cost_analysis')}
             />
           </div>
-
-          <button
-            onClick={() => {
-              if (canAccessAdminDashboard(profile)) {
-                setView('admin_dashboard');
-                return;
-              }
-              setShowPassword(true);
-            }}
-            className="mx-auto mt-8 flex items-center gap-4 text-white/25 transition-colors hover:text-[#ffd700]"
-          >
-            <span className="text-[11px] font-black uppercase tracking-widest">
-              Accès Dashboard Admin
-            </span>
-          </button>
         </div>
       </div>
     </div>
