@@ -206,7 +206,6 @@ const ProductCard: React.FC<{
         </div>
       )}
       </div>
-    </div>
   );
 };
 
@@ -561,7 +560,8 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
         </div>
       </div>
 
-    </div>
+      </div>
+    </>
   );
 };
 
