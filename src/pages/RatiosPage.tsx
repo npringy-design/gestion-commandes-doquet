@@ -206,7 +206,7 @@ const ProductCard: React.FC<{
         </div>
       )}
       </div>
-    </>
+    </div>
   );
 };
 
