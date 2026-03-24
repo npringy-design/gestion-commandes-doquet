@@ -246,22 +246,17 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
             </div>
 
             <div className="border-b border-[#E0CCBA] bg-[#FFF9F3] px-4 py-3">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1 rounded-[18px] border border-[#E6D7C8] bg-white/85 px-3 py-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {supplierTabs.map(tab => (
-                      <button
-                        key={tab.id}
-                        onClick={() => setRatioTab(tab.id)}
-                        className={`rounded-2xl border px-4 py-2 text-[11px] font-black uppercase tracking-[0.08em] transition ${safeRatioTab === tab.id ? 'border-[#D0B08D] bg-white text-[#6C3C2B] shadow-sm' : 'border-transparent bg-transparent text-slate-400 hover:text-[#6C3C2B]'}`}
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="shrink-0 pt-2 text-right text-[10px] font-black uppercase tracking-[0.12em] text-[#8A5A2F]">
-                  Fournisseurs
+              <div className="rounded-[18px] border border-[#E6D7C8] bg-white/85 px-3 py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {supplierTabs.map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setRatioTab(tab.id)}
+                      className={`rounded-2xl border px-4 py-2 text-[11px] font-black uppercase tracking-[0.08em] transition ${safeRatioTab === tab.id ? 'border-[#D0B08D] bg-white text-[#6C3C2B] shadow-sm' : 'border-transparent bg-transparent text-slate-400 hover:text-[#6C3C2B]'}`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -275,7 +270,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
             <div
               ref={ratiosScrollRef}
               onScroll={() => syncRatiosScroll('main')}
-              className="min-h-0 flex-1 overflow-x-auto overflow-y-auto pb-6 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              className="min-h-0 flex-1 overflow-x-auto overflow-y-auto pb-16"
             >
               <table className="min-w-[3400px] w-max text-sm">
                 <thead className="sticky top-0 z-20">
@@ -431,12 +426,14 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
         </main>
       </div>
 
-      <div
-        ref={ratiosBottomScrollRef}
-        onScroll={() => syncRatiosScroll('bottom')}
-        className="fixed bottom-3 left-3 right-3 z-[9999] h-4 overflow-x-auto overflow-y-hidden rounded-full border border-[#D7B79B] bg-[#FFF9F3] shadow-[0_4px_14px_rgba(145,105,75,0.18)]"
-      >
-        <div style={{ width: ratiosScrollWidth, height: 1 }} />
+      <div className="sticky bottom-0 z-30 mx-3 mt-2 rounded-t-[18px] border border-b-0 border-[#D7B79B] bg-[#FFF9F3] px-2 pt-2 shadow-[0_-4px_14px_rgba(145,105,75,0.14)]">
+        <div
+          ref={ratiosBottomScrollRef}
+          onScroll={() => syncRatiosScroll('bottom')}
+          className="h-5 overflow-x-auto overflow-y-hidden"
+        >
+          <div style={{ width: ratiosScrollWidth, height: 1 }} />
+        </div>
       </div>
     </div>
   );
