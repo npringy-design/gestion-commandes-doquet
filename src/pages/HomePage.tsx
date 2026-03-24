@@ -15,7 +15,6 @@ type HomeCardProps = {
   accentSoft: string;
   onClick: () => void;
   children: React.ReactNode;
-  compactTitle?: boolean;
 };
 
 const HomeCard: React.FC<HomeCardProps> = ({
@@ -24,48 +23,32 @@ const HomeCard: React.FC<HomeCardProps> = ({
   accentSoft,
   onClick,
   children,
-  compactTitle = false,
 }) => {
   return (
     <button
       onClick={onClick}
-      className="group relative w-full max-w-[360px] mx-auto rounded-[28px] border border-white/35 bg-[#f6efe7]/95 px-6 py-6 sm:px-7 sm:py-7 text-left shadow-[0_18px_50px_rgba(0,0,0,0.22)] backdrop-blur-[2px] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_26px_56px_rgba(0,0,0,0.28)]"
+      className="group relative w-full max-w-[300px] mx-auto rounded-[24px] border border-white/20 bg-[#f5eee6]/92 px-7 py-6 text-left shadow-[0_16px_36px_rgba(0,0,0,0.20)] backdrop-blur-[1px] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_44px_rgba(0,0,0,0.26)]"
     >
       <div
-        className="absolute inset-x-5 top-0 h-1 rounded-b-full opacity-90 transition-all duration-300 group-hover:inset-x-4"
+        className="absolute inset-x-6 top-0 h-[4px] rounded-b-full opacity-95"
         style={{ backgroundColor: accent }}
       />
 
-      <div className="flex h-full min-h-[220px] flex-col">
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div
-            className="flex h-16 w-16 items-center justify-center rounded-[22px] border border-black/5 shadow-sm transition-all duration-300 group-hover:scale-[1.03]"
-            style={{ backgroundColor: accentSoft }}
-          >
-            {children}
-          </div>
-          <div
-            className="rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-[0.22em] text-slate-700/70"
-            style={{ borderColor: `${accent}55` }}
-          >
-            Ouvrir
-          </div>
+      <div className="flex min-h-[168px] flex-col justify-between">
+        <div
+          className="flex h-16 w-16 items-center justify-center rounded-[22px] border border-black/5 shadow-sm"
+          style={{ backgroundColor: accentSoft }}
+        >
+          {children}
         </div>
 
-        <div className="mt-auto space-y-3">
+        <div className="mt-8">
           <h2
-            className={`font-black uppercase tracking-[-0.04em] text-[#0d2b57] ${compactTitle ? 'leading-[0.95]' : 'leading-[0.9]'}`}
-            style={{ fontSize: compactTitle ? 'clamp(1.75rem, 2.2vw, 2.7rem)' : 'clamp(2rem, 2.4vw, 3rem)' }}
+            className="whitespace-pre-line break-words font-black uppercase tracking-[-0.05em] text-[#0d2b57] leading-[0.92]"
+            style={{ fontSize: 'clamp(1.65rem, 2vw, 2.6rem)' }}
           >
             {title}
           </h2>
-          <div className="flex items-center gap-3 text-[13px] font-bold text-slate-700/70">
-            <span
-              className="inline-block h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: accent }}
-            />
-            Module principal
-          </div>
         </div>
       </div>
     </button>
@@ -83,7 +66,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   const showStats = !isMobile && canAccessStatsPage(profile);
 
   return (
-    <div className="min-h-screen bg-[#1a0f0a] relative overflow-hidden">
+    <div className="relative min-h-screen overflow-hidden bg-[#24130d]">
       {showPassword && (
         <PasswordModal
           onConfirm={() => {
@@ -95,30 +78,37 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
       )}
 
       <div
-        className="absolute inset-0 z-0 pointer-events-none"
+        className="pointer-events-none absolute inset-0 z-0"
         style={{
           backgroundImage: `url(${homeBgCow})`,
           backgroundSize: 'cover',
           backgroundPosition: isMobile ? '72% center' : '68% center',
           backgroundRepeat: 'no-repeat',
-          filter: 'brightness(1.08)',
-          transform: 'scale(1)',
+          filter: 'brightness(1.02) saturate(1.08)',
         }}
       />
 
       <div
-        className="absolute inset-0 z-0 pointer-events-none"
+        className="pointer-events-none absolute inset-0 z-0"
         style={{
           background:
-            'linear-gradient(rgba(26,15,10,0.56), rgba(26,15,10,0.62))',
+            'linear-gradient(180deg, rgba(69,29,16,0.36) 0%, rgba(46,19,11,0.40) 48%, rgba(28,12,8,0.48) 100%)',
         }}
       />
 
-      <div className="relative z-10 min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-10 py-8 lg:py-12">
+      <div
+        className="pointer-events-none absolute inset-0 z-0"
+        style={{
+          background:
+            'radial-gradient(circle at 50% 18%, rgba(186,107,58,0.18), transparent 32%), radial-gradient(circle at 50% 100%, rgba(128,54,24,0.18), transparent 34%)',
+        }}
+      />
+
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
         <div className="w-full max-w-[1720px]">
-          <div className="text-center mb-8 sm:mb-10 lg:mb-14">
+          <div className="mb-8 text-center sm:mb-10 lg:mb-12">
             <h1
-              className="text-[#ffd700] font-black uppercase tracking-tighter leading-none mb-4"
+              className="mb-4 font-black uppercase leading-none tracking-tighter text-[#ffd700]"
               style={{
                 fontSize: 'clamp(3rem, 6vw, 6.8rem)',
               }}
@@ -127,11 +117,11 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
               <br />
               <span className="text-white">COMMANDES</span>
             </h1>
-            <div className="h-2 w-36 sm:w-44 lg:w-56 bg-red-600 mx-auto rounded-full" />
+            <div className="mx-auto h-2 w-36 rounded-full bg-red-600 sm:w-44 lg:w-56" />
           </div>
 
           <div
-            className={`grid gap-5 lg:gap-6 mb-8 justify-center ${
+            className={`grid justify-center gap-5 lg:gap-6 ${
               showStats
                 ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4'
                 : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
@@ -139,12 +129,12 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           >
             <HomeCard
               title="Commandes"
-              accent="#e53935"
-              accentSoft="#f7dfe0"
+              accent="#ef5350"
+              accentSoft="#f8dede"
               onClick={() => setView('suppliers')}
             >
               <svg
-                className="w-8 h-8 text-red-600"
+                className="h-8 w-8 text-red-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -161,12 +151,12 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
             {showStats && (
               <HomeCard
                 title="Paramètres"
-                accent="#d18a00"
+                accent="#d8a108"
                 accentSoft="#f5e9bf"
                 onClick={() => setView('stats')}
               >
                 <svg
-                  className="w-8 h-8 text-amber-600"
+                  className="h-8 w-8 text-amber-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -182,14 +172,13 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
             )}
 
             <HomeCard
-              title="Feuille de\nMise en Place"
-              accent="#169b63"
+              title={'Feuille de\nMise en Place'}
+              accent="#2cb673"
               accentSoft="#d7f1e4"
               onClick={() => setView('prep_sheet')}
-              compactTitle
             >
               <svg
-                className="w-8 h-8 text-emerald-600"
+                className="h-8 w-8 text-emerald-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -204,14 +193,13 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
             </HomeCard>
 
             <HomeCard
-              title="Analyse\nCoût Matière"
-              accent="#ea6a11"
+              title={'Analyse\nCoût Matière'}
+              accent="#ea7a1f"
               accentSoft="#f8ead7"
               onClick={() => setView('cost_analysis')}
-              compactTitle
             >
               <svg
-                className="w-8 h-8 text-orange-600"
+                className="h-8 w-8 text-orange-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -234,9 +222,9 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
               }
               setShowPassword(true);
             }}
-            className="flex items-center gap-4 mx-auto text-white/25 hover:text-[#ffd700] transition-colors"
+            className="mx-auto mt-8 flex items-center gap-4 text-white/25 transition-colors hover:text-[#ffd700]"
           >
-            <span className="font-black uppercase text-[11px] tracking-widest">
+            <span className="text-[11px] font-black uppercase tracking-widest">
               Accès Dashboard Admin
             </span>
           </button>
