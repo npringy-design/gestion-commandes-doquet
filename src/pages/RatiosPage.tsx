@@ -373,17 +373,17 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
           VUE PC  (>= lg = >= 1024px)
           Tableau original inchangé
       ══════════════════════════════════════════════════════ */}
-      <div className="hidden lg:block relative">
+      <div className="hidden lg:flex lg:min-h-0 lg:flex-1 lg:flex-col relative">
         <div
           ref={ratiosScrollRef}
           onScroll={() => syncRatiosScroll('main')}
-          className="bg-white border border-slate-200 rounded-[40px] shadow-2xl overflow-x-auto overflow-y-visible pb-4 hide-ratios-main-scrollbar"
+          className="flex-1 min-h-0 bg-[#FAF5EE] border border-[#D7B79B] rounded-[28px] shadow-[0_16px_32px_rgba(145,105,75,0.10)] overflow-x-auto overflow-y-auto pr-4 pb-3 hide-ratios-main-scrollbar"
           style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}
         >
-          <table className="border-collapse min-w-[3400px]">
+          <table className="border-collapse min-w-[3400px] mr-6">
             <thead>
               <tr className="bg-slate-900 text-white">
-                <th className="border-r border-slate-700 p-5 text-center w-16 sticky left-0 z-40 bg-slate-900 font-black text-xs" rowSpan={3}>
+                <th className="border-r border-slate-700 p-5 text-center w-16 bg-slate-900 font-black text-xs" rowSpan={3}>
                   <input
                     type="checkbox"
                     className="w-5 h-5 accent-indigo-500 cursor-pointer"
@@ -396,10 +396,10 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                     )}
                   />
                 </th>
-                <th className="border-r border-slate-700 p-5 text-left w-[420px] sticky left-16 z-30 bg-slate-900 font-black text-sm" rowSpan={3}>
+                <th className="border-r border-slate-700 p-5 text-left w-[420px] sticky left-0 z-40 bg-slate-900 font-black text-sm" rowSpan={3}>
                   Produit Hippopotamus
                 </th>
-                <th className="border-r border-slate-700 p-5 text-left w-64 sticky left-[calc(4rem+420px)] z-30 bg-slate-900 font-black text-sm" rowSpan={3}>
+                <th className="border-r border-slate-700 p-5 text-left w-64 bg-slate-900 font-black text-sm" rowSpan={3}>
                   Mapping Import
                 </th>
                 <th className="border-r border-slate-700 p-5 text-center w-40 bg-slate-900 font-black text-sm" rowSpan={3}>
@@ -458,7 +458,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                     key={p.id}
                     className={`hover:bg-slate-50 border-b border-slate-100 h-16 group transition-colors ${selectedProductIds.has(p.id) ? 'bg-indigo-50/30' : ''}`}
                   >
-                    <td className={`border-r border-slate-200 text-center sticky left-0 z-20 ${selectedProductIds.has(p.id) ? 'bg-indigo-50' : 'bg-white'}`}>
+                    <td className={`border-r border-slate-200 text-center ${selectedProductIds.has(p.id) ? 'bg-indigo-50' : 'bg-white'}`}>
                       <input type="checkbox" className="w-5 h-5 accent-indigo-600 cursor-pointer"
                         checked={selectedProductIds.has(p.id)}
                         onChange={() => state.toggleProductSelection(p.id)}
@@ -466,7 +466,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                       />
                     </td>
 
-                    <td className={`border-r border-slate-200 p-0 sticky left-16 z-20 font-black uppercase text-[11px] ${selectedProductIds.has(p.id) ? 'bg-indigo-50' : 'bg-white'}`}>
+                    <td className={`border-r border-slate-200 p-0 sticky left-0 z-30 font-black uppercase text-[11px] ${selectedProductIds.has(p.id) ? 'bg-indigo-50' : 'bg-white'}`}>
                       <div className="flex items-center w-full h-full pr-4 gap-2">
                         <input
                           className="flex-1 h-full bg-transparent px-4 outline-none focus:bg-white font-black text-slate-900"
@@ -488,7 +488,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                       </div>
                     </td>
 
-                    <td className={`border-r border-slate-200 p-0 sticky left-[calc(4rem+420px)] ${state.activeMappingId === p.id ? 'z-[9999]' : 'z-20'} ${selectedProductIds.has(p.id) ? 'bg-indigo-50' : 'bg-white'}`}>
+                    <td className={`border-r border-slate-200 p-0 ${state.activeMappingId === p.id ? 'z-[9999]' : 'z-20'} ${selectedProductIds.has(p.id) ? 'bg-indigo-50' : 'bg-white'}`}>
                       <div className="w-full h-full flex items-center px-4 relative">
                         <input
                           className={`flex-1 h-full bg-transparent outline-none font-bold italic text-[11px] ${alert ? 'text-amber-600' : 'text-slate-500'}`}
@@ -554,7 +554,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
         <div
           ref={ratiosBottomScrollRef}
           onScroll={() => syncRatiosScroll('bottom')}
-          className="fixed bottom-0 left-0 right-0 h-5 overflow-x-auto overflow-y-hidden bg-[#efe6de] border-t border-[#d9c3b4] z-[9999] custom-scrollbar"
+          className="sticky bottom-0 z-30 h-5 overflow-x-auto overflow-y-hidden bg-[#F3E9DE] border-t border-[#D7B79B] custom-scrollbar"
         >
           <div style={{ width: ratiosScrollWidth, height: 1 }} />
         </div>
