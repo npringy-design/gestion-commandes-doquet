@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { MONTHS_ORDER, SupplierId } from '../constants';
 import { SupplierConfig } from '../types';
-import MappingPopover from '../components/MappingPopover';
+import RatiosMappingPopover from '../components/RatiosMappingPopover';
 import { useAppState } from '../hooks/useAppState';
 import { useAuth } from '../auth/AuthProvider';
 import { canEditRatios } from '../lib/permissions';
@@ -105,7 +105,7 @@ const ProductCard: React.FC<{
                 </button>
                 {activeMappingId === p.id && (
                   <div className="absolute top-full left-0 z-50 mt-1">
-                    <MappingPopover
+                    <RatiosMappingPopover
                       orphanNames={Array.from(allAvailableImportNames).filter((name) => {
                         const normalizedName = String(name).trim().toLowerCase();
                         return !products.some((pr) => (
@@ -379,7 +379,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"/></svg>
                             </button>
                             {state.activeMappingId === p.id && (
-                              <MappingPopover
+                              <RatiosMappingPopover
                                 orphanNames={Array.from(state.allAvailableImportNames).filter((name) => {
                                   const normalizedName = String(name).trim().toLowerCase();
                                   return !state.products.some((pr) => (
