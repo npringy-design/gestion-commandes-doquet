@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { ClipboardList, Settings2, ChefHat, ChartColumnBig } from 'lucide-react';
 import { View } from '../constants';
 import { PasswordModal } from '../components/Modals';
 import { useAuth } from '../auth/AuthProvider';
@@ -14,11 +13,11 @@ type HomeCardProps = {
   title: string;
   accent: string;
   fill: string;
-  icon: React.ComponentType<{ className?: string }>;
+  symbol: string;
   onClick: () => void;
 };
 
-const HomeCard: React.FC<HomeCardProps> = ({ title, accent, fill, icon: Icon, onClick }) => {
+const HomeCard: React.FC<HomeCardProps> = ({ title, accent, fill, symbol, onClick }) => {
   return (
     <button
       onClick={onClick}
@@ -31,10 +30,13 @@ const HomeCard: React.FC<HomeCardProps> = ({ title, accent, fill, icon: Icon, on
       />
 
       <div className="flex min-h-[138px] flex-col items-center justify-center gap-4">
-        <Icon
-          className="h-8 w-8 transition-transform duration-300 group-hover:scale-105"
+        <span
+          aria-hidden="true"
+          className="select-none text-[2rem] leading-none transition-transform duration-300 group-hover:scale-105"
           style={{ color: accent }}
-        />
+        >
+          {symbol}
+        </span>
         <h2
           className="whitespace-pre-line text-center font-black uppercase leading-[0.94] tracking-[-0.05em] text-[#0d2b57]"
           style={{ fontSize: 'clamp(1.1rem, 1.7vw, 2rem)' }}
@@ -122,7 +124,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
               title="Commandes"
               accent="#e45449"
               fill="linear-gradient(180deg, rgba(248,232,226,0.97) 0%, rgba(244,223,214,0.97) 100%)"
-              icon={ClipboardList}
+              symbol="⌂"
               onClick={() => setView('suppliers')}
             />
 
@@ -131,7 +133,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
                 title="Paramètres"
                 accent="#d69a15"
                 fill="linear-gradient(180deg, rgba(248,239,222,0.97) 0%, rgba(243,229,201,0.97) 100%)"
-                icon={Settings2}
+                symbol="≡"
                 onClick={() => setView('stats')}
               />
             )}
@@ -140,7 +142,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
               title={'Feuille de\nMise en Place'}
               accent="#c97a2b"
               fill="linear-gradient(180deg, rgba(248,236,223,0.97) 0%, rgba(243,223,203,0.97) 100%)"
-              icon={ChefHat}
+              symbol="□"
               onClick={() => setView('prep_sheet')}
             />
 
@@ -148,7 +150,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
               title={'Analyse\nCoût Matière'}
               accent="#e78927"
               fill="linear-gradient(180deg, rgba(248,236,225,0.97) 0%, rgba(244,225,207,0.97) 100%)"
-              icon={ChartColumnBig}
+              symbol="△"
               onClick={() => setView('cost_analysis')}
             />
           </div>
