@@ -1,7 +1,6 @@
-
 // =============================================================
 // pages/StatsPage.tsx
-// Refonte visuelle uniquement - version tableau unique compacte
+// Refonte visuelle uniquement - alignée sur Calcul prod ratio
 // Mécanique conservée
 // =============================================================
 
@@ -122,10 +121,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
       }
       setModalState(null);
     } catch (err) {
-      showToast(
-        'Erreur lors de la lecture du fichier : ' + (err as Error).message,
-        'error'
-      );
+      showToast('Erreur lors de la lecture du fichier : ' + (err as Error).message, 'error');
     }
   };
 
@@ -139,7 +135,6 @@ const StatsPage: React.FC<StatsPageProps> = ({
       return next;
     });
   };
-
 
   const removeProductionImportForMonth = (monthKey: string) => {
     if (!canRemoveImport) return;
@@ -211,12 +206,12 @@ const StatsPage: React.FC<StatsPageProps> = ({
   };
 
   const inputBase =
-    'h-8 w-full rounded-lg border px-3 text-center text-[13px] font-bold outline-none transition disabled:opacity-50 disabled:cursor-not-allowed';
+    'h-10 w-full rounded-[14px] border px-3 text-center text-[13px] font-bold outline-none transition disabled:opacity-50 disabled:cursor-not-allowed';
   const inputTheme =
-    'border-[#D0B08D] bg-[#FFFDF9] text-[#3A2A1F] placeholder:text-[#A88D77] focus:border-[#A93E2A] focus:ring-2 focus:ring-[#A93E2A]/15';
+    'border-[#D4B08C] bg-[#FFFDF9] text-[#3A2A1F] placeholder:text-[#A88D77] focus:border-[#A93E2A] focus:ring-2 focus:ring-[#A93E2A]/15';
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[linear-gradient(180deg,#F6EFE6_0%,#F2E8DD_45%,#EBDDCE_100%)] text-[#34271F]">
+    <div className="min-h-screen overflow-hidden bg-[linear-gradient(180deg,#F6EFE6_0%,#F1E7DA_42%,#E9DDCE_100%)] text-[#34271F]">
       {modalState && canImport && (
         <ImportModal
           monthLabel={MONTHS_DISPLAY_CONFIG.find((m) => m.key === modalState.month)?.label || ''}
@@ -226,16 +221,16 @@ const StatsPage: React.FC<StatsPageProps> = ({
         />
       )}
 
-      <div className="mx-auto flex h-screen max-w-[1700px] flex-col gap-2 p-2 sm:p-2.5 lg:flex-row lg:gap-3 lg:p-2.5">
-        <aside className="w-full shrink-0 lg:w-[210px] xl:w-[220px]">
-          <div className="flex flex-col gap-3 lg:sticky lg:top-3">
-            <div className="overflow-hidden rounded-[24px] border border-[#B46E58] bg-[linear-gradient(135deg,#A93E2A_0%,#922F20_48%,#7A231A_100%)] shadow-[0_10px_20px_rgba(122,35,26,0.14)]">
+      <div className="mx-auto flex h-screen max-w-[1720px] flex-col gap-3 p-3 lg:flex-row lg:gap-4 lg:p-3.5">
+        <aside className="w-full shrink-0 lg:w-[255px] xl:w-[270px]">
+          <div className="flex flex-col gap-3 lg:sticky lg:top-3.5">
+            <div className="overflow-hidden rounded-[26px] border border-[#B46E58] bg-[linear-gradient(135deg,#A93E2A_0%,#922F20_48%,#7A231A_100%)] shadow-[0_10px_20px_rgba(122,35,26,0.14)]">
               <div className="h-1.5 bg-gradient-to-r from-[#F1C15A] via-[#D86A2C] to-[#A93E2A]" />
-              <div className="p-3.5">
+              <div className="p-4">
                 <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#FFE1B8]">
                   Hippopotamus Thillois
                 </p>
-                <h1 className="mt-2 text-[20px] font-black leading-none text-[#FFF9F3] xl:text-[22px]">
+                <h1 className="mt-2 text-[21px] font-black leading-none text-[#FFF9F3] xl:text-[23px]">
                   Paramètres
                 </h1>
               </div>
@@ -243,16 +238,8 @@ const StatsPage: React.FC<StatsPageProps> = ({
 
             <button
               onClick={() => setView('home')}
-              className="flex items-center justify-center gap-3 rounded-[20px] border border-[#D9A72B] bg-[linear-gradient(180deg,#F3C63D_0%,#E3A91F_100%)] px-3.5 py-3 text-center text-[13px] font-black uppercase tracking-[0.12em] text-[#4D2B18] shadow-[0_4px_0_#B8810F] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#B8810F]"
+              className="rounded-[22px] border border-[#D9A72B] bg-[linear-gradient(180deg,#F3C63D_0%,#E3A91F_100%)] px-4 py-3.5 text-center text-[13px] font-black uppercase tracking-[0.12em] text-[#4D2B18] shadow-[0_4px_0_#B8810F] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#B8810F]"
             >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="3"
-                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                />
-              </svg>
               Retour accueil
             </button>
 
@@ -260,7 +247,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
               <>
                 <button
                   onClick={() => setView('ratios')}
-                  className="rounded-[20px] border border-[#B55A3C] bg-[linear-gradient(180deg,#C9603D_0%,#B0472B_55%,#943320_100%)] px-3.5 py-3.5 text-center text-[11px] font-black uppercase tracking-[0.14em] text-[#FFF8F0] shadow-[0_4px_0_#762719] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#762719]"
+                  className="rounded-[22px] border border-[#B55A3C] bg-[linear-gradient(180deg,#C9603D_0%,#B0472B_55%,#943320_100%)] px-4 py-4 text-center text-[11px] font-black uppercase tracking-[0.14em] text-[#FFF8F0] shadow-[0_4px_0_#762719] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#762719]"
                 >
                   Calcul
                   <br />
@@ -269,7 +256,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
 
                 <button
                   onClick={() => setView('prep_ratios')}
-                  className="rounded-[20px] border border-[#2E8D63] bg-[linear-gradient(180deg,#39B37D_0%,#239062_100%)] px-3.5 py-3.5 text-center text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-[0_4px_0_#196A48] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#196A48]"
+                  className="rounded-[22px] border border-[#2E8D63] bg-[linear-gradient(180deg,#39B37D_0%,#239062_100%)] px-4 py-4 text-center text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-[0_4px_0_#196A48] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#196A48]"
                 >
                   Calcul
                   <br />
@@ -281,39 +268,39 @@ const StatsPage: React.FC<StatsPageProps> = ({
         </aside>
 
         <main className="flex min-h-0 min-w-0 flex-1">
-          <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[24px] border border-[#D7B79B] bg-[#FAF5EE] shadow-[0_16px_32px_rgba(145,105,75,0.10)]">
-            <div className="border-b border-[#B45439] bg-[linear-gradient(180deg,#A93E2A_0%,#912F20_55%,#782219_100%)] px-4 py-2.5">
+          <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[26px] border border-[#D7B79B] bg-[#FAF5EE] shadow-[0_16px_32px_rgba(145,105,75,0.10)]">
+            <div className="border-b border-[#B45439] bg-[linear-gradient(180deg,#A93E2A_0%,#912F20_55%,#782219_100%)] px-4 py-3">
               <h2 className="text-[18px] font-black uppercase tracking-[0.08em] text-[#FFF8F1]">
                 Suivi mensuel
               </h2>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-auto">
-              <table className="h-full w-full table-fixed min-w-[860px]">
+            <div className="min-h-0 flex-1 overflow-auto bg-[#F7F0E7]">
+              <table className="w-full min-w-[1080px] table-fixed border-separate border-spacing-0">
                 <colgroup>
-                  <col className="w-[12%]" />
-                  <col className="w-[23%]" />
-                  <col className="w-[22%]" />
-                  <col className="w-[21%]" />
-                  <col className="w-[22%]" />
+                  <col className="w-[11%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[16%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[40%]" />
                 </colgroup>
 
-                <thead className="sticky top-0 z-10 bg-[linear-gradient(180deg,#C35A35_0%,#A94729_55%,#8C3722_100%)] text-[#FFF9F4] shadow-sm">
-                  <tr>
-                    <th className="px-3 py-2.5 text-left text-[11px] font-black uppercase tracking-[0.08em]">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-[#EADACA] text-[#71402D]">
+                    <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">
                       Mois
                     </th>
-                    <th className="px-3 py-2.5 text-center text-[11px] font-black uppercase tracking-[0.08em]">
-                      CA HT (€)
+                    <th className="border-b border-[#DCC2AB] px-3 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">
+                      CA HT
                     </th>
-                    <th className="px-3 py-2.5 text-center text-[11px] font-black uppercase tracking-[0.08em]">
-                      CM (%)
+                    <th className="border-b border-[#DCC2AB] px-3 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">
+                      CM
                     </th>
-                    <th className="px-3 py-2.5 text-center text-[11px] font-black uppercase tracking-[0.08em]">
+                    <th className="border-b border-[#DCC2AB] px-3 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">
                       Couverts
                     </th>
-                    <th className="px-3 py-2.5 text-left text-[11px] font-black uppercase tracking-[0.08em]">
-                      Inventaire détaillé
+                    <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">
+                      Imports du mois
                     </th>
                   </tr>
                 </thead>
@@ -393,95 +380,95 @@ const StatsPage: React.FC<StatsPageProps> = ({
                           }}
                           disabled={!canEditFields}
                           className={`${inputBase} ${inputTheme}`}
-                          placeholder="-"
+                          placeholder=""
                           title={title}
                         />
                       );
                     };
 
                     return (
-                      <tr
-                        key={m.key}
-                        className={
-                          rowIndex % 2 === 0
-                            ? 'bg-[#FCF8F2] text-[#34271F]'
-                            : 'bg-[#F6EFE5] text-[#34271F]'
-                        }
-                      >
-                        <td className="border-t border-[#E0CCBA] px-3 py-2 align-middle text-[13px] font-black uppercase tracking-[0.04em] text-[#5D3324]">
+                      <tr key={m.key} className="align-middle">
+                        <td className="border-b border-[#E2CEBD] bg-[#F7F0E7] px-3 py-4 text-[15px] font-black uppercase tracking-[0.03em] text-[#4E2E22]">
                           {m.label}
                         </td>
 
-                        <td className="border-t border-[#E0CCBA] px-3 py-1.5 align-middle">
+                        <td className="border-b border-[#E2CEBD] bg-[#F7F0E7] px-3 py-3">
                           {renderEditableInput('sales', "Chiffre d'affaires HT")}
                         </td>
 
-                        <td className="border-t border-[#E0CCBA] px-3 py-1.5 align-middle">
+                        <td className="border-b border-[#E2CEBD] bg-[#F7F0E7] px-3 py-3">
                           {renderEditableInput('cm', 'Coût matière (%)')}
                         </td>
 
-                        <td className="border-t border-[#E0CCBA] px-3 py-1.5 align-middle">
+                        <td className="border-b border-[#E2CEBD] bg-[#F7F0E7] px-3 py-3">
                           {renderEditableInput('covers', 'Couverts')}
                         </td>
 
-                        <td className="border-t border-[#E0CCBA] px-3 py-1.5 align-middle">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <div className="flex flex-col gap-2">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-[10px] font-black uppercase tracking-[0.08em] text-[#8E6A4E]">Inventaire</span>
-                                <button
-                                  onClick={() => canImport && setModalState({ month: m.key, target: 'inventory' })}
-                                  disabled={!canImport}
-                                  className={`inline-flex rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.05em] border transition ${
-                                    importState === 'imported'
-                                      ? 'border-[#9FC9A7] bg-[#E6F3E8] text-[#3F6B4A] hover:bg-[#DDEEE0]'
-                                      : importState === 'validated'
-                                      ? 'border-[#D0A57A] bg-[#F6E7D6] text-[#A06535] hover:bg-[#F0DDC7]'
-                                      : 'border-[#D8C1AB] bg-[#F3E7DA] text-[#8E6A4E] hover:bg-[#ECDECE]'
-                                  } ${!canImport ? 'cursor-not-allowed opacity-50' : ''}`}
-                                >
-                                  {importState === 'imported' ? 'Importé' : importState === 'validated' ? 'En attente' : 'Importer'}
-                                </button>
-                                {hasImport && (
+                        <td className="border-b border-[#E2CEBD] bg-[#F7F0E7] px-3 py-3">
+                          <div className="rounded-[20px] border border-[#D6B293] bg-[#FBF7F1] px-4 py-3.5 shadow-[0_2px_0_rgba(188,145,106,0.18)]">
+                            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                              <div className="flex flex-col gap-2.5">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="text-[11px] font-black uppercase tracking-[0.08em] text-[#7D543E]">
+                                    Inventaire détaillé
+                                  </span>
                                   <button
-                                    type="button"
-                                    onClick={() => removeInventoryForMonth(m.key)}
-                                    disabled={!canRemoveImport}
-                                    title={`Supprimer l'import inventaire ${m.label}`}
-                                    className="flex h-7 w-7 items-center justify-center rounded-full border border-[#D6B293] bg-[#F7EBDD] text-[#A5502F] shadow-sm transition hover:bg-[#F0DECB] disabled:cursor-not-allowed disabled:opacity-40"
+                                    onClick={() => canImport && setModalState({ month: m.key, target: 'inventory' })}
+                                    disabled={!canImport}
+                                    className={`rounded-[14px] border px-3 py-2 text-[11px] font-black uppercase tracking-[0.06em] transition ${
+                                      importState === 'imported'
+                                        ? 'border-[#9FC9A7] bg-[#E6F3E8] text-[#3F6B4A] hover:bg-[#DDEEE0]'
+                                        : importState === 'validated'
+                                        ? 'border-[#D0A57A] bg-[#F6E7D6] text-[#A06535] hover:bg-[#F0DDC7]'
+                                        : 'border-[#D6B293] bg-[#F5E8DA] text-[#8E6A4E] hover:bg-[#EFDCC8]'
+                                    } ${!canImport ? 'cursor-not-allowed opacity-50' : ''}`}
                                   >
-                                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 6l12 12M18 6L6 18" />
-                                    </svg>
+                                    {importState === 'imported' ? 'Importé' : importState === 'validated' ? 'En attente' : 'Importer'}
                                   </button>
-                                )}
-                              </div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-[10px] font-black uppercase tracking-[0.08em] text-[#8E6A4E]">Production</span>
-                                <button
-                                  onClick={() => canImport && setModalState({ month: m.key, target: 'production' })}
-                                  disabled={!canImport}
-                                  className={`inline-flex rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.05em] border transition ${
-                                    prepImportsByMonth[m.key]
-                                      ? 'border-[#9FC9A7] bg-[#E6F3E8] text-[#3F6B4A] hover:bg-[#DDEEE0]'
-                                      : 'border-[#D8C1AB] bg-[#F3E7DA] text-[#8E6A4E] hover:bg-[#ECDECE]'
-                                  } ${!canImport ? 'cursor-not-allowed opacity-50' : ''}`}
-                                >
-                                  {prepImportsByMonth[m.key] ? 'Importé' : 'Importer'}
-                                </button>
-                                {prepImportsByMonth[m.key] && (
+                                  {hasImport && (
+                                    <button
+                                      type="button"
+                                      onClick={() => removeInventoryForMonth(m.key)}
+                                      disabled={!canRemoveImport}
+                                      title={`Supprimer l'import inventaire ${m.label}`}
+                                      className="flex h-9 w-9 items-center justify-center rounded-[14px] border border-[#D6B293] bg-[#F7EBDD] text-[#A5502F] transition hover:bg-[#F0DECB] disabled:cursor-not-allowed disabled:opacity-40"
+                                    >
+                                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 6l12 12M18 6L6 18" />
+                                      </svg>
+                                    </button>
+                                  )}
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="text-[11px] font-black uppercase tracking-[0.08em] text-[#7D543E]">
+                                    Import production
+                                  </span>
                                   <button
-                                    type="button"
-                                    onClick={() => removeProductionImportForMonth(m.key)}
-                                    disabled={!canRemoveImport}
-                                    title={`Supprimer l'import production ${m.label}`}
-                                    className="flex h-7 w-7 items-center justify-center rounded-full border border-[#D6B293] bg-[#F7EBDD] text-[#A5502F] shadow-sm transition hover:bg-[#F0DECB] disabled:cursor-not-allowed disabled:opacity-40"
+                                    onClick={() => canImport && setModalState({ month: m.key, target: 'production' })}
+                                    disabled={!canImport}
+                                    className={`rounded-[14px] border px-3 py-2 text-[11px] font-black uppercase tracking-[0.06em] transition ${
+                                      prepImportsByMonth[m.key]
+                                        ? 'border-[#9FC9A7] bg-[#E6F3E8] text-[#3F6B4A] hover:bg-[#DDEEE0]'
+                                        : 'border-[#D6B293] bg-[#F5E8DA] text-[#8E6A4E] hover:bg-[#EFDCC8]'
+                                    } ${!canImport ? 'cursor-not-allowed opacity-50' : ''}`}
                                   >
-                                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 6l12 12M18 6L6 18" />
-                                    </svg>
+                                    {prepImportsByMonth[m.key] ? 'Importé' : 'Importer'}
                                   </button>
-                                )}
+                                  {prepImportsByMonth[m.key] && (
+                                    <button
+                                      type="button"
+                                      onClick={() => removeProductionImportForMonth(m.key)}
+                                      disabled={!canRemoveImport}
+                                      title={`Supprimer l'import production ${m.label}`}
+                                      className="flex h-9 w-9 items-center justify-center rounded-[14px] border border-[#D6B293] bg-[#F7EBDD] text-[#A5502F] transition hover:bg-[#F0DECB] disabled:cursor-not-allowed disabled:opacity-40"
+                                    >
+                                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 6l12 12M18 6L6 18" />
+                                      </svg>
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
