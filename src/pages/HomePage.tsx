@@ -1,9 +1,3 @@
-// =============================================================
-// pages/HomePage.tsx
-// Page d'accueil principale de l'application
-// Extraite de App.tsx
-// =============================================================
-
 import React, { useState } from 'react';
 import { View } from '../constants';
 import { PasswordModal } from '../components/Modals';
@@ -15,6 +9,69 @@ interface HomePageProps {
   setView: (v: View) => void;
 }
 
+type HomeCardProps = {
+  title: string;
+  accent: string;
+  accentSoft: string;
+  onClick: () => void;
+  children: React.ReactNode;
+  compactTitle?: boolean;
+};
+
+const HomeCard: React.FC<HomeCardProps> = ({
+  title,
+  accent,
+  accentSoft,
+  onClick,
+  children,
+  compactTitle = false,
+}) => {
+  return (
+    <button
+      onClick={onClick}
+      className="group relative w-full max-w-[360px] mx-auto rounded-[28px] border border-white/35 bg-[#f6efe7]/95 px-6 py-6 sm:px-7 sm:py-7 text-left shadow-[0_18px_50px_rgba(0,0,0,0.22)] backdrop-blur-[2px] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_26px_56px_rgba(0,0,0,0.28)]"
+    >
+      <div
+        className="absolute inset-x-5 top-0 h-1 rounded-b-full opacity-90 transition-all duration-300 group-hover:inset-x-4"
+        style={{ backgroundColor: accent }}
+      />
+
+      <div className="flex h-full min-h-[220px] flex-col">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div
+            className="flex h-16 w-16 items-center justify-center rounded-[22px] border border-black/5 shadow-sm transition-all duration-300 group-hover:scale-[1.03]"
+            style={{ backgroundColor: accentSoft }}
+          >
+            {children}
+          </div>
+          <div
+            className="rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-[0.22em] text-slate-700/70"
+            style={{ borderColor: `${accent}55` }}
+          >
+            Ouvrir
+          </div>
+        </div>
+
+        <div className="mt-auto space-y-3">
+          <h2
+            className={`font-black uppercase tracking-[-0.04em] text-[#0d2b57] ${compactTitle ? 'leading-[0.95]' : 'leading-[0.9]'}`}
+            style={{ fontSize: compactTitle ? 'clamp(1.75rem, 2.2vw, 2.7rem)' : 'clamp(2rem, 2.4vw, 3rem)' }}
+          >
+            {title}
+          </h2>
+          <div className="flex items-center gap-3 text-[13px] font-bold text-slate-700/70">
+            <span
+              className="inline-block h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: accent }}
+            />
+            Module principal
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+};
+
 const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   const [showPassword, setShowPassword] = useState(false);
   const { profile } = useAuth();
@@ -22,6 +79,8 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   const isMobile =
     typeof window !== 'undefined' &&
     window.matchMedia('(max-width: 1023px)').matches;
+
+  const showStats = !isMobile && canAccessStatsPage(profile);
 
   return (
     <div className="min-h-screen bg-[#1a0f0a] relative overflow-hidden">
@@ -35,7 +94,6 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         />
       )}
 
-      {/* Image de fond vache / boeuf */}
       <div
         className="absolute inset-0 z-0 pointer-events-none"
         style={{
@@ -43,23 +101,21 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           backgroundSize: 'cover',
           backgroundPosition: isMobile ? '72% center' : '68% center',
           backgroundRepeat: 'no-repeat',
-          filter: 'brightness(1.12)',
+          filter: 'brightness(1.08)',
           transform: 'scale(1)',
         }}
       />
 
-      {/* Overlay */}
       <div
         className="absolute inset-0 z-0 pointer-events-none"
         style={{
           background:
-            'linear-gradient(rgba(26,15,10,0.52), rgba(26,15,10,0.60))',
+            'linear-gradient(rgba(26,15,10,0.56), rgba(26,15,10,0.62))',
         }}
       />
 
       <div className="relative z-10 min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-10 py-8 lg:py-12">
-        <div className="w-full max-w-[1800px]">
-          {/* Titre */}
+        <div className="w-full max-w-[1720px]">
           <div className="text-center mb-8 sm:mb-10 lg:mb-14">
             <h1
               className="text-[#ffd700] font-black uppercase tracking-tighter leading-none mb-4"
@@ -74,21 +130,43 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
             <div className="h-2 w-36 sm:w-44 lg:w-56 bg-red-600 mx-auto rounded-full" />
           </div>
 
-          {/* Boutons principaux */}
           <div
-  className={`grid gap-1 lg:gap-2 mb-8 justify-center ${
-    !isMobile && canAccessStatsPage(profile)
-      ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4'
-      : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
-  }`}
->
-            <button
+            className={`grid gap-5 lg:gap-6 mb-8 justify-center ${
+              showStats
+                ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4'
+                : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
+            }`}
+          >
+            <HomeCard
+              title="Commandes"
+              accent="#e53935"
+              accentSoft="#f7dfe0"
               onClick={() => setView('suppliers')}
-              className="group w-full max-w-[380px] mx-auto bg-white p-3 sm:p-4 lg:p-5 rounded-[30px] shadow-2xl hover:scale-105 transition-all border-4 border-transparent hover:border-red-600"
             >
-              <div className="w-16 h-16 lg:w-20 lg:h-20 bg-red-100 rounded-3xl flex items-center justify-center mb-4 mx-auto group-hover:bg-red-600 transition-colors">
+              <svg
+                className="w-8 h-8 text-red-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                />
+              </svg>
+            </HomeCard>
+
+            {showStats && (
+              <HomeCard
+                title="Paramètres"
+                accent="#d18a00"
+                accentSoft="#f5e9bf"
+                onClick={() => setView('stats')}
+              >
                 <svg
-                  className="w-8 h-8 lg:w-10 lg:h-10 text-red-600 group-hover:text-white"
+                  className="w-8 h-8 text-amber-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -97,108 +175,57 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth="2"
-                    d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
                   />
                 </svg>
-              </div>
-              <span
-                className="font-black uppercase text-slate-800 tracking-tighter text-center"
-                style={{ fontSize: 'clamp(1.7rem, 2.2vw, 2.6rem)' }}
-              >
-                Commandes
-              </span>
-            </button>
-
-            {!isMobile && canAccessStatsPage(profile) && (
-              <button
-                onClick={() => setView('stats')}
-                className="group w-full max-w-[380px] mx-auto bg-white p-3 sm:p-4 lg:p-5 rounded-[30px] shadow-2xl transition-all border-4 border-transparent hover:scale-105 hover:border-amber-500"
-                title="Paramètres"
-              >
-                <div className="w-16 h-16 lg:w-20 lg:h-20 bg-amber-100 rounded-3xl flex items-center justify-center mb-4 mx-auto group-hover:bg-amber-500 transition-colors">
-                  <svg
-                    className="w-8 h-8 lg:w-10 lg:h-10 text-amber-600 group-hover:text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                    />
-                  </svg>
-                </div>
-                <span
-                  className="font-black uppercase text-slate-800 tracking-tighter text-center"
-                  style={{ fontSize: 'clamp(1.7rem, 2.2vw, 2.6rem)' }}
-                >
-                  Paramètres
-                </span>
-              </button>
+              </HomeCard>
             )}
 
-            <button
+            <HomeCard
+              title="Feuille de\nMise en Place"
+              accent="#169b63"
+              accentSoft="#d7f1e4"
               onClick={() => setView('prep_sheet')}
-              className="group w-full max-w-[380px] mx-auto bg-white p-3 sm:p-4 lg:p-5 rounded-[30px] shadow-2xl hover:scale-105 transition-all border-4 border-transparent hover:border-emerald-600"
+              compactTitle
             >
-              <div className="w-16 h-16 lg:w-20 lg:h-20 bg-emerald-100 rounded-3xl flex items-center justify-center mb-4 mx-auto group-hover:bg-emerald-600 transition-colors">
-                <svg
-                  className="w-8 h-8 lg:w-10 lg:h-10 text-emerald-600 group-hover:text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 6v12m6-6H6M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2z"
-                  />
-                </svg>
-              </div>
-              <span
-                className="font-black uppercase text-slate-800 tracking-tighter text-center leading-tight"
-                style={{ fontSize: 'clamp(1.45rem, 2vw, 2.2rem)' }}
+              <svg
+                className="w-8 h-8 text-emerald-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                Feuille de
-                <br />
-                Mise en Place
-              </span>
-            </button>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 6v12m6-6H6M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2z"
+                />
+              </svg>
+            </HomeCard>
 
-            <button
+            <HomeCard
+              title="Analyse\nCoût Matière"
+              accent="#ea6a11"
+              accentSoft="#f8ead7"
               onClick={() => setView('cost_analysis')}
-              className="group w-full max-w-[380px] mx-auto bg-white p-3 sm:p-4 lg:p-5 rounded-[30px] shadow-2xl hover:scale-105 transition-all border-4 border-transparent hover:border-orange-600"
+              compactTitle
             >
-              <div className="w-16 h-16 lg:w-20 lg:h-20 bg-orange-100 rounded-3xl flex items-center justify-center mb-4 mx-auto group-hover:bg-orange-600 transition-colors">
-                <svg
-                  className="w-8 h-8 lg:w-10 lg:h-10 text-orange-600 group-hover:text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"
-                  />
-                </svg>
-              </div>
-              <span
-                className="font-black uppercase text-slate-800 tracking-tighter text-center leading-tight"
-                style={{ fontSize: 'clamp(1.5rem, 2vw, 2.35rem)' }}
+              <svg
+                className="w-8 h-8 text-orange-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                Analyse
-                <br />
-                Coût Matière
-              </span>
-            </button>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"
+                />
+              </svg>
+            </HomeCard>
           </div>
 
-          {/* Accès admin discret */}
           <button
             onClick={() => {
               if (canAccessAdminDashboard(profile)) {
