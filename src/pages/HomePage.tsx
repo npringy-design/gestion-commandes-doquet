@@ -9,37 +9,105 @@ interface HomePageProps {
   setView: (v: View) => void;
 }
 
+type IconName = 'bag' | 'sliders' | 'clipboard' | 'chart';
+
 type HomeCardProps = {
   title: string;
   accent: string;
   fill: string;
-  symbol: string;
+  icon: IconName;
   onClick: () => void;
 };
 
-const HomeCard: React.FC<HomeCardProps> = ({ title, accent, fill, symbol, onClick }) => {
+const HomeIcon: React.FC<{ name: IconName; color: string }> = ({ name, color }) => {
+  const common = {
+    fill: 'none',
+    stroke: color,
+    strokeWidth: 2.2,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+  };
+
+  switch (name) {
+    case 'bag':
+      return (
+        <svg viewBox="0 0 24 24" className="h-8 w-8" aria-hidden="true">
+          <path {...common} d="M6.5 9.5h11l-1 9h-9z" />
+          <path {...common} d="M9 9.5V8a3 3 0 0 1 6 0v1.5" />
+        </svg>
+      );
+    case 'sliders':
+      return (
+        <svg viewBox="0 0 24 24" className="h-8 w-8" aria-hidden="true">
+          <path {...common} d="M6 5v14" />
+          <path {...common} d="M12 5v14" />
+          <path {...common} d="M18 5v14" />
+          <circle cx="6" cy="9" r="2.2" fill={color} />
+          <circle cx="12" cy="15" r="2.2" fill={color} />
+          <circle cx="18" cy="11" r="2.2" fill={color} />
+        </svg>
+      );
+    case 'clipboard':
+      return (
+        <svg viewBox="0 0 24 24" className="h-8 w-8" aria-hidden="true">
+          <rect {...common} x="7" y="5.5" width="10" height="14" rx="2" />
+          <path {...common} d="M10 5.5h4" />
+          <path {...common} d="M9.5 10.5h5" />
+          <path {...common} d="M9.5 14h5" />
+        </svg>
+      );
+    case 'chart':
+      return (
+        <svg viewBox="0 0 24 24" className="h-8 w-8" aria-hidden="true">
+          <path {...common} d="M5 18.5h14" />
+          <path {...common} d="M7.5 16v-4" />
+          <path {...common} d="M12 16v-7" />
+          <path {...common} d="M16.5 16v-9" />
+          <path {...common} d="M7.5 10.5 12 7.5l4.5-2" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+};
+
+const HomeCard: React.FC<HomeCardProps> = ({ title, accent, fill, icon, onClick }) => {
   return (
     <button
       onClick={onClick}
-      className="group relative mx-auto flex w-full max-w-[270px] items-center justify-center overflow-hidden rounded-[26px] border border-[#e8c9a8] px-6 py-6 text-center shadow-[0_14px_30px_rgba(0,0,0,0.22)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_36px_rgba(0,0,0,0.28)]"
-      style={{ background: fill }}
+      className="group relative mx-auto flex h-[188px] w-full max-w-[320px] items-center justify-center overflow-hidden rounded-[28px] border border-[#e2bf99] px-6 py-6 text-center transition-all duration-300 hover:-translate-y-1"
+      style={{
+        background: fill,
+        boxShadow:
+          '0 22px 40px rgba(39, 19, 10, 0.26), inset 0 1px 0 rgba(255,255,255,0.6), inset 0 -10px 18px rgba(126, 67, 39, 0.06)',
+      }}
     >
       <div
-        className="absolute inset-x-7 top-0 h-[4px] rounded-b-full"
+        className="absolute inset-x-5 top-0 h-[4px] rounded-b-full"
         style={{ backgroundColor: accent }}
       />
 
-      <div className="flex min-h-[138px] flex-col items-center justify-center gap-4">
-        <span
-          aria-hidden="true"
-          className="select-none text-[2rem] leading-none transition-transform duration-300 group-hover:scale-105"
-          style={{ color: accent }}
+      <div
+        className="absolute inset-x-6 top-4 h-10 rounded-full opacity-50 blur-xl"
+        style={{ background: `linear-gradient(180deg, ${accent}22 0%, transparent 100%)` }}
+      />
+
+      <div className="relative flex h-full w-full flex-col items-center justify-center gap-5">
+        <div
+          className="flex h-14 w-14 items-center justify-center rounded-2xl border"
+          style={{
+            color: accent,
+            borderColor: `${accent}55`,
+            background: `linear-gradient(180deg, ${accent}1f 0%, rgba(255,255,255,0.35) 100%)`,
+            boxShadow: `inset 0 1px 0 rgba(255,255,255,0.65), 0 10px 18px ${accent}18`,
+          }}
         >
-          {symbol}
-        </span>
+          <HomeIcon name={icon} color={accent} />
+        </div>
+
         <h2
           className="whitespace-pre-line text-center font-black uppercase leading-[0.94] tracking-[-0.05em] text-[#0d2b57]"
-          style={{ fontSize: 'clamp(1.1rem, 1.7vw, 2rem)' }}
+          style={{ fontSize: 'clamp(1.15rem, 1.8vw, 2rem)' }}
         >
           {title}
         </h2>
@@ -77,7 +145,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           backgroundSize: 'cover',
           backgroundPosition: isMobile ? '72% center' : '68% center',
           backgroundRepeat: 'no-repeat',
-          filter: 'brightness(0.98) saturate(1.02)',
+          filter: 'brightness(0.98) saturate(1.05)',
         }}
       />
 
@@ -85,7 +153,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         className="pointer-events-none absolute inset-0 z-0"
         style={{
           background:
-            'linear-gradient(180deg, rgba(121,63,34,0.22) 0%, rgba(94,47,25,0.28) 45%, rgba(51,24,14,0.34) 100%)',
+            'linear-gradient(180deg, rgba(153,83,42,0.24) 0%, rgba(126,69,37,0.32) 45%, rgba(66,31,17,0.38) 100%)',
         }}
       />
 
@@ -93,7 +161,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         className="pointer-events-none absolute inset-0 z-0"
         style={{
           background:
-            'radial-gradient(circle at 50% 20%, rgba(205,118,68,0.16), transparent 34%), radial-gradient(circle at 50% 100%, rgba(149,74,40,0.16), transparent 36%)',
+            'radial-gradient(circle at 50% 18%, rgba(223,133,81,0.20), transparent 34%), radial-gradient(circle at 50% 100%, rgba(165,87,49,0.20), transparent 38%)',
         }}
       />
 
@@ -114,7 +182,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           </div>
 
           <div
-            className={`grid justify-center gap-4 lg:gap-5 ${
+            className={`grid justify-center gap-5 lg:gap-6 ${
               showStats
                 ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4'
                 : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
@@ -123,8 +191,8 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
             <HomeCard
               title="Commandes"
               accent="#e45449"
-              fill="linear-gradient(180deg, rgba(248,232,226,0.97) 0%, rgba(244,223,214,0.97) 100%)"
-              symbol="⌂"
+              fill="linear-gradient(180deg, rgba(248,223,214,0.98) 0%, rgba(241,205,191,0.98) 100%)"
+              icon="bag"
               onClick={() => setView('suppliers')}
             />
 
@@ -132,25 +200,25 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
               <HomeCard
                 title="Paramètres"
                 accent="#d69a15"
-                fill="linear-gradient(180deg, rgba(248,239,222,0.97) 0%, rgba(243,229,201,0.97) 100%)"
-                symbol="≡"
+                fill="linear-gradient(180deg, rgba(248,230,188,0.98) 0%, rgba(240,211,154,0.98) 100%)"
+                icon="sliders"
                 onClick={() => setView('stats')}
               />
             )}
 
             <HomeCard
               title={'Feuille de\nMise en Place'}
-              accent="#c97a2b"
-              fill="linear-gradient(180deg, rgba(248,236,223,0.97) 0%, rgba(243,223,203,0.97) 100%)"
-              symbol="□"
+              accent="#c96b36"
+              fill="linear-gradient(180deg, rgba(248,224,196,0.98) 0%, rgba(239,201,164,0.98) 100%)"
+              icon="clipboard"
               onClick={() => setView('prep_sheet')}
             />
 
             <HomeCard
               title={'Analyse\nCoût Matière'}
               accent="#e78927"
-              fill="linear-gradient(180deg, rgba(248,236,225,0.97) 0%, rgba(244,225,207,0.97) 100%)"
-              symbol="△"
+              fill="linear-gradient(180deg, rgba(249,225,192,0.98) 0%, rgba(241,204,159,0.98) 100%)"
+              icon="chart"
               onClick={() => setView('cost_analysis')}
             />
           </div>
