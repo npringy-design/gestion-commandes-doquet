@@ -12,44 +12,27 @@ interface HomePageProps {
 type HomeCardProps = {
   title: string;
   accent: string;
-  accentSoft: string;
   onClick: () => void;
-  children: React.ReactNode;
 };
 
-const HomeCard: React.FC<HomeCardProps> = ({
-  title,
-  accent,
-  accentSoft,
-  onClick,
-  children,
-}) => {
+const HomeCard: React.FC<HomeCardProps> = ({ title, accent, onClick }) => {
   return (
     <button
       onClick={onClick}
-      className="group relative w-full max-w-[300px] mx-auto rounded-[24px] border border-white/20 bg-[#f5eee6]/92 px-7 py-6 text-left shadow-[0_16px_36px_rgba(0,0,0,0.20)] backdrop-blur-[1px] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_44px_rgba(0,0,0,0.26)]"
+      className="group relative w-full max-w-[270px] mx-auto rounded-[26px] border border-[#e8c9a8] bg-[#f6eee2] px-6 py-5 text-left shadow-[0_14px_30px_rgba(0,0,0,0.22)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_36px_rgba(0,0,0,0.28)]"
     >
       <div
-        className="absolute inset-x-6 top-0 h-[4px] rounded-b-full opacity-95"
+        className="absolute inset-x-7 top-0 h-[4px] rounded-b-full"
         style={{ backgroundColor: accent }}
       />
 
-      <div className="flex min-h-[168px] flex-col justify-between">
-        <div
-          className="flex h-16 w-16 items-center justify-center rounded-[22px] border border-black/5 shadow-sm"
-          style={{ backgroundColor: accentSoft }}
+      <div className="flex min-h-[126px] items-end">
+        <h2
+          className="whitespace-pre-line break-words font-black uppercase leading-[0.94] tracking-[-0.05em] text-[#0d2b57] transition-transform duration-300 group-hover:translate-y-[-2px]"
+          style={{ fontSize: 'clamp(1.25rem, 1.9vw, 2.2rem)' }}
         >
-          {children}
-        </div>
-
-        <div className="mt-8">
-          <h2
-            className="whitespace-pre-line break-words font-black uppercase tracking-[-0.05em] text-[#0d2b57] leading-[0.92]"
-            style={{ fontSize: 'clamp(1.65rem, 2vw, 2.6rem)' }}
-          >
-            {title}
-          </h2>
-        </div>
+          {title}
+        </h2>
       </div>
     </button>
   );
@@ -84,7 +67,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           backgroundSize: 'cover',
           backgroundPosition: isMobile ? '72% center' : '68% center',
           backgroundRepeat: 'no-repeat',
-          filter: 'brightness(1.02) saturate(1.08)',
+          filter: 'brightness(0.98) saturate(1.02)',
         }}
       />
 
@@ -92,7 +75,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         className="pointer-events-none absolute inset-0 z-0"
         style={{
           background:
-            'linear-gradient(180deg, rgba(69,29,16,0.36) 0%, rgba(46,19,11,0.40) 48%, rgba(28,12,8,0.48) 100%)',
+            'linear-gradient(180deg, rgba(96,44,23,0.30) 0%, rgba(67,31,16,0.34) 45%, rgba(41,18,10,0.40) 100%)',
         }}
       />
 
@@ -100,12 +83,12 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         className="pointer-events-none absolute inset-0 z-0"
         style={{
           background:
-            'radial-gradient(circle at 50% 18%, rgba(186,107,58,0.18), transparent 32%), radial-gradient(circle at 50% 100%, rgba(128,54,24,0.18), transparent 34%)',
+            'radial-gradient(circle at 50% 20%, rgba(190,105,58,0.18), transparent 34%), radial-gradient(circle at 50% 100%, rgba(137,60,29,0.18), transparent 36%)',
         }}
       />
 
       <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
-        <div className="w-full max-w-[1720px]">
+        <div className="w-full max-w-[1640px]">
           <div className="mb-8 text-center sm:mb-10 lg:mb-12">
             <h1
               className="mb-4 font-black uppercase leading-none tracking-tighter text-[#ffd700]"
@@ -121,7 +104,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           </div>
 
           <div
-            className={`grid justify-center gap-5 lg:gap-6 ${
+            className={`grid justify-center gap-4 lg:gap-5 ${
               showStats
                 ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4'
                 : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
@@ -130,88 +113,28 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
             <HomeCard
               title="Commandes"
               accent="#ef5350"
-              accentSoft="#f8dede"
               onClick={() => setView('suppliers')}
-            >
-              <svg
-                className="h-8 w-8 text-red-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                />
-              </svg>
-            </HomeCard>
+            />
 
             {showStats && (
               <HomeCard
                 title="Paramètres"
                 accent="#d8a108"
-                accentSoft="#f5e9bf"
                 onClick={() => setView('stats')}
-              >
-                <svg
-                  className="h-8 w-8 text-amber-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                  />
-                </svg>
-              </HomeCard>
+              />
             )}
 
             <HomeCard
               title={'Feuille de\nMise en Place'}
               accent="#2cb673"
-              accentSoft="#d7f1e4"
               onClick={() => setView('prep_sheet')}
-            >
-              <svg
-                className="h-8 w-8 text-emerald-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M12 6v12m6-6H6M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2z"
-                />
-              </svg>
-            </HomeCard>
+            />
 
             <HomeCard
               title={'Analyse\nCoût Matière'}
               accent="#ea7a1f"
-              accentSoft="#f8ead7"
               onClick={() => setView('cost_analysis')}
-            >
-              <svg
-                className="h-8 w-8 text-orange-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"
-                />
-              </svg>
-            </HomeCard>
+            />
           </div>
 
           <button
