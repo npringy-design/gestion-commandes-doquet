@@ -309,6 +309,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
                   {MONTHS_DISPLAY_CONFIG.map((m, rowIndex) => {
                     const importState = getImportState(m.key);
                     const hasImport = importState === 'imported';
+                    const hasPrepImport = !!prepImportsByMonth[m.key];
 
                     const renderEditableInput = (field: EditableField, title: string) => {
                       const cellKey = getCellKey(m.key, field);
