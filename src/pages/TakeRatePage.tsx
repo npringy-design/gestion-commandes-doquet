@@ -124,6 +124,12 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({
 
               <div className="flex items-center gap-2">
                 <button
+                  onClick={() => setView('take_rate_results')}
+                  className="rounded-[16px] border border-[#B55A3C] bg-[#F7E8DE] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#8D4F35] transition hover:bg-[#F2DDCF]"
+                >
+                  Voir la feuille
+                </button>
+                <button
                   onClick={addRow}
                   className="rounded-[16px] border border-[#2E8D63] bg-[linear-gradient(180deg,#39B37D_0%,#239062_100%)] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-white shadow-[0_4px_0_#196A48] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#196A48]"
                 >

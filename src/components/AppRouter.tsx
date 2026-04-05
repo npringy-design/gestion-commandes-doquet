@@ -19,6 +19,7 @@ const UserManagementPage = lazy(() => import('../pages/UserManagementPage'));
 const PrepSheetPage = lazy(() => import('../pages/PrepSheetPage'));
 const PrepRatiosPage = lazy(() => import('../pages/PrepRatiosPage'));
 const TakeRatePage = lazy(() => import('../pages/TakeRatePage'));
+const TakeRateResultsPage = lazy(() => import('../pages/TakeRateResultsPage'));
 
 type ScrollSyncSource = 'main' | 'bottom';
 
@@ -217,7 +218,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
     );
   }
 
-  if (view === 'take_rate' && isMobile) return renderWithShell(<MobileBlocked title="Calcul taux de prise" />);
+  if ((view === 'take_rate' || view === 'take_rate_results') && isMobile) return renderWithShell(<MobileBlocked title="Taux de prise" />);
 
   if (view === 'take_rate') {
     if (!canAccessRatiosPage(profile)) {
@@ -231,6 +232,21 @@ const AppRouter: React.FC<AppRouterProps> = ({
         availableImports={[]}
       />,
       'Chargement du calcul taux de prise…'
+    );
+  }
+
+
+  if (view === 'take_rate_results') {
+    if (!canAccessRatiosPage(profile)) {
+      return renderWithShell(<AccessDenied message="Cette section est réservée aux rôles autorisés pour ce module." />);
+    }
+    return renderLazyPage(
+      <TakeRateResultsPage
+        setView={setView}
+        rows={takeRateRows}
+        covers={state.covers}
+      />,
+      'Chargement de la feuille taux de prise…'
     );
   }
 
