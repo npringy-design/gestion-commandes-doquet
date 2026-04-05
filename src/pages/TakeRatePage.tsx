@@ -5,7 +5,6 @@ export interface TakeRateMappingRow {
   id: string;
   label: string;
   family: string;
-  notes: string;
   linkedImports: string[];
 }
 
@@ -20,7 +19,6 @@ const createEmptyRow = (): TakeRateMappingRow => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
   label: '',
   family: '',
-  notes: '',
   linkedImports: [],
 });
 
@@ -101,16 +99,16 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({
         </div>
 
         <button
-          onClick={() => setView('home')}
+          onClick={() => setView('stats')}
           className="rounded-[22px] border border-[#D9A72B] bg-[linear-gradient(180deg,#F3C63D_0%,#E3A91F_100%)] px-4 py-3.5 text-center text-[13px] font-black uppercase tracking-[0.12em] text-[#4D2B18] shadow-[0_4px_0_#B8810F] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#B8810F]"
         >
-          Retour accueil
+          Retour paramètres
         </button>
 
         <div className="rounded-[22px] border border-[#D7BFAB] bg-[#FFF8F1] px-4 py-4 shadow-[0_8px_18px_rgba(96,56,34,0.08)]">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#93644D]">Version 1</p>
           <p className="mt-2 text-[13px] font-semibold leading-5 text-[#6E4736]">
-            Page de mapping manuel pour regrouper les produits import avant l’analyse du taux de prise.
+            Page de paramétrage manuel pour regrouper les produits import avant la feuille de taux de prise.
           </p>
         </div>
       </aside>
@@ -138,11 +136,10 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({
           <div className="min-h-0 flex-1 overflow-auto bg-[#F7F0E7]">
             <table className="w-full min-w-[1280px] table-fixed border-separate border-spacing-0">
               <colgroup>
+                <col className="w-[24%]" />
+                <col className="w-[16%]" />
                 <col className="w-[22%]" />
-                <col className="w-[14%]" />
-                <col className="w-[20%]" />
-                <col className="w-[26%]" />
-                <col className="w-[14%]" />
+                <col className="w-[34%]" />
                 <col className="w-[4%]" />
               </colgroup>
 
@@ -152,7 +149,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Famille</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Recherche import</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Produits liés</th>
-                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Notes</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">—</th>
                 </tr>
               </thead>
@@ -160,7 +156,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-10 text-center text-[14px] font-semibold text-[#8B6650]">
+                    <td colSpan={5} className="px-6 py-10 text-center text-[14px] font-semibold text-[#8B6650]">
                       Aucune ligne pour le moment. Ajoute un produit final puis rattache les références import correspondantes.
                     </td>
                   </tr>
@@ -274,16 +270,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({
                               </div>
                             )}
                           </div>
-                        </td>
-
-                        <td className="border-b border-[#E8D8C8] px-3 py-3 align-top">
-                          <textarea
-                            value={row.notes}
-                            onChange={(e) => updateRow(row.id, { notes: e.target.value })}
-                            placeholder="Notes"
-                            rows={3}
-                            className="w-full resize-none rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[13px] font-medium text-[#4F2E22] outline-none transition focus:border-[#B55A3C] focus:ring-2 focus:ring-[#E8B59E]"
-                          />
                         </td>
 
                         <td className="border-b border-[#E8D8C8] px-2 py-3 align-top">
