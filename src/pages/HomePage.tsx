@@ -166,8 +166,8 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           <div
             className={`grid justify-center gap-x-6 gap-y-8 ${
               showStats
-                ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4'
-                : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
+                ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-5'
+                : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4'
             }`}
           >
             <HomeCard
@@ -234,6 +234,22 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
                 </svg>
               }
             />
+            <HomeCard
+              title={'Taux de\nPrise'}
+              accent="#8fd0b8"
+              accent2="#3f9f7a"
+              shadow="#2d7457"
+              edge="rgba(255,255,255,0.23)"
+              iconTone="#1f6448"
+              onClick={() => setView('take_rate')}
+              icon={
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M4 18h16" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M7 15V11M12 15V7M17 15V9" />
+                </svg>
+              }
+            />
+
           </div>
 
           <button

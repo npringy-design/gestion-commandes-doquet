@@ -18,6 +18,7 @@ const RatiosPage = lazy(() => import('../pages/RatiosPage'));
 const UserManagementPage = lazy(() => import('../pages/UserManagementPage'));
 const PrepSheetPage = lazy(() => import('../pages/PrepSheetPage'));
 const PrepRatiosPage = lazy(() => import('../pages/PrepRatiosPage'));
+const TakeRatePage = lazy(() => import('../pages/TakeRatePage'));
 
 type ScrollSyncSource = 'main' | 'bottom';
 
@@ -48,6 +49,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
   const { view, setView } = state;
   const { user, signOut, isAdmin, profile } = useAuth();
 
+  const [takeRateRows, setTakeRateRows] = React.useState<any[]>([]);
   const [isMobile, setIsMobile] = React.useState(false);
   React.useEffect(() => {
     const check = () => setIsMobile(window.matchMedia('(max-width: 1023px)').matches);
@@ -212,6 +214,23 @@ const AppRouter: React.FC<AppRouterProps> = ({
         prepImportsByMonth={state.prepImportsByMonth}
       />,
       'Chargement du calcul prod ratio…'
+    );
+  }
+
+  if (view === 'take_rate' && isMobile) return renderWithShell(<MobileBlocked title="Calcul taux de prise" />);
+
+  if (view === 'take_rate') {
+    if (!canAccessRatiosPage(profile)) {
+      return renderWithShell(<AccessDenied message="Cette section est réservée aux rôles autorisés pour ce module." />);
+    }
+    return renderLazyPage(
+      <TakeRatePage
+        setView={setView}
+        rows={takeRateRows}
+        setRows={setTakeRateRows}
+        availableImports={[]}
+      />,
+      'Chargement du calcul taux de prise…'
     );
   }
 
