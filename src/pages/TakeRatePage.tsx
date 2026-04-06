@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { View } from '../constants';
+import React, { useEffect, useMemo, useState } from 'react';
+import { MONTHS_DISPLAY_CONFIG, STORAGE_PREFIX, View } from '../constants';
 
 export interface TakeRateMappingRow {
   id: string;
@@ -10,10 +10,10 @@ export interface TakeRateMappingRow {
 
 interface TakeRatePageProps {
   setView: (view: View) => void;
-  rows: TakeRateMappingRow[];
-  setRows: React.Dispatch<React.SetStateAction<TakeRateMappingRow[]>>;
-  availableImports?: string[];
+  prepImportsByMonth: Record<string, string>;
 }
+
+const STORAGE_KEY = `${STORAGE_PREFIX}take_rate_rows_v1`;
 
 const createEmptyRow = (): TakeRateMappingRow => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
@@ -22,19 +22,120 @@ const createEmptyRow = (): TakeRateMappingRow => ({
   linkedImports: [],
 });
 
-const TakeRatePage: React.FC<TakeRatePageProps> = ({
-  setView,
-  rows,
-  setRows,
-  availableImports = [],
-}) => {
+const normalize = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
+const parseCsvLine = (line: string, delimiter: string) => {
+  const cells: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    const next = line[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === delimiter && !inQuotes) {
+      cells.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  cells.push(current.trim());
+  return cells;
+};
+
+const detectDelimiter = (input: string) => {
+  const firstLine = input.split(/\r?\n/).find((line) => line.trim().length > 0) ?? '';
+  const candidates = [';', '\t', ','];
+  let best = ';';
+  let bestScore = -1;
+
+  candidates.forEach((candidate) => {
+    const score = firstLine.split(candidate).length;
+    if (score > bestScore) {
+      best = candidate;
+      bestScore = score;
+    }
+  });
+
+  return best;
+};
+
+const extractImportLabels = (content: string): string[] => {
+  if (!content?.trim()) return [];
+
+  const lines = content.split(/\r?\n/).filter((line) => line.trim().length > 0);
+  if (lines.length === 0) return [];
+
+  const delimiter = detectDelimiter(content);
+  const header = parseCsvLine(lines[0], delimiter).map(normalize);
+  const nameCandidates = ['produit', 'libelle', 'libellé', 'designation', 'désignation', 'article', 'nom', 'item'];
+
+  let nameIndex = header.findIndex((cell) => nameCandidates.some((candidate) => cell.includes(candidate)));
+  if (nameIndex === -1) nameIndex = 0;
+
+  const startIndex = lines.length > 1 ? 1 : 0;
+  const labels: string[] = [];
+
+  for (let i = startIndex; i < lines.length; i += 1) {
+    const cols = parseCsvLine(lines[i], delimiter);
+    const label = (cols[nameIndex] ?? '').trim();
+    if (label) labels.push(label);
+  }
+
+  return labels;
+};
+
+const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth }) => {
+  const [rows, setRows] = useState<TakeRateMappingRow[]>([]);
   const [searchByRow, setSearchByRow] = useState<Record<string, string>>({});
   const [openSearchRow, setOpenSearchRow] = useState<string | null>(null);
   const [openLinkedRow, setOpenLinkedRow] = useState<string | null>(null);
 
-  const addRow = () => {
-    setRows((prev) => [...prev, createEmptyRow()]);
-  };
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        setRows(
+          parsed.map((row) => ({
+            id: String(row.id ?? `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`),
+            label: String(row.label ?? ''),
+            family: String(row.family ?? ''),
+            linkedImports: Array.isArray(row.linkedImports) ? row.linkedImports.map(String) : [],
+          }))
+        );
+      }
+    } catch (_error) {}
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+  }, [rows]);
+
+  const availableImports = useMemo(() => {
+    const unique = new Set<string>();
+    MONTHS_DISPLAY_CONFIG.forEach(({ key }) => {
+      extractImportLabels(prepImportsByMonth[key] ?? '').forEach((label) => unique.add(label));
+    });
+    return Array.from(unique).sort((a, b) => a.localeCompare(b, 'fr'));
+  }, [prepImportsByMonth]);
+
+  const addRow = () => setRows((prev) => [...prev, createEmptyRow()]);
 
   const updateRow = (rowId: string, patch: Partial<TakeRateMappingRow>) => {
     setRows((prev) => prev.map((row) => (row.id === rowId ? { ...row, ...patch } : row)));
@@ -54,8 +155,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({
   const addImportToRow = (rowId: string, importLabel: string) => {
     setRows((prev) =>
       prev.map((row) => {
-        if (row.id !== rowId) return row;
-        if (row.linkedImports.includes(importLabel)) return row;
+        if (row.id !== rowId || row.linkedImports.includes(importLabel)) return row;
         return { ...row, linkedImports: [...row.linkedImports, importLabel] };
       })
     );
@@ -64,24 +164,22 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({
   const removeImportFromRow = (rowId: string, importLabel: string) => {
     setRows((prev) =>
       prev.map((row) =>
-        row.id === rowId
-          ? { ...row, linkedImports: row.linkedImports.filter((item) => item !== importLabel) }
-          : row
+        row.id === rowId ? { ...row, linkedImports: row.linkedImports.filter((item) => item !== importLabel) } : row
       )
     );
   };
 
   const filteredImportsByRow = useMemo(() => {
     const result: Record<string, string[]> = {};
-
-    for (const row of rows) {
-      const query = (searchByRow[row.id] ?? '').trim().toLowerCase();
+    rows.forEach((row) => {
+      const query = normalize(searchByRow[row.id] ?? '');
       const base = availableImports.filter((item) => !row.linkedImports.includes(item));
-      result[row.id] = query ? base.filter((item) => item.toLowerCase().includes(query)) : base.slice(0, 30);
-    }
-
+      result[row.id] = query ? base.filter((item) => normalize(item).includes(query)).slice(0, 50) : base.slice(0, 30);
+    });
     return result;
   }, [availableImports, rows, searchByRow]);
+
+  const linkedCount = rows.reduce((sum, row) => sum + row.linkedImports.length, 0);
 
   return (
     <div className="flex h-full min-h-screen bg-[#EDE2D6] text-[#4B2D22]">
@@ -89,11 +187,11 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({
         <div className="overflow-hidden rounded-[26px] border border-[#2E8D63] bg-[linear-gradient(180deg,#39B37D_0%,#239062_100%)] shadow-[0_10px_20px_rgba(30,96,68,0.18)]">
           <div className="h-1.5 bg-gradient-to-r from-[#D4F3E4] via-[#8AE0B9] to-[#239062]" />
           <div className="p-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#E7FFF3]">Pilotage carte</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#E7FFF3]">Paramétrage</p>
             <h1 className="mt-2 text-[21px] font-black leading-none text-white xl:text-[23px]">
-              Calcul
+              Taux
               <br />
-              taux de prise
+              de prise
             </h1>
           </div>
         </div>
@@ -105,11 +203,20 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({
           Retour paramètres
         </button>
 
+        <button
+          onClick={() => setView('take_rate_sheet')}
+          className="rounded-[22px] border border-[#B69034] bg-[linear-gradient(180deg,#E5B548_0%,#CC9530_100%)] px-4 py-3.5 text-center text-[13px] font-black uppercase tracking-[0.12em] text-[#4D2B18] shadow-[0_4px_0_#9A691B] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#9A691B]"
+        >
+          Voir la feuille
+        </button>
+
         <div className="rounded-[22px] border border-[#D7BFAB] bg-[#FFF8F1] px-4 py-4 shadow-[0_8px_18px_rgba(96,56,34,0.08)]">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#93644D]">Version 1</p>
-          <p className="mt-2 text-[13px] font-semibold leading-5 text-[#6E4736]">
-            Page de paramétrage manuel pour regrouper les produits import avant la feuille de taux de prise.
-          </p>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#93644D]">Résumé</p>
+          <div className="mt-3 space-y-2 text-[13px] font-semibold text-[#6E4736]">
+            <div className="flex items-center justify-between gap-3"><span>Lignes</span><span>{rows.length}</span></div>
+            <div className="flex items-center justify-between gap-3"><span>Liens import</span><span>{linkedCount}</span></div>
+            <div className="flex items-center justify-between gap-3"><span>Imports dispo</span><span>{availableImports.length}</span></div>
+          </div>
         </div>
       </aside>
 
@@ -119,16 +226,10 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.20em] text-[#8F624B]">Préparation manuelle</p>
-                <h2 className="mt-1 text-[21px] font-black text-[#582F21]">Calcul taux de prise</h2>
+                <h2 className="mt-1 text-[21px] font-black text-[#582F21]">Paramétrage taux de prise</h2>
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setView('take_rate_results')}
-                  className="rounded-[16px] border border-[#B55A3C] bg-[#F7E8DE] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#8D4F35] transition hover:bg-[#F2DDCF]"
-                >
-                  Voir la feuille
-                </button>
                 <button
                   onClick={addRow}
                   className="rounded-[16px] border border-[#2E8D63] bg-[linear-gradient(180deg,#39B37D_0%,#239062_100%)] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-white shadow-[0_4px_0_#196A48] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#196A48]"
@@ -140,12 +241,12 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({
           </div>
 
           <div className="min-h-0 flex-1 overflow-auto bg-[#F7F0E7]">
-            <table className="w-full min-w-[1280px] table-fixed border-separate border-spacing-0">
+            <table className="w-full min-w-[1180px] table-fixed border-separate border-spacing-0">
               <colgroup>
                 <col className="w-[24%]" />
                 <col className="w-[16%]" />
-                <col className="w-[22%]" />
-                <col className="w-[34%]" />
+                <col className="w-[24%]" />
+                <col className="w-[32%]" />
                 <col className="w-[4%]" />
               </colgroup>
 
@@ -256,10 +357,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({
                               <div className="space-y-1.5 rounded-[16px] border border-[#DCC5B1] bg-[#FFFDF9] p-2 shadow-[0_12px_24px_rgba(87,52,33,0.10)]">
                                 {row.linkedImports.length > 0 ? (
                                   row.linkedImports.map((item) => (
-                                    <div
-                                      key={item}
-                                      className="flex items-center justify-between gap-2 rounded-[12px] border border-[#E8D8C8] bg-white px-3 py-2"
-                                    >
+                                    <div key={item} className="flex items-center justify-between gap-2 rounded-[12px] border border-[#E8D8C8] bg-white px-3 py-2">
                                       <span className="text-[12px] font-semibold text-[#5B3728]">{item}</span>
                                       <button
                                         type="button"

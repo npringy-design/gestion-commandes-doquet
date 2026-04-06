@@ -264,25 +264,23 @@ const StatsPage: React.FC<StatsPageProps> = ({
                 </button>
 
 
-                <div className="grid grid-cols-1 gap-2">
-                  <button
-                    onClick={() => setView('take_rate')}
-                    className="rounded-[22px] border border-[#8B5E3C] bg-[linear-gradient(180deg,#B57A49_0%,#9A6338_100%)] px-4 py-4 text-center text-[11px] font-black uppercase tracking-[0.14em] text-[#FFF8F0] shadow-[0_4px_0_#6E4324] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#6E4324]"
-                  >
-                    Paramétrage
-                    <br />
-                    Taux de prise
-                  </button>
+                <button
+                  onClick={() => setView('take_rate')}
+                  className="rounded-[22px] border border-[#2E8D63] bg-[linear-gradient(180deg,#3FB98B_0%,#238763_100%)] px-4 py-4 text-center text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-[0_4px_0_#195B42] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#195B42]"
+                >
+                  Paramétrage
+                  <br />
+                  Taux de prise
+                </button>
 
-                  <button
-                    onClick={() => setView('take_rate_results')}
-                    className="rounded-[18px] border border-[#B88B62] bg-[linear-gradient(180deg,#F3E1CC_0%,#E7CFB3_100%)] px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-[0.12em] text-[#6A4226] shadow-[0_3px_0_#C59C74] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_1px_0_#C59C74]"
-                  >
-                    Feuille
-                    <br />
-                    Taux de prise
-                  </button>
-                </div>
+                <button
+                  onClick={() => setView('take_rate_sheet')}
+                  className="rounded-[22px] border border-[#B69034] bg-[linear-gradient(180deg,#E5B548_0%,#CC9530_100%)] px-4 py-4 text-center text-[11px] font-black uppercase tracking-[0.14em] text-[#4F2D18] shadow-[0_4px_0_#9A691B] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#9A691B]"
+                >
+                  Feuille
+                  <br />
+                  Taux de prise
+                </button>
               </>
             )}
           </div>

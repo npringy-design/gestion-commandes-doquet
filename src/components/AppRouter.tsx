@@ -50,7 +50,6 @@ const AppRouter: React.FC<AppRouterProps> = ({
   const { view, setView } = state;
   const { user, signOut, isAdmin, profile } = useAuth();
 
-  const [takeRateRows, setTakeRateRows] = React.useState<any[]>([]);
   const [isMobile, setIsMobile] = React.useState(false);
   React.useEffect(() => {
     const check = () => setIsMobile(window.matchMedia('(max-width: 1023px)').matches);
@@ -218,8 +217,6 @@ const AppRouter: React.FC<AppRouterProps> = ({
     );
   }
 
-  if ((view === 'take_rate' || view === 'take_rate_results') && isMobile) return renderWithShell(<MobileBlocked title="Taux de prise" />);
-
   if (view === 'take_rate') {
     if (!canAccessRatiosPage(profile)) {
       return renderWithShell(<AccessDenied message="Cette section est réservée aux rôles autorisés pour ce module." />);
@@ -227,23 +224,20 @@ const AppRouter: React.FC<AppRouterProps> = ({
     return renderLazyPage(
       <TakeRatePage
         setView={setView}
-        rows={takeRateRows}
-        setRows={setTakeRateRows}
-        availableImports={[]}
+        prepImportsByMonth={state.prepImportsByMonth}
       />,
-      'Chargement du calcul taux de prise…'
+      'Chargement du paramétrage taux de prise…'
     );
   }
 
-
-  if (view === 'take_rate_results') {
+  if (view === 'take_rate_sheet') {
     if (!canAccessRatiosPage(profile)) {
       return renderWithShell(<AccessDenied message="Cette section est réservée aux rôles autorisés pour ce module." />);
     }
     return renderLazyPage(
       <TakeRateResultsPage
         setView={setView}
-        rows={takeRateRows}
+        prepImportsByMonth={state.prepImportsByMonth}
         covers={state.covers}
       />,
       'Chargement de la feuille taux de prise…'
