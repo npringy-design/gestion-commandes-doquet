@@ -424,70 +424,86 @@ const StatsPage: React.FC<StatsPageProps> = ({
                         </td>
 
                         <td className="border-b border-[#E2CEBD] bg-[#F7F0E7] px-3 py-3">
-                          <div className="rounded-[20px] border border-[#D6B293] bg-[#FBF7F1] px-4 py-3.5 shadow-[0_2px_0_rgba(188,145,106,0.18)]">
-                            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                              <div className="flex flex-col gap-2.5">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className="text-[11px] font-black uppercase tracking-[0.08em] text-[#7D543E]">
-                                    Inventaire détaillé
-                                  </span>
+                          <div className="rounded-[18px] border border-[#D6B293] bg-[#FBF7F1] px-3.5 py-3 shadow-[0_2px_0_rgba(188,145,106,0.16)]">
+                            <div className="space-y-2.5">
+                              <div className="flex items-center gap-2.5">
+                                <span className="min-w-[88px] text-[11px] font-black uppercase tracking-[0.08em] text-[#7D543E]">
+                                  Inventaire
+                                </span>
+                                <span
+                                  className={`inline-flex min-w-[58px] justify-center rounded-full border px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${
+                                    importState === 'imported'
+                                      ? 'border-[#9FC9A7] bg-[#E6F3E8] text-[#3F6B4A]'
+                                      : importState === 'validated'
+                                      ? 'border-[#D0A57A] bg-[#F6E7D6] text-[#A06535]'
+                                      : 'border-[#D6B293] bg-[#F5E8DA] text-[#8E6A4E]'
+                                  }`}
+                                >
+                                  {importState === 'imported' ? 'OK' : importState === 'validated' ? 'À faire' : 'Vide'}
+                                </span>
+                                <button
+                                  onClick={() => canImport && setModalState({ month: m.key, target: 'inventory' })}
+                                  disabled={!canImport}
+                                  className={`rounded-[13px] border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.06em] transition ${
+                                    importState === 'imported'
+                                      ? 'border-[#9FC9A7] bg-[#E6F3E8] text-[#3F6B4A] hover:bg-[#DDEEE0]'
+                                      : 'border-[#D6B293] bg-[#F5E8DA] text-[#8E6A4E] hover:bg-[#EFDCC8]'
+                                  } ${!canImport ? 'cursor-not-allowed opacity-50' : ''}`}
+                                >
+                                  {importState === 'imported' ? 'Modifier' : 'Ajouter'}
+                                </button>
+                                {hasImport && (
                                   <button
-                                    onClick={() => canImport && setModalState({ month: m.key, target: 'inventory' })}
-                                    disabled={!canImport}
-                                    className={`rounded-[14px] border px-3 py-2 text-[11px] font-black uppercase tracking-[0.06em] transition ${
-                                      importState === 'imported'
-                                        ? 'border-[#9FC9A7] bg-[#E6F3E8] text-[#3F6B4A] hover:bg-[#DDEEE0]'
-                                        : importState === 'validated'
-                                        ? 'border-[#D0A57A] bg-[#F6E7D6] text-[#A06535] hover:bg-[#F0DDC7]'
-                                        : 'border-[#D6B293] bg-[#F5E8DA] text-[#8E6A4E] hover:bg-[#EFDCC8]'
-                                    } ${!canImport ? 'cursor-not-allowed opacity-50' : ''}`}
+                                    type="button"
+                                    onClick={() => removeInventoryForMonth(m.key)}
+                                    disabled={!canRemoveImport}
+                                    title={`Supprimer l'import inventaire ${m.label}`}
+                                    className="ml-auto flex h-8 w-8 items-center justify-center rounded-[12px] border border-[#D6B293] bg-[#F7EBDD] text-[#A5502F] transition hover:bg-[#F0DECB] disabled:cursor-not-allowed disabled:opacity-40"
                                   >
-                                    {importState === 'imported' ? 'Importé' : importState === 'validated' ? 'En attente' : 'Importer'}
+                                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 6l12 12M18 6L6 18" />
+                                    </svg>
                                   </button>
-                                  {hasImport && (
-                                    <button
-                                      type="button"
-                                      onClick={() => removeInventoryForMonth(m.key)}
-                                      disabled={!canRemoveImport}
-                                      title={`Supprimer l'import inventaire ${m.label}`}
-                                      className="flex h-9 w-9 items-center justify-center rounded-[14px] border border-[#D6B293] bg-[#F7EBDD] text-[#A5502F] transition hover:bg-[#F0DECB] disabled:cursor-not-allowed disabled:opacity-40"
-                                    >
-                                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 6l12 12M18 6L6 18" />
-                                      </svg>
-                                    </button>
-                                  )}
-                                </div>
+                                )}
+                              </div>
 
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className="text-[11px] font-black uppercase tracking-[0.08em] text-[#7D543E]">
-                                    Import production
-                                  </span>
+                              <div className="flex items-center gap-2.5">
+                                <span className="min-w-[88px] text-[11px] font-black uppercase tracking-[0.08em] text-[#7D543E]">
+                                  Production
+                                </span>
+                                <span
+                                  className={`inline-flex min-w-[58px] justify-center rounded-full border px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${
+                                    prepImportsByMonth[m.key]
+                                      ? 'border-[#9FC9A7] bg-[#E6F3E8] text-[#3F6B4A]'
+                                      : 'border-[#D6B293] bg-[#F5E8DA] text-[#8E6A4E]'
+                                  }`}
+                                >
+                                  {prepImportsByMonth[m.key] ? 'OK' : 'Vide'}
+                                </span>
+                                <button
+                                  onClick={() => canImport && setModalState({ month: m.key, target: 'production' })}
+                                  disabled={!canImport}
+                                  className={`rounded-[13px] border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.06em] transition ${
+                                    prepImportsByMonth[m.key]
+                                      ? 'border-[#9FC9A7] bg-[#E6F3E8] text-[#3F6B4A] hover:bg-[#DDEEE0]'
+                                      : 'border-[#D6B293] bg-[#F5E8DA] text-[#8E6A4E] hover:bg-[#EFDCC8]'
+                                  } ${!canImport ? 'cursor-not-allowed opacity-50' : ''}`}
+                                >
+                                  {prepImportsByMonth[m.key] ? 'Modifier' : 'Ajouter'}
+                                </button>
+                                {prepImportsByMonth[m.key] && (
                                   <button
-                                    onClick={() => canImport && setModalState({ month: m.key, target: 'production' })}
-                                    disabled={!canImport}
-                                    className={`rounded-[14px] border px-3 py-2 text-[11px] font-black uppercase tracking-[0.06em] transition ${
-                                      prepImportsByMonth[m.key]
-                                        ? 'border-[#9FC9A7] bg-[#E6F3E8] text-[#3F6B4A] hover:bg-[#DDEEE0]'
-                                        : 'border-[#D6B293] bg-[#F5E8DA] text-[#8E6A4E] hover:bg-[#EFDCC8]'
-                                    } ${!canImport ? 'cursor-not-allowed opacity-50' : ''}`}
+                                    type="button"
+                                    onClick={() => removeProductionImportForMonth(m.key)}
+                                    disabled={!canRemoveImport}
+                                    title={`Supprimer l'import production ${m.label}`}
+                                    className="ml-auto flex h-8 w-8 items-center justify-center rounded-[12px] border border-[#D6B293] bg-[#F7EBDD] text-[#A5502F] transition hover:bg-[#F0DECB] disabled:cursor-not-allowed disabled:opacity-40"
                                   >
-                                    {prepImportsByMonth[m.key] ? 'Importé' : 'Importer'}
+                                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 6l12 12M18 6L6 18" />
+                                    </svg>
                                   </button>
-                                  {prepImportsByMonth[m.key] && (
-                                    <button
-                                      type="button"
-                                      onClick={() => removeProductionImportForMonth(m.key)}
-                                      disabled={!canRemoveImport}
-                                      title={`Supprimer l'import production ${m.label}`}
-                                      className="flex h-9 w-9 items-center justify-center rounded-[14px] border border-[#D6B293] bg-[#F7EBDD] text-[#A5502F] transition hover:bg-[#F0DECB] disabled:cursor-not-allowed disabled:opacity-40"
-                                    >
-                                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 6l12 12M18 6L6 18" />
-                                      </svg>
-                                    </button>
-                                  )}
-                                </div>
+                                )}
                               </div>
                             </div>
                           </div>

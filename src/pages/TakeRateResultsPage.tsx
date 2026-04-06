@@ -76,21 +76,35 @@ const buildMonthSalesMap = (content: string) => {
 
   const delimiter = detectDelimiter(content);
   const headers = parseCsvLine(lines[0], delimiter).map(normalize);
-  const nameCandidates = ['produit', 'libelle', 'libellé', 'designation', 'désignation', 'article', 'nom', 'item'];
-  const qtyCandidates = ['nombre', 'qte', 'qté', 'quantite', 'quantité', 'vente', 'ventes', 'qty', 'nb'];
 
-  let nameIndex = headers.findIndex((cell) => nameCandidates.some((candidate) => cell.includes(candidate)));
-  let qtyIndex = headers.findIndex((cell) => qtyCandidates.some((candidate) => cell.includes(candidate)));
+  const preferredNameHeaders = ['libelle', 'libellé', 'designation', 'désignation', 'produit', 'article', 'nom'];
+  const preferredQtyHeaders = ['nombre', 'nb', 'ventes', 'vente', 'quantite', 'quantité', 'qte', 'qté', 'qty'];
 
-  if (nameIndex === -1) nameIndex = 0;
-  if (qtyIndex === -1) qtyIndex = headers.length > 1 ? 1 : 0;
+  const findPreferredIndex = (preferred: string[]) => {
+    for (const name of preferred) {
+      const exactIndex = headers.findIndex((cell) => cell === name);
+      if (exactIndex !== -1) return exactIndex;
+    }
+    for (const name of preferred) {
+      const includesIndex = headers.findIndex((cell) => cell.includes(name));
+      if (includesIndex !== -1) return includesIndex;
+    }
+    return -1;
+  };
+
+  const nameIndex = findPreferredIndex(preferredNameHeaders);
+  const qtyIndex = findPreferredIndex(preferredQtyHeaders);
+
+  if (nameIndex === -1 || qtyIndex === -1) return result;
 
   for (let i = 1; i < lines.length; i += 1) {
     const cols = parseCsvLine(lines[i], delimiter);
-    const label = (cols[nameIndex] ?? '').trim();
-    if (!label) continue;
+    const rawLabel = (cols[nameIndex] ?? '').trim();
+    if (!rawLabel) continue;
+    const key = normalize(rawLabel);
     const qty = parseNumber(cols[qtyIndex] ?? '0');
-    result.set(label, (result.get(label) ?? 0) + qty);
+    if (!key) continue;
+    result.set(key, (result.get(key) ?? 0) + qty);
   }
 
   return result;
@@ -141,7 +155,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
     return rows
       .filter((row) => row.label.trim().length > 0 && row.linkedImports.length > 0)
       .map((row) => {
-        const sales = row.linkedImports.reduce((sum, item) => sum + (monthSalesMap.get(item) ?? 0), 0);
+        const sales = row.linkedImports.reduce((sum, item) => sum + (monthSalesMap.get(normalize(item)) ?? 0), 0);
         const takeRate = monthCovers > 0 ? (sales / monthCovers) * 100 : 0;
         return {
           ...row,
