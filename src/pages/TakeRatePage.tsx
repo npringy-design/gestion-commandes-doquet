@@ -1,11 +1,28 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MONTHS_DISPLAY_CONFIG, STORAGE_PREFIX, View } from '../constants';
+
+interface MarginCatalogItem {
+  label: string;
+  normalized: string;
+  costHt: number | null;
+  sellPriceHt: number | null;
+  marginPercent: number | null;
+  marginEuro: number | null;
+  sourceSheet: string;
+}
 
 export interface TakeRateMappingRow {
   id: string;
   label: string;
   family: string;
   linkedImports: string[];
+  costHt?: string;
+  sellPriceHt?: string;
+  marginPercent?: string;
+  marginEuro?: string;
+  marginSource?: 'auto' | 'manual' | '';
+  matchedMarginLabel?: string;
+  matchedMarginSheet?: string;
 }
 
 interface TakeRatePageProps {
@@ -13,21 +30,35 @@ interface TakeRatePageProps {
   prepImportsByMonth: Record<string, string>;
 }
 
-const STORAGE_KEY = `${STORAGE_PREFIX}take_rate_rows_v1`;
+const ROWS_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_rows_v2`;
+const MARGIN_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_margin_catalog_v1`;
+const MARGIN_FILE_NAME_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_margin_file_name_v1`;
 
 const createEmptyRow = (): TakeRateMappingRow => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
   label: '',
   family: '',
   linkedImports: [],
+  costHt: '',
+  sellPriceHt: '',
+  marginPercent: '',
+  marginEuro: '',
+  marginSource: '',
+  matchedMarginLabel: '',
+  matchedMarginSheet: '',
 });
 
 const normalize = (value: string) =>
-  value
+  String(value ?? '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
+
+const tokenize = (value: string) => normalize(value).split(' ').filter(Boolean);
 
 const parseCsvLine = (line: string, delimiter: string) => {
   const cells: string[] = [];
@@ -99,33 +130,188 @@ const extractImportLabels = (content: string): string[] => {
   return labels;
 };
 
+const toNumber = (value: unknown): number | null => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'string') return null;
+  const cleaned = value.replace(/\u00a0/g, ' ').replace(/€/g, '').replace(/%/g, '').replace(/\s/g, '').replace(',', '.');
+  if (!cleaned || cleaned === '-') return null;
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const formatDecimal = (value: number | null) => {
+  if (value === null || !Number.isFinite(value)) return '';
+  return value.toFixed(2).replace('.', ',');
+};
+
+const formatPercent = (value: number | null) => {
+  if (value === null || !Number.isFinite(value)) return '';
+  const ratio = value <= 1 ? value * 100 : value;
+  return ratio.toFixed(1).replace('.', ',');
+};
+
+const normalizeRow = (row: any): TakeRateMappingRow => ({
+  id: String(row.id ?? `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`),
+  label: String(row.label ?? ''),
+  family: String(row.family ?? ''),
+  linkedImports: Array.isArray(row.linkedImports) ? row.linkedImports.map(String) : [],
+  costHt: String(row.costHt ?? ''),
+  sellPriceHt: String(row.sellPriceHt ?? ''),
+  marginPercent: String(row.marginPercent ?? ''),
+  marginEuro: String(row.marginEuro ?? ''),
+  marginSource: row.marginSource === 'manual' || row.marginSource === 'auto' ? row.marginSource : '',
+  matchedMarginLabel: String(row.matchedMarginLabel ?? ''),
+  matchedMarginSheet: String(row.matchedMarginSheet ?? ''),
+});
+
+const scoreMatch = (label: string, item: MarginCatalogItem) => {
+  const a = normalize(label);
+  const b = item.normalized;
+  if (!a || !b) return -1;
+  if (a === b) return 1000;
+  if (a.includes(b) || b.includes(a)) return 800 - Math.abs(a.length - b.length);
+
+  const aTokens = tokenize(a);
+  const bTokens = tokenize(b);
+  if (aTokens.length === 0 || bTokens.length === 0) return -1;
+
+  const intersection = aTokens.filter((token) => bTokens.includes(token)).length;
+  if (intersection === 0) return -1;
+
+  const unique = new Set([...aTokens, ...bTokens]).size;
+  const coverage = intersection / Math.max(aTokens.length, bTokens.length);
+  return coverage * 100 + (intersection / unique) * 50;
+};
+
+const findBestMarginMatch = (label: string, catalog: MarginCatalogItem[]) => {
+  let best: MarginCatalogItem | null = null;
+  let bestScore = -1;
+
+  catalog.forEach((item) => {
+    const score = scoreMatch(label, item);
+    if (score > bestScore) {
+      best = item;
+      bestScore = score;
+    }
+  });
+
+  if (bestScore < 60) return null;
+  return best;
+};
+
+const buildMarginCatalogFromWorkbook = async (file: File): Promise<MarginCatalogItem[]> => {
+  const XLSX = await import('xlsx');
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: 'array' });
+
+  const sources = [
+    { name: 'FOOD', productCol: 2, costCol: 6, sellCol: 8, marginCol: 13, startRow: 9 },
+    { name: 'BOEUF ', productCol: 2, costCol: 9, sellCol: 11, marginCol: 16, startRow: 9 },
+    { name: 'BOISSONS', productCol: 2, costCol: 5, sellCol: 8, marginCol: 13, startRow: 8 },
+    { name: 'VINS_2025_-_2026', productCol: 2, costCol: 10, sellCol: 11, marginCol: 12, startRow: 9 },
+    { name: 'FORMULES', productCol: 3, costCol: 6, sellCol: 8, marginCol: 11, startRow: 5 },
+  ];
+
+  const map = new Map<string, MarginCatalogItem>();
+
+  sources.forEach((source) => {
+    const sheet = workbook.Sheets[source.name];
+    if (!sheet) return;
+
+    const rows = XLSX.utils.sheet_to_json<(string | number | null)[]>(sheet, {
+      header: 1,
+      raw: false,
+      defval: '',
+      blankrows: false,
+    });
+
+    for (let i = source.startRow; i < rows.length; i += 1) {
+      const row = rows[i] ?? [];
+      const label = String(row[source.productCol] ?? '').trim();
+      const normalized = normalize(label);
+      if (!label || !normalized) continue;
+
+      const costHt = toNumber(row[source.costCol]);
+      const sellPriceHt = toNumber(row[source.sellCol]);
+      const marginPercent = toNumber(row[source.marginCol]);
+      const marginEuro =
+        sellPriceHt !== null && costHt !== null ? sellPriceHt - costHt : null;
+
+      if (costHt === null && sellPriceHt === null && marginPercent === null && marginEuro === null) continue;
+
+      const existing = map.get(normalized);
+      const candidate: MarginCatalogItem = {
+        label,
+        normalized,
+        costHt,
+        sellPriceHt,
+        marginPercent,
+        marginEuro,
+        sourceSheet: source.name.trim(),
+      };
+
+      const existingScore = existing
+        ? Number(existing.sellPriceHt !== null) + Number(existing.costHt !== null) + Number(existing.marginPercent !== null)
+        : -1;
+      const candidateScore = Number(candidate.sellPriceHt !== null) + Number(candidate.costHt !== null) + Number(candidate.marginPercent !== null);
+
+      if (!existing || candidateScore >= existingScore) {
+        map.set(normalized, candidate);
+      }
+    }
+  });
+
+  return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+};
+
 const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth }) => {
   const [rows, setRows] = useState<TakeRateMappingRow[]>([]);
   const [searchByRow, setSearchByRow] = useState<Record<string, string>>({});
   const [openSearchRow, setOpenSearchRow] = useState<string | null>(null);
   const [openLinkedRow, setOpenLinkedRow] = useState<string | null>(null);
+  const [marginCatalog, setMarginCatalog] = useState<MarginCatalogItem[]>([]);
+  const [marginFileName, setMarginFileName] = useState('');
+  const [importMessage, setImportMessage] = useState('');
+  const [isImportingMargin, setIsImportingMargin] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        setRows(
-          parsed.map((row) => ({
-            id: String(row.id ?? `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`),
-            label: String(row.label ?? ''),
-            family: String(row.family ?? ''),
-            linkedImports: Array.isArray(row.linkedImports) ? row.linkedImports.map(String) : [],
-          }))
-        );
+      const raw = localStorage.getItem(ROWS_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          setRows(parsed.map(normalizeRow));
+          return;
+        }
+      }
+
+      const legacyRaw = localStorage.getItem(`${STORAGE_PREFIX}take_rate_rows_v1`);
+      if (legacyRaw) {
+        const parsedLegacy = JSON.parse(legacyRaw);
+        if (Array.isArray(parsedLegacy)) {
+          setRows(parsedLegacy.map(normalizeRow));
+        }
       }
     } catch (_error) {}
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+    localStorage.setItem(ROWS_STORAGE_KEY, JSON.stringify(rows));
   }, [rows]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(MARGIN_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        setMarginCatalog(parsed as MarginCatalogItem[]);
+      }
+      const storedName = localStorage.getItem(MARGIN_FILE_NAME_STORAGE_KEY) ?? '';
+      setMarginFileName(storedName);
+    } catch (_error) {}
+  }, []);
 
   const availableImports = useMemo(() => {
     const unique = new Set<string>();
@@ -138,8 +324,66 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const addRow = () => setRows((prev) => [...prev, createEmptyRow()]);
 
   const updateRow = (rowId: string, patch: Partial<TakeRateMappingRow>) => {
-    setRows((prev) => prev.map((row) => (row.id === rowId ? { ...row, ...patch } : row)));
+    setRows((prev) =>
+      prev.map((row) => {
+        if (row.id !== rowId) return row;
+        const next = { ...row, ...patch };
+        if ('costHt' in patch || 'sellPriceHt' in patch || 'marginPercent' in patch || 'marginEuro' in patch) {
+          next.marginSource = 'manual';
+          return next;
+        }
+        if ('label' in patch && next.marginSource !== 'manual' && marginCatalog.length > 0) {
+          return applyAutoMarginToRow(next);
+        }
+        return next;
+      })
+    );
   };
+
+  const applyAutoMarginToRow = (row: TakeRateMappingRow) => {
+    const match = findBestMarginMatch(row.label, marginCatalog);
+    if (!match) {
+      return {
+        ...row,
+        matchedMarginLabel: row.marginSource === 'manual' ? row.matchedMarginLabel : '',
+        matchedMarginSheet: row.marginSource === 'manual' ? row.matchedMarginSheet : '',
+      };
+    }
+
+    return {
+      ...row,
+      costHt: formatDecimal(match.costHt),
+      sellPriceHt: formatDecimal(match.sellPriceHt),
+      marginPercent: formatPercent(match.marginPercent),
+      marginEuro: formatDecimal(match.marginEuro),
+      marginSource: 'auto' as const,
+      matchedMarginLabel: match.label,
+      matchedMarginSheet: match.sourceSheet,
+    };
+  };
+
+  const autoMatchAllRows = () => {
+    if (marginCatalog.length === 0) return;
+    setRows((prev) =>
+      prev.map((row) => {
+        if (!row.label.trim()) return row;
+        if (row.marginSource === 'manual') return row;
+        return applyAutoMarginToRow(row);
+      })
+    );
+  };
+
+  useEffect(() => {
+    if (marginCatalog.length === 0) return;
+    setRows((prev) =>
+      prev.map((row) => {
+        if (!row.label.trim()) return row;
+        if (row.marginSource === 'manual') return row;
+        return applyAutoMarginToRow(row);
+      })
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marginCatalog]);
 
   const removeRow = (rowId: string) => {
     setRows((prev) => prev.filter((row) => row.id !== rowId));
@@ -180,6 +424,29 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   }, [availableImports, rows, searchByRow]);
 
   const linkedCount = rows.reduce((sum, row) => sum + row.linkedImports.length, 0);
+  const autoMarginCount = rows.filter((row) => row.marginSource === 'auto').length;
+
+  const handleImportMarginFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImportingMargin(true);
+    setImportMessage('');
+
+    try {
+      const catalog = await buildMarginCatalogFromWorkbook(file);
+      setMarginCatalog(catalog);
+      setMarginFileName(file.name);
+      localStorage.setItem(MARGIN_STORAGE_KEY, JSON.stringify(catalog));
+      localStorage.setItem(MARGIN_FILE_NAME_STORAGE_KEY, file.name);
+      setImportMessage(`${catalog.length} références marge chargées.`);
+    } catch (_error) {
+      setImportMessage('Import marge impossible. Vérifie le fichier ou la librairie xlsx.');
+    } finally {
+      setIsImportingMargin(false);
+      if (event.target) event.target.value = '';
+    }
+  };
 
   return (
     <div className="flex h-full min-h-screen bg-[#EDE2D6] text-[#4B2D22]">
@@ -215,7 +482,8 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
           <div className="mt-3 space-y-2 text-[13px] font-semibold text-[#6E4736]">
             <div className="flex items-center justify-between gap-3"><span>Lignes</span><span>{rows.length}</span></div>
             <div className="flex items-center justify-between gap-3"><span>Liens import</span><span>{linkedCount}</span></div>
-            <div className="flex items-center justify-between gap-3"><span>Imports dispo</span><span>{availableImports.length}</span></div>
+            <div className="flex items-center justify-between gap-3"><span>Marges auto</span><span>{autoMarginCount}</span></div>
+            <div className="flex items-center justify-between gap-3"><span>Réfs marge</span><span>{marginCatalog.length}</span></div>
           </div>
         </div>
       </aside>
@@ -229,7 +497,28 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 <h2 className="mt-1 text-[21px] font-black text-[#582F21]">Paramétrage taux de prise</h2>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  className="hidden"
+                  onChange={handleImportMarginFile}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="rounded-[16px] border border-[#B55A3C] bg-[#F7E8DE] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#8D4F35] transition hover:bg-[#F2DDCF]"
+                >
+                  {isImportingMargin ? 'Import...' : 'Importer fichier marge'}
+                </button>
+                <button
+                  type="button"
+                  onClick={autoMatchAllRows}
+                  className="rounded-[16px] border border-[#D2B39C] bg-[#F8EDE1] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#7F563F] transition hover:bg-[#F2E2D0]"
+                >
+                  Auto-remplir marges
+                </button>
                 <button
                   onClick={addRow}
                   className="rounded-[16px] border border-[#2E8D63] bg-[linear-gradient(180deg,#39B37D_0%,#239062_100%)] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-white shadow-[0_4px_0_#196A48] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#196A48]"
@@ -238,15 +527,24 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 </button>
               </div>
             </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] font-semibold text-[#7A5240]">
+              <span>{marginFileName ? `Fichier marge : ${marginFileName}` : 'Aucun fichier marge chargé'}</span>
+              {importMessage ? <span className="text-[#9A4F33]">• {importMessage}</span> : null}
+            </div>
           </div>
 
           <div className="min-h-0 flex-1 overflow-auto bg-[#F7F0E7]">
-            <table className="w-full min-w-[1180px] table-fixed border-separate border-spacing-0">
+            <table className="w-full min-w-[1540px] table-fixed border-separate border-spacing-0">
               <colgroup>
-                <col className="w-[24%]" />
-                <col className="w-[16%]" />
-                <col className="w-[24%]" />
-                <col className="w-[32%]" />
+                <col className="w-[18%]" />
+                <col className="w-[12%]" />
+                <col className="w-[22%]" />
+                <col className="w-[22%]" />
+                <col className="w-[8%]" />
+                <col className="w-[8%]" />
+                <col className="w-[7%]" />
+                <col className="w-[7%]" />
                 <col className="w-[4%]" />
               </colgroup>
 
@@ -256,6 +554,10 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Famille</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Recherche import</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Produits liés</th>
+                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">CM HT</th>
+                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">PV HT</th>
+                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Marge €</th>
+                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Marge %</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">—</th>
                 </tr>
               </thead>
@@ -263,7 +565,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-[14px] font-semibold text-[#8B6650]">
+                    <td colSpan={9} className="px-6 py-10 text-center text-[14px] font-semibold text-[#8B6650]">
                       Aucune ligne pour le moment. Ajoute un produit final puis rattache les références import correspondantes.
                     </td>
                   </tr>
@@ -277,13 +579,21 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                     return (
                       <tr key={row.id} className={rowIndex % 2 === 0 ? 'bg-[#FFF9F2]' : 'bg-[#FCF4EB]'}>
                         <td className="border-b border-[#E8D8C8] px-3 py-3 align-top">
-                          <input
-                            type="text"
-                            value={row.label}
-                            onChange={(e) => updateRow(row.id, { label: e.target.value })}
-                            placeholder="Ex. Steak au poivre"
-                            className="w-full rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#4F2E22] outline-none transition focus:border-[#B55A3C] focus:ring-2 focus:ring-[#E8B59E]"
-                          />
+                          <div className="space-y-2">
+                            <input
+                              type="text"
+                              value={row.label}
+                              onChange={(e) => updateRow(row.id, { label: e.target.value, matchedMarginLabel: '', matchedMarginSheet: '', marginSource: row.marginSource === 'manual' ? 'manual' : '' })}
+                              placeholder="Ex. Steak au poivre"
+                              className="w-full rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#4F2E22] outline-none transition focus:border-[#B55A3C] focus:ring-2 focus:ring-[#E8B59E]"
+                            />
+                            {row.matchedMarginLabel ? (
+                              <div className="rounded-[12px] border border-[#D7BEA9] bg-[#FAF1E7] px-2.5 py-2 text-[11px] font-semibold text-[#7A5240]">
+                                {row.marginSource === 'manual' ? 'Saisie manuelle' : `Auto : ${row.matchedMarginLabel}`}
+                                {row.matchedMarginSheet ? ` • ${row.matchedMarginSheet}` : ''}
+                              </div>
+                            ) : null}
+                          </div>
                         </td>
 
                         <td className="border-b border-[#E8D8C8] px-3 py-3 align-top">
@@ -357,7 +667,10 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                               <div className="space-y-1.5 rounded-[16px] border border-[#DCC5B1] bg-[#FFFDF9] p-2 shadow-[0_12px_24px_rgba(87,52,33,0.10)]">
                                 {row.linkedImports.length > 0 ? (
                                   row.linkedImports.map((item) => (
-                                    <div key={item} className="flex items-center justify-between gap-2 rounded-[12px] border border-[#E8D8C8] bg-white px-3 py-2">
+                                    <div
+                                      key={item}
+                                      className="flex items-center justify-between gap-2 rounded-[12px] border border-[#E8D8C8] bg-white px-3 py-2"
+                                    >
                                       <span className="text-[12px] font-semibold text-[#5B3728]">{item}</span>
                                       <button
                                         type="button"
@@ -374,6 +687,46 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                               </div>
                             )}
                           </div>
+                        </td>
+
+                        <td className="border-b border-[#E8D8C8] px-3 py-3 align-top">
+                          <input
+                            type="text"
+                            value={row.costHt ?? ''}
+                            onChange={(e) => updateRow(row.id, { costHt: e.target.value, matchedMarginLabel: row.matchedMarginLabel || row.label, matchedMarginSheet: row.matchedMarginSheet || '' })}
+                            placeholder="0,00"
+                            className="w-full rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#4F2E22] outline-none transition focus:border-[#B55A3C] focus:ring-2 focus:ring-[#E8B59E]"
+                          />
+                        </td>
+
+                        <td className="border-b border-[#E8D8C8] px-3 py-3 align-top">
+                          <input
+                            type="text"
+                            value={row.sellPriceHt ?? ''}
+                            onChange={(e) => updateRow(row.id, { sellPriceHt: e.target.value, matchedMarginLabel: row.matchedMarginLabel || row.label, matchedMarginSheet: row.matchedMarginSheet || '' })}
+                            placeholder="0,00"
+                            className="w-full rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#4F2E22] outline-none transition focus:border-[#B55A3C] focus:ring-2 focus:ring-[#E8B59E]"
+                          />
+                        </td>
+
+                        <td className="border-b border-[#E8D8C8] px-3 py-3 align-top">
+                          <input
+                            type="text"
+                            value={row.marginEuro ?? ''}
+                            onChange={(e) => updateRow(row.id, { marginEuro: e.target.value, matchedMarginLabel: row.matchedMarginLabel || row.label, matchedMarginSheet: row.matchedMarginSheet || '' })}
+                            placeholder="0,00"
+                            className="w-full rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#4F2E22] outline-none transition focus:border-[#B55A3C] focus:ring-2 focus:ring-[#E8B59E]"
+                          />
+                        </td>
+
+                        <td className="border-b border-[#E8D8C8] px-3 py-3 align-top">
+                          <input
+                            type="text"
+                            value={row.marginPercent ?? ''}
+                            onChange={(e) => updateRow(row.id, { marginPercent: e.target.value, matchedMarginLabel: row.matchedMarginLabel || row.label, matchedMarginSheet: row.matchedMarginSheet || '' })}
+                            placeholder="0,0"
+                            className="w-full rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#4F2E22] outline-none transition focus:border-[#B55A3C] focus:ring-2 focus:ring-[#E8B59E]"
+                          />
                         </td>
 
                         <td className="border-b border-[#E8D8C8] px-2 py-3 align-top">
