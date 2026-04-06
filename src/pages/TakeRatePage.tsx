@@ -105,6 +105,42 @@ const detectDelimiter = (input: string) => {
   return best;
 };
 
+const pickPreferredLabelColumn = (header: string[]) => {
+  const exactPriority = [
+    'libelle',
+    'libellé',
+    'label',
+    'designation',
+    'désignation',
+    'article',
+    'nom',
+    'item',
+  ].map(normalize);
+
+  for (const preferred of exactPriority) {
+    const exactIndex = header.findIndex((cell) => cell === preferred);
+    if (exactIndex !== -1) return exactIndex;
+  }
+
+  const containsPriority = [
+    'libelle',
+    'libellé',
+    'designation',
+    'désignation',
+    'article',
+    'nom',
+    'item',
+    'produit',
+  ].map(normalize);
+
+  for (const preferred of containsPriority) {
+    const containsIndex = header.findIndex((cell) => cell.includes(preferred));
+    if (containsIndex !== -1) return containsIndex;
+  }
+
+  return 0;
+};
+
 const extractImportLabels = (content: string): string[] => {
   if (!content?.trim()) return [];
 
@@ -113,18 +149,19 @@ const extractImportLabels = (content: string): string[] => {
 
   const delimiter = detectDelimiter(content);
   const header = parseCsvLine(lines[0], delimiter).map(normalize);
-  const nameCandidates = ['produit', 'libelle', 'libellé', 'designation', 'désignation', 'article', 'nom', 'item'];
-
-  let nameIndex = header.findIndex((cell) => nameCandidates.some((candidate) => cell.includes(candidate)));
-  if (nameIndex === -1) nameIndex = 0;
+  const nameIndex = pickPreferredLabelColumn(header);
 
   const startIndex = lines.length > 1 ? 1 : 0;
   const labels: string[] = [];
+  const seen = new Set<string>();
 
   for (let i = startIndex; i < lines.length; i += 1) {
     const cols = parseCsvLine(lines[i], delimiter);
-    const label = (cols[nameIndex] ?? '').trim();
-    if (label) labels.push(label);
+    const label = String(cols[nameIndex] ?? '').trim();
+    const normalized = normalize(label);
+    if (!label || !normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    labels.push(label);
   }
 
   return labels;
@@ -164,23 +201,56 @@ const normalizeRow = (row: any): TakeRateMappingRow => ({
   matchedMarginSheet: String(row.matchedMarginSheet ?? ''),
 });
 
+const GENERIC_MARGIN_TOKENS = new Set([
+  'menu',
+  'menus',
+  'carte',
+  'formule',
+  'formules',
+  'supp',
+  'sup',
+  'sauce',
+  'poivre',
+  'roquefort',
+  'emporter',
+  'hors',
+  'take',
+  'away',
+  'avec',
+  'sans',
+  'plat',
+  'plats',
+  'dessert',
+  'desserts',
+]);
+
 const scoreMatch = (label: string, item: MarginCatalogItem) => {
   const a = normalize(label);
   const b = item.normalized;
   if (!a || !b) return -1;
   if (a === b) return 1000;
-  if (a.includes(b) || b.includes(a)) return 800 - Math.abs(a.length - b.length);
 
   const aTokens = tokenize(a);
   const bTokens = tokenize(b);
   if (aTokens.length === 0 || bTokens.length === 0) return -1;
 
-  const intersection = aTokens.filter((token) => bTokens.includes(token)).length;
-  if (intersection === 0) return -1;
+  const strongATokens = aTokens.filter((token) => !GENERIC_MARGIN_TOKENS.has(token));
+  const strongBTokens = bTokens.filter((token) => !GENERIC_MARGIN_TOKENS.has(token));
+  const effectiveATokens = strongATokens.length > 0 ? strongATokens : aTokens;
+  const effectiveBTokens = strongBTokens.length > 0 ? strongBTokens : bTokens;
 
-  const unique = new Set([...aTokens, ...bTokens]).size;
-  const coverage = intersection / Math.max(aTokens.length, bTokens.length);
-  return coverage * 100 + (intersection / unique) * 50;
+  const strongIntersection = effectiveATokens.filter((token) => effectiveBTokens.includes(token));
+  if (strongIntersection.length === 0) return -1;
+
+  const allIntersection = aTokens.filter((token) => bTokens.includes(token));
+  const uniqueStrong = new Set([...effectiveATokens, ...effectiveBTokens]).size;
+  const coverage = strongIntersection.length / Math.max(effectiveATokens.length, effectiveBTokens.length);
+  const containmentBonus =
+    strongIntersection.length === effectiveATokens.length || strongIntersection.length === effectiveBTokens.length ? 35 : 0;
+  const exactStrongBonus = effectiveATokens.join(' ') === effectiveBTokens.join(' ') ? 250 : 0;
+  const genericOnlyPenalty = allIntersection.every((token) => GENERIC_MARGIN_TOKENS.has(token)) ? 120 : 0;
+
+  return coverage * 140 + (strongIntersection.length / uniqueStrong) * 80 + containmentBonus + exactStrongBonus - genericOnlyPenalty;
 };
 
 const findBestMarginMatch = (label: string, catalog: MarginCatalogItem[]) => {
