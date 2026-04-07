@@ -10,7 +10,11 @@ interface TakeRateResultsPageProps {
 
 type SortKey = 'label' | 'family' | 'sales' | 'takeRate';
 
-const STORAGE_KEY = `${STORAGE_PREFIX}take_rate_rows_v1`;
+const STORAGE_KEYS = [
+  `${STORAGE_PREFIX}take_rate_rows_v3`,
+  `${STORAGE_PREFIX}take_rate_rows_v2`,
+  `${STORAGE_PREFIX}take_rate_rows_v1`,
+];
 
 const normalize = (value: string) =>
   value
@@ -131,18 +135,21 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        setRows(
-          parsed.map((row) => ({
-            id: String(row.id ?? ''),
-            label: String(row.label ?? ''),
-            family: String(row.family ?? ''),
-            linkedImports: Array.isArray(row.linkedImports) ? row.linkedImports.map(String) : [],
-          }))
-        );
+      for (const key of STORAGE_KEYS) {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          setRows(
+            parsed.map((row) => ({
+              id: String(row.id ?? ''),
+              label: String(row.label ?? ''),
+              family: String(row.family ?? ''),
+              linkedImports: Array.isArray(row.linkedImports) ? row.linkedImports.map(String) : [],
+            }))
+          );
+          break;
+        }
       }
     } catch (_error) {}
   }, []);
