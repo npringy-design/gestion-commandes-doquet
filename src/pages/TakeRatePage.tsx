@@ -30,6 +30,8 @@ interface TakeRatePageProps {
   prepImportsByMonth: Record<string, string>;
 }
 
+type RowStatus = 'ok' | 'review' | 'unlinked';
+
 const ROWS_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_rows_v3`;
 const LEGACY_ROWS_STORAGE_KEYS = [
   `${STORAGE_PREFIX}take_rate_rows_v2`,
@@ -335,6 +337,30 @@ const autoLinkImportsToRows = (rows: TakeRateMappingRow[], availableImports: str
   return nextRows;
 };
 
+const getRowStatus = (row: TakeRateMappingRow): RowStatus => {
+  if (row.linkedImports.length === 0) return 'unlinked';
+  if (!row.family.trim()) return 'review';
+  return 'ok';
+};
+
+const statusMeta: Record<RowStatus, { label: string; pill: string; rowRing: string }> = {
+  ok: {
+    label: 'OK',
+    pill: 'border-[#B9DEC9] bg-[#EAF7EF] text-[#1F7A4D]',
+    rowRing: 'shadow-[inset_4px_0_0_#2E8D63]',
+  },
+  review: {
+    label: 'À vérifier',
+    pill: 'border-[#E5C27A] bg-[#FFF6DE] text-[#9A6A13]',
+    rowRing: 'shadow-[inset_4px_0_0_#D79A1E]',
+  },
+  unlinked: {
+    label: 'Non lié',
+    pill: 'border-[#E5B4A8] bg-[#FCEEE8] text-[#B44E2E]',
+    rowRing: 'shadow-[inset_4px_0_0_#C55D3D]',
+  },
+};
+
 const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth }) => {
   const [rows, setRows] = useState<TakeRateMappingRow[]>([]);
   const [searchByRow, setSearchByRow] = useState<Record<string, string>>({});
@@ -344,6 +370,8 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const [marginFileName, setMarginFileName] = useState('');
   const [importMessage, setImportMessage] = useState('');
   const [isImportingMargin, setIsImportingMargin] = useState(false);
+  const [familyFilter, setFamilyFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | RowStatus>('all');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -384,6 +412,32 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     });
     return Array.from(unique).sort((a, b) => a.localeCompare(b, 'fr'));
   }, [prepImportsByMonth]);
+
+  const familyOptions = useMemo(() => {
+    const unique = new Set<string>();
+    rows.forEach((row) => {
+      const value = row.family.trim();
+      if (value) unique.add(value);
+    });
+    return Array.from(unique).sort((a, b) => a.localeCompare(b, 'fr'));
+  }, [rows]);
+
+  const filteredRows = useMemo(() => {
+    return rows.filter((row) => {
+      const rowStatus = getRowStatus(row);
+      const familyValue = row.family.trim();
+
+      const familyMatches =
+        familyFilter === 'all'
+          ? true
+          : familyFilter === '__none__'
+            ? familyValue === ''
+            : familyValue === familyFilter;
+
+      const statusMatches = statusFilter === 'all' ? true : rowStatus === statusFilter;
+      return familyMatches && statusMatches;
+    });
+  }, [rows, familyFilter, statusFilter]);
 
   const addRow = () => setRows((prev) => [...prev, createEmptyRow()]);
 
@@ -478,7 +532,9 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   };
 
   const linkedCount = rows.reduce((sum, row) => sum + row.linkedImports.length, 0);
-  const withoutLinkCount = rows.filter((row) => row.linkedImports.length === 0).length;
+  const okCount = rows.filter((row) => getRowStatus(row) === 'ok').length;
+  const reviewCount = rows.filter((row) => getRowStatus(row) === 'review').length;
+  const withoutLinkCount = rows.filter((row) => getRowStatus(row) === 'unlinked').length;
 
   return (
     <div className="flex h-full min-h-screen bg-[#EDE2D6] text-[#4B2D22]">
@@ -514,7 +570,9 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
           <div className="mt-3 space-y-2 text-[13px] font-semibold text-[#6E4736]">
             <div className="flex items-center justify-between gap-3"><span>Produits</span><span>{rows.length}</span></div>
             <div className="flex items-center justify-between gap-3"><span>Liens import</span><span>{linkedCount}</span></div>
-            <div className="flex items-center justify-between gap-3"><span>Sans lien</span><span>{withoutLinkCount}</span></div>
+            <div className="flex items-center justify-between gap-3"><span>OK</span><span>{okCount}</span></div>
+            <div className="flex items-center justify-between gap-3"><span>À vérifier</span><span>{reviewCount}</span></div>
+            <div className="flex items-center justify-between gap-3"><span>Non liés</span><span>{withoutLinkCount}</span></div>
             <div className="flex items-center justify-between gap-3"><span>Réfs marge</span><span>{marginCatalog.length}</span></div>
           </div>
         </div>
@@ -554,16 +612,52 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
               </div>
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] font-semibold text-[#7A5240]">
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] font-semibold text-[#7A5240]">
               <span>{marginFileName ? `Fichier marge : ${marginFileName}` : 'Aucun fichier marge chargé'}</span>
               {importMessage ? <span className="text-[#9A4F33]">• {importMessage}</span> : null}
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-end gap-3">
+              <label className="min-w-[180px]">
+                <span className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.08em] text-[#8A604B]">Famille</span>
+                <select
+                  value={familyFilter}
+                  onChange={(e) => setFamilyFilter(e.target.value)}
+                  className="w-full rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#4F2E22] outline-none transition focus:border-[#B55A3C] focus:ring-2 focus:ring-[#E8B59E]"
+                >
+                  <option value="all">Toutes</option>
+                  <option value="__none__">Sans famille</option>
+                  {familyOptions.map((family) => (
+                    <option key={family} value={family}>{family}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="min-w-[180px]">
+                <span className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.08em] text-[#8A604B]">État</span>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as 'all' | RowStatus)}
+                  className="w-full rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#4F2E22] outline-none transition focus:border-[#B55A3C] focus:ring-2 focus:ring-[#E8B59E]"
+                >
+                  <option value="all">Tous</option>
+                  <option value="ok">OK</option>
+                  <option value="review">À vérifier</option>
+                  <option value="unlinked">Non liés</option>
+                </select>
+              </label>
+
+              <div className="pb-1 text-[12px] font-semibold text-[#7A5240]">
+                {filteredRows.length} ligne{filteredRows.length > 1 ? 's' : ''} affichée{filteredRows.length > 1 ? 's' : ''}
+              </div>
             </div>
           </div>
 
           <div className="min-h-0 flex-1 overflow-auto bg-[#F7F0E7]">
-            <table className="w-full min-w-[1520px] table-fixed border-separate border-spacing-0">
+            <table className="w-full min-w-[1600px] table-fixed border-separate border-spacing-0">
               <colgroup>
-                <col className="w-[20%]" />
+                <col className="w-[8%]" />
+                <col className="w-[18%]" />
                 <col className="w-[11%]" />
                 <col className="w-[23%]" />
                 <col className="w-[22%]" />
@@ -575,6 +669,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
               </colgroup>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[#EADACA] text-[#71402D]">
+                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">État</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Produit marge</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Famille</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Recherche import</th>
@@ -587,21 +682,34 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 </tr>
               </thead>
               <tbody>
-                {rows.length === 0 ? (
+                {filteredRows.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-6 py-10 text-center text-[14px] font-semibold text-[#8B6650]">
-                      Importe d’abord le fichier marge. Les lignes produits seront créées automatiquement, puis les imports production seront rattachés dessus.
+                    <td colSpan={10} className="px-6 py-10 text-center text-[14px] font-semibold text-[#8B6650]">
+                      Aucune ligne pour ce filtre.
                     </td>
                   </tr>
                 ) : (
-                  rows.map((row, rowIndex) => {
+                  filteredRows.map((row, rowIndex) => {
                     const searchValue = searchByRow[row.id] ?? '';
                     const suggestions = filteredImportsByRow[row.id] ?? [];
                     const isSearchOpen = openSearchRow === row.id;
                     const isLinkedOpen = openLinkedRow === row.id;
+                    const status = getRowStatus(row);
+                    const meta = statusMeta[status];
 
                     return (
-                      <tr key={row.id} className={rowIndex % 2 === 0 ? 'bg-[#FFF9F2]' : 'bg-[#FCF4EB]'}>
+                      <tr key={row.id} className={`${rowIndex % 2 === 0 ? 'bg-[#FFF9F2]' : 'bg-[#FCF4EB]'} ${meta.rowRing}`}>
+                        <td className="border-b border-[#E8D8C8] px-3 py-3 align-top">
+                          <div className="space-y-2">
+                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${meta.pill}`}>
+                              {meta.label}
+                            </span>
+                            <div className="text-[11px] font-semibold text-[#8A604B]">
+                              {row.linkedImports.length} lien{row.linkedImports.length > 1 ? 's' : ''}
+                            </div>
+                          </div>
+                        </td>
+
                         <td className="border-b border-[#E8D8C8] px-3 py-3 align-top">
                           <div className="space-y-2">
                             <input
