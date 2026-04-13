@@ -755,7 +755,11 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const [isImportingMargin, setIsImportingMargin] = useState(false);
   const [familyFilter, setFamilyFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'all' | RowStatus>('all');
+  const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const tableScrollRef = useRef<HTMLDivElement | null>(null);
+  const bottomScrollRef = useRef<HTMLDivElement | null>(null);
+  const bottomScrollInnerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     try {
@@ -822,7 +826,89 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     });
   }, [rows, familyFilter, statusFilter]);
 
+  useEffect(() => {
+    setSelectedRowIds((prev) => prev.filter((id) => rows.some((row) => row.id === id)));
+  }, [rows]);
+
+  useEffect(() => {
+    const tableEl = tableScrollRef.current;
+    const bottomEl = bottomScrollRef.current;
+    const innerEl = bottomScrollInnerRef.current;
+    if (!tableEl || !bottomEl || !innerEl) return;
+
+    const syncInnerWidth = () => {
+      innerEl.style.width = `${tableEl.scrollWidth}px`;
+      bottomEl.scrollLeft = tableEl.scrollLeft;
+    };
+
+    syncInnerWidth();
+
+    let syncingFromTable = false;
+    let syncingFromBottom = false;
+
+    const handleTableScroll = () => {
+      if (syncingFromBottom) {
+        syncingFromBottom = false;
+        return;
+      }
+      syncingFromTable = true;
+      bottomEl.scrollLeft = tableEl.scrollLeft;
+    };
+
+    const handleBottomScroll = () => {
+      if (syncingFromTable) {
+        syncingFromTable = false;
+        return;
+      }
+      syncingFromBottom = true;
+      tableEl.scrollLeft = bottomEl.scrollLeft;
+    };
+
+    tableEl.addEventListener('scroll', handleTableScroll);
+    bottomEl.addEventListener('scroll', handleBottomScroll);
+    window.addEventListener('resize', syncInnerWidth);
+
+    return () => {
+      tableEl.removeEventListener('scroll', handleTableScroll);
+      bottomEl.removeEventListener('scroll', handleBottomScroll);
+      window.removeEventListener('resize', syncInnerWidth);
+    };
+  }, [filteredRows.length, rows.length]);
+
   const addRow = () => setRows((prev) => [...prev, createEmptyRow()]);
+
+  const toggleRowSelection = (rowId: string) => {
+    setSelectedRowIds((prev) => (prev.includes(rowId) ? prev.filter((id) => id !== rowId) : [...prev, rowId]));
+  };
+
+  const toggleSelectAllVisibleRows = () => {
+    const visibleIds = filteredRows.map((row) => row.id);
+    if (visibleIds.length === 0) return;
+
+    setSelectedRowIds((prev) => {
+      const allVisibleSelected = visibleIds.every((id) => prev.includes(id));
+      if (allVisibleSelected) {
+        return prev.filter((id) => !visibleIds.includes(id));
+      }
+      return Array.from(new Set([...prev, ...visibleIds]));
+    });
+  };
+
+  const removeSelectedRows = () => {
+    if (selectedRowIds.length === 0) return;
+    const selectedSet = new Set(selectedRowIds);
+
+    setRows((prev) => prev.filter((row) => !selectedSet.has(row.id)));
+    setSelectedRowIds([]);
+    setSearchByRow((prev) => {
+      const next = { ...prev };
+      selectedSet.forEach((id) => delete next[id]);
+      return next;
+    });
+
+    if (openSearchRow && selectedSet.has(openSearchRow)) setOpenSearchRow(null);
+    if (openLinkedRow && selectedSet.has(openLinkedRow)) setOpenLinkedRow(null);
+  };
 
   const updateRow = (rowId: string, patch: Partial<TakeRateMappingRow>) => {
     setRows((prev) =>
@@ -915,6 +1001,9 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     });
   };
 
+  const visibleRowIds = filteredRows.map((row) => row.id);
+  const visibleSelectedCount = visibleRowIds.filter((id) => selectedRowIds.includes(id)).length;
+  const allVisibleRowsSelected = visibleRowIds.length > 0 && visibleSelectedCount === visibleRowIds.length;
   const linkedCount = rows.reduce((sum, row) => sum + row.linkedImports.length, 0);
   const okCount = rows.filter((row) => getRowStatus(row) === 'ok').length;
   const reviewCount = rows.filter((row) => getRowStatus(row) === 'review').length;
@@ -962,7 +1051,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
         </div>
       </aside>
 
-      <main className="flex min-w-0 flex-1 flex-col overflow-hidden p-4 xl:p-5">
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden p-4 pb-20 xl:p-5 xl:pb-24">
         <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-[#D8BEA8] bg-[#FFF8F1] shadow-[0_18px_40px_rgba(104,63,39,0.10)]">
           <div className="border-b border-[#E6D4C4] bg-[linear-gradient(180deg,#FBF4EC_0%,#F5EADD_100%)] px-5 py-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -992,6 +1081,21 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                   className="rounded-[16px] border border-[#2E8D63] bg-[linear-gradient(180deg,#39B37D_0%,#239062_100%)] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-white shadow-[0_4px_0_#196A48] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#196A48]"
                 >
                   Ajouter une ligne
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleSelectAllVisibleRows}
+                  className="rounded-[16px] border border-[#D2B39C] bg-[#F8EDE1] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#7F563F] transition hover:bg-[#F2E2D0]"
+                >
+                  {allVisibleRowsSelected ? 'Désélectionner visibles' : 'Sélectionner visibles'}
+                </button>
+                <button
+                  type="button"
+                  onClick={removeSelectedRows}
+                  disabled={selectedRowIds.length === 0}
+                  className="rounded-[16px] border border-[#C16A48] bg-[#FCEEE7] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#A24E30] transition hover:bg-[#F9E2D6] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Supprimer sélection
                 </button>
               </div>
             </div>
@@ -1033,13 +1137,15 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
 
               <div className="pb-1 text-[12px] font-semibold text-[#7A5240]">
                 {filteredRows.length} ligne{filteredRows.length > 1 ? 's' : ''} affichée{filteredRows.length > 1 ? 's' : ''}
+                {visibleSelectedCount > 0 ? ` • ${visibleSelectedCount} sélectionnée${visibleSelectedCount > 1 ? 's' : ''}` : ''}
               </div>
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-auto bg-[#F7F0E7]">
-            <table className="w-full min-w-[1600px] table-fixed border-separate border-spacing-0">
+          <div ref={tableScrollRef} className="min-h-0 flex-1 overflow-auto bg-[#F7F0E7]">
+            <table className="w-full min-w-[1660px] table-fixed border-separate border-spacing-0">
               <colgroup>
+                <col className="w-[4%]" />
                 <col className="w-[8%]" />
                 <col className="w-[18%]" />
                 <col className="w-[11%]" />
@@ -1053,6 +1159,15 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
               </colgroup>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[#EADACA] text-[#71402D]">
+                  <th className="border-b border-[#DCC2AB] px-2 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">
+                    <input
+                      type="checkbox"
+                      checked={allVisibleRowsSelected}
+                      onChange={toggleSelectAllVisibleRows}
+                      aria-label="Sélectionner toutes les lignes visibles"
+                      className="h-4 w-4 rounded border-[#B98D76] text-[#A24E30] focus:ring-[#D9A58F]"
+                    />
+                  </th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">État</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Produit marge</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Famille</th>
@@ -1062,13 +1177,13 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">PV HT</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Marge €</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Marge %</th>
-                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">—</th>
+                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">Suppr.</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredRows.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-6 py-10 text-center text-[14px] font-semibold text-[#8B6650]">
+                    <td colSpan={11} className="px-6 py-10 text-center text-[14px] font-semibold text-[#8B6650]">
                       Aucune ligne pour ce filtre.
                     </td>
                   </tr>
@@ -1083,6 +1198,15 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
 
                     return (
                       <tr key={row.id} className={`${rowIndex % 2 === 0 ? 'bg-[#FFF9F2]' : 'bg-[#FCF4EB]'} ${meta.rowRing}`}>
+                        <td className="border-b border-[#E8D8C8] px-2 py-3 align-top text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedRowIds.includes(row.id)}
+                            onChange={() => toggleRowSelection(row.id)}
+                            aria-label={`Sélectionner ${row.label || 'la ligne'}`}
+                            className="mt-1 h-4 w-4 rounded border-[#B98D76] text-[#A24E30] focus:ring-[#D9A58F]"
+                          />
+                        </td>
                         <td className="border-b border-[#E8D8C8] px-3 py-3 align-top">
                           <div className="space-y-2">
                             <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${meta.pill}`}>
@@ -1260,7 +1384,22 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
               </tbody>
             </table>
           </div>
+
+          <div className="border-t border-[#E6D4C4] bg-[#FBF4EC] px-4 py-2 text-[11px] font-semibold text-[#8A604B]">
+            Défilement horizontal fixé en bas d’écran pour éviter d’aller tout en bas du tableau.
+          </div>
         </section>
+
+        <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-30 px-4 pb-3 xl:left-[19rem] xl:px-5">
+          <div className="pointer-events-auto rounded-[16px] border border-[#D8BEA8] bg-[#FFF8F1]/95 shadow-[0_-8px_24px_rgba(104,63,39,0.12)] backdrop-blur">
+            <div
+              ref={bottomScrollRef}
+              className="overflow-x-auto overflow-y-hidden rounded-[16px]"
+            >
+              <div ref={bottomScrollInnerRef} className="h-4" />
+            </div>
+          </div>
+        </div>
       </main>
     </div>
   );
