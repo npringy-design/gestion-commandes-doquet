@@ -8,7 +8,7 @@ interface TakeRateResultsPageProps {
   covers: Record<string, number>;
 }
 
-type SortKey = 'label' | 'family' | 'sales' | 'takeRate';
+type SortKey = 'label' | 'family' | 'sales' | 'takeRate' | 'marginTotal';
 
 const STORAGE_KEYS = [
   `${STORAGE_PREFIX}take_rate_rows_v3`,
@@ -65,11 +65,18 @@ const detectDelimiter = (input: string) => {
   return best;
 };
 
-const parseNumber = (value: string) => {
-  const cleaned = value.replace(/\s/g, '').replace(',', '.');
+const parseNumber = (value: string | number | null | undefined) => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  const cleaned = String(value ?? '').replace(/\s/g, '').replace(',', '.');
   const parsed = Number(cleaned);
   return Number.isFinite(parsed) ? parsed : 0;
 };
+
+const formatCurrency = (value: number) =>
+  `${new Intl.NumberFormat('fr-FR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value)} €`;
 
 const buildMonthSalesMap = (content: string) => {
   const result = new Map<string, number>();
@@ -146,6 +153,10 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
               label: String(row.label ?? ''),
               family: String(row.family ?? ''),
               linkedImports: Array.isArray(row.linkedImports) ? row.linkedImports.map(String) : [],
+              costHt: parseNumber(row.costHt),
+              sellPriceHt: parseNumber(row.sellPriceHt),
+              marginEuro: parseNumber(row.marginEuro),
+              marginPercent: parseNumber(row.marginPercent),
             }))
           );
           break;
@@ -164,11 +175,22 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
       .map((row) => {
         const sales = row.linkedImports.reduce((sum, item) => sum + (monthSalesMap.get(normalize(item)) ?? 0), 0);
         const takeRate = monthCovers > 0 ? (sales / monthCovers) * 100 : 0;
+        const costHt = parseNumber((row as any).costHt);
+        const sellPriceHt = parseNumber((row as any).sellPriceHt);
+        const marginEuro = parseNumber((row as any).marginEuro);
+        const marginPercent = parseNumber((row as any).marginPercent);
+        const marginTotal = sales * marginEuro;
+        const theoreticalRevenue = sales * sellPriceHt;
         return {
           ...row,
           sales,
-          covers: monthCovers,
           takeRate,
+          costHt,
+          sellPriceHt,
+          marginEuro,
+          marginPercent,
+          marginTotal,
+          theoreticalRevenue,
         };
       })
       .filter((row) => (familyFilter === 'all' ? true : row.family === familyFilter))
@@ -180,6 +202,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
         if (sortBy === 'label') return a.label.localeCompare(b.label, 'fr');
         if (sortBy === 'family') return a.family.localeCompare(b.family, 'fr') || a.label.localeCompare(b.label, 'fr');
         if (sortBy === 'sales') return b.sales - a.sales || a.label.localeCompare(b.label, 'fr');
+        if (sortBy === 'marginTotal') return b.marginTotal - a.marginTotal || a.label.localeCompare(b.label, 'fr');
         return b.takeRate - a.takeRate || b.sales - a.sales || a.label.localeCompare(b.label, 'fr');
       })
       .map((row, index) => ({ ...row, rank: index + 1 }));
@@ -281,6 +304,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                   <option value="sales">Tri ventes</option>
                   <option value="label">Tri produit</option>
                   <option value="family">Tri famille</option>
+                  <option value="marginTotal">Tri marge totale</option>
                 </select>
               </div>
             </div>
