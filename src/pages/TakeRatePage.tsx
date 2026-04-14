@@ -755,7 +755,9 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const [isImportingMargin, setIsImportingMargin] = useState(false);
   const [familyFilter, setFamilyFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'all' | RowStatus>('all');
+  const [productFilter, setProductFilter] = useState('');
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
+  const [pendingImportsByRow, setPendingImportsByRow] = useState<Record<string, string[]>>({});
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
   const bottomScrollRef = useRef<HTMLDivElement | null>(null);
@@ -810,6 +812,8 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   }, [rows]);
 
   const filteredRows = useMemo(() => {
+    const normalizedProductFilter = normalize(productFilter);
+
     return rows.filter((row) => {
       const rowStatus = getRowStatus(row);
       const familyValue = row.family.trim();
@@ -822,9 +826,13 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
             : familyValue === familyFilter;
 
       const statusMatches = statusFilter === 'all' ? true : rowStatus === statusFilter;
-      return familyMatches && statusMatches;
+      const productMatches =
+        !normalizedProductFilter ||
+        normalize(`${row.label} ${row.matchedMarginLabel ?? ''}`).includes(normalizedProductFilter);
+
+      return familyMatches && statusMatches && productMatches;
     });
-  }, [rows, familyFilter, statusFilter]);
+  }, [rows, familyFilter, statusFilter, productFilter]);
 
   useEffect(() => {
     setSelectedRowIds((prev) => prev.filter((id) => rows.some((row) => row.id === id)));
@@ -905,6 +913,11 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       selectedSet.forEach((id) => delete next[id]);
       return next;
     });
+    setPendingImportsByRow((prev) => {
+      const next = { ...prev };
+      selectedSet.forEach((id) => delete next[id]);
+      return next;
+    });
 
     if (openSearchRow && selectedSet.has(openSearchRow)) setOpenSearchRow(null);
     if (openLinkedRow && selectedSet.has(openLinkedRow)) setOpenLinkedRow(null);
@@ -935,17 +948,44 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   };
 
   const addImportToRow = (rowId: string, importLabel: string) => {
+    setPendingImportsByRow((prev) => {
+      const current = prev[rowId] ?? [];
+      if (current.includes(importLabel)) return prev;
+      return { ...prev, [rowId]: [...current, importLabel] };
+    });
+    setOpenSearchRow(rowId);
+  };
+
+  const removePendingImportFromRow = (rowId: string, importLabel: string) => {
+    setPendingImportsByRow((prev) => {
+      const current = prev[rowId] ?? [];
+      const nextItems = current.filter((item) => item !== importLabel);
+      if (nextItems.length === current.length) return prev;
+      const next = { ...prev };
+      if (nextItems.length > 0) next[rowId] = nextItems;
+      else delete next[rowId];
+      return next;
+    });
+  };
+
+  const validatePendingImportsForRow = (rowId: string) => {
+    const pendingItems = pendingImportsByRow[rowId] ?? [];
+    if (pendingItems.length === 0) return;
+
     setRows((prev) =>
       prev.map((row) => {
-        if (row.id !== rowId) {
-          return row.linkedImports.includes(importLabel)
-            ? { ...row, linkedImports: row.linkedImports.filter((item) => item !== importLabel) }
-            : row;
-        }
-        if (row.linkedImports.includes(importLabel)) return row;
-        return { ...row, linkedImports: [...row.linkedImports, importLabel] };
+        const withoutOwnedItems = row.linkedImports.filter((item) => !pendingItems.includes(item));
+        if (row.id !== rowId) return { ...row, linkedImports: withoutOwnedItems };
+        return { ...row, linkedImports: Array.from(new Set([...withoutOwnedItems, ...pendingItems])) };
       })
     );
+
+    setPendingImportsByRow((prev) => {
+      const next = { ...prev };
+      delete next[rowId];
+      return next;
+    });
+    setOpenSearchRow(null);
   };
 
   const removeImportFromRow = (rowId: string, importLabel: string) => {
@@ -956,11 +996,12 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     const result: Record<string, string[]> = {};
     rows.forEach((row) => {
       const query = normalize(searchByRow[row.id] ?? '');
-      const base = availableImports.filter((item) => !row.linkedImports.includes(item));
+      const pending = pendingImportsByRow[row.id] ?? [];
+      const base = availableImports.filter((item) => !row.linkedImports.includes(item) && !pending.includes(item));
       result[row.id] = query ? base.filter((item) => normalize(item).includes(query)).slice(0, 60) : base.slice(0, 30);
     });
     return result;
-  }, [availableImports, rows, searchByRow]);
+  }, [availableImports, rows, searchByRow, pendingImportsByRow]);
 
   const handleImportMarginFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -1106,6 +1147,17 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
             </div>
 
             <div className="mt-4 flex flex-wrap items-end gap-3">
+              <label className="min-w-[240px] flex-1">
+                <span className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.08em] text-[#8A604B]">Recherche produit</span>
+                <input
+                  type="text"
+                  value={productFilter}
+                  onChange={(e) => setProductFilter(e.target.value)}
+                  placeholder="Rechercher un produit marge..."
+                  className="w-full rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#4F2E22] outline-none transition focus:border-[#B55A3C] focus:ring-2 focus:ring-[#E8B59E]"
+                />
+              </label>
+
               <label className="min-w-[180px]">
                 <span className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.08em] text-[#8A604B]">Famille</span>
                 <select
@@ -1191,6 +1243,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                   filteredRows.map((row, rowIndex) => {
                     const searchValue = searchByRow[row.id] ?? '';
                     const suggestions = filteredImportsByRow[row.id] ?? [];
+                    const pendingImports = pendingImportsByRow[row.id] ?? [];
                     const isSearchOpen = openSearchRow === row.id;
                     const isLinkedOpen = openLinkedRow === row.id;
                     const status = getRowStatus(row);
@@ -1269,24 +1322,55 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                             </div>
 
                             {isSearchOpen && (
-                              <div className="max-h-44 overflow-auto rounded-[16px] border border-[#DCC5B1] bg-[#FFFDF9] p-2 shadow-[0_12px_24px_rgba(87,52,33,0.10)]">
-                                {suggestions.length > 0 ? (
-                                  <div className="space-y-1.5">
-                                    {suggestions.map((item) => (
+                              <div className="space-y-2 rounded-[16px] border border-[#DCC5B1] bg-[#FFFDF9] p-2 shadow-[0_12px_24px_rgba(87,52,33,0.10)]">
+                                {pendingImports.length > 0 ? (
+                                  <div className="rounded-[14px] border border-[#E4C8B8] bg-[#FCF3EC] p-2">
+                                    <div className="mb-1.5 text-[10px] font-black uppercase tracking-[0.08em] text-[#9A5C40]">Sélection en attente</div>
+                                    <div className="space-y-1.5">
+                                      {pendingImports.map((item) => (
+                                        <div key={item} className="flex items-center justify-between gap-2 rounded-[12px] border border-[#E8D8C8] bg-white px-3 py-2">
+                                          <span className="text-[12px] font-semibold text-[#5B3728]">{item}</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => removePendingImportFromRow(row.id, item)}
+                                            className="rounded-[10px] border border-[#E6B9A5] bg-[#FCEEE7] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.05em] text-[#A24E30] transition hover:bg-[#F9E2D6]"
+                                          >
+                                            Retirer
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <div className="mt-2 flex justify-end">
                                       <button
-                                        key={item}
                                         type="button"
-                                        onClick={() => addImportToRow(row.id, item)}
-                                        className="flex w-full items-center justify-between rounded-[12px] border border-[#E8D8C8] bg-white px-3 py-2 text-left text-[12px] font-semibold text-[#5B3728] transition hover:border-[#B55A3C] hover:bg-[#FFF4EC]"
+                                        onClick={() => validatePendingImportsForRow(row.id)}
+                                        className="rounded-[12px] border border-[#2E8D63] bg-[linear-gradient(180deg,#39B37D_0%,#239062_100%)] px-3 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-white shadow-[0_4px_0_#196A48] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#196A48]"
                                       >
-                                        <span className="pr-3">{item}</span>
-                                        <span className="text-[10px] font-black uppercase tracking-[0.06em] text-[#A15839]">Ajouter</span>
+                                        Valider les liens
                                       </button>
-                                    ))}
+                                    </div>
                                   </div>
-                                ) : (
-                                  <div className="px-2 py-3 text-[12px] font-medium text-[#8B6650]">Aucun résultat.</div>
-                                )}
+                                ) : null}
+
+                                <div className="max-h-44 overflow-auto">
+                                  {suggestions.length > 0 ? (
+                                    <div className="space-y-1.5">
+                                      {suggestions.map((item) => (
+                                        <button
+                                          key={item}
+                                          type="button"
+                                          onClick={() => addImportToRow(row.id, item)}
+                                          className="flex w-full items-center justify-between rounded-[12px] border border-[#E8D8C8] bg-white px-3 py-2 text-left text-[12px] font-semibold text-[#5B3728] transition hover:border-[#B55A3C] hover:bg-[#FFF4EC]"
+                                        >
+                                          <span className="pr-3">{item}</span>
+                                          <span className="text-[10px] font-black uppercase tracking-[0.06em] text-[#A15839]">Ajouter</span>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div className="px-2 py-3 text-[12px] font-medium text-[#8B6650]">Aucun résultat.</div>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>
