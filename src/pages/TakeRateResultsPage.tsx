@@ -8,7 +8,7 @@ interface TakeRateResultsPageProps {
   covers: Record<string, number>;
 }
 
-type SortKey = 'label' | 'family' | 'sales' | 'takeRate' | 'marginTotal';
+type SortKey = 'label' | 'family' | 'sales' | 'takeRate';
 
 const STORAGE_KEYS = [
   `${STORAGE_PREFIX}take_rate_rows_v3`,
@@ -65,9 +65,8 @@ const detectDelimiter = (input: string) => {
   return best;
 };
 
-const parseNumber = (value: string | number | null | undefined) => {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-  const cleaned = String(value ?? '').replace(/\s/g, '').replace(',', '.');
+const parseNumber = (value: string) => {
+  const cleaned = value.replace(/\s/g, '').replace(',', '.');
   const parsed = Number(cleaned);
   return Number.isFinite(parsed) ? parsed : 0;
 };
@@ -127,14 +126,6 @@ const formatPercent = (value: number) =>
     maximumFractionDigits: 2,
   }).format(value)} %`;
 
-const formatCurrency = (value: number) =>
-  `${new Intl.NumberFormat('fr-FR', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)} €`;
-
-const safeAverage = (total: number, count: number) => (count > 0 ? total / count : 0);
-
 const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prepImportsByMonth, covers }) => {
   const [rows, setRows] = useState<TakeRateMappingRow[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<string>(MONTHS_DISPLAY_CONFIG[new Date().getMonth()]?.key ?? 'jan');
@@ -155,13 +146,6 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
               label: String(row.label ?? ''),
               family: String(row.family ?? ''),
               linkedImports: Array.isArray(row.linkedImports) ? row.linkedImports.map(String) : [],
-              costHt: String(row.costHt ?? ''),
-              sellPriceHt: String(row.sellPriceHt ?? ''),
-              marginPercent: String(row.marginPercent ?? ''),
-              marginEuro: String(row.marginEuro ?? ''),
-              marginSource: row.marginSource ?? '',
-              matchedMarginLabel: String(row.matchedMarginLabel ?? ''),
-              matchedMarginSheet: String(row.matchedMarginSheet ?? ''),
             }))
           );
           break;
@@ -180,25 +164,11 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
       .map((row) => {
         const sales = row.linkedImports.reduce((sum, item) => sum + (monthSalesMap.get(normalize(item)) ?? 0), 0);
         const takeRate = monthCovers > 0 ? (sales / monthCovers) * 100 : 0;
-        const costHt = parseNumber(row.costHt);
-        const sellPriceHt = parseNumber(row.sellPriceHt);
-        const marginPercent = parseNumber(row.marginPercent);
-        const marginEuro = parseNumber(row.marginEuro);
-        const theoreticalRevenue = sales * sellPriceHt;
-        const theoreticalCost = sales * costHt;
-        const marginTotal = sales * marginEuro;
         return {
           ...row,
           sales,
           covers: monthCovers,
           takeRate,
-          costHt,
-          sellPriceHt,
-          marginPercent,
-          marginEuro,
-          theoreticalRevenue,
-          theoreticalCost,
-          marginTotal,
         };
       })
       .filter((row) => (familyFilter === 'all' ? true : row.family === familyFilter))
@@ -210,7 +180,6 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
         if (sortBy === 'label') return a.label.localeCompare(b.label, 'fr');
         if (sortBy === 'family') return a.family.localeCompare(b.family, 'fr') || a.label.localeCompare(b.label, 'fr');
         if (sortBy === 'sales') return b.sales - a.sales || a.label.localeCompare(b.label, 'fr');
-        if (sortBy === 'marginTotal') return b.marginTotal - a.marginTotal || b.sales - a.sales || a.label.localeCompare(b.label, 'fr');
         return b.takeRate - a.takeRate || b.sales - a.sales || a.label.localeCompare(b.label, 'fr');
       })
       .map((row, index) => ({ ...row, rank: index + 1 }));
@@ -222,9 +191,6 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
   }, [rows]);
 
   const totalSales = computedRows.reduce((sum, row) => sum + row.sales, 0);
-  const totalMargin = computedRows.reduce((sum, row) => sum + row.marginTotal, 0);
-  const totalRevenue = computedRows.reduce((sum, row) => sum + row.theoreticalRevenue, 0);
-  const averageTakeRate = safeAverage(computedRows.reduce((sum, row) => sum + row.takeRate, 0), computedRows.length);
   const bestRow = computedRows[0] ?? null;
 
   return (
@@ -260,11 +226,9 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#93644D]">Synthèse</p>
           <div className="mt-3 space-y-2 text-[13px] font-semibold text-[#6E4736]">
             <div className="flex items-center justify-between gap-3"><span>Mois</span><span>{MONTH_KEY_TO_NAME[selectedMonth]}</span></div>
-            <div className="flex items-center justify-between gap-3"><span>Couverts</span><span>{formatNumber(monthCovers)}</span></div>
+            <div className="flex items-center justify-between gap-3"><span>Cvts</span><span>{formatNumber(monthCovers)}</span></div>
             <div className="flex items-center justify-between gap-3"><span>Ventes suivies</span><span>{formatNumber(totalSales)}</span></div>
             <div className="flex items-center justify-between gap-3"><span>Produits</span><span>{computedRows.length}</span></div>
-            <div className="flex items-center justify-between gap-3"><span>Marge totale</span><span>{formatCurrency(totalMargin)}</span></div>
-            <div className="flex items-center justify-between gap-3"><span>Taux moyen</span><span>{formatPercent(averageTakeRate)}</span></div>
           </div>
         </div>
       </aside>
@@ -282,7 +246,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                 <select
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[12px] font-black uppercase tracking-[0.06em] text-[#4F2E22] outline-none"
+                  className="rounded-[12px] border border-[#D7BEA9] bg-white px-2.5 py-2 text-[11px] font-black uppercase tracking-[0.05em] text-[#4F2E22] outline-none"
                 >
                   {MONTHS_DISPLAY_CONFIG.map((month) => (
                     <option key={month.key} value={month.key}>{month.label}</option>
@@ -294,13 +258,13 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Recherche produit..."
-                  className="w-[220px] rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[12px] font-semibold text-[#4F2E22] outline-none"
+                  className="w-[180px] rounded-[12px] border border-[#D7BEA9] bg-white px-2.5 py-2 text-[11px] font-semibold text-[#4F2E22] outline-none xl:w-[200px]"
                 />
 
                 <select
                   value={familyFilter}
                   onChange={(e) => setFamilyFilter(e.target.value)}
-                  className="rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[12px] font-semibold text-[#4F2E22] outline-none"
+                  className="rounded-[12px] border border-[#D7BEA9] bg-white px-2.5 py-2 text-[11px] font-semibold text-[#4F2E22] outline-none"
                 >
                   <option value="all">Toutes familles</option>
                   {families.map((family) => (
@@ -311,18 +275,17 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as SortKey)}
-                  className="rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[12px] font-semibold text-[#4F2E22] outline-none"
+                  className="rounded-[12px] border border-[#D7BEA9] bg-white px-2.5 py-2 text-[11px] font-semibold text-[#4F2E22] outline-none"
                 >
                   <option value="takeRate">Tri taux de prise</option>
                   <option value="sales">Tri ventes</option>
                   <option value="label">Tri produit</option>
                   <option value="family">Tri famille</option>
-                  <option value="marginTotal">Tri marge totale</option>
                 </select>
               </div>
             </div>
 
-            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
               <div className="rounded-[18px] border border-[#E1CFBF] bg-[#FFFDF9] px-4 py-3">
                 <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#9A6A52]">Top produit</p>
                 <p className="mt-2 text-[16px] font-black text-[#5A3224]">{bestRow?.label || '—'}</p>
@@ -336,64 +299,45 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                 <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#9A6A52]">Ventes suivies</p>
                 <p className="mt-2 text-[16px] font-black text-[#5A3224]">{formatNumber(totalSales)}</p>
               </div>
-              <div className="rounded-[18px] border border-[#E1CFBF] bg-[#FFFDF9] px-4 py-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#9A6A52]">Marge totale théorique</p>
-                <p className="mt-2 text-[16px] font-black text-[#5A3224]">{formatCurrency(totalMargin)}</p>
-                <p className="mt-1 text-[12px] font-semibold text-[#7C5948]">CA théorique {formatCurrency(totalRevenue)}</p>
-              </div>
             </div>
           </div>
 
           <div className="min-h-0 flex-1 overflow-auto bg-[#F7F0E7]">
-            <table className="w-full min-w-[1560px] table-fixed border-separate border-spacing-0">
+            <table className="w-full min-w-[980px] table-fixed border-separate border-spacing-0">
               <colgroup>
-                <col className="w-[5%]" />
-                <col className="w-[20%]" />
-                <col className="w-[13%]" />
-                <col className="w-[8%]" />
-                <col className="w-[8%]" />
-                <col className="w-[8%]" />
-                <col className="w-[8%]" />
-                <col className="w-[10%]" />
-                <col className="w-[8%]" />
-                <col className="w-[12%]" />
+                <col className="w-[7%]" />
+                <col className="w-[31%]" />
+                <col className="w-[18%]" />
+                <col className="w-[14%]" />
+                <col className="w-[14%]" />
+                <col className="w-[16%]" />
               </colgroup>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[#EADACA] text-[#71402D]">
-                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">#</th>
-                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Produit</th>
-                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Famille</th>
-                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-right text-[12px] font-black uppercase tracking-[0.07em]">Ventes</th>
-                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-right text-[12px] font-black uppercase tracking-[0.07em]">Couverts</th>
-                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-right text-[12px] font-black uppercase tracking-[0.07em]">Taux de prise</th>
-                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-right text-[12px] font-black uppercase tracking-[0.07em]">CM HT</th>
-                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-right text-[12px] font-black uppercase tracking-[0.07em]">PV HT</th>
-                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-right text-[12px] font-black uppercase tracking-[0.07em]">Marge €</th>
-                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-right text-[12px] font-black uppercase tracking-[0.07em]">Marge %</th>
-                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-right text-[12px] font-black uppercase tracking-[0.07em]">Marge totale</th>
+                  <th className="border-b border-[#DCC2AB] px-2 py-3 text-center text-[11px] font-black uppercase tracking-[0.05em]">#</th>
+                  <th className="border-b border-[#DCC2AB] px-2 py-3 text-left text-[11px] font-black uppercase tracking-[0.05em]">Produit</th>
+                  <th className="border-b border-[#DCC2AB] px-2 py-3 text-left text-[11px] font-black uppercase tracking-[0.05em]">Famille</th>
+                  <th className="border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em]">Ventes</th>
+                  <th className="border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em]">Cvts</th>
+                  <th className="border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em]">Tx prise</th>
                 </tr>
               </thead>
               <tbody>
                 {computedRows.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-6 py-12 text-center text-[14px] font-semibold text-[#8B6650]">
+                    <td colSpan={6} className="px-6 py-12 text-center text-[14px] font-semibold text-[#8B6650]">
                       Aucun résultat. Vérifie le mois choisi, les produits liés dans le paramétrage, ou l’import production du mois.
                     </td>
                   </tr>
                 ) : (
                   computedRows.map((row, index) => (
                     <tr key={row.id} className={index % 2 === 0 ? 'bg-[#FFF9F2]' : 'bg-[#FCF4EB]'}>
-                      <td className="border-b border-[#E8D8C8] px-3 py-3 text-center text-[12px] font-black text-[#7C5848]">{row.rank}</td>
-                      <td className="border-b border-[#E8D8C8] px-3 py-3 text-[13px] font-semibold text-[#4F2E22]">{row.label}</td>
-                      <td className="border-b border-[#E8D8C8] px-3 py-3 text-[12px] font-semibold text-[#6A4737]">{row.family || '—'}</td>
-                      <td className="border-b border-[#E8D8C8] px-3 py-3 text-right text-[13px] font-black text-[#4F2E22]">{formatNumber(row.sales)}</td>
-                      <td className="border-b border-[#E8D8C8] px-3 py-3 text-right text-[13px] font-semibold text-[#6A4737]">{formatNumber(row.covers)}</td>
-                      <td className="border-b border-[#E8D8C8] px-3 py-3 text-right text-[13px] font-black text-[#A24E30]">{formatPercent(row.takeRate)}</td>
-                      <td className="border-b border-[#E8D8C8] px-3 py-3 text-right text-[13px] font-semibold text-[#6A4737]">{row.costHt > 0 ? formatCurrency(row.costHt) : '—'}</td>
-                      <td className="border-b border-[#E8D8C8] px-3 py-3 text-right text-[13px] font-semibold text-[#6A4737]">{row.sellPriceHt > 0 ? formatCurrency(row.sellPriceHt) : '—'}</td>
-                      <td className="border-b border-[#E8D8C8] px-3 py-3 text-right text-[13px] font-semibold text-[#6A4737]">{row.marginEuro !== 0 ? formatCurrency(row.marginEuro) : '—'}</td>
-                      <td className="border-b border-[#E8D8C8] px-3 py-3 text-right text-[13px] font-semibold text-[#6A4737]">{row.marginPercent !== 0 ? formatPercent(row.marginPercent) : '—'}</td>
-                      <td className="border-b border-[#E8D8C8] px-3 py-3 text-right text-[13px] font-black text-[#7D3E28]">{row.marginTotal !== 0 ? formatCurrency(row.marginTotal) : '—'}</td>
+                      <td className="border-b border-[#E8D8C8] px-2 py-2.5 text-center text-[11px] font-black text-[#7C5848]">{row.rank}</td>
+                      <td className="border-b border-[#E8D8C8] px-2 py-2.5 text-[12px] font-semibold text-[#4F2E22]">{row.label}</td>
+                      <td className="border-b border-[#E8D8C8] px-2 py-2.5 text-[11px] font-semibold text-[#6A4737]">{row.family || '—'}</td>
+                      <td className="border-b border-[#E8D8C8] px-2 py-2.5 text-right text-[12px] font-black text-[#4F2E22]">{formatNumber(row.sales)}</td>
+                      <td className="border-b border-[#E8D8C8] px-2 py-2.5 text-right text-[11px] font-semibold text-[#6A4737]">{formatNumber(row.covers)}</td>
+                      <td className="border-b border-[#E8D8C8] px-2 py-2.5 text-right text-[12px] font-black text-[#A24E30]">{formatPercent(row.takeRate)}</td>
                     </tr>
                   ))
                 )}
