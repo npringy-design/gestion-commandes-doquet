@@ -755,9 +755,11 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const [isImportingMargin, setIsImportingMargin] = useState(false);
   const [familyFilter, setFamilyFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'all' | RowStatus>('all');
-  const [productFilter, setProductFilter] = useState('');
+  const [productSearch, setProductSearch] = useState('');
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
   const [pendingImportsByRow, setPendingImportsByRow] = useState<Record<string, string[]>>({});
+  const [didHydrateRows, setDidHydrateRows] = useState(false);
+  const [didHydrateMargin, setDidHydrateMargin] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
   const bottomScrollRef = useRef<HTMLDivElement | null>(null);
@@ -776,6 +778,9 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
         }
       }
     } catch (_error) {}
+    finally {
+      setDidHydrateRows(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -792,6 +797,9 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       if (Array.isArray(parsed)) setMarginCatalog(parsed as MarginCatalogItem[]);
       setMarginFileName(localStorage.getItem(MARGIN_FILE_NAME_STORAGE_KEY) ?? '');
     } catch (_error) {}
+    finally {
+      setDidHydrateMargin(true);
+    }
   }, []);
 
   const availableImports = useMemo(() => {
@@ -801,6 +809,17 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     });
     return Array.from(unique).sort((a, b) => a.localeCompare(b, 'fr'));
   }, [prepImportsByMonth]);
+
+  useEffect(() => {
+    if (!didHydrateRows || !didHydrateMargin) return;
+    if (rows.length > 0 || marginCatalog.length === 0) return;
+
+    const rebuilt = autoLinkImportsToRows(generateRowsFromMarginCatalog(marginCatalog, []), availableImports);
+    if (rebuilt.length > 0) {
+      setRows(rebuilt);
+      setImportMessage((prev) => prev || `Lignes reconstruites depuis le fichier marge : ${rebuilt.length}.`);
+    }
+  }, [didHydrateRows, didHydrateMargin, rows.length, marginCatalog, availableImports]);
 
   const familyOptions = useMemo(() => {
     const unique = new Set<string>();
@@ -812,7 +831,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   }, [rows]);
 
   const filteredRows = useMemo(() => {
-    const normalizedProductFilter = normalize(productFilter);
+    const normalizedProductSearch = normalize(productSearch);
 
     return rows.filter((row) => {
       const rowStatus = getRowStatus(row);
@@ -827,15 +846,30 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
 
       const statusMatches = statusFilter === 'all' ? true : rowStatus === statusFilter;
       const productMatches =
-        !normalizedProductFilter ||
-        normalize(`${row.label} ${row.matchedMarginLabel ?? ''}`).includes(normalizedProductFilter);
+        !normalizedProductSearch ||
+        normalize(row.label).includes(normalizedProductSearch) ||
+        normalize(row.matchedMarginLabel ?? '').includes(normalizedProductSearch);
 
       return familyMatches && statusMatches && productMatches;
     });
-  }, [rows, familyFilter, statusFilter, productFilter]);
+  }, [rows, familyFilter, statusFilter, productSearch]);
 
   useEffect(() => {
     setSelectedRowIds((prev) => prev.filter((id) => rows.some((row) => row.id === id)));
+  }, [rows]);
+
+  useEffect(() => {
+    setPendingImportsByRow((prev) => {
+      const validIds = new Set(rows.map((row) => row.id));
+      const next: Record<string, string[]> = {};
+      Object.entries(prev).forEach(([rowId, items]) => {
+        if (!validIds.has(rowId)) return;
+        const row = rows.find((entry) => entry.id === rowId);
+        const deduped = Array.from(new Set(items.filter((item) => item && !row?.linkedImports.includes(item))));
+        if (deduped.length > 0) next[rowId] = deduped;
+      });
+      return next;
+    });
   }, [rows]);
 
   useEffect(() => {
@@ -923,6 +957,42 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     if (openLinkedRow && selectedSet.has(openLinkedRow)) setOpenLinkedRow(null);
   };
 
+  const queueImportForRow = (rowId: string, importLabel: string) => {
+    setPendingImportsByRow((prev) => {
+      const current = prev[rowId] ?? [];
+      if (current.includes(importLabel)) return prev;
+      return { ...prev, [rowId]: [...current, importLabel] };
+    });
+    setOpenSearchRow(rowId);
+  };
+
+  const removePendingImportFromRow = (rowId: string, importLabel: string) => {
+    setPendingImportsByRow((prev) => {
+      const current = (prev[rowId] ?? []).filter((item) => item !== importLabel);
+      if (current.length === 0) {
+        const next = { ...prev };
+        delete next[rowId];
+        return next;
+      }
+      return { ...prev, [rowId]: current };
+    });
+  };
+
+  const validatePendingImportsForRow = (rowId: string) => {
+    const pending = pendingImportsByRow[rowId] ?? [];
+    if (pending.length === 0) return;
+
+    setRows((prev) =>
+      prev.map((row) => (row.id === rowId ? { ...row, linkedImports: Array.from(new Set([...row.linkedImports, ...pending])) } : row))
+    );
+    setPendingImportsByRow((prev) => {
+      const next = { ...prev };
+      delete next[rowId];
+      return next;
+    });
+    setOpenLinkedRow(rowId);
+  };
+
   const updateRow = (rowId: string, patch: Partial<TakeRateMappingRow>) => {
     setRows((prev) =>
       prev.map((row) => {
@@ -943,49 +1013,27 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       delete next[rowId];
       return next;
     });
-    if (openSearchRow === rowId) setOpenSearchRow(null);
-    if (openLinkedRow === rowId) setOpenLinkedRow(null);
-  };
-
-  const addImportToRow = (rowId: string, importLabel: string) => {
-    setPendingImportsByRow((prev) => {
-      const current = prev[rowId] ?? [];
-      if (current.includes(importLabel)) return prev;
-      return { ...prev, [rowId]: [...current, importLabel] };
-    });
-    setOpenSearchRow(rowId);
-  };
-
-  const removePendingImportFromRow = (rowId: string, importLabel: string) => {
-    setPendingImportsByRow((prev) => {
-      const current = prev[rowId] ?? [];
-      const nextItems = current.filter((item) => item !== importLabel);
-      if (nextItems.length === current.length) return prev;
-      const next = { ...prev };
-      if (nextItems.length > 0) next[rowId] = nextItems;
-      else delete next[rowId];
-      return next;
-    });
-  };
-
-  const validatePendingImportsForRow = (rowId: string) => {
-    const pendingItems = pendingImportsByRow[rowId] ?? [];
-    if (pendingItems.length === 0) return;
-
-    setRows((prev) =>
-      prev.map((row) => {
-        const withoutOwnedItems = row.linkedImports.filter((item) => !pendingItems.includes(item));
-        if (row.id !== rowId) return { ...row, linkedImports: withoutOwnedItems };
-        return { ...row, linkedImports: Array.from(new Set([...withoutOwnedItems, ...pendingItems])) };
-      })
-    );
-
     setPendingImportsByRow((prev) => {
       const next = { ...prev };
       delete next[rowId];
       return next;
     });
-    setOpenSearchRow(null);
+    if (openSearchRow === rowId) setOpenSearchRow(null);
+    if (openLinkedRow === rowId) setOpenLinkedRow(null);
+  };
+
+  const addImportToRow = (rowId: string, importLabel: string) => {
+    setRows((prev) =>
+      prev.map((row) => {
+        if (row.id !== rowId) {
+          return row.linkedImports.includes(importLabel)
+            ? { ...row, linkedImports: row.linkedImports.filter((item) => item !== importLabel) }
+            : row;
+        }
+        if (row.linkedImports.includes(importLabel)) return row;
+        return { ...row, linkedImports: [...row.linkedImports, importLabel] };
+      })
+    );
   };
 
   const removeImportFromRow = (rowId: string, importLabel: string) => {
@@ -1147,12 +1195,12 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
             </div>
 
             <div className="mt-4 flex flex-wrap items-end gap-3">
-              <label className="min-w-[240px] flex-1">
+              <label className="min-w-[280px] flex-1">
                 <span className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.08em] text-[#8A604B]">Recherche produit</span>
                 <input
                   type="text"
-                  value={productFilter}
-                  onChange={(e) => setProductFilter(e.target.value)}
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
                   placeholder="Rechercher un produit marge..."
                   className="w-full rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#4F2E22] outline-none transition focus:border-[#B55A3C] focus:ring-2 focus:ring-[#E8B59E]"
                 />
@@ -1194,7 +1242,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
             </div>
           </div>
 
-          <div ref={tableScrollRef} className="min-h-0 flex-1 overflow-auto bg-[#F7F0E7]">
+          <div ref={tableScrollRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#F7F0E7]">
             <table className="w-full min-w-[1660px] table-fixed border-separate border-spacing-0">
               <colgroup>
                 <col className="w-[4%]" />
@@ -1243,7 +1291,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                   filteredRows.map((row, rowIndex) => {
                     const searchValue = searchByRow[row.id] ?? '';
                     const suggestions = filteredImportsByRow[row.id] ?? [];
-                    const pendingImports = pendingImportsByRow[row.id] ?? [];
                     const isSearchOpen = openSearchRow === row.id;
                     const isLinkedOpen = openLinkedRow === row.id;
                     const status = getRowStatus(row);
@@ -1321,56 +1368,54 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                               />
                             </div>
 
-                            {isSearchOpen && (
-                              <div className="space-y-2 rounded-[16px] border border-[#DCC5B1] bg-[#FFFDF9] p-2 shadow-[0_12px_24px_rgba(87,52,33,0.10)]">
-                                {pendingImports.length > 0 ? (
-                                  <div className="rounded-[14px] border border-[#E4C8B8] bg-[#FCF3EC] p-2">
-                                    <div className="mb-1.5 text-[10px] font-black uppercase tracking-[0.08em] text-[#9A5C40]">Sélection en attente</div>
-                                    <div className="space-y-1.5">
-                                      {pendingImports.map((item) => (
-                                        <div key={item} className="flex items-center justify-between gap-2 rounded-[12px] border border-[#E8D8C8] bg-white px-3 py-2">
-                                          <span className="text-[12px] font-semibold text-[#5B3728]">{item}</span>
-                                          <button
-                                            type="button"
-                                            onClick={() => removePendingImportFromRow(row.id, item)}
-                                            className="rounded-[10px] border border-[#E6B9A5] bg-[#FCEEE7] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.05em] text-[#A24E30] transition hover:bg-[#F9E2D6]"
-                                          >
-                                            Retirer
-                                          </button>
-                                        </div>
-                                      ))}
-                                    </div>
-                                    <div className="mt-2 flex justify-end">
+                            {pendingImports.length > 0 && (
+                              <div className="space-y-2 rounded-[16px] border border-[#E1CDBD] bg-[#FFF6EE] p-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[11px] font-black uppercase tracking-[0.07em] text-[#8D4F35]">Sélection en attente</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => validatePendingImportsForRow(row.id)}
+                                    className="rounded-[10px] border border-[#2E8D63] bg-[linear-gradient(180deg,#39B37D_0%,#239062_100%)] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.06em] text-white"
+                                  >
+                                    Valider les liens
+                                  </button>
+                                </div>
+                                <div className="space-y-1.5">
+                                  {pendingImports.map((item) => (
+                                    <div key={item} className="flex items-center justify-between gap-2 rounded-[12px] border border-[#E8D8C8] bg-white px-3 py-2">
+                                      <span className="text-[12px] font-semibold text-[#5B3728]">{item}</span>
                                       <button
                                         type="button"
-                                        onClick={() => validatePendingImportsForRow(row.id)}
-                                        className="rounded-[12px] border border-[#2E8D63] bg-[linear-gradient(180deg,#39B37D_0%,#239062_100%)] px-3 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-white shadow-[0_4px_0_#196A48] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#196A48]"
+                                        onClick={() => removePendingImportFromRow(row.id, item)}
+                                        className="rounded-[10px] border border-[#E6B9A5] bg-[#FCEEE7] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.05em] text-[#A24E30] transition hover:bg-[#F9E2D6]"
                                       >
-                                        Valider les liens
+                                        Retirer
                                       </button>
                                     </div>
-                                  </div>
-                                ) : null}
-
-                                <div className="max-h-44 overflow-auto">
-                                  {suggestions.length > 0 ? (
-                                    <div className="space-y-1.5">
-                                      {suggestions.map((item) => (
-                                        <button
-                                          key={item}
-                                          type="button"
-                                          onClick={() => addImportToRow(row.id, item)}
-                                          className="flex w-full items-center justify-between rounded-[12px] border border-[#E8D8C8] bg-white px-3 py-2 text-left text-[12px] font-semibold text-[#5B3728] transition hover:border-[#B55A3C] hover:bg-[#FFF4EC]"
-                                        >
-                                          <span className="pr-3">{item}</span>
-                                          <span className="text-[10px] font-black uppercase tracking-[0.06em] text-[#A15839]">Ajouter</span>
-                                        </button>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <div className="px-2 py-3 text-[12px] font-medium text-[#8B6650]">Aucun résultat.</div>
-                                  )}
+                                  ))}
                                 </div>
+                              </div>
+                            )}
+
+                            {isSearchOpen && (
+                              <div className="max-h-44 overflow-auto rounded-[16px] border border-[#DCC5B1] bg-[#FFFDF9] p-2 shadow-[0_12px_24px_rgba(87,52,33,0.10)]">
+                                {suggestions.length > 0 ? (
+                                  <div className="space-y-1.5">
+                                    {suggestions.map((item) => (
+                                      <button
+                                        key={item}
+                                        type="button"
+                                        onClick={() => queueImportForRow(row.id, item)}
+                                        className="flex w-full items-center justify-between rounded-[12px] border border-[#E8D8C8] bg-white px-3 py-2 text-left text-[12px] font-semibold text-[#5B3728] transition hover:border-[#B55A3C] hover:bg-[#FFF4EC]"
+                                      >
+                                        <span className="pr-3">{item}</span>
+                                        <span className="text-[10px] font-black uppercase tracking-[0.06em] text-[#A15839]">Ajouter</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="px-2 py-3 text-[12px] font-medium text-[#8B6650]">Aucun résultat.</div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -1469,9 +1514,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
             </table>
           </div>
 
-          <div className="border-t border-[#E6D4C4] bg-[#FBF4EC] px-4 py-2 text-[11px] font-semibold text-[#8A604B]">
-            Défilement horizontal fixé en bas d’écran pour éviter d’aller tout en bas du tableau.
-          </div>
         </section>
 
         <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-30 px-4 pb-3 xl:left-[19rem] xl:px-5">
