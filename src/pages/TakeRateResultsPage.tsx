@@ -167,6 +167,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
         return {
           ...row,
           sales,
+          covers: monthCovers,
           takeRate,
         };
       })
@@ -241,11 +242,11 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                 <h2 className="mt-1 text-[21px] font-black text-[#582F21]">Feuille taux de prise</h2>
               </div>
 
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-2">
                 <select
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="rounded-[12px] border border-[#D7BEA9] bg-white px-2.5 py-2 text-[11px] font-black uppercase tracking-[0.05em] text-[#4F2E22] outline-none"
+                  className="rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[12px] font-black uppercase tracking-[0.06em] text-[#4F2E22] outline-none"
                 >
                   {MONTHS_DISPLAY_CONFIG.map((month) => (
                     <option key={month.key} value={month.key}>{month.label}</option>
@@ -257,13 +258,13 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Recherche produit..."
-                  className="w-[190px] rounded-[12px] border border-[#D7BEA9] bg-white px-2.5 py-2 text-[11px] font-semibold text-[#4F2E22] outline-none xl:w-[210px]"
+                  className="w-[220px] rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[12px] font-semibold text-[#4F2E22] outline-none"
                 />
 
                 <select
                   value={familyFilter}
                   onChange={(e) => setFamilyFilter(e.target.value)}
-                  className="rounded-[12px] border border-[#D7BEA9] bg-white px-2.5 py-2 text-[11px] font-semibold text-[#4F2E22] outline-none"
+                  className="rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[12px] font-semibold text-[#4F2E22] outline-none"
                 >
                   <option value="all">Toutes familles</option>
                   {families.map((family) => (
@@ -274,7 +275,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as SortKey)}
-                  className="rounded-[12px] border border-[#D7BEA9] bg-white px-2.5 py-2 text-[11px] font-semibold text-[#4F2E22] outline-none"
+                  className="rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[12px] font-semibold text-[#4F2E22] outline-none"
                 >
                   <option value="takeRate">Tri taux de prise</option>
                   <option value="sales">Tri ventes</option>
@@ -302,20 +303,26 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
           </div>
 
           <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto bg-[#F7F0E7]">
-            <table className="w-max min-w-[760px] border-separate border-spacing-0">
+            <table className="w-max min-w-[1320px] border-separate border-spacing-0">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[#EADACA] text-[#71402D]">
-                  <th className="w-12 border-b border-[#DCC2AB] px-2 py-3 text-center text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">#</th>
-                  <th className="min-w-[260px] border-b border-[#DCC2AB] px-2 py-3 text-left text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">Produit</th>
-                  <th className="min-w-[190px] border-b border-[#DCC2AB] px-2 py-3 text-left text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">Famille</th>
-                  <th className="w-24 border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">Ventes</th>
-                  <th className="w-24 border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">Tx prise</th>
+                  <th className="w-[52px] border-b border-[#DCC2AB] px-2 py-3 text-center text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">#</th>
+                  <th className="w-[280px] border-b border-[#DCC2AB] px-2 py-3 text-left text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">Produit</th>
+                  <th className="w-[170px] border-b border-[#DCC2AB] px-2 py-3 text-left text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">Famille</th>
+                  <th className="w-[90px] border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">Ventes</th>
+                  <th className="w-[92px] border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">Tx prise</th>
+                  <th className="w-[92px] border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">CM HT</th>
+                  <th className="w-[92px] border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">PV HT</th>
+                  <th className="w-[92px] border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">Marge €</th>
+                  <th className="w-[86px] border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">Marge %</th>
+                  <th className="w-[108px] border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">Marge tot.</th>
+                  <th className="w-[108px] border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">CA théo</th>
                 </tr>
               </thead>
               <tbody>
                 {computedRows.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-[14px] font-semibold text-[#8B6650]">
+                    <td colSpan={11} className="px-6 py-12 text-center text-[14px] font-semibold text-[#8B6650]">
                       Aucun résultat. Vérifie le mois choisi, les produits liés dans le paramétrage, ou l’import production du mois.
                     </td>
                   </tr>
@@ -323,10 +330,16 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                   computedRows.map((row, index) => (
                     <tr key={row.id} className={index % 2 === 0 ? 'bg-[#FFF9F2]' : 'bg-[#FCF4EB]'}>
                       <td className="border-b border-[#E8D8C8] px-2 py-2 text-center text-[11px] font-black text-[#7C5848] whitespace-nowrap">{row.rank}</td>
-                      <td className="border-b border-[#E8D8C8] px-2 py-2 text-[12px] font-semibold text-[#4F2E22] whitespace-nowrap">{row.label}</td>
-                      <td className="border-b border-[#E8D8C8] px-2 py-2 text-[11px] font-semibold text-[#6A4737] whitespace-nowrap">{row.family || '—'}</td>
+                      <td className="border-b border-[#E8D8C8] px-2 py-2 text-[12px] font-semibold text-[#4F2E22]">{row.label}</td>
+                      <td className="border-b border-[#E8D8C8] px-2 py-2 text-[11px] font-semibold text-[#6A4737]">{row.family || '—'}</td>
                       <td className="border-b border-[#E8D8C8] px-2 py-2 text-right text-[12px] font-black text-[#4F2E22] whitespace-nowrap">{formatNumber(row.sales)}</td>
                       <td className="border-b border-[#E8D8C8] px-2 py-2 text-right text-[12px] font-black text-[#A24E30] whitespace-nowrap">{formatPercent(row.takeRate)}</td>
+                      <td className="border-b border-[#E8D8C8] px-2 py-2 text-right text-[11px] font-semibold text-[#6A4737] whitespace-nowrap">{row.costHt > 0 ? formatCurrency(row.costHt) : '—'}</td>
+                      <td className="border-b border-[#E8D8C8] px-2 py-2 text-right text-[11px] font-semibold text-[#6A4737] whitespace-nowrap">{row.sellPriceHt > 0 ? formatCurrency(row.sellPriceHt) : '—'}</td>
+                      <td className="border-b border-[#E8D8C8] px-2 py-2 text-right text-[11px] font-semibold text-[#6A4737] whitespace-nowrap">{row.marginEuro !== 0 ? formatCurrency(row.marginEuro) : '—'}</td>
+                      <td className="border-b border-[#E8D8C8] px-2 py-2 text-right text-[11px] font-semibold text-[#6A4737] whitespace-nowrap">{row.marginPercent !== 0 ? formatPercent(row.marginPercent) : '—'}</td>
+                      <td className="border-b border-[#E8D8C8] px-2 py-2 text-right text-[12px] font-black text-[#7D3E28] whitespace-nowrap">{row.marginTotal !== 0 ? formatCurrency(row.marginTotal) : '—'}</td>
+                      <td className="border-b border-[#E8D8C8] px-2 py-2 text-right text-[12px] font-black text-[#5A3224] whitespace-nowrap">{row.theoreticalRevenue !== 0 ? formatCurrency(row.theoreticalRevenue) : '—'}</td>
                     </tr>
                   ))
                 )}
