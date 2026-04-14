@@ -301,22 +301,15 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-auto bg-[#F7F0E7]">
-            <table className="w-full min-w-[860px] table-fixed border-separate border-spacing-0">
-              <colgroup>
-                <col className="w-[6%]" />
-                <col className="w-[36%]" />
-                <col className="w-[28%]" />
-                <col className="w-[12%]" />
-                <col className="w-[18%]" />
-              </colgroup>
+          <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto bg-[#F7F0E7]">
+            <table className="w-max min-w-[760px] border-separate border-spacing-0">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[#EADACA] text-[#71402D]">
-                  <th className="border-b border-[#DCC2AB] px-2 py-3 text-center text-[11px] font-black uppercase tracking-[0.05em]">#</th>
-                  <th className="border-b border-[#DCC2AB] px-2 py-3 text-left text-[11px] font-black uppercase tracking-[0.05em]">Produit</th>
-                  <th className="border-b border-[#DCC2AB] px-2 py-3 text-left text-[11px] font-black uppercase tracking-[0.05em]">Famille</th>
-                  <th className="border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em]">Ventes</th>
-                  <th className="border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em]">Tx prise</th>
+                  <th className="w-12 border-b border-[#DCC2AB] px-2 py-3 text-center text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">#</th>
+                  <th className="min-w-[260px] border-b border-[#DCC2AB] px-2 py-3 text-left text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">Produit</th>
+                  <th className="min-w-[190px] border-b border-[#DCC2AB] px-2 py-3 text-left text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">Famille</th>
+                  <th className="w-24 border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">Ventes</th>
+                  <th className="w-24 border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">Tx prise</th>
                 </tr>
               </thead>
               <tbody>
@@ -329,11 +322,11 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                 ) : (
                   computedRows.map((row, index) => (
                     <tr key={row.id} className={index % 2 === 0 ? 'bg-[#FFF9F2]' : 'bg-[#FCF4EB]'}>
-                      <td className="border-b border-[#E8D8C8] px-2 py-2.5 text-center text-[11px] font-black text-[#7C5848]">{row.rank}</td>
-                      <td className="border-b border-[#E8D8C8] px-2 py-2.5 text-[12px] font-semibold text-[#4F2E22]">{row.label}</td>
-                      <td className="border-b border-[#E8D8C8] px-2 py-2.5 text-[11px] font-semibold text-[#6A4737]">{row.family || '—'}</td>
-                      <td className="border-b border-[#E8D8C8] px-2 py-2.5 text-right text-[12px] font-black text-[#4F2E22]">{formatNumber(row.sales)}</td>
-                      <td className="border-b border-[#E8D8C8] px-2 py-2.5 text-right text-[12px] font-black text-[#A24E30]">{formatPercent(row.takeRate)}</td>
+                      <td className="border-b border-[#E8D8C8] px-2 py-2 text-center text-[11px] font-black text-[#7C5848] whitespace-nowrap">{row.rank}</td>
+                      <td className="border-b border-[#E8D8C8] px-2 py-2 text-[12px] font-semibold text-[#4F2E22] whitespace-nowrap">{row.label}</td>
+                      <td className="border-b border-[#E8D8C8] px-2 py-2 text-[11px] font-semibold text-[#6A4737] whitespace-nowrap">{row.family || '—'}</td>
+                      <td className="border-b border-[#E8D8C8] px-2 py-2 text-right text-[12px] font-black text-[#4F2E22] whitespace-nowrap">{formatNumber(row.sales)}</td>
+                      <td className="border-b border-[#E8D8C8] px-2 py-2 text-right text-[12px] font-black text-[#A24E30] whitespace-nowrap">{formatPercent(row.takeRate)}</td>
                     </tr>
                   ))
                 )}
