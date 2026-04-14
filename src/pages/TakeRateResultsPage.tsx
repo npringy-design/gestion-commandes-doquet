@@ -167,7 +167,6 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
         return {
           ...row,
           sales,
-          covers: monthCovers,
           takeRate,
         };
       })
@@ -226,7 +225,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#93644D]">Synthèse</p>
           <div className="mt-3 space-y-2 text-[13px] font-semibold text-[#6E4736]">
             <div className="flex items-center justify-between gap-3"><span>Mois</span><span>{MONTH_KEY_TO_NAME[selectedMonth]}</span></div>
-            <div className="flex items-center justify-between gap-3"><span>Cvts</span><span>{formatNumber(monthCovers)}</span></div>
+            <div className="flex items-center justify-between gap-3"><span>Couverts</span><span>{formatNumber(monthCovers)}</span></div>
             <div className="flex items-center justify-between gap-3"><span>Ventes suivies</span><span>{formatNumber(totalSales)}</span></div>
             <div className="flex items-center justify-between gap-3"><span>Produits</span><span>{computedRows.length}</span></div>
           </div>
@@ -242,7 +241,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                 <h2 className="mt-1 text-[21px] font-black text-[#582F21]">Feuille taux de prise</h2>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <select
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(e.target.value)}
@@ -258,7 +257,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Recherche produit..."
-                  className="w-[180px] rounded-[12px] border border-[#D7BEA9] bg-white px-2.5 py-2 text-[11px] font-semibold text-[#4F2E22] outline-none xl:w-[200px]"
+                  className="w-[190px] rounded-[12px] border border-[#D7BEA9] bg-white px-2.5 py-2 text-[11px] font-semibold text-[#4F2E22] outline-none xl:w-[210px]"
                 />
 
                 <select
@@ -303,14 +302,13 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
           </div>
 
           <div className="min-h-0 flex-1 overflow-auto bg-[#F7F0E7]">
-            <table className="w-full min-w-[980px] table-fixed border-separate border-spacing-0">
+            <table className="w-full min-w-[860px] table-fixed border-separate border-spacing-0">
               <colgroup>
-                <col className="w-[7%]" />
-                <col className="w-[31%]" />
+                <col className="w-[6%]" />
+                <col className="w-[36%]" />
+                <col className="w-[28%]" />
+                <col className="w-[12%]" />
                 <col className="w-[18%]" />
-                <col className="w-[14%]" />
-                <col className="w-[14%]" />
-                <col className="w-[16%]" />
               </colgroup>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[#EADACA] text-[#71402D]">
@@ -318,14 +316,13 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                   <th className="border-b border-[#DCC2AB] px-2 py-3 text-left text-[11px] font-black uppercase tracking-[0.05em]">Produit</th>
                   <th className="border-b border-[#DCC2AB] px-2 py-3 text-left text-[11px] font-black uppercase tracking-[0.05em]">Famille</th>
                   <th className="border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em]">Ventes</th>
-                  <th className="border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em]">Cvts</th>
                   <th className="border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em]">Tx prise</th>
                 </tr>
               </thead>
               <tbody>
                 {computedRows.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-[14px] font-semibold text-[#8B6650]">
+                    <td colSpan={5} className="px-6 py-12 text-center text-[14px] font-semibold text-[#8B6650]">
                       Aucun résultat. Vérifie le mois choisi, les produits liés dans le paramétrage, ou l’import production du mois.
                     </td>
                   </tr>
@@ -336,7 +333,6 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                       <td className="border-b border-[#E8D8C8] px-2 py-2.5 text-[12px] font-semibold text-[#4F2E22]">{row.label}</td>
                       <td className="border-b border-[#E8D8C8] px-2 py-2.5 text-[11px] font-semibold text-[#6A4737]">{row.family || '—'}</td>
                       <td className="border-b border-[#E8D8C8] px-2 py-2.5 text-right text-[12px] font-black text-[#4F2E22]">{formatNumber(row.sales)}</td>
-                      <td className="border-b border-[#E8D8C8] px-2 py-2.5 text-right text-[11px] font-semibold text-[#6A4737]">{formatNumber(row.covers)}</td>
                       <td className="border-b border-[#E8D8C8] px-2 py-2.5 text-right text-[12px] font-black text-[#A24E30]">{formatPercent(row.takeRate)}</td>
                     </tr>
                   ))
