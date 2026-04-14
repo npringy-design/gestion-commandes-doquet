@@ -1291,6 +1291,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                   filteredRows.map((row, rowIndex) => {
                     const searchValue = searchByRow[row.id] ?? '';
                     const suggestions = filteredImportsByRow[row.id] ?? [];
+                    const pendingImports = pendingImportsByRow[row.id] ?? [];
                     const isSearchOpen = openSearchRow === row.id;
                     const isLinkedOpen = openLinkedRow === row.id;
                     const status = getRowStatus(row);
