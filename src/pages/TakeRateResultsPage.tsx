@@ -295,19 +295,6 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                   placeholder="Recherche produit..."
                   className="w-[220px] rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[12px] font-semibold text-[#4F2E22] outline-none"
                 />
-
-
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as SortKey)}
-                  className="rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[12px] font-semibold text-[#4F2E22] outline-none"
-                >
-                  <option value="takeRate">Tri taux de prise</option>
-                  <option value="sales">Tri ventes</option>
-                  <option value="label">Tri produit</option>
-                  <option value="family">Tri famille</option>
-                  <option value="marginTotal">Tri marge totale</option>
-                </select>
               </div>
             </div>
 
