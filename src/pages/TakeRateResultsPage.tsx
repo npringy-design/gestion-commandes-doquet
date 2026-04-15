@@ -137,7 +137,6 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
   const [rows, setRows] = useState<TakeRateMappingRow[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<string>(MONTHS_DISPLAY_CONFIG[new Date().getMonth()]?.key ?? 'jan');
   const [search, setSearch] = useState('');
-  const [familyFilter, setFamilyFilter] = useState('all');
   const [sortBy, setSortBy] = useState<SortKey>('takeRate');
 
   useEffect(() => {
@@ -180,7 +179,6 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
         const marginEuro = parseNumber((row as any).marginEuro);
         const marginPercent = parseNumber((row as any).marginPercent);
         const marginTotal = sales * marginEuro;
-        const theoreticalRevenue = sales * sellPriceHt;
         return {
           ...row,
           sales,
@@ -190,10 +188,8 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
           marginEuro,
           marginPercent,
           marginTotal,
-          theoreticalRevenue,
         };
       })
-      .filter((row) => (familyFilter === 'all' ? true : row.family === familyFilter))
       .filter((row) => {
         if (!query) return true;
         return normalize(row.label).includes(query) || normalize(row.family).includes(query);
@@ -206,12 +202,8 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
         return b.takeRate - a.takeRate || b.sales - a.sales || a.label.localeCompare(b.label, 'fr');
       })
       .map((row, index) => ({ ...row, rank: index + 1 }));
-  }, [rows, monthSalesMap, monthCovers, familyFilter, search, sortBy]);
+  }, [rows, monthSalesMap, monthCovers, search, sortBy]);
 
-  const families = useMemo(() => {
-    const values = Array.from(new Set(rows.map((row) => row.family.trim()).filter(Boolean)));
-    return values.sort((a, b) => a.localeCompare(b, 'fr'));
-  }, [rows]);
 
   const totalSales = computedRows.reduce((sum, row) => sum + row.sales, 0);
   const totalMargin = computedRows.reduce((sum, row) => sum + row.marginTotal, 0);
@@ -304,16 +296,6 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                   className="w-[220px] rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[12px] font-semibold text-[#4F2E22] outline-none"
                 />
 
-                <select
-                  value={familyFilter}
-                  onChange={(e) => setFamilyFilter(e.target.value)}
-                  className="rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[12px] font-semibold text-[#4F2E22] outline-none"
-                >
-                  <option value="all">Toutes familles</option>
-                  {families.map((family) => (
-                    <option key={family} value={family}>{family}</option>
-                  ))}
-                </select>
 
                 <select
                   value={sortBy}
@@ -385,7 +367,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
           </div>
 
           <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto bg-[#F7F0E7]">
-            <table className="w-max min-w-[1320px] border-separate border-spacing-0">
+            <table className="w-max min-w-[1200px] border-separate border-spacing-0">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[#EADACA] text-[#71402D]">
                   <th className="w-[52px] border-b border-[#DCC2AB] px-2 py-3 text-center text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">#</th>
@@ -398,13 +380,12 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                   <th className="w-[92px] border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">Marge €</th>
                   <th className="w-[86px] border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">Marge %</th>
                   <th className="w-[108px] border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">Marge tot.</th>
-                  <th className="w-[108px] border-b border-[#DCC2AB] px-2 py-3 text-right text-[11px] font-black uppercase tracking-[0.05em] whitespace-nowrap">CA théo</th>
                 </tr>
               </thead>
               <tbody>
                 {computedRows.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-6 py-12 text-center text-[14px] font-semibold text-[#8B6650]">
+                    <td colSpan={10} className="px-6 py-12 text-center text-[14px] font-semibold text-[#8B6650]">
                       Aucun résultat. Vérifie le mois choisi, les produits liés dans le paramétrage, ou l’import production du mois.
                     </td>
                   </tr>
@@ -421,7 +402,6 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                       <td className="border-b border-[#E8D8C8] px-2 py-2 text-right text-[11px] font-semibold text-[#6A4737] whitespace-nowrap">{row.marginEuro !== 0 ? formatCurrency(row.marginEuro) : '—'}</td>
                       <td className="border-b border-[#E8D8C8] px-2 py-2 text-right text-[11px] font-semibold text-[#6A4737] whitespace-nowrap">{row.marginPercent !== 0 ? formatPercent(row.marginPercent) : '—'}</td>
                       <td className="border-b border-[#E8D8C8] px-2 py-2 text-right text-[12px] font-black text-[#7D3E28] whitespace-nowrap">{row.marginTotal !== 0 ? formatCurrency(row.marginTotal) : '—'}</td>
-                      <td className="border-b border-[#E8D8C8] px-2 py-2 text-right text-[12px] font-black text-[#5A3224] whitespace-nowrap">{row.theoreticalRevenue !== 0 ? formatCurrency(row.theoreticalRevenue) : '—'}</td>
                     </tr>
                   ))
                 )}
