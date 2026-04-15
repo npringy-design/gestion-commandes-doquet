@@ -214,7 +214,27 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
   }, [rows]);
 
   const totalSales = computedRows.reduce((sum, row) => sum + row.sales, 0);
+  const totalMargin = computedRows.reduce((sum, row) => sum + row.marginTotal, 0);
   const bestRow = computedRows[0] ?? null;
+
+  const sectionRows = useMemo(() => {
+    const grouped = new Map<string, { family: string; sales: number; marginTotal: number }>();
+
+    computedRows.forEach((row) => {
+      const family = row.family?.trim() || 'Sans famille';
+      const existing = grouped.get(family) ?? { family, sales: 0, marginTotal: 0 };
+      existing.sales += row.sales;
+      existing.marginTotal += row.marginTotal;
+      grouped.set(family, existing);
+    });
+
+    return Array.from(grouped.values())
+      .map((entry) => ({
+        ...entry,
+        takeRate: monthCovers > 0 ? (entry.sales / monthCovers) * 100 : 0,
+      }))
+      .sort((a, b) => b.sales - a.sales || b.marginTotal - a.marginTotal || a.family.localeCompare(b.family, 'fr'));
+  }, [computedRows, monthCovers]);
 
   return (
     <div className="flex h-full min-h-screen bg-[#EDE2D6] text-[#4B2D22]">
@@ -322,6 +342,44 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
               <div className="rounded-[18px] border border-[#E1CFBF] bg-[#FFFDF9] px-4 py-3">
                 <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#9A6A52]">Ventes suivies</p>
                 <p className="mt-2 text-[16px] font-black text-[#5A3224]">{formatNumber(totalSales)}</p>
+              </div>
+            </div>
+
+            <div className="mt-4 overflow-hidden rounded-[18px] border border-[#E1CFBF] bg-[#FFFDF9]">
+              <div className="border-b border-[#E8D8C8] px-4 py-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#9A6A52]">Vue sections</p>
+                <p className="mt-1 text-[12px] font-semibold text-[#7C5948]">Lecture simple par famille : ventes, taux de prise et marge totale.</p>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="min-w-full border-separate border-spacing-0">
+                  <thead>
+                    <tr className="bg-[#F7EEE5] text-[#71402D]">
+                      <th className="border-b border-[#E8D8C8] px-3 py-2 text-left text-[11px] font-black uppercase tracking-[0.05em]">Section</th>
+                      <th className="border-b border-[#E8D8C8] px-3 py-2 text-right text-[11px] font-black uppercase tracking-[0.05em]">Ventes</th>
+                      <th className="border-b border-[#E8D8C8] px-3 py-2 text-right text-[11px] font-black uppercase tracking-[0.05em]">Tx prise</th>
+                      <th className="border-b border-[#E8D8C8] px-3 py-2 text-right text-[11px] font-black uppercase tracking-[0.05em]">Marge tot.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sectionRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-6 text-center text-[12px] font-semibold text-[#8B6650]">
+                          Aucune section visible pour ce mois.
+                        </td>
+                      </tr>
+                    ) : (
+                      sectionRows.map((section, index) => (
+                        <tr key={section.family} className={index % 2 === 0 ? 'bg-[#FFF9F2]' : 'bg-[#FCF4EB]'}>
+                          <td className="border-b border-[#E8D8C8] px-3 py-2.5 text-[12px] font-black text-[#4F2E22]">{section.family}</td>
+                          <td className="border-b border-[#E8D8C8] px-3 py-2.5 text-right text-[12px] font-black text-[#4F2E22] whitespace-nowrap">{formatNumber(section.sales)}</td>
+                          <td className="border-b border-[#E8D8C8] px-3 py-2.5 text-right text-[12px] font-black text-[#A24E30] whitespace-nowrap">{formatPercent(section.takeRate)}</td>
+                          <td className="border-b border-[#E8D8C8] px-3 py-2.5 text-right text-[12px] font-black text-[#7D3E28] whitespace-nowrap">{formatCurrency(section.marginTotal)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
