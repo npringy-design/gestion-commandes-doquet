@@ -29,27 +29,27 @@ const STORAGE_KEYS = [
 // Couleurs par famille — portent toute la dimension visuelle
 // ------------------------------------------------------------------
 const FAMILY_PALETTE: Record<string, { bar: string; badge: string; text: string }> = {
-  'Boeuf':                { bar: '#C96A45', badge: '#FBEDE6', text: '#7A3620' },
-  'Burgers':              { bar: '#C96A45', badge: '#FBEDE6', text: '#7A3620' },
-  'Hachés gourmands':     { bar: '#C96A45', badge: '#FBEDE6', text: '#7A3620' },
-  'Belles pièces':        { bar: '#C96A45', badge: '#FBEDE6', text: '#7A3620' },
-  'Le bœuf autrement':    { bar: '#C96A45', badge: '#FBEDE6', text: '#7A3620' },
-  'L\'emblématique / ou viandes d\'exception': { bar: '#C96A45', badge: '#FBEDE6', text: '#7A3620' },
-  'Entrées solos':        { bar: '#2F8E61', badge: '#EAF5EF', text: '#165C3C' },
-  'Food':                 { bar: '#2F8E61', badge: '#EAF5EF', text: '#165C3C' },
-  'Salades':              { bar: '#2F8E61', badge: '#EAF5EF', text: '#165C3C' },
-  'Plats du jour':        { bar: '#2F8E61', badge: '#EAF5EF', text: '#165C3C' },
-  'Poissons':             { bar: '#2F8E61', badge: '#EAF5EF', text: '#165C3C' },
-  'Poulet, ribs & co':    { bar: '#2F8E61', badge: '#EAF5EF', text: '#165C3C' },
-  'Cocottes veggie':      { bar: '#2F8E61', badge: '#EAF5EF', text: '#165C3C' },
-  'Tartine':              { bar: '#2F8E61', badge: '#EAF5EF', text: '#165C3C' },
-  'Garnitures':           { bar: '#2F8E61', badge: '#EAF5EF', text: '#165C3C' },
-  'Sauces':               { bar: '#2F8E61', badge: '#EAF5EF', text: '#165C3C' },
-  'Le cru':               { bar: '#2F8E61', badge: '#EAF5EF', text: '#165C3C' },
-  'Desserts':             { bar: '#B5567F', badge: '#F9EAF0', text: '#6D2E4C' },
-  'Boules de glaces':     { bar: '#B5567F', badge: '#F9EAF0', text: '#6D2E4C' },
-  'Coupes glacées':       { bar: '#B5567F', badge: '#F9EAF0', text: '#6D2E4C' },
-  'Vins':                 { bar: '#7A5BB8', badge: '#F0EBFA', text: '#4A347D' },
+  'Boeuf':                { bar: '#C55A35', badge: '#FDF0EB', text: '#7A3620' },
+  'Burgers':              { bar: '#C55A35', badge: '#FDF0EB', text: '#7A3620' },
+  'Hachés gourmands':     { bar: '#C55A35', badge: '#FDF0EB', text: '#7A3620' },
+  'Belles pièces':        { bar: '#C55A35', badge: '#FDF0EB', text: '#7A3620' },
+  'Le bœuf autrement':    { bar: '#C55A35', badge: '#FDF0EB', text: '#7A3620' },
+  'L\'emblématique / ou viandes d\'exception': { bar: '#C55A35', badge: '#FDF0EB', text: '#7A3620' },
+  'Entrées solos':        { bar: '#2A8C5F', badge: '#E8F5EF', text: '#165C3C' },
+  'Food':                 { bar: '#2A8C5F', badge: '#E8F5EF', text: '#165C3C' },
+  'Salades':              { bar: '#2A8C5F', badge: '#E8F5EF', text: '#165C3C' },
+  'Plats du jour':        { bar: '#2A8C5F', badge: '#E8F5EF', text: '#165C3C' },
+  'Poissons':             { bar: '#2A8C5F', badge: '#E8F5EF', text: '#165C3C' },
+  'Poulet, ribs & co':    { bar: '#2A8C5F', badge: '#E8F5EF', text: '#165C3C' },
+  'Cocottes veggie':      { bar: '#2A8C5F', badge: '#E8F5EF', text: '#165C3C' },
+  'Tartine':              { bar: '#2A8C5F', badge: '#E8F5EF', text: '#165C3C' },
+  'Garnitures':           { bar: '#2A8C5F', badge: '#E8F5EF', text: '#165C3C' },
+  'Sauces':               { bar: '#2A8C5F', badge: '#E8F5EF', text: '#165C3C' },
+  'Le cru':               { bar: '#2A8C5F', badge: '#E8F5EF', text: '#165C3C' },
+  'Desserts':             { bar: '#B04B78', badge: '#FAE8F0', text: '#6D2E4C' },
+  'Boules de glaces':     { bar: '#B04B78', badge: '#FAE8F0', text: '#6D2E4C' },
+  'Coupes glacées':       { bar: '#B04B78', badge: '#FAE8F0', text: '#6D2E4C' },
+  'Vins':                 { bar: '#6B5CC4', badge: '#EEECFD', text: '#3C3489' },
   'Vins • Notre vin d\'exception': { bar: '#6B5CC4', badge: '#EEECFD', text: '#3C3489' },
   'Vins • Puissants et épicés': { bar: '#6B5CC4', badge: '#EEECFD', text: '#3C3489' },
   'Vins • Ronds et gourmands': { bar: '#6B5CC4', badge: '#EEECFD', text: '#3C3489' },
@@ -58,16 +58,16 @@ const FAMILY_PALETTE: Record<string, { bar: string; badge: string; text: string 
   'Vins rosés':           { bar: '#6B5CC4', badge: '#EEECFD', text: '#3C3489' },
   'Champagne':            { bar: '#6B5CC4', badge: '#EEECFD', text: '#3C3489' },
   'Whisky, rhum & cie':   { bar: '#6B5CC4', badge: '#EEECFD', text: '#3C3489' },
-  'Boissons':             { bar: '#3E7DB8', badge: '#E8F1FA', text: '#14487A' },
-  'Boissons chaudes':     { bar: '#3E7DB8', badge: '#E8F1FA', text: '#14487A' },
-  'Softs':                { bar: '#3E7DB8', badge: '#E8F1FA', text: '#14487A' },
-  'Bières à la pression': { bar: '#3E7DB8', badge: '#E8F1FA', text: '#14487A' },
-  'Eaux minérales':       { bar: '#3E7DB8', badge: '#E8F1FA', text: '#14487A' },
-  'Cocktails coup de cœur': { bar: '#3E7DB8', badge: '#E8F1FA', text: '#14487A' },
-  'Cocktails sans alcool': { bar: '#3E7DB8', badge: '#E8F1FA', text: '#14487A' },
-  'Les apérifits':        { bar: '#3E7DB8', badge: '#E8F1FA', text: '#14487A' },
-  'Digestifs':            { bar: '#3E7DB8', badge: '#E8F1FA', text: '#14487A' },
-  'Menus':                { bar: '#A67B2B', badge: '#FAF1E3', text: '#634408' },
+  'Boissons':             { bar: '#2472B8', badge: '#E5F0FA', text: '#14487A' },
+  'Boissons chaudes':     { bar: '#2472B8', badge: '#E5F0FA', text: '#14487A' },
+  'Softs':                { bar: '#2472B8', badge: '#E5F0FA', text: '#14487A' },
+  'Bières à la pression': { bar: '#2472B8', badge: '#E5F0FA', text: '#14487A' },
+  'Eaux minérales':       { bar: '#2472B8', badge: '#E5F0FA', text: '#14487A' },
+  'Cocktails coup de cœur': { bar: '#2472B8', badge: '#E5F0FA', text: '#14487A' },
+  'Cocktails sans alcool': { bar: '#2472B8', badge: '#E5F0FA', text: '#14487A' },
+  'Les apérifits':        { bar: '#2472B8', badge: '#E5F0FA', text: '#14487A' },
+  'Digestifs':            { bar: '#2472B8', badge: '#E5F0FA', text: '#14487A' },
+  'Menus':                { bar: '#A0721A', badge: '#FAF0DE', text: '#634408' },
   'Menu coup de cœur':    { bar: '#A0721A', badge: '#FAF0DE', text: '#634408' },
   'Menu coup de cœur • Boissons': { bar: '#A0721A', badge: '#FAF0DE', text: '#634408' },
   'Menu coup de cœur • Plats': { bar: '#A0721A', badge: '#FAF0DE', text: '#634408' },
@@ -245,31 +245,89 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
   // Styles partagés (Tailwind classes de l'appli)
   // ------------------------------------------------------------------
   const monthActive   = 'rounded-full bg-[#2C1A10] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-white';
-  const monthInactive = 'rounded-full border border-[#D5C5B8] bg-[#FFFDF9] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5C4A] transition hover:bg-[#F5EDE5]';
+  const monthInactive = 'rounded-full border border-[#D5C5B8] bg-white px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5C4A] transition hover:bg-[#F1E7DC]';
   const sortActive    = 'rounded-full bg-[#2C1A10] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-white';
-  const sortInactive  = 'rounded-full border border-[#D5C5B8] bg-[#FFFDF9] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5C4A] transition hover:bg-[#F5EDE5]';
+  const sortInactive  = 'rounded-full border border-[#D5C5B8] bg-white px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5C4A] transition hover:bg-[#F1E7DC]';
 
   return (
-    <div className="min-h-screen bg-[#F4EDE4] text-[#1A0F0A]">
-      <main className="mx-auto flex min-h-screen w-full max-w-[1700px] min-w-0 flex-col gap-5 overflow-auto px-6 py-5 xl:px-8">
+    <div className="flex h-full min-h-screen bg-[#F5EFE7] text-[#1A0F0A]">
 
-        {/* Header compact */}
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="rounded-[18px] border border-[#E8D5C0] bg-[#FFFDF9] px-5 py-4 shadow-[0_8px_20px_rgba(88,52,32,0.04)]">
-            <p className="text-[10px] font-black uppercase tracking-[0.20em] text-[#A07860]">Lecture finale</p>
-            <h1 className="mt-2 text-[28px] font-black leading-tight text-[#1A0F0A]">Taux de prise</h1>
-            <p className="mt-1 text-[13px] font-semibold text-[#8A6A55]">{MONTH_KEY_TO_NAME[selectedMonth]}</p>
-          </div>
+      {/* ── Sidebar ── */}
+      <aside className="hidden w-[220px] shrink-0 flex-col gap-4 border-r border-[#E6D6C7] bg-[#F8F2EB] px-4 py-5 xl:flex">
 
-          <button
-            onClick={() => setView('stats')}
-            className="rounded-[14px] border border-[#E8D5C0] bg-[#FFFDF9] px-5 py-3 text-[12px] font-black uppercase tracking-[0.08em] text-[#7A5C4A] transition hover:bg-[#F7EFE7]"
-          >
-            ← Retour paramètres
-          </button>
+        {/* Badge page */}
+        <div className="rounded-[18px] border border-[#E8D5C0] bg-[#FFF8F0] px-4 py-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.20em] text-[#A07860]">Lecture finale</p>
+          <h1 className="mt-2 text-[20px] font-black leading-tight text-[#1A0F0A]">Taux<br/>de prise</h1>
+          <p className="mt-1 text-[12px] font-semibold text-[#8A6A55]">{MONTH_KEY_TO_NAME[selectedMonth]}</p>
         </div>
 
-      
+        {/* Navigation */}
+        <button
+          onClick={() => setView('stats')}
+          className="rounded-[14px] border border-[#E8D5C0] bg-[#FFF8F0] px-4 py-3 text-[12px] font-black uppercase tracking-[0.08em] text-[#7A5C4A] transition hover:bg-[#F1E7DC]"
+        >
+          ← Retour paramètres
+        </button>
+        <button
+          onClick={() => setView('take_rate')}
+          className="rounded-[14px] border border-[#2C1A10] bg-[#2C1A10] px-4 py-3 text-[12px] font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#3D2518]"
+        >
+          Voir paramétrage
+        </button>
+
+        {/* Synthèse chiffrée */}
+        <div className="rounded-[18px] border border-[#EDE0D4] bg-[#FFF8F0] px-4 py-4">
+          <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-[#A07860]">Synthèse</p>
+          {[
+            { label: 'Couverts',        val: fInt(monthCovers) },
+            { label: 'Ventes suivies',  val: fInt(totalSales) },
+            { label: 'Tx prise global', val: fPct(globalTakeRate) },
+            { label: 'Marge générée',   val: fCur(totalMargin) },
+          ].map(k => (
+            <div key={k.label} className="flex items-baseline justify-between gap-2 py-1.5">
+              <span className="text-[12px] text-[#8A6A55]">{k.label}</span>
+              <span className="text-[13px] font-black text-[#1A0F0A]">{k.val}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Top par famille */}
+        {families.length > 0 && (
+          <div className="rounded-[18px] border border-[#EDE0D4] bg-[#FFF8F0] px-4 py-4">
+            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-[#A07860]">Par famille</p>
+            {(() => {
+              const grouped = new Map<string, number>();
+              computed.forEach(r => {
+                const f = r.family || 'Autre';
+                grouped.set(f, (grouped.get(f) ?? 0) + r.sales);
+              });
+              const sorted = [...grouped.entries()]
+                .map(([f, s]) => ({ family: f, takeRate: monthCovers > 0 ? s / monthCovers * 100 : 0 }))
+                .sort((a, b) => b.takeRate - a.takeRate)
+                .slice(0, 8);
+              const maxTR = sorted[0]?.takeRate ?? 1;
+              return sorted.map(s => {
+                const col = getFP(s.family);
+                return (
+                  <div key={s.family} className="mb-3">
+                    <div className="flex items-baseline justify-between gap-1 mb-1">
+                      <span className="truncate text-[11px] font-semibold text-[#4A3020]">{s.family}</span>
+                      <span className="shrink-0 text-[11px] font-black text-[#1A0F0A]">{fPct(s.takeRate)}</span>
+                    </div>
+                    <div className="h-1 w-full overflow-hidden rounded-full bg-[#EDE0D4]">
+                      <div className="h-1 rounded-full" style={{ width: `${(s.takeRate / maxTR * 100).toFixed(1)}%`, background: col.bar }} />
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        )}
+      </aside>
+
+      {/* ── Main ── */}
+      <main className="flex min-w-0 flex-1 flex-col gap-5 overflow-auto px-6 py-5 xl:px-8">
 
         {/* Sélecteur mois */}
         <div className="flex flex-wrap gap-2">
@@ -291,7 +349,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
             { label: 'Ventes suivies',   val: fInt(totalSales) },
             { label: 'Marge générée',    val: fCur(totalMargin) },
           ].map(k => (
-            <div key={k.label} className="rounded-[16px] border border-[#EDE0D4] bg-[#FFF9F2] px-5 py-4">
+            <div key={k.label} className="rounded-[16px] border border-[#EDE0D4] bg-[#F8F2EB] px-5 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#A07860]">{k.label}</p>
               <p className="mt-2 text-[24px] font-black text-[#1A0F0A]">{k.val}</p>
             </div>
@@ -307,7 +365,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
                 const medal = MEDALS[i];
                 const col   = getFP(row.family);
                 return (
-                  <div key={row.id} className="rounded-[18px] border border-[#EDE0D4] bg-[#FFFDF9] px-5 py-4">
+                  <div key={row.id} className="rounded-[18px] border border-[#EDE0D4] bg-white px-5 py-4">
                     <div className="mb-3 flex items-center justify-between">
                       <span className="text-[11px] font-black" style={{ color: medal.color }}>{medal.rank}</span>
                       {row.family && (
@@ -339,7 +397,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
             <select
               value={familyFilter}
               onChange={e => setFamily(e.target.value)}
-              className="rounded-[14px] border border-[#D5C5B8] bg-[#FFFDF9] px-4 py-2.5 text-[13px] font-semibold text-[#2C1A10] outline-none transition focus:border-[#2C1A10]"
+              className="rounded-[14px] border border-[#D5C5B8] bg-white px-4 py-2.5 text-[13px] font-semibold text-[#2C1A10] outline-none transition focus:border-[#2C1A10]"
             >
               <option value="all">Toutes les familles</option>
               {families.map(f => <option key={f} value={f}>{f}</option>)}
@@ -351,7 +409,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Rechercher..."
-              className="rounded-[14px] border border-[#D5C5B8] bg-[#FFFDF9] px-4 py-2.5 text-[13px] font-semibold text-[#2C1A10] outline-none transition focus:border-[#2C1A10]"
+              className="rounded-[14px] border border-[#D5C5B8] bg-white px-4 py-2.5 text-[13px] font-semibold text-[#2C1A10] outline-none transition focus:border-[#2C1A10]"
               style={{ width: '180px' }}
             />
 
@@ -381,7 +439,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
               className={`rounded-full px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] transition ${
                 expertMode
                   ? 'border border-[#6B5CC4] bg-[#EEECFD] text-[#3C3489]'
-                  : 'border border-[#D5C5B8] bg-[#FFFDF9] text-[#7A5C4A] hover:bg-[#F5EDE5]'
+                  : 'border border-[#D5C5B8] bg-white text-[#7A5C4A] hover:bg-[#F1E7DC]'
               }`}
             >
               {expertMode ? 'Expert ▾' : 'Expert ▸'}
@@ -390,7 +448,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
         </div>
 
         {/* Liste produits */}
-        <div className="overflow-hidden rounded-[20px] border border-[#EDE0D4] bg-[#FFFDF9]">
+        <div className="overflow-hidden rounded-[20px] border border-[#EDE0D4] bg-white">
           {computed.length === 0 ? (
             <p className="px-6 py-12 text-center text-[14px] text-[#A07860]">
               Aucun résultat — vérifie le mois, les produits liés et l'import production.
@@ -403,7 +461,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
               return (
                 <div
                   key={row.id}
-                  className={`flex items-center gap-4 px-6 py-4 transition-colors hover:bg-[#FFF9F2] ${!isLast ? 'border-b border-[#EDE0D4]' : ''}`}
+                  className={`flex items-center gap-4 px-6 py-4 transition-colors hover:bg-[#F8F2EB] ${!isLast ? 'border-b border-[#EDE0D4]' : ''}`}
                 >
                   {/* Rang */}
                   <span className="w-7 shrink-0 text-right text-[12px] font-semibold text-[#C4A898]">
@@ -424,7 +482,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
                       )}
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="h-1 flex-1 overflow-hidden rounded-full bg-[#E7D8C7]">
+                      <div className="h-1 flex-1 overflow-hidden rounded-full bg-[#EDE0D4]">
                         <div
                           className="h-1 rounded-full transition-all duration-500"
                           style={{ width: `${barPct.toFixed(1)}%`, background: col.bar }}
@@ -446,11 +504,12 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
 
                   {/* Mode expert */}
                   {expertMode && (
-                    <div className="flex shrink-0 gap-4 border-l border-[#EDE0D4] pl-4">
+                    <div className="flex shrink-0 gap-5 border-l border-[#EDE0D4] pl-5">
                       {[
                         { label: 'CM HT',   val: row.costHt > 0      ? fCur(row.costHt)      : '—' },
                         { label: 'PV HT',   val: row.sellPriceHt > 0 ? fCur(row.sellPriceHt) : '—' },
                         { label: 'Marge %', val: row.marginPct !== 0  ? fPct(row.marginPct)   : '—' },
+                        { label: 'CA théo', val: row.caTheo > 0       ? fCur(row.caTheo)      : '—' },
                       ].map(e => (
                         <div key={e.label} className="text-right">
                           <p className="text-[10px] uppercase tracking-wide text-[#C4A898]">{e.label}</p>
