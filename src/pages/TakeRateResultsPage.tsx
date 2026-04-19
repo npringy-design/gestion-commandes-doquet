@@ -245,18 +245,18 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
   // Styles partagés (Tailwind classes de l'appli)
   // ------------------------------------------------------------------
   const monthActive   = 'rounded-full bg-[#2C1A10] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-white';
-  const monthInactive = 'rounded-full border border-[#D5C5B8] bg-white px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5C4A] transition hover:bg-[#F1E7DC]';
+  const monthInactive = 'rounded-full border border-[#D5C5B8] bg-white px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5C4A] transition hover:bg-[#F5EDE5]';
   const sortActive    = 'rounded-full bg-[#2C1A10] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-white';
-  const sortInactive  = 'rounded-full border border-[#D5C5B8] bg-white px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5C4A] transition hover:bg-[#F1E7DC]';
+  const sortInactive  = 'rounded-full border border-[#D5C5B8] bg-white px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5C4A] transition hover:bg-[#F5EDE5]';
 
   return (
-    <div className="flex h-full min-h-screen bg-[#F5EFE7] text-[#1A0F0A]">
+    <div className="flex h-full min-h-screen bg-white text-[#1A0F0A]">
 
       {/* ── Sidebar ── */}
-      <aside className="hidden w-[220px] shrink-0 flex-col gap-4 border-r border-[#E6D6C7] bg-[#F8F2EB] px-4 py-5 xl:flex">
+      <aside className="hidden w-[220px] shrink-0 flex-col gap-4 border-r border-[#E3D0BE] bg-[#FAFAF8] px-4 py-5 xl:flex">
 
         {/* Badge page */}
-        <div className="rounded-[18px] border border-[#E8D5C0] bg-[#FFF8F0] px-4 py-4">
+        <div className="rounded-[18px] border border-[#E8D5C0] bg-white px-4 py-4">
           <p className="text-[10px] font-black uppercase tracking-[0.20em] text-[#A07860]">Lecture finale</p>
           <h1 className="mt-2 text-[20px] font-black leading-tight text-[#1A0F0A]">Taux<br/>de prise</h1>
           <p className="mt-1 text-[12px] font-semibold text-[#8A6A55]">{MONTH_KEY_TO_NAME[selectedMonth]}</p>
@@ -265,7 +265,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
         {/* Navigation */}
         <button
           onClick={() => setView('stats')}
-          className="rounded-[14px] border border-[#E8D5C0] bg-[#FFF8F0] px-4 py-3 text-[12px] font-black uppercase tracking-[0.08em] text-[#7A5C4A] transition hover:bg-[#F1E7DC]"
+          className="rounded-[14px] border border-[#E8D5C0] bg-white px-4 py-3 text-[12px] font-black uppercase tracking-[0.08em] text-[#7A5C4A] transition hover:bg-[#F5EDE5]"
         >
           ← Retour paramètres
         </button>
@@ -277,7 +277,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
         </button>
 
         {/* Synthèse chiffrée */}
-        <div className="rounded-[18px] border border-[#EDE0D4] bg-[#FFF8F0] px-4 py-4">
+        <div className="rounded-[18px] border border-[#E3D0BE] bg-white px-4 py-4">
           <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-[#A07860]">Synthèse</p>
           {[
             { label: 'Couverts',        val: fInt(monthCovers) },
@@ -294,7 +294,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
 
         {/* Top par famille */}
         {families.length > 0 && (
-          <div className="rounded-[18px] border border-[#EDE0D4] bg-[#FFF8F0] px-4 py-4">
+          <div className="rounded-[18px] border border-[#E3D0BE] bg-white px-4 py-4">
             <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-[#A07860]">Par famille</p>
             {(() => {
               const grouped = new Map<string, number>();
@@ -349,7 +349,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
             { label: 'Ventes suivies',   val: fInt(totalSales) },
             { label: 'Marge générée',    val: fCur(totalMargin) },
           ].map(k => (
-            <div key={k.label} className="rounded-[16px] border border-[#EDE0D4] bg-[#F8F2EB] px-5 py-4">
+            <div key={k.label} className="rounded-[16px] border border-[#E3D0BE] bg-[#FAFAF8] px-5 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#A07860]">{k.label}</p>
               <p className="mt-2 text-[24px] font-black text-[#1A0F0A]">{k.val}</p>
             </div>
@@ -365,7 +365,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
                 const medal = MEDALS[i];
                 const col   = getFP(row.family);
                 return (
-                  <div key={row.id} className="rounded-[18px] border border-[#EDE0D4] bg-white px-5 py-4">
+                  <div key={row.id} className="rounded-[18px] border border-[#E3D0BE] bg-white px-5 py-4">
                     <div className="mb-3 flex items-center justify-between">
                       <span className="text-[11px] font-black" style={{ color: medal.color }}>{medal.rank}</span>
                       {row.family && (
@@ -439,7 +439,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
               className={`rounded-full px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] transition ${
                 expertMode
                   ? 'border border-[#6B5CC4] bg-[#EEECFD] text-[#3C3489]'
-                  : 'border border-[#D5C5B8] bg-white text-[#7A5C4A] hover:bg-[#F1E7DC]'
+                  : 'border border-[#D5C5B8] bg-white text-[#7A5C4A] hover:bg-[#F5EDE5]'
               }`}
             >
               {expertMode ? 'Expert ▾' : 'Expert ▸'}
@@ -448,7 +448,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
         </div>
 
         {/* Liste produits */}
-        <div className="overflow-hidden rounded-[20px] border border-[#EDE0D4] bg-white">
+        <div className="overflow-hidden rounded-[20px] border border-[#E3D0BE] bg-white">
           {computed.length === 0 ? (
             <p className="px-6 py-12 text-center text-[14px] text-[#A07860]">
               Aucun résultat — vérifie le mois, les produits liés et l'import production.
@@ -461,7 +461,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
               return (
                 <div
                   key={row.id}
-                  className={`flex items-center gap-4 px-6 py-4 transition-colors hover:bg-[#F8F2EB] ${!isLast ? 'border-b border-[#EDE0D4]' : ''}`}
+                  className={`flex items-center gap-4 px-6 py-4 transition-colors hover:bg-[#FAFAF8] ${!isLast ? 'border-b border-[#E3D0BE]' : ''}`}
                 >
                   {/* Rang */}
                   <span className="w-7 shrink-0 text-right text-[12px] font-semibold text-[#C4A898]">
@@ -504,7 +504,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
 
                   {/* Mode expert */}
                   {expertMode && (
-                    <div className="flex shrink-0 gap-5 border-l border-[#EDE0D4] pl-5">
+                    <div className="flex shrink-0 gap-5 border-l border-[#E3D0BE] pl-5">
                       {[
                         { label: 'CM HT',   val: row.costHt > 0      ? fCur(row.costHt)      : '—' },
                         { label: 'PV HT',   val: row.sellPriceHt > 0 ? fCur(row.sellPriceHt) : '—' },
