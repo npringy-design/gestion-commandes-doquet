@@ -215,6 +215,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
 
   const totalSales = computedRows.reduce((sum, row) => sum + row.sales, 0);
   const totalMargin = computedRows.reduce((sum, row) => sum + row.marginTotal, 0);
+  const globalTakeRate = monthCovers > 0 ? (totalSales / monthCovers) * 100 : 0;
   const bestRow = computedRows[0] ?? null;
 
   const sectionRows = useMemo(() => {
@@ -233,7 +234,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
         ...entry,
         takeRate: monthCovers > 0 ? (entry.sales / monthCovers) * 100 : 0,
       }))
-      .sort((a, b) => b.sales - a.sales || b.marginTotal - a.marginTotal || a.family.localeCompare(b.family, 'fr'));
+      .sort((a, b) => b.marginTotal - a.marginTotal || b.sales - a.sales || a.family.localeCompare(b.family, 'fr'));
   }, [computedRows, monthCovers]);
 
   return (
@@ -341,6 +342,21 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                 <p className="mt-1 text-[12px] font-semibold text-[#7C5948]">Lecture simple par famille : ventes, taux de prise et marge totale.</p>
               </div>
 
+              <div className="grid gap-2 border-b border-[#E8D8C8] px-4 py-3 md:grid-cols-3">
+                <div className="rounded-[14px] border border-[#E8D8C8] bg-[#FFFCF7] px-3 py-2">
+                  <p className="text-[10px] font-black uppercase tracking-[0.05em] text-[#9A6A52]">Ventes totales</p>
+                  <p className="mt-1 text-[15px] font-black text-[#5A3224]">{formatNumber(totalSales)}</p>
+                </div>
+                <div className="rounded-[14px] border border-[#E8D8C8] bg-[#FFFCF7] px-3 py-2">
+                  <p className="text-[10px] font-black uppercase tracking-[0.05em] text-[#9A6A52]">Tx prise global</p>
+                  <p className="mt-1 text-[15px] font-black text-[#A24E30]">{formatPercent(globalTakeRate)}</p>
+                </div>
+                <div className="rounded-[14px] border border-[#E8D8C8] bg-[#FFFCF7] px-3 py-2">
+                  <p className="text-[10px] font-black uppercase tracking-[0.05em] text-[#9A6A52]">Marge totale</p>
+                  <p className="mt-1 text-[15px] font-black text-[#7D3E28]">{formatCurrency(totalMargin)}</p>
+                </div>
+              </div>
+
               <div className="overflow-x-auto">
                 <table className="min-w-full border-separate border-spacing-0">
                   <thead>
@@ -393,7 +409,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
               <tbody>
                 {computedRows.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-6 py-12 text-center text-[14px] font-semibold text-[#8B6650]">
+                    <td colSpan={9} className="px-6 py-12 text-center text-[14px] font-semibold text-[#8B6650]">
                       Aucun résultat. Vérifie le mois choisi, les produits liés dans le paramétrage, ou l’import production du mois.
                     </td>
                   </tr>
