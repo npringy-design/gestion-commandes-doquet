@@ -131,9 +131,9 @@ const formatCurrency = (value: number) =>
   }).format(Math.round(value))} €`;
 
 const FAMILY_PALETTE: Record<string, { bar: string; badgeBg: string; badgeText: string }> = {
-  'Boeuf': { bar: '#C9653C', badgeBg: '#F7E6DE', badgeText: '#7C3E23' },
-  'Burgers': { bar: '#C9653C', badgeBg: '#F7E6DE', badgeText: '#7C3E23' },
-  'Belles pièces': { bar: '#C9653C', badgeBg: '#F7E6DE', badgeText: '#7C3E23' },
+  'Boeuf': { bar: '#D08A24', badgeBg: '#FBF0D8', badgeText: '#6F4B10' },
+  'Burgers': { bar: '#D08A24', badgeBg: '#FBF0D8', badgeText: '#6F4B10' },
+  'Belles pièces': { bar: '#D08A24', badgeBg: '#FBF0D8', badgeText: '#6F4B10' },
   'Desserts': { bar: '#BC5B86', badgeBg: '#F6E3EC', badgeText: '#6D3650' },
   'Boules de glaces': { bar: '#BC5B86', badgeBg: '#F6E3EC', badgeText: '#6D3650' },
   'Coupes glacées': { bar: '#BC5B86', badgeBg: '#F6E3EC', badgeText: '#6D3650' },
@@ -147,7 +147,7 @@ const FAMILY_PALETTE: Record<string, { bar: string; badgeBg: string; badgeText: 
   'Food': { bar: '#2D9164', badgeBg: '#E5F3EC', badgeText: '#1A5F41' },
   'Poissons': { bar: '#2D9164', badgeBg: '#E5F3EC', badgeText: '#1A5F41' },
   'Plats du jour': { bar: '#2D9164', badgeBg: '#E5F3EC', badgeText: '#1A5F41' },
-  'Menus': { bar: '#B7892B', badgeBg: '#F8EFDA', badgeText: '#6C4D12' },
+  'Menus': { bar: '#D9A72B', badgeBg: '#FBF2DC', badgeText: '#6F4B10' },
 };
 
 const getFamilyColors = (family: string) =>
@@ -247,17 +247,17 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
   const maxTakeRate = computedRows.length > 0 ? computedRows[0].takeRate : 1;
 
   return (
-    <div className="min-h-screen bg-[#F2E8DC] text-[#2E1B12]">
+    <div className="min-h-screen bg-[#F6EFE3] text-[#2E1B12]">
       <main className="mx-auto flex min-h-screen w-full max-w-[1480px] flex-col gap-5 px-6 py-5 xl:px-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.20em] text-[#A07860]">Lecture mensuelle</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.20em] text-[#A97718]">Lecture mensuelle</p>
             <h1 className="mt-2 text-[26px] font-black leading-tight text-[#1D120D]">Taux de prise</h1>
           </div>
 
           <button
             onClick={() => setView('stats')}
-            className="rounded-[14px] border border-[#D8BEA8] bg-[#FBF5EE] px-4 py-3 text-[12px] font-black uppercase tracking-[0.08em] text-[#7A5C4A] transition hover:bg-[#F1E7DC]"
+            className="rounded-[14px] border border-[#E0C89A] bg-[#FFF9F1] px-4 py-3 text-[12px] font-black uppercase tracking-[0.08em] text-[#7A5A22] transition hover:bg-[#F6ECD8]"
           >
             ← Retour paramètres
           </button>
@@ -272,8 +272,8 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                 onClick={() => setSelectedMonth(month.key)}
                 className={
                   active
-                    ? 'rounded-[14px] bg-[#3A1E10] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.05em] text-white'
-                    : 'rounded-[14px] border border-[#D8BEA8] bg-[#FBF5EE] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.05em] text-[#7A5C4A] transition hover:bg-[#F1E7DC]'
+                    ? 'rounded-[14px] bg-[#D9A72B] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.05em] text-[#4D2B18] shadow-[inset_0_-2px_0_rgba(153,108,14,0.18)]'
+                    : 'rounded-[14px] border border-[#E0C89A] bg-[#FFF9F1] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.05em] text-[#7A5A22] transition hover:bg-[#F6ECD8]'
                 }
               >
                 {month.label}
@@ -288,8 +288,8 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
             { label: 'Ventes suivies', value: formatInt(totalSales) },
             { label: 'Marge générée', value: formatCurrency(totalMargin) },
           ].map((item) => (
-            <div key={item.label} className="rounded-[22px] border border-[#D8BEA8] bg-[#FBF5EE] px-5 py-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#A07860]">{item.label}</p>
+            <div key={item.label} className="rounded-[22px] border border-[#E0C89A] bg-[#FFF9F1] px-5 py-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#A97718]">{item.label}</p>
               <p className="mt-3 text-[22px] font-black text-[#1D120D]">{item.value}</p>
             </div>
           ))}
@@ -297,13 +297,13 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
 
         {computedRows.length > 0 && (
           <div>
-            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.16em] text-[#9F735B]">Top 3 du mois</p>
+            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.16em] text-[#A97718]">Top 3 du mois</p>
             <div className="grid gap-4 xl:grid-cols-3">
               {computedRows.slice(0, 3).map((row, index) => {
                 const medal = medalStyles[index];
                 const colors = getFamilyColors(row.family);
                 return (
-                  <div key={row.id} className="rounded-[22px] border border-[#D8BEA8] bg-[#FBF5EE] px-5 py-4">
+                  <div key={row.id} className="rounded-[22px] border border-[#E0C89A] bg-[#FFF9F1] px-5 py-4">
                     <div className="mb-3 flex items-center justify-between gap-2">
                       <span
                         className="rounded-full px-2.5 py-1 text-[10px] font-black"
@@ -322,7 +322,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                     </div>
                     <p className="text-[16px] font-black text-[#1D120D]">{row.label}</p>
                     <p className="mt-3 text-[30px] font-black leading-none text-[#1D120D]">{formatPercent(row.takeRate)}</p>
-                    <div className="mt-4 flex items-center justify-between gap-3 text-[12px] text-[#8F654F]">
+                    <div className="mt-4 flex items-center justify-between gap-3 text-[12px] text-[#8A6418]">
                       <span>{formatInt(row.sales)} ventes</span>
                       <span className="font-semibold">{row.marginTotal > 0 ? formatCurrency(row.marginTotal) : '—'}</span>
                     </div>
@@ -338,7 +338,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
             <select
               value={familyFilter}
               onChange={(e) => setFamilyFilter(e.target.value)}
-              className="rounded-[14px] border border-[#D8BEA8] bg-[#FBF5EE] px-4 py-2.5 text-[13px] font-semibold text-[#2E1B12] outline-none"
+              className="rounded-[14px] border border-[#E0C89A] bg-[#FFF9F1] px-4 py-2.5 text-[13px] font-semibold text-[#2E1B12] outline-none"
             >
               <option value="all">Toutes les familles</option>
               {families.map((family) => (
@@ -353,10 +353,10 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher..."
-              className="w-[190px] rounded-[14px] border border-[#D8BEA8] bg-[#FBF5EE] px-4 py-2.5 text-[13px] font-semibold text-[#2E1B12] outline-none"
+              className="w-[190px] rounded-[14px] border border-[#E0C89A] bg-[#FFF9F1] px-4 py-2.5 text-[13px] font-semibold text-[#2E1B12] outline-none"
             />
 
-            <span className="text-[12px] text-[#A07860]">
+            <span className="text-[12px] text-[#A97718]">
               {computedRows.length} produit{computedRows.length > 1 ? 's' : ''}
             </span>
           </div>
@@ -374,8 +374,8 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                   onClick={() => setSortBy(sort.key)}
                   className={
                     active
-                      ? 'rounded-full bg-[#5A341C] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-white'
-                      : 'rounded-full border border-[#D8BEA8] bg-[#FBF5EE] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5C4A] transition hover:bg-[#F1E7DC]'
+                      ? 'rounded-full bg-[#D9A72B] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#4D2B18] shadow-[inset_0_-2px_0_rgba(153,108,14,0.18)]'
+                      : 'rounded-full border border-[#E0C89A] bg-[#FFF9F1] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5A22] transition hover:bg-[#F6ECD8]'
                   }
                 >
                   {sort.label}
@@ -388,7 +388,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
               className={
                 expertMode
                   ? 'rounded-full border border-[#6E65C9] bg-[#EEEAFD] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#433A8C]'
-                  : 'rounded-full border border-[#D8BEA8] bg-[#FBF5EE] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5C4A] transition hover:bg-[#F1E7DC]'
+                  : 'rounded-full border border-[#E0C89A] bg-[#FFF9F1] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5A22] transition hover:bg-[#F6ECD8]'
               }
             >
               {expertMode ? 'Expert ▾' : 'Expert ▸'}
@@ -396,9 +396,9 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-[22px] border border-[#D8BEA8] bg-[#FBF5EE]">
+        <div className="overflow-hidden rounded-[22px] border border-[#E0C89A] bg-[#FFF9F1]">
           {computedRows.length === 0 ? (
-            <div className="px-6 py-14 text-center text-[14px] font-semibold text-[#8E6A55]">
+            <div className="px-6 py-14 text-center text-[14px] font-semibold text-[#8A6418]">
               Aucun résultat pour ce mois ou ce filtre.
             </div>
           ) : (
@@ -410,10 +410,10 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
               return (
                 <div
                   key={row.id}
-                  className={`px-6 py-4 transition-colors hover:bg-[#F7EEE4] ${!isLast ? 'border-b border-[#E3D0BE]' : ''}`}
+                  className={`px-6 py-4 transition-colors hover:bg-[#FCF3E3] ${!isLast ? 'border-b border-[#E8D6BB]' : ''}`}
                 >
                   <div className="flex items-start gap-4">
-                    <span className="w-7 shrink-0 pt-1 text-right text-[12px] font-semibold text-[#C29A83]">
+                    <span className="w-7 shrink-0 pt-1 text-right text-[12px] font-semibold text-[#C59A44]">
                       {row.rank}
                     </span>
 
@@ -431,31 +431,31 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                       </div>
 
                       <div className="flex items-center gap-3">
-                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#E7D8C9]">
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#E6D8C3]">
                           <div
                             className="h-1.5 rounded-full transition-all duration-500"
                             style={{ width: `${barWidth.toFixed(1)}%`, background: colors.bar }}
                           />
                         </div>
-                        <span className="shrink-0 text-[12px] text-[#A07860]">{formatInt(row.sales)} ventes</span>
+                        <span className="shrink-0 text-[12px] text-[#A97718]">{formatInt(row.sales)} ventes</span>
                       </div>
                     </div>
 
                     <div className="flex shrink-0 items-start gap-6">
                       <div className="w-[86px] text-right">
-                        <p className="text-[11px] uppercase tracking-[0.05em] text-[#B28E7A]">Tx prise</p>
+                        <p className="text-[11px] uppercase tracking-[0.05em] text-[#B38A3A]">Tx prise</p>
                         <p className="mt-1 text-[18px] font-black text-[#1D120D]">{formatPercent(row.takeRate)}</p>
                       </div>
 
                       <div className="w-[84px] text-right">
-                        <p className="text-[11px] uppercase tracking-[0.05em] text-[#B28E7A]">Marge</p>
-                        <p className="mt-1 text-[14px] font-semibold text-[#8A6A55]">
+                        <p className="text-[11px] uppercase tracking-[0.05em] text-[#B38A3A]">Marge</p>
+                        <p className="mt-1 text-[14px] font-semibold text-[#8A6418]">
                           {row.marginTotal > 0 ? formatCurrency(row.marginTotal) : '—'}
                         </p>
                       </div>
 
                       {expertMode ? (
-                        <div className="flex gap-5 border-l border-[#E3D0BE] pl-5">
+                        <div className="flex gap-5 border-l border-[#E8D6BB] pl-5">
                           {[
                             { label: 'CM HT', value: row.costHt > 0 ? formatCurrency(row.costHt) : '—' },
                             { label: 'PV HT', value: row.sellPriceHt > 0 ? formatCurrency(row.sellPriceHt) : '—' },
@@ -463,7 +463,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                             { label: 'CA théo', value: row.caTheo > 0 ? formatCurrency(row.caTheo) : '—' },
                           ].map((entry) => (
                             <div key={entry.label} className="w-[74px] text-right">
-                              <p className="text-[10px] uppercase tracking-[0.06em] text-[#B28E7A]">{entry.label}</p>
+                              <p className="text-[10px] uppercase tracking-[0.06em] text-[#B38A3A]">{entry.label}</p>
                               <p className="mt-1 text-[12px] font-semibold text-[#4A3020]">{entry.value}</p>
                             </div>
                           ))}
