@@ -153,6 +153,16 @@ const FAMILY_PALETTE: Record<string, { bar: string; badgeBg: string; badgeText: 
 const getFamilyColors = (family: string) =>
   FAMILY_PALETTE[family] ?? { bar: '#8D857C', badgeBg: '#F2EAE2', badgeText: '#554B42' };
 
+const pageBackgroundStyle: React.CSSProperties = {
+  backgroundColor: '#F8DEA3',
+  backgroundImage: [
+    'radial-gradient(circle at top left, rgba(244, 173, 62, 0.32), transparent 34%)',
+    'radial-gradient(circle at top right, rgba(222, 121, 35, 0.22), transparent 28%)',
+    'radial-gradient(circle at bottom center, rgba(255, 211, 102, 0.20), transparent 34%)',
+    'linear-gradient(180deg, #FFF4C9 0%, #F8DEA3 44%, #EDBE73 100%)',
+  ].join(', '),
+};
+
 const medalStyles = [
   { rank: '1er', bg: '#E9B657', color: '#5A3910' },
   { rank: '2e', bg: '#D9D3CB', color: '#4F4A44' },
@@ -247,7 +257,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
   const maxTakeRate = computedRows.length > 0 ? computedRows[0].takeRate : 1;
 
   return (
-    <div className="min-h-screen bg-[#F6EFE3] text-[#2E1B12]">
+    <div className="min-h-screen bg-[#F8DEA3] text-[#2E1B12]" style={pageBackgroundStyle}>
       <main className="mx-auto flex min-h-screen w-full max-w-[1480px] flex-col gap-5 px-6 py-5 xl:px-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -257,7 +267,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
 
           <button
             onClick={() => setView('stats')}
-            className="rounded-[14px] border border-[#E0C89A] bg-[#FFF9F1] px-4 py-3 text-[12px] font-black uppercase tracking-[0.08em] text-[#7A5A22] transition hover:bg-[#F6ECD8]"
+            className="rounded-[14px] border border-[#E7C990] bg-[#FFF7E2] px-4 py-3 text-[12px] font-black uppercase tracking-[0.08em] text-[#7A5A22] transition hover:bg-[#F7E0AD]"
           >
             ← Retour paramètres
           </button>
@@ -272,8 +282,8 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                 onClick={() => setSelectedMonth(month.key)}
                 className={
                   active
-                    ? 'rounded-[14px] bg-[#D9A72B] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.05em] text-[#4D2B18] shadow-[inset_0_-2px_0_rgba(153,108,14,0.18)]'
-                    : 'rounded-[14px] border border-[#E0C89A] bg-[#FFF9F1] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.05em] text-[#7A5A22] transition hover:bg-[#F6ECD8]'
+                    ? 'rounded-[14px] bg-[#2C1A10] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.05em] text-white shadow-[inset_0_-2px_0_rgba(12,7,4,0.22)]'
+                    : 'rounded-[14px] border border-[#E2BE7F] bg-[#FFF4D9] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.05em] text-[#7A5A22] transition hover:bg-[#F7E0AD]'
                 }
               >
                 {month.label}
@@ -288,7 +298,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
             { label: 'Ventes suivies', value: formatInt(totalSales) },
             { label: 'Marge générée', value: formatCurrency(totalMargin) },
           ].map((item) => (
-            <div key={item.label} className="rounded-[22px] border border-[#E0C89A] bg-[#FFF9F1] px-5 py-4">
+            <div key={item.label} className="rounded-[22px] border border-[#E7C990] bg-[#FFF0CC] px-5 py-4">
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#A97718]">{item.label}</p>
               <p className="mt-3 text-[22px] font-black text-[#1D120D]">{item.value}</p>
             </div>
@@ -303,7 +313,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                 const medal = medalStyles[index];
                 const colors = getFamilyColors(row.family);
                 return (
-                  <div key={row.id} className="rounded-[22px] border border-[#E0C89A] bg-[#FFF9F1] px-5 py-4">
+                  <div key={row.id} className="rounded-[22px] border border-[#E7C990] bg-[#FFF7E2] px-5 py-4">
                     <div className="mb-3 flex items-center justify-between gap-2">
                       <span
                         className="rounded-full px-2.5 py-1 text-[10px] font-black"
@@ -338,7 +348,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
             <select
               value={familyFilter}
               onChange={(e) => setFamilyFilter(e.target.value)}
-              className="rounded-[14px] border border-[#E0C89A] bg-[#FFF9F1] px-4 py-2.5 text-[13px] font-semibold text-[#2E1B12] outline-none"
+              className="rounded-[14px] border border-[#E2BE7F] bg-[#FFF7E2] px-4 py-2.5 text-[13px] font-semibold text-[#2E1B12] outline-none"
             >
               <option value="all">Toutes les familles</option>
               {families.map((family) => (
@@ -353,7 +363,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher..."
-              className="w-[190px] rounded-[14px] border border-[#E0C89A] bg-[#FFF9F1] px-4 py-2.5 text-[13px] font-semibold text-[#2E1B12] outline-none"
+              className="w-[190px] rounded-[14px] border border-[#E2BE7F] bg-[#FFF7E2] px-4 py-2.5 text-[13px] font-semibold text-[#2E1B12] outline-none"
             />
 
             <span className="text-[12px] text-[#A97718]">
@@ -374,8 +384,8 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                   onClick={() => setSortBy(sort.key)}
                   className={
                     active
-                      ? 'rounded-full bg-[#D9A72B] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#4D2B18] shadow-[inset_0_-2px_0_rgba(153,108,14,0.18)]'
-                      : 'rounded-full border border-[#E0C89A] bg-[#FFF9F1] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5A22] transition hover:bg-[#F6ECD8]'
+                      ? 'rounded-full bg-[#2C1A10] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-white shadow-[inset_0_-2px_0_rgba(12,7,4,0.22)]'
+                      : 'rounded-full border border-[#E2BE7F] bg-[#FFF4D9] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5A22] transition hover:bg-[#F7E0AD]'
                   }
                 >
                   {sort.label}
@@ -388,7 +398,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
               className={
                 expertMode
                   ? 'rounded-full border border-[#6E65C9] bg-[#EEEAFD] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#433A8C]'
-                  : 'rounded-full border border-[#E0C89A] bg-[#FFF9F1] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5A22] transition hover:bg-[#F6ECD8]'
+                  : 'rounded-full border border-[#E2BE7F] bg-[#FFF7E2] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5A22] transition hover:bg-[#F7E0AD]'
               }
             >
               {expertMode ? 'Expert ▾' : 'Expert ▸'}
@@ -396,7 +406,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-[22px] border border-[#E0C89A] bg-[#FFF9F1]">
+        <div className="overflow-hidden rounded-[22px] border border-[#E7C990] bg-[#FFF7E2]">
           {computedRows.length === 0 ? (
             <div className="px-6 py-14 text-center text-[14px] font-semibold text-[#8A6418]">
               Aucun résultat pour ce mois ou ce filtre.
@@ -410,7 +420,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
               return (
                 <div
                   key={row.id}
-                  className={`px-6 py-4 transition-colors hover:bg-[#FCF3E3] ${!isLast ? 'border-b border-[#E8D6BB]' : ''}`}
+                  className={`px-6 py-4 transition-colors hover:bg-[#FFEABF] ${!isLast ? 'border-b border-[#E7C990]' : ''}`}
                 >
                   <div className="flex items-start gap-4">
                     <span className="w-7 shrink-0 pt-1 text-right text-[12px] font-semibold text-[#C59A44]">
@@ -431,7 +441,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                       </div>
 
                       <div className="flex items-center gap-3">
-                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#E6D8C3]">
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#F2D59E]">
                           <div
                             className="h-1.5 rounded-full transition-all duration-500"
                             style={{ width: `${barWidth.toFixed(1)}%`, background: colors.bar }}
@@ -455,7 +465,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
                       </div>
 
                       {expertMode ? (
-                        <div className="flex gap-5 border-l border-[#E8D6BB] pl-5">
+                        <div className="flex gap-5 border-l border-[#E7C990] pl-5">
                           {[
                             { label: 'CM HT', value: row.costHt > 0 ? formatCurrency(row.costHt) : '—' },
                             { label: 'PV HT', value: row.sellPriceHt > 0 ? formatCurrency(row.sellPriceHt) : '—' },
