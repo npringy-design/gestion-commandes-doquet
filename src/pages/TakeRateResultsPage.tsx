@@ -2,15 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { MONTHS_DISPLAY_CONFIG, MONTH_KEY_TO_NAME, STORAGE_PREFIX, View } from '../constants';
 import type { TakeRateMappingRow } from './TakeRatePage';
 
-// =============================================================
-// TakeRateResultsPage v3
-//
-// Fond blanc neutre, couleurs portées par les familles uniquement.
-// Filtre famille = dropdown (pas de chips qui envahissent la page).
-// Layout : mois → KPIs → podium top3 → liste produits épurée.
-// Logique de calcul inchangée par rapport à l'original.
-// =============================================================
-
 interface TakeRateResultsPageProps {
   setView: (view: View) => void;
   prepImportsByMonth: Record<string, string>;
@@ -25,170 +16,156 @@ const STORAGE_KEYS = [
   `${STORAGE_PREFIX}take_rate_rows_v1`,
 ];
 
-// ------------------------------------------------------------------
-// Couleurs par famille — portent toute la dimension visuelle
-// ------------------------------------------------------------------
-const FAMILY_PALETTE: Record<string, { bar: string; badge: string; text: string }> = {
-  'Boeuf':                { bar: '#C55A35', badge: '#FDF0EB', text: '#7A3620' },
-  'Burgers':              { bar: '#C55A35', badge: '#FDF0EB', text: '#7A3620' },
-  'Hachés gourmands':     { bar: '#C55A35', badge: '#FDF0EB', text: '#7A3620' },
-  'Belles pièces':        { bar: '#C55A35', badge: '#FDF0EB', text: '#7A3620' },
-  'Le bœuf autrement':    { bar: '#C55A35', badge: '#FDF0EB', text: '#7A3620' },
-  'L\'emblématique / ou viandes d\'exception': { bar: '#C55A35', badge: '#FDF0EB', text: '#7A3620' },
-  'Entrées solos':        { bar: '#2A8C5F', badge: '#E8F5EF', text: '#165C3C' },
-  'Food':                 { bar: '#2A8C5F', badge: '#E8F5EF', text: '#165C3C' },
-  'Salades':              { bar: '#2A8C5F', badge: '#E8F5EF', text: '#165C3C' },
-  'Plats du jour':        { bar: '#2A8C5F', badge: '#E8F5EF', text: '#165C3C' },
-  'Poissons':             { bar: '#2A8C5F', badge: '#E8F5EF', text: '#165C3C' },
-  'Poulet, ribs & co':    { bar: '#2A8C5F', badge: '#E8F5EF', text: '#165C3C' },
-  'Cocottes veggie':      { bar: '#2A8C5F', badge: '#E8F5EF', text: '#165C3C' },
-  'Tartine':              { bar: '#2A8C5F', badge: '#E8F5EF', text: '#165C3C' },
-  'Garnitures':           { bar: '#2A8C5F', badge: '#E8F5EF', text: '#165C3C' },
-  'Sauces':               { bar: '#2A8C5F', badge: '#E8F5EF', text: '#165C3C' },
-  'Le cru':               { bar: '#2A8C5F', badge: '#E8F5EF', text: '#165C3C' },
-  'Desserts':             { bar: '#B04B78', badge: '#FAE8F0', text: '#6D2E4C' },
-  'Boules de glaces':     { bar: '#B04B78', badge: '#FAE8F0', text: '#6D2E4C' },
-  'Coupes glacées':       { bar: '#B04B78', badge: '#FAE8F0', text: '#6D2E4C' },
-  'Vins':                 { bar: '#6B5CC4', badge: '#EEECFD', text: '#3C3489' },
-  'Vins • Notre vin d\'exception': { bar: '#6B5CC4', badge: '#EEECFD', text: '#3C3489' },
-  'Vins • Puissants et épicés': { bar: '#6B5CC4', badge: '#EEECFD', text: '#3C3489' },
-  'Vins • Ronds et gourmands': { bar: '#6B5CC4', badge: '#EEECFD', text: '#3C3489' },
-  'Vins blancs • Amples et frais': { bar: '#6B5CC4', badge: '#EEECFD', text: '#3C3489' },
-  'Vins blancs • Sec et fruités': { bar: '#6B5CC4', badge: '#EEECFD', text: '#3C3489' },
-  'Vins rosés':           { bar: '#6B5CC4', badge: '#EEECFD', text: '#3C3489' },
-  'Champagne':            { bar: '#6B5CC4', badge: '#EEECFD', text: '#3C3489' },
-  'Whisky, rhum & cie':   { bar: '#6B5CC4', badge: '#EEECFD', text: '#3C3489' },
-  'Boissons':             { bar: '#2472B8', badge: '#E5F0FA', text: '#14487A' },
-  'Boissons chaudes':     { bar: '#2472B8', badge: '#E5F0FA', text: '#14487A' },
-  'Softs':                { bar: '#2472B8', badge: '#E5F0FA', text: '#14487A' },
-  'Bières à la pression': { bar: '#2472B8', badge: '#E5F0FA', text: '#14487A' },
-  'Eaux minérales':       { bar: '#2472B8', badge: '#E5F0FA', text: '#14487A' },
-  'Cocktails coup de cœur': { bar: '#2472B8', badge: '#E5F0FA', text: '#14487A' },
-  'Cocktails sans alcool': { bar: '#2472B8', badge: '#E5F0FA', text: '#14487A' },
-  'Les apérifits':        { bar: '#2472B8', badge: '#E5F0FA', text: '#14487A' },
-  'Digestifs':            { bar: '#2472B8', badge: '#E5F0FA', text: '#14487A' },
-  'Menus':                { bar: '#A0721A', badge: '#FAF0DE', text: '#634408' },
-  'Menu coup de cœur':    { bar: '#A0721A', badge: '#FAF0DE', text: '#634408' },
-  'Menu coup de cœur • Boissons': { bar: '#A0721A', badge: '#FAF0DE', text: '#634408' },
-  'Menu coup de cœur • Plats': { bar: '#A0721A', badge: '#FAF0DE', text: '#634408' },
-  'Menu dejeuner':        { bar: '#A0721A', badge: '#FAF0DE', text: '#634408' },
-  'Menu enfant':          { bar: '#A0721A', badge: '#FAF0DE', text: '#634408' },
-  'Menu enfant • Boissons': { bar: '#A0721A', badge: '#FAF0DE', text: '#634408' },
-  'Menu enfant • Desserts': { bar: '#A0721A', badge: '#FAF0DE', text: '#634408' },
-  'Menu enfant • Plats':  { bar: '#A0721A', badge: '#FAF0DE', text: '#634408' },
-  'Menus • Boissons':     { bar: '#A0721A', badge: '#FAF0DE', text: '#634408' },
-  'Menus • Desserts':     { bar: '#A0721A', badge: '#FAF0DE', text: '#634408' },
-  'Menus • Plats':        { bar: '#A0721A', badge: '#FAF0DE', text: '#634408' },
-  'Café gourmand':        { bar: '#A0721A', badge: '#FAF0DE', text: '#634408' },
-};
+const normalize = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
 
-const getFP = (family: string) =>
-  FAMILY_PALETTE[family] ?? { bar: '#888780', badge: '#F1EFE8', text: '#444441' };
-
-const pageBackgroundStyle: React.CSSProperties = {
-  backgroundColor: '#F8DEA3',
-  backgroundImage: [
-    'radial-gradient(circle at top left, rgba(244, 173, 62, 0.32), transparent 34%)',
-    'radial-gradient(circle at top right, rgba(222, 121, 35, 0.22), transparent 28%)',
-    'radial-gradient(circle at bottom center, rgba(255, 211, 102, 0.20), transparent 34%)',
-    'linear-gradient(180deg, #FFF4C9 0%, #F8DEA3 44%, #EDBE73 100%)',
-  ].join(', '),
-};
-
-// ------------------------------------------------------------------
-// CSV helpers (identiques à l'original)
-// ------------------------------------------------------------------
-const normalizeStr = (v: string) =>
-  v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-
-const parseCsvLine = (line: string, sep: string) => {
+const parseCsvLine = (line: string, delimiter: string) => {
   const cells: string[] = [];
-  let cur = '', inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i], n = line[i + 1];
-    if (c === '"') { if (inQ && n === '"') { cur += '"'; i++; } else inQ = !inQ; }
-    else if (c === sep && !inQ) { cells.push(cur.trim()); cur = ''; }
-    else cur += c;
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    const next = line[i + 1];
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === delimiter && !inQuotes) {
+      cells.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
   }
-  cells.push(cur.trim());
+
+  cells.push(current.trim());
   return cells;
 };
 
-const detectSep = (input: string) => {
-  const first = input.split(/\r?\n/).find(l => l.trim()) ?? '';
-  return [';', '\t', ','].reduce((best, c) =>
-    first.split(c).length > first.split(best).length ? c : best, ';');
+const detectDelimiter = (input: string) => {
+  const firstLine = input.split(/\r?\n/).find((line) => line.trim().length > 0) ?? '';
+  const candidates = [';', '\t', ','];
+  let best = ';';
+  let bestScore = -1;
+  candidates.forEach((candidate) => {
+    const score = firstLine.split(candidate).length;
+    if (score > bestScore) {
+      best = candidate;
+      bestScore = score;
+    }
+  });
+  return best;
 };
 
-const parseNum = (v: string | number | null | undefined) => {
-  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
-  const c = String(v ?? '').replace(/\s/g, '').replace(',', '.');
-  const n = Number(c);
-  return Number.isFinite(n) ? n : 0;
+const parseNumber = (value: string | number | null | undefined) => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  const cleaned = String(value ?? '').replace(/\s/g, '').replace(',', '.');
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : 0;
 };
 
-// ------------------------------------------------------------------
-// Formatters
-// ------------------------------------------------------------------
-const fInt  = (n: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n);
-const fCur  = (n: number) => `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(n))} €`;
-const fPct  = (n: number) => `${n.toFixed(1).replace('.', ',')} %`;
+const buildMonthSalesMap = (content: string) => {
+  const result = new Map<string, number>();
+  if (!content?.trim()) return result;
 
-// ------------------------------------------------------------------
-// Sales map depuis CSV mensuel
-// ------------------------------------------------------------------
-const buildSalesMap = (content: string): Map<string, number> => {
-  const map = new Map<string, number>();
-  if (!content?.trim()) return map;
-  const lines = content.split(/\r?\n/).filter(l => l.trim());
-  if (lines.length === 0) return map;
-  const sep = detectSep(content);
-  const headers = parseCsvLine(lines[0], sep).map(normalizeStr);
-  const nameP = ['libelle','libellé','designation','désignation','produit','article','nom'];
-  const qtyP  = ['nombre','nb','ventes','vente','quantite','quantité','qte','qté','qty'];
-  const findIdx = (preferred: string[]) => {
-    for (const p of preferred) { const i = headers.findIndex(h => h === p); if (i !== -1) return i; }
-    for (const p of preferred) { const i = headers.findIndex(h => h.includes(p)); if (i !== -1) return i; }
+  const lines = content.split(/\r?\n/).filter((line) => line.trim().length > 0);
+  if (lines.length === 0) return result;
+
+  const delimiter = detectDelimiter(content);
+  const headers = parseCsvLine(lines[0], delimiter).map(normalize);
+
+  const preferredNameHeaders = ['libelle', 'libellé', 'designation', 'désignation', 'produit', 'article', 'nom'];
+  const preferredQtyHeaders = ['nombre', 'nb', 'ventes', 'vente', 'quantite', 'quantité', 'qte', 'qté', 'qty'];
+
+  const findPreferredIndex = (preferred: string[]) => {
+    for (const name of preferred) {
+      const exactIndex = headers.findIndex((cell) => cell === name);
+      if (exactIndex !== -1) return exactIndex;
+    }
+    for (const name of preferred) {
+      const includesIndex = headers.findIndex((cell) => cell.includes(name));
+      if (includesIndex !== -1) return includesIndex;
+    }
     return -1;
   };
-  const ni = findIdx(nameP), qi = findIdx(qtyP);
-  if (ni === -1 || qi === -1) return map;
-  for (let i = 1; i < lines.length; i++) {
-    const cols = parseCsvLine(lines[i], sep);
-    const label = (cols[ni] ?? '').trim();
-    if (!label) continue;
-    const key = normalizeStr(label);
-    const qty = parseNum(cols[qi] ?? '0');
-    if (key) map.set(key, (map.get(key) ?? 0) + qty);
+
+  const nameIndex = findPreferredIndex(preferredNameHeaders);
+  const qtyIndex = findPreferredIndex(preferredQtyHeaders);
+
+  if (nameIndex === -1 || qtyIndex === -1) return result;
+
+  for (let i = 1; i < lines.length; i += 1) {
+    const cols = parseCsvLine(lines[i], delimiter);
+    const rawLabel = (cols[nameIndex] ?? '').trim();
+    if (!rawLabel) continue;
+    const key = normalize(rawLabel);
+    const qty = parseNumber(cols[qtyIndex] ?? '0');
+    if (!key) continue;
+    result.set(key, (result.get(key) ?? 0) + qty);
   }
-  return map;
+
+  return result;
 };
 
-// ------------------------------------------------------------------
-// Médailles
-// ------------------------------------------------------------------
-const MEDALS = [
-  { rank: '1er', color: '#A0721A' },
-  { rank: '2e',  color: '#6B7280' },
-  { rank: '3e',  color: '#7A3620' },
+const formatInt = (value: number) =>
+  new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value);
+
+const formatPercent = (value: number) =>
+  `${new Intl.NumberFormat('fr-FR', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(value)} %`;
+
+const formatCurrency = (value: number) =>
+  `${new Intl.NumberFormat('fr-FR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(Math.round(value))} €`;
+
+const FAMILY_PALETTE: Record<string, { bar: string; badgeBg: string; badgeText: string }> = {
+  'Boeuf': { bar: '#C9653C', badgeBg: '#F7E6DE', badgeText: '#7C3E23' },
+  'Burgers': { bar: '#C9653C', badgeBg: '#F7E6DE', badgeText: '#7C3E23' },
+  'Belles pièces': { bar: '#C9653C', badgeBg: '#F7E6DE', badgeText: '#7C3E23' },
+  'Desserts': { bar: '#BC5B86', badgeBg: '#F6E3EC', badgeText: '#6D3650' },
+  'Boules de glaces': { bar: '#BC5B86', badgeBg: '#F6E3EC', badgeText: '#6D3650' },
+  'Coupes glacées': { bar: '#BC5B86', badgeBg: '#F6E3EC', badgeText: '#6D3650' },
+  'Boissons': { bar: '#3A78BF', badgeBg: '#E5EFFA', badgeText: '#1F4D82' },
+  'Boissons chaudes': { bar: '#3A78BF', badgeBg: '#E5EFFA', badgeText: '#1F4D82' },
+  'Bières à la pression': { bar: '#3A78BF', badgeBg: '#E5EFFA', badgeText: '#1F4D82' },
+  'Softs': { bar: '#3A78BF', badgeBg: '#E5EFFA', badgeText: '#1F4D82' },
+  'Vins': { bar: '#7565C6', badgeBg: '#ECE9FB', badgeText: '#463A8C' },
+  'Sauces': { bar: '#2D9164', badgeBg: '#E5F3EC', badgeText: '#1A5F41' },
+  'Garnitures': { bar: '#2D9164', badgeBg: '#E5F3EC', badgeText: '#1A5F41' },
+  'Food': { bar: '#2D9164', badgeBg: '#E5F3EC', badgeText: '#1A5F41' },
+  'Poissons': { bar: '#2D9164', badgeBg: '#E5F3EC', badgeText: '#1A5F41' },
+  'Plats du jour': { bar: '#2D9164', badgeBg: '#E5F3EC', badgeText: '#1A5F41' },
+  'Menus': { bar: '#B7892B', badgeBg: '#F8EFDA', badgeText: '#6C4D12' },
+};
+
+const getFamilyColors = (family: string) =>
+  FAMILY_PALETTE[family] ?? { bar: '#8D857C', badgeBg: '#F2EAE2', badgeText: '#554B42' };
+
+const medalStyles = [
+  { rank: '1er', bg: '#E9B657', color: '#5A3910' },
+  { rank: '2e', bg: '#D9D3CB', color: '#4F4A44' },
+  { rank: '3e', bg: '#EAA07E', color: '#6F311E' },
 ];
 
-// ==================================================================
-// Composant
-// ==================================================================
-const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
-  setView,
-  prepImportsByMonth,
-  covers,
-}) => {
-  const [rows, setRows]             = useState<TakeRateMappingRow[]>([]);
-  const [selectedMonth, setMonth]   = useState<string>(
-    MONTHS_DISPLAY_CONFIG[new Date().getMonth()]?.key ?? 'jan'
-  );
-  const [familyFilter, setFamily]   = useState('all');
-  const [search, setSearch]         = useState('');
-  const [sortBy, setSort]           = useState<SortKey>('takeRate');
-  const [expertMode, setExpert]     = useState(false);
+const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prepImportsByMonth, covers }) => {
+  const [rows, setRows] = useState<TakeRateMappingRow[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState<string>(MONTHS_DISPLAY_CONFIG[new Date().getMonth()]?.key ?? 'jan');
+  const [search, setSearch] = useState('');
+  const [familyFilter, setFamilyFilter] = useState('all');
+  const [sortBy, setSortBy] = useState<SortKey>('takeRate');
+  const [expertMode, setExpertMode] = useState(false);
 
   useEffect(() => {
     try {
@@ -197,201 +174,157 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
         if (!raw) continue;
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          setRows(parsed.map(r => ({
-            id:            String(r.id ?? ''),
-            label:         String(r.label ?? ''),
-            family:        String(r.family ?? ''),
-            linkedImports: Array.isArray(r.linkedImports) ? r.linkedImports.map(String) : [],
-            costHt:        parseNum(r.costHt),
-            sellPriceHt:   parseNum(r.sellPriceHt),
-            marginEuro:    parseNum(r.marginEuro),
-            marginPercent: parseNum(r.marginPercent),
-          })));
+          setRows(
+            parsed.map((row) => ({
+              id: String(row.id ?? ''),
+              label: String(row.label ?? ''),
+              family: String(row.family ?? ''),
+              linkedImports: Array.isArray(row.linkedImports) ? row.linkedImports.map(String) : [],
+              costHt: parseNumber((row as any).costHt),
+              sellPriceHt: parseNumber((row as any).sellPriceHt),
+              marginEuro: parseNumber((row as any).marginEuro),
+              marginPercent: parseNumber((row as any).marginPercent),
+            }))
+          );
           break;
         }
       }
-    } catch (_) {}
+    } catch (_error) {}
   }, []);
 
-  const salesMap    = useMemo(() => buildSalesMap(prepImportsByMonth[selectedMonth] ?? ''), [prepImportsByMonth, selectedMonth]);
+  const monthSalesMap = useMemo(
+    () => buildMonthSalesMap(prepImportsByMonth[selectedMonth] ?? ''),
+    [prepImportsByMonth, selectedMonth]
+  );
   const monthCovers = Number(covers[selectedMonth] ?? 0);
 
-  const computed = useMemo(() => {
-    const q = normalizeStr(search);
+  const computedRows = useMemo(() => {
+    const query = normalize(search);
     return rows
-      .filter(r => r.label.trim() && r.linkedImports.length > 0)
-      .map(r => {
-        const sales       = r.linkedImports.reduce((s, i) => s + (salesMap.get(normalizeStr(i)) ?? 0), 0);
-        const takeRate    = monthCovers > 0 ? (sales / monthCovers) * 100 : 0;
-        const marginEuro  = parseNum((r as any).marginEuro);
-        const sellPriceHt = parseNum((r as any).sellPriceHt);
-        const costHt      = parseNum((r as any).costHt);
-        const marginPct   = parseNum((r as any).marginPercent);
+      .filter((row) => row.label.trim().length > 0 && row.linkedImports.length > 0)
+      .map((row) => {
+        const sales = row.linkedImports.reduce((sum, item) => sum + (monthSalesMap.get(normalize(item)) ?? 0), 0);
+        const takeRate = monthCovers > 0 ? (sales / monthCovers) * 100 : 0;
+        const costHt = parseNumber((row as any).costHt);
+        const sellPriceHt = parseNumber((row as any).sellPriceHt);
+        const marginEuro = parseNumber((row as any).marginEuro);
+        const marginPercent = parseNumber((row as any).marginPercent);
         const marginTotal = sales * marginEuro;
-        const caTheo      = sales * sellPriceHt;
-        return { ...r, sales, takeRate, marginEuro, marginTotal, sellPriceHt, costHt, marginPct, caTheo };
+        const caTheo = sales * sellPriceHt;
+
+        return {
+          ...row,
+          sales,
+          takeRate,
+          costHt,
+          sellPriceHt,
+          marginEuro,
+          marginPercent,
+          marginTotal,
+          caTheo,
+        };
       })
-      .filter(r => familyFilter === 'all' || r.family === familyFilter)
-      .filter(r => !q || normalizeStr(r.label).includes(q) || normalizeStr(r.family).includes(q))
+      .filter((row) => (familyFilter === 'all' ? true : row.family === familyFilter))
+      .filter((row) => {
+        if (!query) return true;
+        return normalize(row.label).includes(query) || normalize(row.family).includes(query);
+      })
       .sort((a, b) => {
-        if (sortBy === 'sales')       return b.sales - a.sales || a.label.localeCompare(b.label, 'fr');
+        if (sortBy === 'sales') return b.sales - a.sales || a.label.localeCompare(b.label, 'fr');
         if (sortBy === 'marginTotal') return b.marginTotal - a.marginTotal || a.label.localeCompare(b.label, 'fr');
         return b.takeRate - a.takeRate || b.sales - a.sales || a.label.localeCompare(b.label, 'fr');
       })
-      .map((r, i) => ({ ...r, rank: i + 1 }));
-  }, [rows, salesMap, monthCovers, familyFilter, search, sortBy]);
+      .map((row, index) => ({ ...row, rank: index + 1 }));
+  }, [rows, monthSalesMap, monthCovers, familyFilter, search, sortBy]);
 
-  const totalSales     = computed.reduce((s, r) => s + r.sales, 0);
-  const totalMargin    = computed.reduce((s, r) => s + r.marginTotal, 0);
-  const globalTakeRate = monthCovers > 0 ? (totalSales / monthCovers) * 100 : 0;
-  const maxTakeRate    = computed.length > 0 ? computed[0].takeRate : 1;
+  const families = useMemo(() => {
+    const values = Array.from(new Set(rows.map((row) => row.family.trim()).filter(Boolean)));
+    return values.sort((a, b) => a.localeCompare(b, 'fr'));
+  }, [rows]);
 
-  const families = useMemo(() =>
-    [...new Set(rows.map(r => r.family.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr')),
-    [rows]
-  );
-
-  // ------------------------------------------------------------------
-  // Styles partagés (Tailwind classes de l'appli)
-  // ------------------------------------------------------------------
-  const monthActive   = 'rounded-full bg-[#2C1A10] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-white';
-  const monthInactive = 'rounded-full border border-[#E2BE7F] bg-[#FFF4D9] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5C4A] transition hover:bg-[#F7E0AD]';
-  const sortActive    = 'rounded-full bg-[#2C1A10] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-white';
-  const sortInactive  = 'rounded-full border border-[#E2BE7F] bg-[#FFF4D9] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5C4A] transition hover:bg-[#F7E0AD]';
+  const totalSales = computedRows.reduce((sum, row) => sum + row.sales, 0);
+  const totalMargin = computedRows.reduce((sum, row) => sum + row.marginTotal, 0);
+  const maxTakeRate = computedRows.length > 0 ? computedRows[0].takeRate : 1;
 
   return (
-    <div className="flex h-full min-h-screen bg-[#F8DEA3] text-[#1A0F0A]" style={pageBackgroundStyle}>
-
-      {/* ── Sidebar ── */}
-      <aside className="hidden w-[220px] shrink-0 flex-col gap-4 border-r border-[#E2C186] bg-[#F6D89D] px-4 py-5 xl:flex">
-
-        {/* Badge page */}
-        <div className="rounded-[18px] border border-[#E7C990] bg-[#FFF7E2] px-4 py-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.20em] text-[#A07860]">Lecture finale</p>
-          <h1 className="mt-2 text-[20px] font-black leading-tight text-[#1A0F0A]">Taux<br/>de prise</h1>
-          <p className="mt-1 text-[12px] font-semibold text-[#8A6A55]">{MONTH_KEY_TO_NAME[selectedMonth]}</p>
-        </div>
-
-        {/* Navigation */}
-        <button
-          onClick={() => setView('stats')}
-          className="rounded-[14px] border border-[#E7C990] bg-[#FFF7E2] px-4 py-3 text-[12px] font-black uppercase tracking-[0.08em] text-[#7A5C4A] transition hover:bg-[#F7E0AD]"
-        >
-          ← Retour paramètres
-        </button>
-        <button
-          onClick={() => setView('take_rate')}
-          className="rounded-[14px] border border-[#2C1A10] bg-[#2C1A10] px-4 py-3 text-[12px] font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#3D2518]"
-        >
-          Voir paramétrage
-        </button>
-
-        {/* Synthèse chiffrée */}
-        <div className="rounded-[18px] border border-[#E7C990] bg-[#FFF7E2] px-4 py-4">
-          <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-[#A07860]">Synthèse</p>
-          {[
-            { label: 'Couverts',        val: fInt(monthCovers) },
-            { label: 'Ventes suivies',  val: fInt(totalSales) },
-            { label: 'Tx prise global', val: fPct(globalTakeRate) },
-            { label: 'Marge générée',   val: fCur(totalMargin) },
-          ].map(k => (
-            <div key={k.label} className="flex items-baseline justify-between gap-2 py-1.5">
-              <span className="text-[12px] text-[#8A6A55]">{k.label}</span>
-              <span className="text-[13px] font-black text-[#1A0F0A]">{k.val}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Top par famille */}
-        {families.length > 0 && (
-          <div className="rounded-[18px] border border-[#E7C990] bg-[#FFF7E2] px-4 py-4">
-            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-[#A07860]">Par famille</p>
-            {(() => {
-              const grouped = new Map<string, number>();
-              computed.forEach(r => {
-                const f = r.family || 'Autre';
-                grouped.set(f, (grouped.get(f) ?? 0) + r.sales);
-              });
-              const sorted = [...grouped.entries()]
-                .map(([f, s]) => ({ family: f, takeRate: monthCovers > 0 ? s / monthCovers * 100 : 0 }))
-                .sort((a, b) => b.takeRate - a.takeRate)
-                .slice(0, 8);
-              const maxTR = sorted[0]?.takeRate ?? 1;
-              return sorted.map(s => {
-                const col = getFP(s.family);
-                return (
-                  <div key={s.family} className="mb-3">
-                    <div className="flex items-baseline justify-between gap-1 mb-1">
-                      <span className="truncate text-[11px] font-semibold text-[#4A3020]">{s.family}</span>
-                      <span className="shrink-0 text-[11px] font-black text-[#1A0F0A]">{fPct(s.takeRate)}</span>
-                    </div>
-                    <div className="h-1 w-full overflow-hidden rounded-full bg-[#F2D59E]">
-                      <div className="h-1 rounded-full" style={{ width: `${(s.takeRate / maxTR * 100).toFixed(1)}%`, background: col.bar }} />
-                    </div>
-                  </div>
-                );
-              });
-            })()}
-          </div>
-        )}
-      </aside>
-
-      {/* ── Main ── */}
-      <main className="flex min-w-0 flex-1 flex-col gap-5 overflow-auto px-6 py-5 xl:px-8">
-
-        {/* Sélecteur mois */}
-        <div className="flex flex-wrap gap-2">
-          {MONTHS_DISPLAY_CONFIG.map(m => (
-            <button
-              key={m.key}
-              onClick={() => setMonth(m.key)}
-              className={selectedMonth === m.key ? monthActive : monthInactive}
-            >
-              {m.label.slice(0, 4)}
-            </button>
-          ))}
-        </div>
-
-        {/* KPI cards */}
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: 'Couverts du mois', val: fInt(monthCovers) },
-            { label: 'Ventes suivies',   val: fInt(totalSales) },
-            { label: 'Marge générée',    val: fCur(totalMargin) },
-          ].map(k => (
-            <div key={k.label} className="rounded-[16px] border border-[#E7C990] bg-[#FFF0CC] px-5 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#A07860]">{k.label}</p>
-              <p className="mt-2 text-[24px] font-black text-[#1A0F0A]">{k.val}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Podium top 3 */}
-        {computed.length >= 1 && (
+    <div className="min-h-screen bg-[#F2E8DC] text-[#2E1B12]">
+      <main className="mx-auto flex min-h-screen w-full max-w-[1480px] flex-col gap-5 px-6 py-5 xl:px-8">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="mb-3 text-[11px] font-black uppercase tracking-[0.12em] text-[#A07860]">Top 3 du mois</p>
-            <div className="grid grid-cols-3 gap-3">
-              {computed.slice(0, 3).map((row, i) => {
-                const medal = MEDALS[i];
-                const col   = getFP(row.family);
+            <p className="text-[10px] font-black uppercase tracking-[0.20em] text-[#A07860]">Lecture mensuelle</p>
+            <h1 className="mt-2 text-[26px] font-black leading-tight text-[#1D120D]">Taux de prise</h1>
+          </div>
+
+          <button
+            onClick={() => setView('stats')}
+            className="rounded-[14px] border border-[#D8BEA8] bg-[#FBF5EE] px-4 py-3 text-[12px] font-black uppercase tracking-[0.08em] text-[#7A5C4A] transition hover:bg-[#F1E7DC]"
+          >
+            ← Retour paramètres
+          </button>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {MONTHS_DISPLAY_CONFIG.map((month) => {
+            const active = selectedMonth === month.key;
+            return (
+              <button
+                key={month.key}
+                onClick={() => setSelectedMonth(month.key)}
+                className={
+                  active
+                    ? 'rounded-[14px] bg-[#3A1E10] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.05em] text-white'
+                    : 'rounded-[14px] border border-[#D8BEA8] bg-[#FBF5EE] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.05em] text-[#7A5C4A] transition hover:bg-[#F1E7DC]'
+                }
+              >
+                {month.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-3">
+          {[
+            { label: 'Couverts du mois', value: formatInt(monthCovers) },
+            { label: 'Ventes suivies', value: formatInt(totalSales) },
+            { label: 'Marge générée', value: formatCurrency(totalMargin) },
+          ].map((item) => (
+            <div key={item.label} className="rounded-[22px] border border-[#D8BEA8] bg-[#FBF5EE] px-5 py-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#A07860]">{item.label}</p>
+              <p className="mt-3 text-[22px] font-black text-[#1D120D]">{item.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {computedRows.length > 0 && (
+          <div>
+            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.16em] text-[#9F735B]">Top 3 du mois</p>
+            <div className="grid gap-4 xl:grid-cols-3">
+              {computedRows.slice(0, 3).map((row, index) => {
+                const medal = medalStyles[index];
+                const colors = getFamilyColors(row.family);
                 return (
-                  <div key={row.id} className="rounded-[18px] border border-[#E7C990] bg-[#FFF7E2] px-5 py-4">
-                    <div className="mb-3 flex items-center justify-between">
-                      <span className="text-[11px] font-black" style={{ color: medal.color }}>{medal.rank}</span>
-                      {row.family && (
+                  <div key={row.id} className="rounded-[22px] border border-[#D8BEA8] bg-[#FBF5EE] px-5 py-4">
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <span
+                        className="rounded-full px-2.5 py-1 text-[10px] font-black"
+                        style={{ background: medal.bg, color: medal.color }}
+                      >
+                        {medal.rank}
+                      </span>
+                      {row.family ? (
                         <span
-                          className="rounded-full px-2.5 py-0.5 text-[10px] font-black"
-                          style={{ background: col.badge, color: col.text }}
+                          className="rounded-full px-2.5 py-1 text-[10px] font-black"
+                          style={{ background: colors.badgeBg, color: colors.badgeText }}
                         >
                           {row.family}
                         </span>
-                      )}
+                      ) : null}
                     </div>
-                    <p className="mb-2 text-[15px] font-black leading-snug text-[#1A0F0A]">{row.label}</p>
-                    <p className="mb-3 text-[30px] font-black leading-none text-[#1A0F0A]">{fPct(row.takeRate)}</p>
-                    <div className="flex items-center justify-between text-[12px] text-[#8A6A55]">
-                      <span>{fInt(row.sales)} ventes</span>
-                      {row.marginTotal > 0 && <span className="font-semibold">{fCur(row.marginTotal)}</span>}
+                    <p className="text-[16px] font-black text-[#1D120D]">{row.label}</p>
+                    <p className="mt-3 text-[30px] font-black leading-none text-[#1D120D]">{formatPercent(row.takeRate)}</p>
+                    <div className="mt-4 flex items-center justify-between gap-3 text-[12px] text-[#8F654F]">
+                      <span>{formatInt(row.sales)} ventes</span>
+                      <span className="font-semibold">{row.marginTotal > 0 ? formatCurrency(row.marginTotal) : '—'}</span>
                     </div>
                   </div>
                 );
@@ -400,134 +333,144 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
           </div>
         )}
 
-        {/* Contrôles liste */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            {/* Filtre famille dropdown */}
             <select
               value={familyFilter}
-              onChange={e => setFamily(e.target.value)}
-              className="rounded-[14px] border border-[#E2BE7F] bg-[#FFF7E2] px-4 py-2.5 text-[13px] font-semibold text-[#2C1A10] outline-none transition focus:border-[#2C1A10]"
+              onChange={(e) => setFamilyFilter(e.target.value)}
+              className="rounded-[14px] border border-[#D8BEA8] bg-[#FBF5EE] px-4 py-2.5 text-[13px] font-semibold text-[#2E1B12] outline-none"
             >
               <option value="all">Toutes les familles</option>
-              {families.map(f => <option key={f} value={f}>{f}</option>)}
+              {families.map((family) => (
+                <option key={family} value={family}>
+                  {family}
+                </option>
+              ))}
             </select>
 
-            {/* Recherche */}
             <input
               type="text"
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher..."
-              className="rounded-[14px] border border-[#E2BE7F] bg-[#FFF7E2] px-4 py-2.5 text-[13px] font-semibold text-[#2C1A10] outline-none transition focus:border-[#2C1A10]"
-              style={{ width: '180px' }}
+              className="w-[190px] rounded-[14px] border border-[#D8BEA8] bg-[#FBF5EE] px-4 py-2.5 text-[13px] font-semibold text-[#2E1B12] outline-none"
             />
 
             <span className="text-[12px] text-[#A07860]">
-              {computed.length} produit{computed.length > 1 ? 's' : ''}
+              {computedRows.length} produit{computedRows.length > 1 ? 's' : ''}
             </span>
           </div>
 
-          {/* Tri */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {([
-              { key: 'takeRate',    label: 'Taux' },
-              { key: 'sales',       label: 'Ventes' },
+              { key: 'takeRate', label: 'Taux' },
+              { key: 'sales', label: 'Ventes' },
               { key: 'marginTotal', label: 'Marge' },
-            ] as { key: SortKey; label: string }[]).map(s => (
-              <button
-                key={s.key}
-                onClick={() => setSort(s.key)}
-                className={sortBy === s.key ? sortActive : sortInactive}
-              >
-                {s.label}
-              </button>
-            ))}
+            ] as { key: SortKey; label: string }[]).map((sort) => {
+              const active = sortBy === sort.key;
+              return (
+                <button
+                  key={sort.key}
+                  onClick={() => setSortBy(sort.key)}
+                  className={
+                    active
+                      ? 'rounded-full bg-[#5A341C] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-white'
+                      : 'rounded-full border border-[#D8BEA8] bg-[#FBF5EE] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5C4A] transition hover:bg-[#F1E7DC]'
+                  }
+                >
+                  {sort.label}
+                </button>
+              );
+            })}
 
             <button
-              onClick={() => setExpert(v => !v)}
-              className={`rounded-full px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] transition ${
+              onClick={() => setExpertMode((value) => !value)}
+              className={
                 expertMode
-                  ? 'border border-[#6B5CC4] bg-[#EEECFD] text-[#3C3489]'
-                  : 'border border-[#E2BE7F] bg-[#FFF7E2] text-[#7A5C4A] hover:bg-[#F7E0AD]'
-              }`}
+                  ? 'rounded-full border border-[#6E65C9] bg-[#EEEAFD] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#433A8C]'
+                  : 'rounded-full border border-[#D8BEA8] bg-[#FBF5EE] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5C4A] transition hover:bg-[#F1E7DC]'
+              }
             >
               {expertMode ? 'Expert ▾' : 'Expert ▸'}
             </button>
           </div>
         </div>
 
-        {/* Liste produits */}
-        <div className="overflow-hidden rounded-[20px] border border-[#E7C990] bg-[#FFF7E2]">
-          {computed.length === 0 ? (
-            <p className="px-6 py-12 text-center text-[14px] text-[#A07860]">
-              Aucun résultat — vérifie le mois, les produits liés et l'import production.
-            </p>
+        <div className="overflow-hidden rounded-[22px] border border-[#D8BEA8] bg-[#FBF5EE]">
+          {computedRows.length === 0 ? (
+            <div className="px-6 py-14 text-center text-[14px] font-semibold text-[#8E6A55]">
+              Aucun résultat pour ce mois ou ce filtre.
+            </div>
           ) : (
-            computed.map((row, i) => {
-              const col    = getFP(row.family);
-              const barPct = maxTakeRate > 0 ? (row.takeRate / maxTakeRate * 100) : 0;
-              const isLast = i === computed.length - 1;
+            computedRows.map((row, index) => {
+              const colors = getFamilyColors(row.family);
+              const barWidth = maxTakeRate > 0 ? (row.takeRate / maxTakeRate) * 100 : 0;
+              const isLast = index === computedRows.length - 1;
+
               return (
                 <div
                   key={row.id}
-                  className={`flex items-center gap-4 px-6 py-4 transition-colors hover:bg-[#FFEABF] ${!isLast ? 'border-b border-[#E7C990]' : ''}`}
+                  className={`px-6 py-4 transition-colors hover:bg-[#F7EEE4] ${!isLast ? 'border-b border-[#E3D0BE]' : ''}`}
                 >
-                  {/* Rang */}
-                  <span className="w-7 shrink-0 text-right text-[12px] font-semibold text-[#C4A898]">
-                    {row.rank}
-                  </span>
+                  <div className="flex items-start gap-4">
+                    <span className="w-7 shrink-0 pt-1 text-right text-[12px] font-semibold text-[#C29A83]">
+                      {row.rank}
+                    </span>
 
-                  {/* Produit + barre */}
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-1.5 flex items-center gap-2">
-                      <span className="truncate text-[14px] font-black text-[#1A0F0A]">{row.label}</span>
-                      {row.family && (
-                        <span
-                          className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black"
-                          style={{ background: col.badge, color: col.text }}
-                        >
-                          {row.family}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="h-1 flex-1 overflow-hidden rounded-full bg-[#F2D59E]">
-                        <div
-                          className="h-1 rounded-full transition-all duration-500"
-                          style={{ width: `${barPct.toFixed(1)}%`, background: col.bar }}
-                        />
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <span className="truncate text-[15px] font-black text-[#1D120D]">{row.label}</span>
+                        {row.family ? (
+                          <span
+                            className="rounded-full px-2.5 py-0.5 text-[10px] font-black"
+                            style={{ background: colors.badgeBg, color: colors.badgeText }}
+                          >
+                            {row.family}
+                          </span>
+                        ) : null}
                       </div>
-                      <span className="shrink-0 text-[11px] text-[#A07860]">{fInt(row.sales)} ventes</span>
+
+                      <div className="flex items-center gap-3">
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#E7D8C9]">
+                          <div
+                            className="h-1.5 rounded-full transition-all duration-500"
+                            style={{ width: `${barWidth.toFixed(1)}%`, background: colors.bar }}
+                          />
+                        </div>
+                        <span className="shrink-0 text-[12px] text-[#A07860]">{formatInt(row.sales)} ventes</span>
+                      </div>
+                    </div>
+
+                    <div className="flex shrink-0 items-start gap-6">
+                      <div className="w-[86px] text-right">
+                        <p className="text-[11px] uppercase tracking-[0.05em] text-[#B28E7A]">Tx prise</p>
+                        <p className="mt-1 text-[18px] font-black text-[#1D120D]">{formatPercent(row.takeRate)}</p>
+                      </div>
+
+                      <div className="w-[84px] text-right">
+                        <p className="text-[11px] uppercase tracking-[0.05em] text-[#B28E7A]">Marge</p>
+                        <p className="mt-1 text-[14px] font-semibold text-[#8A6A55]">
+                          {row.marginTotal > 0 ? formatCurrency(row.marginTotal) : '—'}
+                        </p>
+                      </div>
+
+                      {expertMode ? (
+                        <div className="flex gap-5 border-l border-[#E3D0BE] pl-5">
+                          {[
+                            { label: 'CM HT', value: row.costHt > 0 ? formatCurrency(row.costHt) : '—' },
+                            { label: 'PV HT', value: row.sellPriceHt > 0 ? formatCurrency(row.sellPriceHt) : '—' },
+                            { label: 'Marge %', value: row.marginPercent !== 0 ? formatPercent(row.marginPercent) : '—' },
+                            { label: 'CA théo', value: row.caTheo > 0 ? formatCurrency(row.caTheo) : '—' },
+                          ].map((entry) => (
+                            <div key={entry.label} className="w-[74px] text-right">
+                              <p className="text-[10px] uppercase tracking-[0.06em] text-[#B28E7A]">{entry.label}</p>
+                              <p className="mt-1 text-[12px] font-semibold text-[#4A3020]">{entry.value}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
-
-                  {/* Taux */}
-                  <span className="w-[80px] shrink-0 text-right text-[18px] font-black text-[#1A0F0A]">
-                    {fPct(row.takeRate)}
-                  </span>
-
-                  {/* Marge totale */}
-                  <span className="w-[80px] shrink-0 text-right text-[13px] font-semibold text-[#8A6A55]">
-                    {row.marginTotal > 0 ? fCur(row.marginTotal) : '—'}
-                  </span>
-
-                  {/* Mode expert */}
-                  {expertMode && (
-                    <div className="flex shrink-0 gap-5 border-l border-[#E3D0BE] pl-5">
-                      {[
-                        { label: 'CM HT',   val: row.costHt > 0      ? fCur(row.costHt)      : '—' },
-                        { label: 'PV HT',   val: row.sellPriceHt > 0 ? fCur(row.sellPriceHt) : '—' },
-                        { label: 'Marge %', val: row.marginPct !== 0  ? fPct(row.marginPct)   : '—' },
-                        { label: 'CA théo', val: row.caTheo > 0       ? fCur(row.caTheo)      : '—' },
-                      ].map(e => (
-                        <div key={e.label} className="text-right">
-                          <p className="text-[10px] uppercase tracking-wide text-[#C4A898]">{e.label}</p>
-                          <p className="text-[12px] font-semibold text-[#4A3020]">{e.val}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               );
             })
