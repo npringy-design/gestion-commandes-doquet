@@ -86,11 +86,12 @@ const getFP = (family: string) =>
   FAMILY_PALETTE[family] ?? { bar: '#888780', badge: '#F1EFE8', text: '#444441' };
 
 const pageBackgroundStyle: React.CSSProperties = {
-  backgroundColor: '#F6EBDD',
+  backgroundColor: '#F8DEA3',
   backgroundImage: [
-    'radial-gradient(circle at top left, rgba(204, 134, 87, 0.18), transparent 30%)',
-    'radial-gradient(circle at top right, rgba(160, 104, 63, 0.12), transparent 24%)',
-    'linear-gradient(180deg, #FBF5EE 0%, #F6EBDD 48%, #F0E0CF 100%)',
+    'radial-gradient(circle at top left, rgba(244, 173, 62, 0.32), transparent 34%)',
+    'radial-gradient(circle at top right, rgba(222, 121, 35, 0.22), transparent 28%)',
+    'radial-gradient(circle at bottom center, rgba(255, 211, 102, 0.20), transparent 34%)',
+    'linear-gradient(180deg, #FFF4C9 0%, #F8DEA3 44%, #EDBE73 100%)',
   ].join(', '),
 };
 
@@ -254,18 +255,18 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
   // Styles partagés (Tailwind classes de l'appli)
   // ------------------------------------------------------------------
   const monthActive   = 'rounded-full bg-[#2C1A10] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-white';
-  const monthInactive = 'rounded-full border border-[#D8C0AB] bg-[#FFF7EE] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5C4A] transition hover:bg-[#F6E4D2]';
+  const monthInactive = 'rounded-full border border-[#E2BE7F] bg-[#FFF4D9] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5C4A] transition hover:bg-[#F7E0AD]';
   const sortActive    = 'rounded-full bg-[#2C1A10] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-white';
-  const sortInactive  = 'rounded-full border border-[#D8C0AB] bg-[#FFF7EE] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5C4A] transition hover:bg-[#F6E4D2]';
+  const sortInactive  = 'rounded-full border border-[#E2BE7F] bg-[#FFF4D9] px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] text-[#7A5C4A] transition hover:bg-[#F7E0AD]';
 
   return (
-    <div className="flex h-full min-h-screen bg-[#F6EBDD] text-[#1A0F0A]" style={pageBackgroundStyle}>
+    <div className="flex h-full min-h-screen bg-[#F8DEA3] text-[#1A0F0A]" style={pageBackgroundStyle}>
 
       {/* ── Sidebar ── */}
-      <aside className="hidden w-[220px] shrink-0 flex-col gap-4 border-r border-[#E3D0BE] bg-[#F4E6D8] px-4 py-5 xl:flex">
+      <aside className="hidden w-[220px] shrink-0 flex-col gap-4 border-r border-[#E2C186] bg-[#F6D89D] px-4 py-5 xl:flex">
 
         {/* Badge page */}
-        <div className="rounded-[18px] border border-[#E8D5C0] bg-[#FFF8F1] px-4 py-4">
+        <div className="rounded-[18px] border border-[#E7C990] bg-[#FFF7E2] px-4 py-4">
           <p className="text-[10px] font-black uppercase tracking-[0.20em] text-[#A07860]">Lecture finale</p>
           <h1 className="mt-2 text-[20px] font-black leading-tight text-[#1A0F0A]">Taux<br/>de prise</h1>
           <p className="mt-1 text-[12px] font-semibold text-[#8A6A55]">{MONTH_KEY_TO_NAME[selectedMonth]}</p>
@@ -274,7 +275,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
         {/* Navigation */}
         <button
           onClick={() => setView('stats')}
-          className="rounded-[14px] border border-[#E8D5C0] bg-[#FFF8F1] px-4 py-3 text-[12px] font-black uppercase tracking-[0.08em] text-[#7A5C4A] transition hover:bg-[#F6E4D2]"
+          className="rounded-[14px] border border-[#E7C990] bg-[#FFF7E2] px-4 py-3 text-[12px] font-black uppercase tracking-[0.08em] text-[#7A5C4A] transition hover:bg-[#F7E0AD]"
         >
           ← Retour paramètres
         </button>
@@ -286,7 +287,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
         </button>
 
         {/* Synthèse chiffrée */}
-        <div className="rounded-[18px] border border-[#E3D0BE] bg-[#FFF8F1] px-4 py-4">
+        <div className="rounded-[18px] border border-[#E7C990] bg-[#FFF7E2] px-4 py-4">
           <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-[#A07860]">Synthèse</p>
           {[
             { label: 'Couverts',        val: fInt(monthCovers) },
@@ -303,7 +304,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
 
         {/* Top par famille */}
         {families.length > 0 && (
-          <div className="rounded-[18px] border border-[#E3D0BE] bg-[#FFF8F1] px-4 py-4">
+          <div className="rounded-[18px] border border-[#E7C990] bg-[#FFF7E2] px-4 py-4">
             <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-[#A07860]">Par famille</p>
             {(() => {
               const grouped = new Map<string, number>();
@@ -324,7 +325,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
                       <span className="truncate text-[11px] font-semibold text-[#4A3020]">{s.family}</span>
                       <span className="shrink-0 text-[11px] font-black text-[#1A0F0A]">{fPct(s.takeRate)}</span>
                     </div>
-                    <div className="h-1 w-full overflow-hidden rounded-full bg-[#EEDCCB]">
+                    <div className="h-1 w-full overflow-hidden rounded-full bg-[#F2D59E]">
                       <div className="h-1 rounded-full" style={{ width: `${(s.takeRate / maxTR * 100).toFixed(1)}%`, background: col.bar }} />
                     </div>
                   </div>
@@ -358,7 +359,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
             { label: 'Ventes suivies',   val: fInt(totalSales) },
             { label: 'Marge générée',    val: fCur(totalMargin) },
           ].map(k => (
-            <div key={k.label} className="rounded-[16px] border border-[#E3D0BE] bg-[#FFF2E7] px-5 py-4">
+            <div key={k.label} className="rounded-[16px] border border-[#E7C990] bg-[#FFF0CC] px-5 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#A07860]">{k.label}</p>
               <p className="mt-2 text-[24px] font-black text-[#1A0F0A]">{k.val}</p>
             </div>
@@ -374,7 +375,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
                 const medal = MEDALS[i];
                 const col   = getFP(row.family);
                 return (
-                  <div key={row.id} className="rounded-[18px] border border-[#E3D0BE] bg-[#FFF8F1] px-5 py-4">
+                  <div key={row.id} className="rounded-[18px] border border-[#E7C990] bg-[#FFF7E2] px-5 py-4">
                     <div className="mb-3 flex items-center justify-between">
                       <span className="text-[11px] font-black" style={{ color: medal.color }}>{medal.rank}</span>
                       {row.family && (
@@ -406,7 +407,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
             <select
               value={familyFilter}
               onChange={e => setFamily(e.target.value)}
-              className="rounded-[14px] border border-[#D8C0AB] bg-[#FFF8F1] px-4 py-2.5 text-[13px] font-semibold text-[#2C1A10] outline-none transition focus:border-[#2C1A10]"
+              className="rounded-[14px] border border-[#E2BE7F] bg-[#FFF7E2] px-4 py-2.5 text-[13px] font-semibold text-[#2C1A10] outline-none transition focus:border-[#2C1A10]"
             >
               <option value="all">Toutes les familles</option>
               {families.map(f => <option key={f} value={f}>{f}</option>)}
@@ -418,7 +419,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Rechercher..."
-              className="rounded-[14px] border border-[#D8C0AB] bg-[#FFF8F1] px-4 py-2.5 text-[13px] font-semibold text-[#2C1A10] outline-none transition focus:border-[#2C1A10]"
+              className="rounded-[14px] border border-[#E2BE7F] bg-[#FFF7E2] px-4 py-2.5 text-[13px] font-semibold text-[#2C1A10] outline-none transition focus:border-[#2C1A10]"
               style={{ width: '180px' }}
             />
 
@@ -448,7 +449,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
               className={`rounded-full px-4 py-2 text-[12px] font-black uppercase tracking-[0.06em] transition ${
                 expertMode
                   ? 'border border-[#6B5CC4] bg-[#EEECFD] text-[#3C3489]'
-                  : 'border border-[#D8C0AB] bg-[#FFF8F1] text-[#7A5C4A] hover:bg-[#F6E4D2]'
+                  : 'border border-[#E2BE7F] bg-[#FFF7E2] text-[#7A5C4A] hover:bg-[#F7E0AD]'
               }`}
             >
               {expertMode ? 'Expert ▾' : 'Expert ▸'}
@@ -457,7 +458,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
         </div>
 
         {/* Liste produits */}
-        <div className="overflow-hidden rounded-[20px] border border-[#E3D0BE] bg-[#FFF8F1]">
+        <div className="overflow-hidden rounded-[20px] border border-[#E7C990] bg-[#FFF7E2]">
           {computed.length === 0 ? (
             <p className="px-6 py-12 text-center text-[14px] text-[#A07860]">
               Aucun résultat — vérifie le mois, les produits liés et l'import production.
@@ -470,7 +471,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
               return (
                 <div
                   key={row.id}
-                  className={`flex items-center gap-4 px-6 py-4 transition-colors hover:bg-[#FFF1E5] ${!isLast ? 'border-b border-[#E3D0BE]' : ''}`}
+                  className={`flex items-center gap-4 px-6 py-4 transition-colors hover:bg-[#FFEABF] ${!isLast ? 'border-b border-[#E7C990]' : ''}`}
                 >
                   {/* Rang */}
                   <span className="w-7 shrink-0 text-right text-[12px] font-semibold text-[#C4A898]">
@@ -491,7 +492,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({
                       )}
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="h-1 flex-1 overflow-hidden rounded-full bg-[#EEDCCB]">
+                      <div className="h-1 flex-1 overflow-hidden rounded-full bg-[#F2D59E]">
                         <div
                           className="h-1 rounded-full transition-all duration-500"
                           style={{ width: `${barPct.toFixed(1)}%`, background: col.bar }}
