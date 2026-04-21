@@ -605,32 +605,36 @@ const scoreImportMatch = (rowLabel: string, importLabel: string) => {
 };
 
 
-const buildMarginCatalogFromSimpleWorkbook = (workbook: any, XLSX: any): MarginCatalogItem[] => {
+const buildCompactMarginCatalog = (
+  workbook: any,
+  XLSX: any
+): MarginCatalogItem[] => {
   const map = new Map<string, MarginCatalogItem>();
 
   const foodSheetName = findWorkbookSheetName(workbook.SheetNames, 'FOOD');
   if (foodSheetName) {
-    const foodSheet = workbook.Sheets[foodSheetName];
-    const foodRows = XLSX.utils.sheet_to_json<(string | number | null)[]>(foodSheet, {
+    const sheet = workbook.Sheets[foodSheetName];
+    const rows = XLSX.utils.sheet_to_json<(string | number | null)[]>(sheet, {
       header: 1,
       raw: false,
       defval: '',
       blankrows: false,
     });
 
-    for (let i = 9; i < foodRows.length; i += 1) {
-      const row = foodRows[i] ?? [];
+    for (let i = 8; i < rows.length; i += 1) {
+      const row = rows[i] ?? [];
       const label = cleanProductLabel(String(row[0] ?? ''));
       if (!label || !isLikelyProductLabel(label)) continue;
-
-      const normalized = normalize(label);
-      if (!normalized) continue;
 
       const costHt = toNumber(row[1]);
       const sellPriceTtc = toNumber(row[2]);
       const sellPriceHt = sellPriceTtc !== null ? sellPriceTtc / 1.1 : null;
       const marginPercent = toNumber(row[3]);
       const marginEuro = sellPriceHt !== null && costHt !== null ? sellPriceHt - costHt : null;
+      const normalized = normalize(label);
+
+      if (!normalized) continue;
+      if (costHt === null && sellPriceHt === null && marginPercent === null && marginEuro === null) continue;
 
       map.set(normalized, {
         label,
@@ -639,7 +643,7 @@ const buildMarginCatalogFromSimpleWorkbook = (workbook: any, XLSX: any): MarginC
         sellPriceHt,
         marginPercent,
         marginEuro,
-        sourceSheet: foodSheetName,
+        sourceSheet: foodSheetName.trim(),
         section: 'Food',
       });
     }
@@ -647,55 +651,69 @@ const buildMarginCatalogFromSimpleWorkbook = (workbook: any, XLSX: any): MarginC
 
   const formulasSheetName = findWorkbookSheetName(workbook.SheetNames, 'FORMULES');
   if (formulasSheetName) {
-    const formulasSheet = workbook.Sheets[formulasSheetName];
-    const formulaRows = XLSX.utils.sheet_to_json<(string | number | null)[]>(formulasSheet, {
+    const sheet = workbook.Sheets[formulasSheetName];
+    const rows = XLSX.utils.sheet_to_json<(string | number | null)[]>(sheet, {
       header: 1,
       raw: false,
       defval: '',
       blankrows: false,
     });
 
-    let currentMenu = '';
-    for (let i = 0; i < formulaRows.length; i += 1) {
-      const row = formulaRows[i] ?? [];
-      const colB = cleanProductLabel(String(row[1] ?? ''));
-      const colC = cleanProductLabel(String(row[2] ?? ''));
+    let currentMenu = 'Menus';
+    let currentSubSection = '';
 
-      if (colB && colB.toUpperCase().includes('MENU')) {
-        currentMenu = colB;
-      }
-
-      if (!colC || !isLikelyProductLabel(colC)) continue;
-
-      const upper = colC.toUpperCase();
-      if (
-        upper.includes('ENTREE +') ||
-        upper.includes('PLAT +') ||
-        upper.includes('DESSERT') ||
-        upper === 'PRODUITS' ||
-        upper === 'PRODUIT'
-      ) {
-        continue;
-      }
-
-      const normalized = normalize(colC);
-      if (!normalized) continue;
-
+    for (let i = 0; i < rows.length; i += 1) {
+      const row = rows[i] ?? [];
+      const menuCell = cleanSectionLabel(String(row[1] ?? ''));
+      const label = cleanProductLabel(String(row[2] ?? ''));
       const costHt = toNumber(row[3]);
       const sellPriceTtc = toNumber(row[5]);
       const sellPriceHt = sellPriceTtc !== null ? sellPriceTtc / 1.1 : null;
       const marginPercent = toNumber(row[6]);
       const marginEuro = sellPriceHt !== null && costHt !== null ? sellPriceHt - costHt : null;
 
-      map.set(normalized, {
-        label: colC,
-        normalized,
+      const normalizedMenu = normalize(menuCell);
+      if (normalizedMenu.startsWith('menu ')) {
+        currentMenu = menuCell;
+        currentSubSection = '';
+      } else if (
+        menuCell &&
+        isLikelySectionLabel(menuCell) &&
+        !normalize(menuCell).startsWith('offre')
+      ) {
+        currentSubSection = menuCell;
+      }
+
+      if (!label || !isLikelyProductLabel(label)) continue;
+
+      const normalizedLabel = normalize(label);
+      if (!normalizedLabel) continue;
+
+      const blocked = new Set([
+        'offre',
+        'produits',
+        'produit',
+        'cr',
+        'pvc',
+        'marge',
+        'poids produit',
+        'poids',
+      ]);
+      if (blocked.has(normalizedLabel)) continue;
+
+      if (costHt === null && sellPriceHt === null && marginPercent === null && marginEuro === null) continue;
+
+      const section = currentSubSection ? `${currentMenu} • ${currentSubSection}` : currentMenu;
+
+      map.set(normalizedLabel, {
+        label,
+        normalized: normalizedLabel,
         costHt,
         sellPriceHt,
         marginPercent,
         marginEuro,
-        sourceSheet: formulasSheetName,
-        section: currentMenu || 'Menus',
+        sourceSheet: formulasSheetName.trim(),
+        section,
       });
     }
   }
@@ -708,20 +726,21 @@ const buildMarginCatalogFromWorkbook = async (file: File): Promise<MarginCatalog
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer, { type: 'array', cellFormula: true, cellText: true, cellNF: false });
 
-  const foodSheetName = findWorkbookSheetName(workbook.SheetNames, 'FOOD');
-  if (foodSheetName) {
-    const foodSheet = workbook.Sheets[foodSheetName];
-    const foodRows = XLSX.utils.sheet_to_json<(string | number | null)[]>(foodSheet, {
+  const compactFoodSheetName = findWorkbookSheetName(workbook.SheetNames, 'FOOD');
+  if (compactFoodSheetName) {
+    const compactFoodSheet = workbook.Sheets[compactFoodSheetName];
+    const compactFoodRows = XLSX.utils.sheet_to_json<(string | number | null)[]>(compactFoodSheet, {
       header: 1,
       raw: false,
       defval: '',
       blankrows: false,
     });
-    const headerA = normalize(String(foodRows?.[7]?.[0] ?? ''));
-    const headerB = normalize(String(foodRows?.[7]?.[1] ?? ''));
-    if (headerA.includes('produit') && headerB.includes('cout')) {
-      const simpleCatalog = buildMarginCatalogFromSimpleWorkbook(workbook, XLSX);
-      if (simpleCatalog.length > 0) return simpleCatalog;
+    const compactHeader = compactFoodRows[7] ?? [];
+    const compactFirstHeader = normalize(String(compactHeader[0] ?? ''));
+    const compactSecondHeader = normalize(String(compactHeader[1] ?? ''));
+    if (compactFirstHeader.includes('produit') && compactSecondHeader.includes('cout')) {
+      const compactCatalog = buildCompactMarginCatalog(workbook, XLSX);
+      if (compactCatalog.length > 0) return compactCatalog;
     }
   }
 
@@ -1197,6 +1216,27 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     }
   };
 
+  const handleDeleteMarginImport = () => {
+    setMarginCatalog([]);
+    setMarginFileName('');
+    localStorage.removeItem(MARGIN_STORAGE_KEY);
+    localStorage.removeItem(MARGIN_FILE_NAME_STORAGE_KEY);
+    setRows((prev) =>
+      prev
+        .filter((row) => row.marginSource !== 'auto')
+        .map((row) =>
+          normalizeRow({
+            ...row,
+            matchedMarginLabel: '',
+            matchedMarginSheet: '',
+          }),
+        ),
+    );
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    setImportMessage('Import marge supprimé. Tu peux réimporter le fichier.');
+  };
+
+
   const autoLinkAllImports = () => {
     setRows((prev) => {
       const linked = autoLinkImportsToRows(prev, availableImports);
@@ -1273,6 +1313,14 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                   className="rounded-[16px] border border-[#B55A3C] bg-[#F7E8DE] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#8D4F35] transition hover:bg-[#F2DDCF]"
                 >
                   {isImportingMargin ? 'Import...' : 'Importer fichier marge'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteMarginImport}
+                  disabled={marginCatalog.length === 0 && !marginFileName}
+                  className="rounded-[16px] border border-[#D8B09F] bg-[#FFF5EF] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#9C5B41] transition hover:bg-[#F9E6DC] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Supprimer import marge
                 </button>
                 <button
                   type="button"
