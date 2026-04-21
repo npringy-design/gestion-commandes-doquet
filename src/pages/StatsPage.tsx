@@ -273,14 +273,6 @@ const StatsPage: React.FC<StatsPageProps> = ({
                   Taux de prise
                 </button>
 
-                <button
-                  onClick={() => setView('take_rate_sheet')}
-                  className="rounded-[22px] border border-[#B69034] bg-[linear-gradient(180deg,#E5B548_0%,#CC9530_100%)] px-4 py-4 text-center text-[11px] font-black uppercase tracking-[0.14em] text-[#4F2D18] shadow-[0_4px_0_#9A691B] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#9A691B]"
-                >
-                  Feuille
-                  <br />
-                  Taux de prise
-                </button>
               </>
             )}
           </div>

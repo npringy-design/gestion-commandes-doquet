@@ -266,10 +266,10 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
           </div>
 
           <button
-            onClick={() => setView('stats')}
+            onClick={() => setView('home')}
             className="rounded-[14px] border border-[#E7C990] bg-[#FFF7E2] px-4 py-3 text-[12px] font-black uppercase tracking-[0.08em] text-[#7A5A22] transition hover:bg-[#F7E0AD]"
           >
-            ← Retour paramètres
+            ← Retour accueil
           </button>
         </div>
 

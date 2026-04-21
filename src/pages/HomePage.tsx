@@ -166,8 +166,8 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           <div
             className={`grid justify-center gap-x-6 gap-y-8 ${
               showStats
-                ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4'
-                : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
+                ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-5'
+                : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4'
             }`}
           >
             <HomeCard
@@ -231,6 +231,26 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M5 18h14" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M7 16V9M12 16V6M17 16V11" />
+                </svg>
+              }
+            />
+
+            <HomeCard
+              title={'Taux de\nPrise'}
+              accent="#f1d36b"
+              accent2="#d59b1f"
+              shadow="#a06a10"
+              edge="rgba(255,255,255,0.22)"
+              iconTone="#8f580a"
+              onClick={() => setView('take_rate_sheet')}
+              icon={
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M4 18h16" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M7 14l3-3 3 2 4-5" />
+                  <circle cx="7" cy="14" r="1.2" fill="currentColor" stroke="none" />
+                  <circle cx="10" cy="11" r="1.2" fill="currentColor" stroke="none" />
+                  <circle cx="13" cy="13" r="1.2" fill="currentColor" stroke="none" />
+                  <circle cx="17" cy="8" r="1.2" fill="currentColor" stroke="none" />
                 </svg>
               }
             />
