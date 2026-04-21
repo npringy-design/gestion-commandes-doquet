@@ -20,6 +20,7 @@ const PrepSheetPage = lazy(() => import('../pages/PrepSheetPage'));
 const PrepRatiosPage = lazy(() => import('../pages/PrepRatiosPage'));
 const TakeRatePage = lazy(() => import('../pages/TakeRatePage'));
 const TakeRateResultsPage = lazy(() => import('../pages/TakeRateResultsPage'));
+const ProductMixPage = lazy(() => import('../pages/ProductMixPage'));
 
 type ScrollSyncSource = 'main' | 'bottom';
 
@@ -292,6 +293,16 @@ const AppRouter: React.FC<AppRouterProps> = ({
         syncRatiosScroll={syncRatiosScroll}
       />,
       'Chargement des ratios…'
+    );
+  }
+
+  if (view === 'product_mix') {
+    return renderLazyPage(
+      <ProductMixPage
+        setView={setView}
+        salesHtByMonth={state.salesHtByMonth}
+      />,
+      'Chargement du mix produit…'
     );
   }
 

@@ -56,7 +56,8 @@ export type CoreView =
   | 'prep_sheet'
   | 'prep_ratios'
   | 'take_rate'
-  | 'take_rate_sheet';
+  | 'take_rate_sheet'
+  | 'product_mix';
 
 export type View = CoreView | (string & {});
 
@@ -89,6 +90,7 @@ export const RESERVED_VIEWS = new Set<CoreView>([
   'prep_ratios',
   'take_rate',
   'take_rate_sheet',
+  'product_mix',
 ]);
 
 export const slugifySupplierId = (value: string): string =>
