@@ -189,6 +189,7 @@ const inferFamilyFromSheet = (sheet: string) => {
   if (normalized.includes('vin')) return 'Vins';
   if (normalized.includes('formule')) return 'Menus';
   if (normalized.includes('food')) return 'Food';
+  if (normalized.includes('produit')) return 'Produits';
   return '';
 };
 
