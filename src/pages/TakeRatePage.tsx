@@ -1081,31 +1081,27 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     }
   };
 
-  const clearMarginImport = () => {
+  const handleDeleteMarginImport = () => {
     setMarginCatalog([]);
     setMarginFileName('');
-    setSelectedRowIds([]);
-    setPendingImportsByRow({});
-    setSearchByRow({});
-    setOpenSearchRow(null);
-    setOpenLinkedRow(null);
-
+    setImportMessage('Import marge supprimé. Tu peux réimporter le fichier.');
     localStorage.removeItem(MARGIN_STORAGE_KEY);
     localStorage.removeItem(MARGIN_FILE_NAME_STORAGE_KEY);
 
     setRows((prev) =>
-      prev.filter(
-        (row) =>
-          !row.matchedMarginLabel?.trim() &&
-          !row.matchedMarginSheet?.trim() &&
-          row.marginSource !== 'auto',
-      ),
+      prev
+        .filter((row) => row.marginSource !== 'auto')
+        .map((row) =>
+          normalizeRow({
+            ...row,
+            matchedMarginLabel: '',
+            matchedMarginSheet: '',
+          }),
+        ),
     );
 
     if (fileInputRef.current) fileInputRef.current.value = '';
-    setImportMessage('Import marge supprimé. Tu peux réimporter un fichier propre.');
   };
-
 
   const autoLinkAllImports = () => {
     setRows((prev) => {
@@ -1186,9 +1182,9 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 </button>
                 <button
                   type="button"
-                  onClick={clearMarginImport}
+                  onClick={handleDeleteMarginImport}
                   disabled={marginCatalog.length === 0 && !marginFileName}
-                  className="rounded-[16px] border border-[#C16A48] bg-[#FCEEE7] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#A24E30] transition hover:bg-[#F9E2D6] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-[16px] border border-[#D8B09F] bg-[#FFF5EF] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#9C5B41] transition hover:bg-[#F9E6DC] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Supprimer import marge
                 </button>
