@@ -189,6 +189,7 @@ const inferFamilyFromSheet = (sheet: string) => {
   if (normalized.includes('vin')) return 'Vins';
   if (normalized.includes('formule')) return 'Menus';
   if (normalized.includes('food')) return 'Food';
+  if (normalized.includes('produit')) return 'Produits';
   return '';
 };
 
@@ -347,6 +348,7 @@ type MarginSourceConfig = {
   stateCol?: number;
   familyFallback?: string;
   sectionMode?: 'simple' | 'hierarchical' | 'menu';
+  sellIsTtc?: boolean;
 };
 
 const getSimpleCellString = (row: Array<string | number | null>, index: number) => cleanSectionLabel(String(row[index] ?? '').trim());
@@ -400,7 +402,8 @@ const buildSimpleMarginItems = (
     const rawProduct = getSimpleCellString(row, source.productCol);
     const label = cleanProductLabel(rawProduct);
     const costHt = toNumber(row[source.costCol]);
-    const sellPriceHt = toNumber(row[source.sellCol]);
+    const rawSellPrice = toNumber(row[source.sellCol]);
+    const sellPriceHt = rawSellPrice === null ? null : source.sellIsTtc ? rawSellPrice / 1.1 : rawSellPrice;
     const marginPercent = toNumber(row[source.marginCol]);
     const numericCount = [costHt, sellPriceHt, marginPercent].filter((value) => value !== null).length;
 
@@ -451,7 +454,8 @@ const buildWineMarginItems = (
     const productLabel = cleanProductLabel(rawProduct);
 
     const costHt = toNumber(row[source.costCol]);
-    const sellPriceHt = toNumber(row[source.sellCol]);
+    const rawSellPrice = toNumber(row[source.sellCol]);
+    const sellPriceHt = rawSellPrice === null ? null : source.sellIsTtc ? rawSellPrice / 1.1 : rawSellPrice;
     const marginPercent = toNumber(row[source.marginCol]);
     const numericCount = [costHt, sellPriceHt, marginPercent].filter((value) => value !== null).length;
 
@@ -520,7 +524,8 @@ const buildMenuMarginItems = (
     const rawProduct = getSimpleCellString(row, source.productCol);
     const label = cleanProductLabel(rawProduct);
     const costHt = toNumber(row[source.costCol]);
-    const sellPriceHt = toNumber(row[source.sellCol]);
+    const rawSellPrice = toNumber(row[source.sellCol]);
+    const sellPriceHt = rawSellPrice === null ? null : source.sellIsTtc ? rawSellPrice / 1.1 : rawSellPrice;
     const marginPercent = toNumber(row[source.marginCol]);
 
     if (sectionCell && !isSimpleRecipeValue(sectionCell) && !isSimpleStatusValue(sectionCell) && !looksLikeFormatValue(sectionCell)) {
@@ -604,147 +609,14 @@ const scoreImportMatch = (rowLabel: string, importLabel: string) => {
   return rowCovered * 140 + intersection.length * 25 + (allRowInsideImport ? 90 : 0) + substringBonus + exactStrongBonus - extraPenalty;
 };
 
-
-const buildCompactMarginCatalog = (
-  workbook: any,
-  XLSX: any
-): MarginCatalogItem[] => {
-  const map = new Map<string, MarginCatalogItem>();
-
-  const foodSheetName = findWorkbookSheetName(workbook.SheetNames, 'FOOD');
-  if (foodSheetName) {
-    const sheet = workbook.Sheets[foodSheetName];
-    const rows = XLSX.utils.sheet_to_json<(string | number | null)[]>(sheet, {
-      header: 1,
-      raw: false,
-      defval: '',
-      blankrows: false,
-    });
-
-    for (let i = 8; i < rows.length; i += 1) {
-      const row = rows[i] ?? [];
-      const label = cleanProductLabel(String(row[0] ?? ''));
-      if (!label || !isLikelyProductLabel(label)) continue;
-
-      const costHt = toNumber(row[1]);
-      const sellPriceTtc = toNumber(row[2]);
-      const sellPriceHt = sellPriceTtc !== null ? sellPriceTtc / 1.1 : null;
-      const marginPercent = toNumber(row[3]);
-      const marginEuro = sellPriceHt !== null && costHt !== null ? sellPriceHt - costHt : null;
-      const normalized = normalize(label);
-
-      if (!normalized) continue;
-      if (costHt === null && sellPriceHt === null && marginPercent === null && marginEuro === null) continue;
-
-      map.set(normalized, {
-        label,
-        normalized,
-        costHt,
-        sellPriceHt,
-        marginPercent,
-        marginEuro,
-        sourceSheet: foodSheetName.trim(),
-        section: 'Food',
-      });
-    }
-  }
-
-  const formulasSheetName = findWorkbookSheetName(workbook.SheetNames, 'FORMULES');
-  if (formulasSheetName) {
-    const sheet = workbook.Sheets[formulasSheetName];
-    const rows = XLSX.utils.sheet_to_json<(string | number | null)[]>(sheet, {
-      header: 1,
-      raw: false,
-      defval: '',
-      blankrows: false,
-    });
-
-    let currentMenu = 'Menus';
-    let currentSubSection = '';
-
-    for (let i = 0; i < rows.length; i += 1) {
-      const row = rows[i] ?? [];
-      const menuCell = cleanSectionLabel(String(row[1] ?? ''));
-      const label = cleanProductLabel(String(row[2] ?? ''));
-      const costHt = toNumber(row[3]);
-      const sellPriceTtc = toNumber(row[5]);
-      const sellPriceHt = sellPriceTtc !== null ? sellPriceTtc / 1.1 : null;
-      const marginPercent = toNumber(row[6]);
-      const marginEuro = sellPriceHt !== null && costHt !== null ? sellPriceHt - costHt : null;
-
-      const normalizedMenu = normalize(menuCell);
-      if (normalizedMenu.startsWith('menu ')) {
-        currentMenu = menuCell;
-        currentSubSection = '';
-      } else if (
-        menuCell &&
-        isLikelySectionLabel(menuCell) &&
-        !normalize(menuCell).startsWith('offre')
-      ) {
-        currentSubSection = menuCell;
-      }
-
-      if (!label || !isLikelyProductLabel(label)) continue;
-
-      const normalizedLabel = normalize(label);
-      if (!normalizedLabel) continue;
-
-      const blocked = new Set([
-        'offre',
-        'produits',
-        'produit',
-        'cr',
-        'pvc',
-        'marge',
-        'poids produit',
-        'poids',
-      ]);
-      if (blocked.has(normalizedLabel)) continue;
-
-      if (costHt === null && sellPriceHt === null && marginPercent === null && marginEuro === null) continue;
-
-      const section = currentSubSection ? `${currentMenu} • ${currentSubSection}` : currentMenu;
-
-      map.set(normalizedLabel, {
-        label,
-        normalized: normalizedLabel,
-        costHt,
-        sellPriceHt,
-        marginPercent,
-        marginEuro,
-        sourceSheet: formulasSheetName.trim(),
-        section,
-      });
-    }
-  }
-
-  return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label, 'fr'));
-};
-
 const buildMarginCatalogFromWorkbook = async (file: File): Promise<MarginCatalogItem[]> => {
   const XLSX = await import('xlsx');
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer, { type: 'array', cellFormula: true, cellText: true, cellNF: false });
 
-  const compactFoodSheetName = findWorkbookSheetName(workbook.SheetNames, 'FOOD');
-  if (compactFoodSheetName) {
-    const compactFoodSheet = workbook.Sheets[compactFoodSheetName];
-    const compactFoodRows = XLSX.utils.sheet_to_json<(string | number | null)[]>(compactFoodSheet, {
-      header: 1,
-      raw: false,
-      defval: '',
-      blankrows: false,
-    });
-    const compactHeader = compactFoodRows[7] ?? [];
-    const compactFirstHeader = normalize(String(compactHeader[0] ?? ''));
-    const compactSecondHeader = normalize(String(compactHeader[1] ?? ''));
-    if (compactFirstHeader.includes('produit') && compactSecondHeader.includes('cout')) {
-      const compactCatalog = buildCompactMarginCatalog(workbook, XLSX);
-      if (compactCatalog.length > 0) return compactCatalog;
-    }
-  }
-
   const sources: MarginSourceConfig[] = [
+    { name: 'Produits', productCol: 0, costCol: 1, sellCol: 2, marginCol: 3, startRow: 2, familyFallback: 'Produits', sellIsTtc: true },
+    { name: 'Formules', productCol: 0, costCol: 1, sellCol: 2, marginCol: 3, startRow: 2, familyFallback: 'Menus', sellIsTtc: true },
     { name: 'FOOD', productCol: 2, costCol: 6, sellCol: 8, marginCol: 13, startRow: 9, sectionCol: 0, familyFallback: 'Food' },
     { name: 'BOEUF ', productCol: 2, costCol: 9, sellCol: 11, marginCol: 16, startRow: 9, sectionCol: 0, familyFallback: 'Boeuf' },
     { name: 'BOISSONS', productCol: 2, costCol: 5, sellCol: 8, marginCol: 13, startRow: 8, sectionCol: 0, familyFallback: 'Boissons' },
@@ -1216,27 +1088,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     }
   };
 
-  const handleDeleteMarginImport = () => {
-    setMarginCatalog([]);
-    setMarginFileName('');
-    localStorage.removeItem(MARGIN_STORAGE_KEY);
-    localStorage.removeItem(MARGIN_FILE_NAME_STORAGE_KEY);
-    setRows((prev) =>
-      prev
-        .filter((row) => row.marginSource !== 'auto')
-        .map((row) =>
-          normalizeRow({
-            ...row,
-            matchedMarginLabel: '',
-            matchedMarginSheet: '',
-          }),
-        ),
-    );
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    setImportMessage('Import marge supprimé. Tu peux réimporter le fichier.');
-  };
-
-
   const autoLinkAllImports = () => {
     setRows((prev) => {
       const linked = autoLinkImportsToRows(prev, availableImports);
@@ -1313,14 +1164,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                   className="rounded-[16px] border border-[#B55A3C] bg-[#F7E8DE] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#8D4F35] transition hover:bg-[#F2DDCF]"
                 >
                   {isImportingMargin ? 'Import...' : 'Importer fichier marge'}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDeleteMarginImport}
-                  disabled={marginCatalog.length === 0 && !marginFileName}
-                  className="rounded-[16px] border border-[#D8B09F] bg-[#FFF5EF] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#9C5B41] transition hover:bg-[#F9E6DC] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Supprimer import marge
                 </button>
                 <button
                   type="button"
