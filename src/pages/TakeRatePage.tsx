@@ -31,13 +31,6 @@ interface TakeRatePageProps {
   prepImportsByMonth: Record<string, string>;
 }
 
-interface TakeRateMonthSnapshot {
-  rows: TakeRateMappingRow[];
-  marginCatalog: MarginCatalogItem[];
-  marginFileName: string;
-  frozenAt: string;
-}
-
 type RowStatus = 'ok' | 'review' | 'unlinked';
 
 const ROWS_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_rows_v3`;
@@ -47,8 +40,6 @@ const LEGACY_ROWS_STORAGE_KEYS = [
 ];
 const MARGIN_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_margin_catalog_v1`;
 const MARGIN_FILE_NAME_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_margin_file_name_v1`;
-const TAKE_RATE_MONTH_DRAFTS_KEY = `${STORAGE_PREFIX}take_rate_month_drafts_v1`;
-const TAKE_RATE_FROZEN_MONTHS_KEY = `${STORAGE_PREFIX}take_rate_frozen_months_v1`;
 
 const createEmptyRow = (): TakeRateMappingRow => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
@@ -767,16 +758,13 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const [productSearch, setProductSearch] = useState('');
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
   const [pendingImportsByRow, setPendingImportsByRow] = useState<Record<string, string[]>>({});
-  const [selectedMonthKey, setSelectedMonthKey] = useState('');
-  const [monthDraftsHydrated, setMonthDraftsHydrated] = useState(false);
-  const [monthDrafts, setMonthDrafts] = useState<Record<string, TakeRateMonthSnapshot>>({});
-  const [frozenMonths, setFrozenMonths] = useState<Record<string, TakeRateMonthSnapshot>>({});
   const [didHydrateRows, setDidHydrateRows] = useState(false);
   const [didHydrateMargin, setDidHydrateMargin] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
   const bottomScrollRef = useRef<HTMLDivElement | null>(null);
   const bottomScrollInnerRef = useRef<HTMLDivElement | null>(null);
+  const isApplyingMonthRef = useRef(false);
 
   useEffect(() => {
     try {
@@ -815,95 +803,13 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     }
   }, []);
 
-  useEffect(() => {
-    try {
-      const rawDrafts = localStorage.getItem(TAKE_RATE_MONTH_DRAFTS_KEY);
-      if (rawDrafts) {
-        const parsed = JSON.parse(rawDrafts);
-        if (parsed && typeof parsed === 'object') setMonthDrafts(parsed);
-      }
-
-      const rawFrozen = localStorage.getItem(TAKE_RATE_FROZEN_MONTHS_KEY);
-      if (rawFrozen) {
-        const parsed = JSON.parse(rawFrozen);
-        if (parsed && typeof parsed === 'object') setFrozenMonths(parsed);
-      }
-    } catch (_error) {}
-    finally {
-      setMonthDraftsHydrated(true);
-    }
-  }, []);
-
-  const monthOptions = useMemo(
-    () =>
-      MONTHS_DISPLAY_CONFIG.filter(({ key }) => Boolean(prepImportsByMonth[key] ?? '')).map((entry: any) => ({
-        key: entry.key,
-        label: entry.label ?? entry.name ?? entry.key,
-      })),
-    [prepImportsByMonth],
-  );
-
-  useEffect(() => {
-    if (selectedMonthKey) return;
-    if (monthOptions.length === 0) return;
-    setSelectedMonthKey(monthOptions[monthOptions.length - 1].key);
-  }, [monthOptions, selectedMonthKey]);
-
-  const selectedSnapshot = useMemo(() => {
-    if (!selectedMonthKey) return null;
-    return frozenMonths[selectedMonthKey] ?? monthDrafts[selectedMonthKey] ?? null;
-  }, [selectedMonthKey, frozenMonths, monthDrafts]);
-
-  useEffect(() => {
-    if (!monthDraftsHydrated || !selectedMonthKey) return;
-
-    const snapshot = frozenMonths[selectedMonthKey] ?? monthDrafts[selectedMonthKey];
-    if (snapshot) {
-      setRows((snapshot.rows ?? []).map(normalizeRow));
-      setMarginCatalog(snapshot.marginCatalog ?? []);
-      setMarginFileName(snapshot.marginFileName ?? '');
-      setImportMessage(
-        frozenMonths[selectedMonthKey]
-          ? `Mois figé chargé : ${snapshot.rows?.length ?? 0} lignes.`
-          : '',
-      );
-    } else {
-      setRows([]);
-      setMarginCatalog([]);
-      setMarginFileName('');
-      setImportMessage('');
-    }
-
-    setSearchByRow({});
-    setOpenSearchRow(null);
-    setOpenLinkedRow(null);
-    setPendingImportsByRow({});
-    setSelectedRowIds([]);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  }, [selectedMonthKey, monthDraftsHydrated, frozenMonths, monthDrafts]);
-
-  useEffect(() => {
-    if (!monthDraftsHydrated || !selectedMonthKey) return;
-    if (frozenMonths[selectedMonthKey]) return;
-
-    const next = {
-      ...monthDrafts,
-      [selectedMonthKey]: {
-        rows,
-        marginCatalog,
-        marginFileName,
-        frozenAt: monthDrafts[selectedMonthKey]?.frozenAt ?? '',
-      },
-    };
-    setMonthDrafts(next);
-    localStorage.setItem(TAKE_RATE_MONTH_DRAFTS_KEY, JSON.stringify(next));
-  }, [rows, marginCatalog, marginFileName, selectedMonthKey, monthDraftsHydrated]);
-
   const availableImports = useMemo(() => {
-    if (!selectedMonthKey) return [];
-    const labels = extractImportLabels(prepImportsByMonth[selectedMonthKey] ?? '');
-    return Array.from(new Set(labels)).sort((a, b) => a.localeCompare(b, 'fr'));
-  }, [prepImportsByMonth, selectedMonthKey]);
+    const unique = new Set<string>();
+    MONTHS_DISPLAY_CONFIG.forEach(({ key }) => {
+      extractImportLabels(prepImportsByMonth[key] ?? '').forEach((label) => unique.add(label));
+    });
+    return Array.from(unique).sort((a, b) => a.localeCompare(b, 'fr'));
+  }, [prepImportsByMonth]);
 
   useEffect(() => {
     if (!didHydrateRows || !didHydrateMargin) return;
@@ -1146,30 +1052,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     return result;
   }, [availableImports, rows, searchByRow, pendingImportsByRow]);
 
-  const handleFreezeMonth = () => {
-    if (!selectedMonthKey) return;
-    const snapshot = {
-      rows,
-      marginCatalog,
-      marginFileName,
-      frozenAt: new Date().toISOString(),
-    };
-
-    const nextFrozen = { ...frozenMonths, [selectedMonthKey]: snapshot };
-    setFrozenMonths(nextFrozen);
-    localStorage.setItem(TAKE_RATE_FROZEN_MONTHS_KEY, JSON.stringify(nextFrozen));
-    setImportMessage('Mois figé.');
-  };
-
-  const handleUnfreezeMonth = () => {
-    if (!selectedMonthKey) return;
-    const nextFrozen = { ...frozenMonths };
-    delete nextFrozen[selectedMonthKey];
-    setFrozenMonths(nextFrozen);
-    localStorage.setItem(TAKE_RATE_FROZEN_MONTHS_KEY, JSON.stringify(nextFrozen));
-    setImportMessage('Mois défigé.');
-  };
-
   const handleImportMarginFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -1199,22 +1081,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       if (event.target) event.target.value = '';
     }
   };
-
-  const handleDeleteMarginImport = () => {
-    setRows([]);
-    setMarginCatalog([]);
-    setMarginFileName('');
-    setSearchByRow({});
-    setOpenSearchRow(null);
-    setOpenLinkedRow(null);
-    setPendingImportsByRow({});
-    setSelectedRowIds([]);
-    localStorage.removeItem(MARGIN_STORAGE_KEY);
-    localStorage.removeItem(MARGIN_FILE_NAME_STORAGE_KEY);
-    setImportMessage('Import marge supprimé.');
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
 
   const autoLinkAllImports = () => {
     setRows((prev) => {
@@ -1284,46 +1150,14 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 <h2 className="mt-1 text-[21px] font-black text-[#582F21]">Paramétrage taux de prise</h2>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2">
                 <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportMarginFile} />
-
-                <div className="flex flex-wrap items-center gap-3 rounded-[18px] border border-[#E0CFC2] bg-[#F8EFE7] px-3 py-2">
-                  <span className="text-[11px] font-black uppercase tracking-[0.08em] text-[#8A604B]">Mois</span>
-                  <select
-                    value={selectedMonthKey}
-                    onChange={(event) => setSelectedMonthKey(event.target.value)}
-                    className="rounded-[14px] border border-[#D9C2B3] bg-white px-3 py-2 text-[12px] font-black uppercase tracking-[0.08em] text-[#7A4E39]"
-                  >
-                    {monthOptions.map((month) => (
-                      <option key={month.key} value={month.key}>
-                        {month.label}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={frozenMonths[selectedMonthKey] ? handleUnfreezeMonth : handleFreezeMonth}
-                    disabled={!selectedMonthKey || rows.length === 0}
-                    className="rounded-[14px] border border-[#C19A58] bg-[#FFF1D8] px-3 py-2 text-[12px] font-black uppercase tracking-[0.08em] text-[#8C5C1F] transition hover:bg-[#F7E6C6] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {frozenMonths[selectedMonthKey] ? 'Défiger' : 'Figer le mois'}
-                  </button>
-                </div>
-
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   className="rounded-[16px] border border-[#B55A3C] bg-[#F7E8DE] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#8D4F35] transition hover:bg-[#F2DDCF]"
                 >
                   {isImportingMargin ? 'Import...' : 'Importer fichier marge'}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDeleteMarginImport}
-                  disabled={rows.length === 0 && marginCatalog.length === 0 && !marginFileName}
-                  className="rounded-[16px] border border-[#D5B8A8] bg-[#FFF4EE] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#8E5B46] transition hover:bg-[#F7E8DF] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Supprimer import marge
                 </button>
                 <button
                   type="button"
@@ -1338,15 +1172,26 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 >
                   Ajouter une ligne
                 </button>
+                <button
+                  type="button"
+                  onClick={toggleSelectAllVisibleRows}
+                  className="rounded-[16px] border border-[#D2B39C] bg-[#F8EDE1] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#7F563F] transition hover:bg-[#F2E2D0]"
+                >
+                  {allVisibleRowsSelected ? 'Désélectionner visibles' : 'Sélectionner visibles'}
+                </button>
+                <button
+                  type="button"
+                  onClick={removeSelectedRows}
+                  disabled={selectedRowIds.length === 0}
+                  className="rounded-[16px] border border-[#C16A48] bg-[#FCEEE7] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#A24E30] transition hover:bg-[#F9E2D6] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Supprimer sélection
+                </button>
               </div>
             </div>
+
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] font-semibold text-[#7A5240]">
               <span>{marginFileName ? `Fichier marge : ${marginFileName}` : 'Aucun fichier marge chargé'}</span>
-              {selectedMonthKey ? (
-                <span className={frozenMonths[selectedMonthKey] ? 'text-[#2F6F42]' : 'text-[#8B5E3C]'}>
-                  • {frozenMonths[selectedMonthKey] ? 'Mois figé' : 'Mois en cours'}
-                </span>
-              ) : null}
               {importMessage ? <span className="text-[#9A4F33]">• {importMessage}</span> : null}
             </div>
 
