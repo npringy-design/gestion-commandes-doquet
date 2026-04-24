@@ -188,6 +188,7 @@ const inferFamilyFromSheet = (sheet: string) => {
   if (normalized.includes('vin')) return 'Vins';
   if (normalized.includes('formule')) return 'Menus';
   if (normalized.includes('food')) return 'Food';
+  if (normalized.includes('produit')) return 'Produits';
   return '';
 };
 
@@ -346,6 +347,7 @@ type MarginSourceConfig = {
   stateCol?: number;
   familyFallback?: string;
   sectionMode?: 'simple' | 'hierarchical' | 'menu';
+  sellIsTtc?: boolean;
 };
 
 const getSimpleCellString = (row: Array<string | number | null>, index: number) => cleanSectionLabel(String(row[index] ?? '').trim());
@@ -399,7 +401,8 @@ const buildSimpleMarginItems = (
     const rawProduct = getSimpleCellString(row, source.productCol);
     const label = cleanProductLabel(rawProduct);
     const costHt = toNumber(row[source.costCol]);
-    const sellPriceHt = toNumber(row[source.sellCol]);
+    const rawSellPrice = toNumber(row[source.sellCol]);
+    const sellPriceHt = rawSellPrice === null ? null : source.sellIsTtc ? rawSellPrice / 1.1 : rawSellPrice;
     const marginPercent = toNumber(row[source.marginCol]);
     const numericCount = [costHt, sellPriceHt, marginPercent].filter((value) => value !== null).length;
 
@@ -603,20 +606,192 @@ const scoreImportMatch = (rowLabel: string, importLabel: string) => {
   return rowCovered * 140 + intersection.length * 25 + (allRowInsideImport ? 90 : 0) + substringBonus + exactStrongBonus - extraPenalty;
 };
 
+
+const findHeaderRowIndex = (rows: Array<Array<string | number | null>>) => {
+  for (let i = 0; i < Math.min(rows.length, 20); i += 1) {
+    const row = rows[i] ?? [];
+    const normalizedRow = row.map((cell) => normalize(String(cell ?? '')));
+    const hasProductLike = normalizedRow.some(
+      (cell) => cell === 'produits' || cell === 'produit' || cell === 'offre',
+    );
+    const hasCostLike = normalizedRow.some(
+      (cell) =>
+        cell.includes('cout de revient') ||
+        cell === 'cr' ||
+        cell.includes('cr moyen') ||
+        cell.includes('cout'),
+    );
+    if (hasProductLike && hasCostLike) return i;
+  }
+  return -1;
+};
+
+const pickColumnIndex = (headers: string[], matchers: Array<(value: string) => boolean>) => {
+  for (let i = 0; i < headers.length; i += 1) {
+    if (matchers.some((matcher) => matcher(headers[i]))) return i;
+  }
+  return -1;
+};
+
+const inferMarginColumnIndex = (
+  rows: Array<Array<string | number | null>>,
+  startRow: number,
+  productCol: number,
+  excluded: number[],
+) => {
+  const maxCols = Math.max(...rows.slice(0, Math.min(rows.length, 20)).map((row) => row.length), 0);
+  let bestIndex = -1;
+  let bestScore = -1;
+
+  for (let col = 0; col < maxCols; col += 1) {
+    if (excluded.includes(col)) continue;
+
+    let score = 0;
+    let samples = 0;
+    for (let i = startRow; i < Math.min(rows.length, startRow + 40); i += 1) {
+      const row = rows[i] ?? [];
+      const label = cleanProductLabel(String(row[productCol] ?? ''));
+      const value = toNumber(row[col]);
+      if (!label || value === null) continue;
+      samples += 1;
+      if (value >= 0 && value <= 1.2) score += 3;
+      if (value > 1.2 && value <= 100) score += 1;
+    }
+
+    if (samples > 0 && score > bestScore) {
+      bestScore = score;
+      bestIndex = col;
+    }
+  }
+
+  return bestIndex;
+};
+
+const buildFlexibleSheetItems = (
+  rows: Array<Array<string | number | null>>,
+  actualSheetName: string
+): MarginCatalogItem[] => {
+  const headerRowIndex = findHeaderRowIndex(rows);
+  if (headerRowIndex < 0) return [];
+
+  const headers = (rows[headerRowIndex] ?? []).map((cell) => normalize(String(cell ?? '')));
+  const productCol = pickColumnIndex(headers, [
+    (value) => value === 'produits' || value === 'produit',
+    (value) => value === 'offre',
+  ]);
+  const familyCol = pickColumnIndex(headers, [
+    (value) => value === 'famille',
+    (value) => value.includes('section'),
+  ]);
+  const costCol = pickColumnIndex(headers, [
+    (value) => value.includes('cout de revient'),
+    (value) => value === 'cr',
+    (value) => value.includes('cr moyen'),
+    (value) => value.includes('cout'),
+  ]);
+  const sellPriceHtCol = pickColumnIndex(headers, [
+    (value) => value.includes('prix ht'),
+  ]);
+  const sellPriceTtcCol = pickColumnIndex(headers, [
+    (value) => value.includes('prix ttc'),
+    (value) => value.includes('perso prix'),
+    (value) => value === 'pvc',
+    (value) => value.includes('prix'),
+  ]);
+
+  let marginCol = pickColumnIndex(headers, [(value) => value.includes('marge')]);
+  const startRow = headerRowIndex + 1;
+
+  if (productCol < 0 || costCol < 0) return [];
+  if (marginCol < 0) {
+    marginCol = inferMarginColumnIndex(
+      rows,
+      startRow,
+      productCol,
+      [productCol, familyCol, costCol, sellPriceHtCol, sellPriceTtcCol].filter((value) => value >= 0),
+    );
+  }
+
+  const items: MarginCatalogItem[] = [];
+  const defaultSection = inferFamilyFromSheet(actualSheetName) || actualSheetName.trim();
+
+  for (let i = startRow; i < rows.length; i += 1) {
+    const row = rows[i] ?? [];
+    const label = cleanProductLabel(String(row[productCol] ?? ''));
+    if (!label || !isLikelyProductLabel(label)) continue;
+
+    const explicitFamily = familyCol >= 0 ? cleanSectionLabel(String(row[familyCol] ?? '')) : '';
+    const costHt = toNumber(row[costCol]);
+    const sellPriceHtRaw = sellPriceHtCol >= 0 ? toNumber(row[sellPriceHtCol]) : null;
+    const sellPriceTtcRaw = sellPriceTtcCol >= 0 ? toNumber(row[sellPriceTtcCol]) : null;
+    const marginPercent = marginCol >= 0 ? toNumber(row[marginCol]) : null;
+    const sellPriceHt = sellPriceHtRaw !== null ? sellPriceHtRaw : sellPriceTtcRaw !== null ? sellPriceTtcRaw / 1.1 : null;
+    const marginEuro = sellPriceHt !== null && costHt !== null ? sellPriceHt - costHt : null;
+
+    if (costHt === null && sellPriceHt === null && marginPercent === null && marginEuro === null) continue;
+
+    const normalized = normalize(label);
+    if (!normalized) continue;
+
+    items.push({
+      label,
+      normalized,
+      costHt,
+      sellPriceHt,
+      marginPercent,
+      marginEuro,
+      sourceSheet: actualSheetName.trim(),
+      section: explicitFamily || defaultSection,
+    });
+  }
+
+  return items;
+};
+
 const buildMarginCatalogFromWorkbook = async (file: File): Promise<MarginCatalogItem[]> => {
   const XLSX = await import('xlsx');
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer, { type: 'array', cellFormula: true, cellText: true, cellNF: false });
 
+  const map = new Map<string, MarginCatalogItem>();
+
+  const flexibleSheetNames = ['Produits', 'FOOD', 'Formules', 'FORMULES'];
+  flexibleSheetNames.forEach((expectedName) => {
+    const actualSheetName = findWorkbookSheetName(workbook.SheetNames, expectedName);
+    if (!actualSheetName) return;
+
+    const sheet = workbook.Sheets[actualSheetName];
+    if (!sheet) return;
+
+    const rows = XLSX.utils.sheet_to_json<(string | number | null)[]>(sheet, {
+      header: 1,
+      raw: false,
+      defval: '',
+      blankrows: false,
+    });
+
+    const items = buildFlexibleSheetItems(rows, actualSheetName);
+    items.forEach((candidate) => {
+      const strictKey = `${candidate.sourceSheet}::${candidate.normalized}`;
+      if (!map.has(strictKey)) {
+        map.set(strictKey, candidate);
+      }
+    });
+  });
+
+  if (map.size > 0) {
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+  }
+
   const sources: MarginSourceConfig[] = [
+    { name: 'Produits', productCol: 0, costCol: 2, sellCol: 3, marginCol: 4, startRow: 2, sectionCol: 1, familyFallback: 'Produits', sellIsTtc: true },
+    { name: 'Formules', productCol: 0, costCol: 3, sellCol: 2, marginCol: 4, startRow: 2, familyFallback: 'Menus' },
     { name: 'FOOD', productCol: 2, costCol: 6, sellCol: 8, marginCol: 13, startRow: 9, sectionCol: 0, familyFallback: 'Food' },
     { name: 'BOEUF ', productCol: 2, costCol: 9, sellCol: 11, marginCol: 16, startRow: 9, sectionCol: 0, familyFallback: 'Boeuf' },
     { name: 'BOISSONS', productCol: 2, costCol: 5, sellCol: 8, marginCol: 13, startRow: 8, sectionCol: 0, familyFallback: 'Boissons' },
     { name: 'VINS_2025_-_2026', productCol: 2, costCol: 10, sellCol: 11, marginCol: 12, startRow: 8, sectionCol: 0, formatCol: 1, stateCol: 0, familyFallback: 'Vins', sectionMode: 'hierarchical' },
     { name: 'FORMULES', productCol: 3, costCol: 6, sellCol: 8, marginCol: 11, startRow: 4, sectionCol: 1, familyFallback: 'Menus', sectionMode: 'menu' },
   ];
-
-  const map = new Map<string, MarginCatalogItem>();
 
   sources.forEach((source) => {
     const actualSheetName = findWorkbookSheetName(workbook.SheetNames, source.name);
@@ -635,23 +810,9 @@ const buildMarginCatalogFromWorkbook = async (file: File): Promise<MarginCatalog
     const items = buildMarginItemsFromRows(rows, source, actualSheetName);
 
     items.forEach((candidate) => {
-      const existing = map.get(candidate.normalized);
-      const existingScore = existing
-        ? Number(existing.sellPriceHt !== null) +
-          Number(existing.costHt !== null) +
-          Number(existing.marginPercent !== null) +
-          Number(existing.marginEuro !== null) +
-          Number(Boolean(existing.section))
-        : -1;
-      const candidateScore =
-        Number(candidate.sellPriceHt !== null) +
-        Number(candidate.costHt !== null) +
-        Number(candidate.marginPercent !== null) +
-        Number(candidate.marginEuro !== null) +
-        Number(Boolean(candidate.section));
-
-      if (!existing || candidateScore >= existingScore) {
-        map.set(candidate.normalized, candidate);
+      const strictKey = `${candidate.sourceSheet}::${candidate.normalized}`;
+      if (!map.has(strictKey)) {
+        map.set(strictKey, candidate);
       }
     });
   });
@@ -1080,6 +1241,22 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     }
   };
 
+  const handleDeleteMarginImport = () => {
+    setMarginCatalog([]);
+    setMarginFileName('');
+    setRows([]);
+    setSearchByRow({});
+    setOpenSearchRow(null);
+    setOpenLinkedRow(null);
+    setPendingImportsByRow({});
+    setSelectedRowIds([]);
+    localStorage.removeItem(MARGIN_STORAGE_KEY);
+    localStorage.removeItem(MARGIN_FILE_NAME_STORAGE_KEY);
+    setImportMessage('Import marge supprimé. Tu peux réimporter le fichier.');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+
   const autoLinkAllImports = () => {
     setRows((prev) => {
       const linked = autoLinkImportsToRows(prev, availableImports);
@@ -1156,6 +1333,14 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                   className="rounded-[16px] border border-[#B55A3C] bg-[#F7E8DE] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#8D4F35] transition hover:bg-[#F2DDCF]"
                 >
                   {isImportingMargin ? 'Import...' : 'Importer fichier marge'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteMarginImport}
+                  disabled={marginCatalog.length === 0 && rows.length === 0 && !marginFileName}
+                  className="rounded-[16px] border border-[#D7BEA9] bg-[#FFF7F1] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#9A6149] transition hover:bg-[#F7EBDD] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Supprimer import marge
                 </button>
                 <button
                   type="button"
