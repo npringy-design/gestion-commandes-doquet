@@ -189,6 +189,7 @@ const inferFamilyFromSheet = (sheet: string) => {
   if (normalized.includes('vin')) return 'Vins';
   if (normalized.includes('formule')) return 'Menus';
   if (normalized.includes('food')) return 'Food';
+  if (normalized.includes('produit')) return 'Produits';
   return '';
 };
 
@@ -609,9 +610,17 @@ const findHeaderRowIndex = (rows: Array<Array<string | number | null>>) => {
   for (let i = 0; i < Math.min(rows.length, 20); i += 1) {
     const row = rows[i] ?? [];
     const normalizedRow = row.map((cell) => normalize(String(cell ?? '')));
-    const hasProduct = normalizedRow.some((cell) => cell === 'produits' || cell === 'produit');
-    const hasCost = normalizedRow.some((cell) => cell.includes('cout de revient') || cell === 'cr');
-    if (hasProduct && hasCost) return i;
+    const hasProductLike = normalizedRow.some(
+      (cell) => cell === 'produits' || cell === 'produit' || cell === 'offre',
+    );
+    const hasCostLike = normalizedRow.some(
+      (cell) =>
+        cell.includes('cout de revient') ||
+        cell === 'cr' ||
+        cell.includes('cr moyen') ||
+        cell.includes('cout'),
+    );
+    if (hasProductLike && hasCostLike) return i;
   }
   return -1;
 };
@@ -660,9 +669,24 @@ const buildFlexibleSheetItems = (
   if (headerRowIndex < 0) return [];
 
   const headers = (rows[headerRowIndex] ?? []).map((cell) => normalize(String(cell ?? '')));
-  const productCol = pickColumnIndex(headers, [(value) => value === 'produits' || value === 'produit']);
-  const costCol = pickColumnIndex(headers, [(value) => value.includes('cout de revient') || value === 'cr']);
-  const sellCol = pickColumnIndex(headers, [
+  const productCol = pickColumnIndex(headers, [
+    (value) => value === 'produits' || value === 'produit',
+    (value) => value === 'offre',
+  ]);
+  const familyCol = pickColumnIndex(headers, [
+    (value) => value === 'famille',
+    (value) => value.includes('section'),
+  ]);
+  const costCol = pickColumnIndex(headers, [
+    (value) => value.includes('cout de revient'),
+    (value) => value === 'cr',
+    (value) => value.includes('cr moyen'),
+    (value) => value.includes('cout'),
+  ]);
+  const sellPriceHtCol = pickColumnIndex(headers, [
+    (value) => value.includes('prix ht'),
+  ]);
+  const sellPriceTtcCol = pickColumnIndex(headers, [
     (value) => value.includes('prix ttc'),
     (value) => value.includes('perso prix'),
     (value) => value === 'pvc',
@@ -674,7 +698,12 @@ const buildFlexibleSheetItems = (
 
   if (productCol < 0 || costCol < 0) return [];
   if (marginCol < 0) {
-    marginCol = inferMarginColumnIndex(rows, startRow, productCol, [productCol, costCol, sellCol].filter((value) => value >= 0));
+    marginCol = inferMarginColumnIndex(
+      rows,
+      startRow,
+      productCol,
+      [productCol, familyCol, costCol, sellPriceHtCol, sellPriceTtcCol].filter((value) => value >= 0),
+    );
   }
 
   const items: MarginCatalogItem[] = [];
@@ -685,10 +714,12 @@ const buildFlexibleSheetItems = (
     const label = cleanProductLabel(String(row[productCol] ?? ''));
     if (!label || !isLikelyProductLabel(label)) continue;
 
+    const explicitFamily = familyCol >= 0 ? cleanSectionLabel(String(row[familyCol] ?? '')) : '';
     const costHt = toNumber(row[costCol]);
-    const sellPriceRaw = sellCol >= 0 ? toNumber(row[sellCol]) : null;
+    const sellPriceHtRaw = sellPriceHtCol >= 0 ? toNumber(row[sellPriceHtCol]) : null;
+    const sellPriceTtcRaw = sellPriceTtcCol >= 0 ? toNumber(row[sellPriceTtcCol]) : null;
     const marginPercent = marginCol >= 0 ? toNumber(row[marginCol]) : null;
-    const sellPriceHt = sellPriceRaw !== null ? sellPriceRaw / 1.1 : null;
+    const sellPriceHt = sellPriceHtRaw !== null ? sellPriceHtRaw : sellPriceTtcRaw !== null ? sellPriceTtcRaw / 1.1 : null;
     const marginEuro = sellPriceHt !== null && costHt !== null ? sellPriceHt - costHt : null;
 
     if (costHt === null && sellPriceHt === null && marginPercent === null && marginEuro === null) continue;
@@ -704,7 +735,7 @@ const buildFlexibleSheetItems = (
       marginPercent,
       marginEuro,
       sourceSheet: actualSheetName.trim(),
-      section: defaultSection,
+      section: explicitFamily || defaultSection,
     });
   }
 
