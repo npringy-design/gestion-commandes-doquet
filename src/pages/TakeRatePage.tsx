@@ -1284,27 +1284,32 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 <h2 className="mt-1 text-[21px] font-black text-[#582F21]">Paramétrage taux de prise</h2>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-3">
                 <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportMarginFile} />
-                <select
-                  value={selectedMonthKey}
-                  onChange={(event) => setSelectedMonthKey(event.target.value)}
-                  className="rounded-[16px] border border-[#D9C2B3] bg-white px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#7A4E39]"
-                >
-                  {monthOptions.map((month) => (
-                    <option key={month.key} value={month.key}>
-                      {month.label}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={frozenMonths[selectedMonthKey] ? handleUnfreezeMonth : handleFreezeMonth}
-                  disabled={!selectedMonthKey || rows.length === 0}
-                  className="rounded-[16px] border border-[#C19A58] bg-[#FFF1D8] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#8C5C1F] transition hover:bg-[#F7E6C6] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {frozenMonths[selectedMonthKey] ? 'Défiger le mois' : 'Figer le mois'}
-                </button>
+
+                <div className="flex flex-wrap items-center gap-3 rounded-[18px] border border-[#E0CFC2] bg-[#F8EFE7] px-3 py-2">
+                  <span className="text-[11px] font-black uppercase tracking-[0.08em] text-[#8A604B]">Mois</span>
+                  <select
+                    value={selectedMonthKey}
+                    onChange={(event) => setSelectedMonthKey(event.target.value)}
+                    className="rounded-[14px] border border-[#D9C2B3] bg-white px-3 py-2 text-[12px] font-black uppercase tracking-[0.08em] text-[#7A4E39]"
+                  >
+                    {monthOptions.map((month) => (
+                      <option key={month.key} value={month.key}>
+                        {month.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={frozenMonths[selectedMonthKey] ? handleUnfreezeMonth : handleFreezeMonth}
+                    disabled={!selectedMonthKey || rows.length === 0}
+                    className="rounded-[14px] border border-[#C19A58] bg-[#FFF1D8] px-3 py-2 text-[12px] font-black uppercase tracking-[0.08em] text-[#8C5C1F] transition hover:bg-[#F7E6C6] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {frozenMonths[selectedMonthKey] ? 'Défiger' : 'Figer le mois'}
+                  </button>
+                </div>
+
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
@@ -1333,26 +1338,14 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 >
                   Ajouter une ligne
                 </button>
-                <button
-                  type="button"
-                  onClick={toggleSelectAllVisibleRows}
-                  className="rounded-[16px] border border-[#D2B39C] bg-[#F8EDE1] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#7F563F] transition hover:bg-[#F2E2D0]"
-                >
-                  {allVisibleRowsSelected ? 'Désélectionner visibles' : 'Sélectionner visibles'}
-                </button>
-                <button
-                  type="button"
-                  onClick={removeSelectedRows}
-                  disabled={selectedRowIds.length === 0}
-                  className="rounded-[16px] border border-[#C16A48] bg-[#FCEEE7] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#A24E30] transition hover:bg-[#F9E2D6] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Supprimer sélection
-                </button>
               </div>
-            </div>
-
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] font-semibold text-[#7A5240]">
               <span>{marginFileName ? `Fichier marge : ${marginFileName}` : 'Aucun fichier marge chargé'}</span>
+              {selectedMonthKey ? (
+                <span className={frozenMonths[selectedMonthKey] ? 'text-[#2F6F42]' : 'text-[#8B5E3C]'}>
+                  • {frozenMonths[selectedMonthKey] ? 'Mois figé' : 'Mois en cours'}
+                </span>
+              ) : null}
               {importMessage ? <span className="text-[#9A4F33]">• {importMessage}</span> : null}
             </div>
 
