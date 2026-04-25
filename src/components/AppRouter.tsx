@@ -81,9 +81,13 @@ const AppRouter: React.FC<AppRouterProps> = ({
           setView('home');
         } catch (_e) {}
       }}
-      className="fixed top-4 right-4 z-[9999] bg-white/90 backdrop-blur border border-slate-200 rounded-full px-3 py-2 shadow-md text-[10px] font-black uppercase tracking-widest text-slate-700 hover:opacity-95"
+      className="fixed right-5 top-5 z-[9999] inline-flex items-center gap-2 rounded-lg border border-[#D99A4A] bg-[#FFF2CF] px-4 py-3 text-[12px] font-black uppercase tracking-[0.12em] text-[#512A16] shadow-[0_10px_22px_rgba(26,13,8,0.18)] transition hover:bg-white"
       title="Se déconnecter"
     >
+      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M15.75 9V5.75A2.75 2.75 0 0013 3H6.75A2.75 2.75 0 004 5.75v12.5A2.75 2.75 0 006.75 21H13a2.75 2.75 0 002.75-2.75V15" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 12h8m0 0l-3-3m3 3l-3 3" />
+      </svg>
       Déconnexion
     </button>
   ) : null;

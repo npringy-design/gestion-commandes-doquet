@@ -315,11 +315,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         )}
 
         <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1280px] flex-col px-4 py-5 sm:px-6 lg:px-8">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#FFD28A]">
-              Accueil opérationnel
-            </p>
-
+          <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
             <button
               onClick={() => {
                 if (canOpenAdmin) {
@@ -347,29 +343,12 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
               <div className="absolute inset-0 bg-gradient-to-r from-[#170E0A]/88 via-[#170E0A]/55 to-[#170E0A]/18" />
               <div className="absolute inset-0 bg-gradient-to-t from-[#170E0A]/75 via-transparent to-transparent" />
 
-              <div className="relative z-10 flex min-h-[230px] flex-col justify-between p-5 sm:p-7 lg:p-8">
-                <div className="flex items-start justify-between gap-4">
-                  <span className="rounded-full border border-[#F0C06B]/45 bg-[#2B1A11]/75 px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#FFD28A]">
-                    Steakhouse à la française
-                  </span>
-
-                </div>
-
+              <div className="relative z-10 flex min-h-[230px] flex-col justify-end p-5 sm:p-7 lg:p-8">
                 <div>
                   <h1 className="restaurant-title max-w-[760px] text-[3.35rem] font-bold leading-[0.9] text-[#FFF6E8] drop-shadow-[0_8px_18px_rgba(0,0,0,0.42)] sm:text-[4.9rem] lg:text-[6rem]">
                     Hippopotamus
                     <span className="restaurant-script mt-2 block text-[4rem] font-normal leading-[0.78] text-[#F6B24A] sm:text-[5.8rem] lg:text-[7.2rem]">Thillois</span>
                   </h1>
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    {['Braise', 'Viande', 'Service'].map((item) => (
-                      <span
-                        key={item}
-                        className="rounded-full border border-white/18 bg-white/12 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-[#FFE4B4] backdrop-blur-sm"
-                      >
-                        {item}
-                      </span>
-                    ))}
-                  </div>
                 </div>
               </div>
             </div>
