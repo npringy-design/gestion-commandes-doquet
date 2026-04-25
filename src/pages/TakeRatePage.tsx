@@ -635,14 +635,14 @@ const buildMarginCatalogFromWorkbook = async (file: File): Promise<MarginCatalog
     const sheet = workbook.Sheets[actualSheetName];
     if (!sheet) return;
 
-    const rows = XLSX.utils.sheet_to_json<(string | number | null)[]>(sheet, {
+    const rows = XLSX.utils.sheet_to_json(sheet, {
       header: 1,
       raw: false,
       defval: '',
       blankrows: false,
     });
 
-    const items = buildMarginItemsFromRows(rows, source, actualSheetName);
+    const items = buildMarginItemsFromRows(rows as (string | number | null)[][], source, actualSheetName);
 
     items.forEach((candidate) => {
       const existing = map.get(candidate.normalized);
@@ -774,7 +774,9 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const [didHydrateMargin, setDidHydrateMargin] = useState(false);
   const [didHydrateMonthStorage, setDidHydrateMonthStorage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const skipMonthPersistRef = useRef(false);
+  const skipNextMonthPersistRef = useRef(false);
+  const monthDraftsRef = useRef<Record<string, TakeRateMonthSnapshot>>({});
+  const frozenMonthsRef = useRef<Record<string, TakeRateMonthSnapshot>>({});
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
   const bottomScrollRef = useRef<HTMLDivElement | null>(null);
   const bottomScrollInnerRef = useRef<HTMLDivElement | null>(null);
@@ -815,13 +817,19 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       const rawDrafts = localStorage.getItem(TAKE_RATE_MONTH_DRAFTS_KEY);
       if (rawDrafts) {
         const parsed = JSON.parse(rawDrafts);
-        if (parsed && typeof parsed === 'object') setMonthDrafts(parsed);
+        if (parsed && typeof parsed === 'object') {
+          monthDraftsRef.current = parsed;
+          setMonthDrafts(parsed);
+        }
       }
 
       const rawFrozen = localStorage.getItem(TAKE_RATE_FROZEN_MONTHS_KEY);
       if (rawFrozen) {
         const parsed = JSON.parse(rawFrozen);
-        if (parsed && typeof parsed === 'object') setFrozenMonths(parsed);
+        if (parsed && typeof parsed === 'object') {
+          frozenMonthsRef.current = parsed;
+          setFrozenMonths(parsed);
+        }
       }
     } catch (_error) {}
     finally {
@@ -829,40 +837,41 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     }
   }, []);
 
+  useEffect(() => {
+    monthDraftsRef.current = monthDrafts;
+  }, [monthDrafts]);
+
+  useEffect(() => {
+    frozenMonthsRef.current = frozenMonths;
+  }, [frozenMonths]);
+
   const monthOptions = useMemo(
     () =>
-      MONTHS_DISPLAY_CONFIG.filter(({ key }) => Boolean(prepImportsByMonth[key] ?? '')).map((month) => ({
-        key: month.key,
-        label: month.label ?? month.key,
+      MONTHS_DISPLAY_CONFIG.map((entry: any) => ({
+        key: entry.key,
+        label: entry.label ?? entry.name ?? entry.key,
+        hasImport: Boolean(prepImportsByMonth[entry.key] ?? ''),
       })),
     [prepImportsByMonth],
   );
 
   useEffect(() => {
-    if (!didHydrateMonthStorage) return;
-    if (selectedMonthKey && monthOptions.some((month) => month.key === selectedMonthKey)) return;
-    if (monthOptions.length === 0) {
-      if (selectedMonthKey) setSelectedMonthKey('');
-      return;
-    }
-    setSelectedMonthKey(monthOptions[monthOptions.length - 1].key);
+    if (!didHydrateMonthStorage || selectedMonthKey) return;
+    const monthWithImport = [...monthOptions].reverse().find((month) => month.hasImport);
+    setSelectedMonthKey((monthWithImport ?? monthOptions[0])?.key ?? '');
   }, [didHydrateMonthStorage, monthOptions, selectedMonthKey]);
 
   useEffect(() => {
     if (!didHydrateMonthStorage || !didHydrateRows || !didHydrateMargin || !selectedMonthKey) return;
 
-    const snapshot = frozenMonths[selectedMonthKey] ?? monthDrafts[selectedMonthKey];
-    skipMonthPersistRef.current = true;
+    const snapshot = frozenMonthsRef.current[selectedMonthKey] ?? monthDraftsRef.current[selectedMonthKey];
+    skipNextMonthPersistRef.current = true;
 
     if (snapshot) {
       setRows((snapshot.rows ?? []).map(normalizeRow));
       setMarginCatalog(snapshot.marginCatalog ?? []);
       setMarginFileName(snapshot.marginFileName ?? '');
-      setImportMessage(
-        frozenMonths[selectedMonthKey]
-          ? `Mois figé chargé : ${snapshot.rows?.length ?? 0} lignes.`
-          : '',
-      );
+      setImportMessage(frozenMonthsRef.current[selectedMonthKey] ? 'Mois figé chargé.' : '');
     } else {
       setRows([]);
       setMarginCatalog([]);
@@ -876,13 +885,13 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     setPendingImportsByRow({});
     setSelectedRowIds([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
-  }, [selectedMonthKey, didHydrateMonthStorage, didHydrateRows, didHydrateMargin, frozenMonths, monthDrafts]);
+  }, [selectedMonthKey, didHydrateMonthStorage, didHydrateRows, didHydrateMargin]);
 
   useEffect(() => {
     if (!didHydrateMonthStorage || !selectedMonthKey) return;
 
-    if (skipMonthPersistRef.current) {
-      skipMonthPersistRef.current = false;
+    if (skipNextMonthPersistRef.current) {
+      skipNextMonthPersistRef.current = false;
       return;
     }
 
@@ -892,23 +901,22 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     localStorage.setItem(MARGIN_STORAGE_KEY, JSON.stringify(marginCatalog));
     localStorage.setItem(MARGIN_FILE_NAME_STORAGE_KEY, marginFileName);
 
-    if (frozenMonths[selectedMonthKey]) return;
+    if (frozenMonthsRef.current[selectedMonthKey]) return;
 
-    const nextDrafts = {
-      ...monthDrafts,
-      [selectedMonthKey]: {
-        rows,
-        marginCatalog,
-        marginFileName,
-      },
-    };
-    setMonthDrafts(nextDrafts);
-    localStorage.setItem(TAKE_RATE_MONTH_DRAFTS_KEY, JSON.stringify(nextDrafts));
+    const snapshot = { rows, marginCatalog, marginFileName };
+    setMonthDrafts((prev) => {
+      const next = { ...prev, [selectedMonthKey]: snapshot };
+      monthDraftsRef.current = next;
+      localStorage.setItem(TAKE_RATE_MONTH_DRAFTS_KEY, JSON.stringify(next));
+      return next;
+    });
   }, [rows, marginCatalog, marginFileName, selectedMonthKey, didHydrateMonthStorage]);
 
   const availableImports = useMemo(() => {
     if (!selectedMonthKey) return [];
-    return extractImportLabels(prepImportsByMonth[selectedMonthKey] ?? '').sort((a, b) => a.localeCompare(b, 'fr'));
+    return Array.from(new Set(extractImportLabels(prepImportsByMonth[selectedMonthKey] ?? ''))).sort((a, b) =>
+      a.localeCompare(b, 'fr')
+    );
   }, [prepImportsByMonth, selectedMonthKey]);
 
   useEffect(() => {
@@ -966,7 +974,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       Object.entries(prev).forEach(([rowId, items]) => {
         if (!validIds.has(rowId)) return;
         const row = rows.find((entry) => entry.id === rowId);
-        const deduped = Array.from(new Set(items.filter((item) => item && !row?.linkedImports.includes(item))));
+        const deduped = Array.from(new Set((items as string[]).filter((item) => item && !row?.linkedImports.includes(item))));
         if (deduped.length > 0) next[rowId] = deduped;
       });
       return next;
@@ -1035,27 +1043,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       }
       return Array.from(new Set([...prev, ...visibleIds]));
     });
-  };
-
-  const removeSelectedRows = () => {
-    if (selectedRowIds.length === 0) return;
-    const selectedSet = new Set(selectedRowIds);
-
-    setRows((prev) => prev.filter((row) => !selectedSet.has(row.id)));
-    setSelectedRowIds([]);
-    setSearchByRow((prev) => {
-      const next = { ...prev };
-      selectedSet.forEach((id) => delete next[id]);
-      return next;
-    });
-    setPendingImportsByRow((prev) => {
-      const next = { ...prev };
-      selectedSet.forEach((id) => delete next[id]);
-      return next;
-    });
-
-    if (openSearchRow && selectedSet.has(openSearchRow)) setOpenSearchRow(null);
-    if (openLinkedRow && selectedSet.has(openLinkedRow)) setOpenLinkedRow(null);
   };
 
   const queueImportForRow = (rowId: string, importLabel: string) => {
@@ -1162,19 +1149,25 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       frozenAt: new Date().toISOString(),
     };
 
-    const nextFrozen = { ...frozenMonths, [selectedMonthKey]: snapshot };
-    setFrozenMonths(nextFrozen);
-    localStorage.setItem(TAKE_RATE_FROZEN_MONTHS_KEY, JSON.stringify(nextFrozen));
+    setFrozenMonths((prev) => {
+      const next = { ...prev, [selectedMonthKey]: snapshot };
+      frozenMonthsRef.current = next;
+      localStorage.setItem(TAKE_RATE_FROZEN_MONTHS_KEY, JSON.stringify(next));
+      return next;
+    });
     setImportMessage('Mois figé.');
   };
 
   const handleUnfreezeMonth = () => {
     if (!selectedMonthKey) return;
 
-    const nextFrozen = { ...frozenMonths };
-    delete nextFrozen[selectedMonthKey];
-    setFrozenMonths(nextFrozen);
-    localStorage.setItem(TAKE_RATE_FROZEN_MONTHS_KEY, JSON.stringify(nextFrozen));
+    setFrozenMonths((prev) => {
+      const next = { ...prev };
+      delete next[selectedMonthKey];
+      frozenMonthsRef.current = next;
+      localStorage.setItem(TAKE_RATE_FROZEN_MONTHS_KEY, JSON.stringify(next));
+      return next;
+    });
     setImportMessage('Mois défigé.');
   };
 
@@ -1190,21 +1183,24 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     setPendingImportsByRow({});
     setSelectedRowIds([]);
 
-    const nextDrafts = { ...monthDrafts };
-    delete nextDrafts[selectedMonthKey];
-    setMonthDrafts(nextDrafts);
-    localStorage.setItem(TAKE_RATE_MONTH_DRAFTS_KEY, JSON.stringify(nextDrafts));
+    setMonthDrafts((prev) => {
+      const next = { ...prev };
+      delete next[selectedMonthKey];
+      monthDraftsRef.current = next;
+      localStorage.setItem(TAKE_RATE_MONTH_DRAFTS_KEY, JSON.stringify(next));
+      return next;
+    });
 
-    const nextFrozen = { ...frozenMonths };
-    delete nextFrozen[selectedMonthKey];
-    setFrozenMonths(nextFrozen);
-    localStorage.setItem(TAKE_RATE_FROZEN_MONTHS_KEY, JSON.stringify(nextFrozen));
+    setFrozenMonths((prev) => {
+      const next = { ...prev };
+      delete next[selectedMonthKey];
+      frozenMonthsRef.current = next;
+      localStorage.setItem(TAKE_RATE_FROZEN_MONTHS_KEY, JSON.stringify(next));
+      return next;
+    });
 
-    localStorage.removeItem(ROWS_STORAGE_KEY);
-    LEGACY_ROWS_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
     localStorage.removeItem(MARGIN_STORAGE_KEY);
     localStorage.removeItem(MARGIN_FILE_NAME_STORAGE_KEY);
-
     setImportMessage('Import marge supprimé pour ce mois.');
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -1319,7 +1315,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                   >
                     {monthOptions.map((month) => (
                       <option key={month.key} value={month.key}>
-                        {month.label}
+                        {month.label}{month.hasImport ? '' : ' — sans import'}
                       </option>
                     ))}
                   </select>
@@ -1343,8 +1339,8 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 <button
                   type="button"
                   onClick={handleDeleteMarginImport}
-                  disabled={!selectedMonthKey || (rows.length === 0 && marginCatalog.length === 0 && !marginFileName)}
-                  className="rounded-[16px] border border-[#D5B8A8] bg-[#FFF4EE] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#8E5B46] transition hover:bg-[#F7E8DF] disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={!selectedMonthKey || (marginCatalog.length === 0 && rows.length === 0 && !marginFileName)}
+                  className="rounded-[16px] border border-[#D7BEA9] bg-[#FFF7F1] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#9A6149] transition hover:bg-[#F7EBDD] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Supprimer import marge
                 </button>
@@ -1362,6 +1358,8 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                   Ajouter une ligne
                 </button>
               </div>
+            </div>
+
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] font-semibold text-[#7A5240]">
               <span>{marginFileName ? `Fichier marge : ${marginFileName}` : 'Aucun fichier marge chargé'}</span>
               {selectedMonthKey ? (
