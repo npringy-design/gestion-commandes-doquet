@@ -73,43 +73,73 @@ const tones = {
 const TileButton: React.FC<HomeTile> = ({ title, subtitle, onClick, icon, tone, primary = false }) => (
   <button
     onClick={onClick}
-    className={`group relative flex min-h-[132px] w-full overflow-hidden rounded-lg border bg-white p-5 text-left shadow-[0_8px_24px_rgba(81,52,24,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_32px_rgba(81,52,24,0.14)] ${
-      primary ? 'lg:col-span-2 lg:min-h-[158px]' : ''
+    className={`group relative flex w-full overflow-hidden rounded-lg border bg-white p-5 text-left shadow-[0_8px_24px_rgba(81,52,24,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_32px_rgba(81,52,24,0.14)] ${
+      primary ? 'min-h-[148px] lg:col-span-2 lg:min-h-[158px]' : 'min-h-[156px]'
     }`}
     style={{ borderColor: tone.border }}
   >
     <span className="pointer-events-none absolute inset-x-0 top-0 h-2" style={{ backgroundColor: tone.glow }} />
     <span className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full opacity-55 blur-2xl" style={{ backgroundColor: tone.glow }} />
 
-    <span className="relative flex min-w-0 flex-1 items-center gap-4 pr-9">
-      <span
-        className={`${primary ? 'h-16 w-16' : 'h-[52px] w-[52px]'} flex shrink-0 items-center justify-center rounded-lg text-white shadow-sm transition group-hover:scale-105`}
-        style={{ backgroundColor: tone.accent }}
-      >
-        {icon}
-      </span>
+    {primary ? (
+      <>
+        <span className="relative flex min-w-0 flex-1 items-center gap-5 pr-12">
+          <span
+            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg text-white shadow-sm transition group-hover:scale-105"
+            style={{ backgroundColor: tone.accent }}
+          >
+            {icon}
+          </span>
 
-      <span className="min-w-0">
+          <span className="min-w-0">
+            <span className="block whitespace-normal text-[2rem] font-black leading-[1.05] tracking-normal sm:text-[2.25rem]" style={{ color: tone.text }}>
+              {title}
+            </span>
+            <span className="mt-2 block text-[12px] font-black uppercase tracking-[0.11em] text-[#7B675A]">
+              {subtitle}
+            </span>
+          </span>
+        </span>
+
         <span
-          className={`${primary ? 'text-[2rem] sm:text-[2.25rem]' : 'text-[1.45rem] sm:text-[1.6rem]'} block whitespace-normal break-words font-black leading-[1.05] tracking-normal`}
-          style={{ color: tone.text }}
+          className="absolute right-4 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg transition group-hover:translate-x-0.5"
+          style={{ backgroundColor: tone.accentSoft, color: tone.accent }}
         >
-          {title}
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M9 5l7 7-7 7" />
+          </svg>
         </span>
-        <span className="mt-2 block text-[12px] font-black uppercase tracking-[0.11em] text-[#7B675A]">
-          {subtitle}
+      </>
+    ) : (
+      <span className="relative flex min-w-0 flex-1 flex-col justify-between gap-5">
+        <span className="flex items-start justify-between gap-3">
+          <span
+            className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-lg text-white shadow-sm transition group-hover:scale-105"
+            style={{ backgroundColor: tone.accent }}
+          >
+            {icon}
+          </span>
+
+          <span
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition group-hover:translate-x-0.5"
+            style={{ backgroundColor: tone.accentSoft, color: tone.accent }}
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M9 5l7 7-7 7" />
+            </svg>
+          </span>
+        </span>
+
+        <span>
+          <span className="block whitespace-normal text-[1.55rem] font-black leading-[1.08] tracking-normal" style={{ color: tone.text }}>
+            {title}
+          </span>
+          <span className="mt-2 block text-[12px] font-black uppercase tracking-[0.11em] text-[#7B675A]">
+            {subtitle}
+          </span>
         </span>
       </span>
-    </span>
-
-    <span
-      className="absolute right-4 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg transition group-hover:translate-x-0.5"
-      style={{ backgroundColor: tone.accentSoft, color: tone.accent }}
-    >
-      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M9 5l7 7-7 7" />
-      </svg>
-    </span>
+    )}
   </button>
 );
 
