@@ -13,6 +13,7 @@ type TileTone = {
   accentSoft: string;
   border: string;
   text: string;
+  glow: string;
 };
 
 type HomeTile = {
@@ -26,72 +27,83 @@ type HomeTile = {
 
 const tones = {
   order: {
-    accent: '#B85E2B',
-    accentSoft: '#FFF0D8',
-    border: '#E7BE83',
-    text: '#4A2A16',
+    accent: '#C46B22',
+    accentSoft: '#FFF0D2',
+    border: '#E7B56F',
+    text: '#3C2415',
+    glow: '#F8D69E',
   },
   prep: {
-    accent: '#55724B',
-    accentSoft: '#EEF3E6',
-    border: '#C9D7BC',
-    text: '#253F21',
+    accent: '#5E7A3E',
+    accentSoft: '#F2F6E7',
+    border: '#BFD19E',
+    text: '#273C18',
+    glow: '#DFEBC5',
   },
   settings: {
-    accent: '#8B6B21',
-    accentSoft: '#FFF4C9',
-    border: '#E6CC7A',
-    text: '#4B3810',
+    accent: '#A77A19',
+    accentSoft: '#FFF4C6',
+    border: '#E1BF5F',
+    text: '#3E2B0C',
+    glow: '#F7DEA0',
   },
   sales: {
-    accent: '#A14F43',
-    accentSoft: '#F8E7E1',
-    border: '#E1B8AD',
-    text: '#4F211B',
+    accent: '#9A7428',
+    accentSoft: '#F8EED4',
+    border: '#DDBE76',
+    text: '#3E2B10',
+    glow: '#EED69B',
   },
   finance: {
-    accent: '#516E86',
-    accentSoft: '#E8F0F4',
-    border: '#BFD0DA',
-    text: '#243A49',
+    accent: '#456B7A',
+    accentSoft: '#E7F0F0',
+    border: '#B8CED1',
+    text: '#203942',
+    glow: '#D4E6E7',
   },
   takeRate: {
-    accent: '#8C6B38',
-    accentSoft: '#F7EBD8',
-    border: '#DEC095',
-    text: '#4D3319',
+    accent: '#8F6A2F',
+    accentSoft: '#F8ECD6',
+    border: '#DDBB82',
+    text: '#3F2B16',
+    glow: '#EAD0A3',
   },
 } satisfies Record<string, TileTone>;
 
 const TileButton: React.FC<HomeTile> = ({ title, subtitle, onClick, icon, tone, primary = false }) => (
   <button
     onClick={onClick}
-    className={`group flex min-h-[118px] w-full items-center gap-4 rounded-lg border bg-white/90 p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg ${
-      primary ? 'lg:col-span-2 lg:min-h-[150px]' : ''
+    className={`group relative flex min-h-[132px] w-full overflow-hidden rounded-lg border bg-white p-5 text-left shadow-[0_8px_24px_rgba(81,52,24,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_32px_rgba(81,52,24,0.14)] ${
+      primary ? 'lg:col-span-2 lg:min-h-[158px]' : ''
     }`}
     style={{ borderColor: tone.border }}
   >
-    <span
-      className={`${primary ? 'h-16 w-16' : 'h-12 w-12'} flex shrink-0 items-center justify-center rounded-lg text-white shadow-sm transition group-hover:scale-105`}
-      style={{ backgroundColor: tone.accent }}
-    >
-      {icon}
-    </span>
+    <span className="pointer-events-none absolute inset-x-0 top-0 h-2" style={{ backgroundColor: tone.glow }} />
+    <span className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full opacity-55 blur-2xl" style={{ backgroundColor: tone.glow }} />
 
-    <span className="min-w-0 flex-1">
+    <span className="relative flex min-w-0 flex-1 items-center gap-4 pr-9">
       <span
-        className={`${primary ? 'text-[2rem]' : 'text-[1.45rem]'} block truncate font-black leading-tight tracking-normal`}
-        style={{ color: tone.text }}
+        className={`${primary ? 'h-16 w-16' : 'h-[52px] w-[52px]'} flex shrink-0 items-center justify-center rounded-lg text-white shadow-sm transition group-hover:scale-105`}
+        style={{ backgroundColor: tone.accent }}
       >
-        {title}
+        {icon}
       </span>
-      <span className="mt-1 block truncate text-[13px] font-bold uppercase tracking-[0.08em] text-[#7B675A]">
-        {subtitle}
+
+      <span className="min-w-0">
+        <span
+          className={`${primary ? 'text-[2rem] sm:text-[2.25rem]' : 'text-[1.45rem] sm:text-[1.6rem]'} block whitespace-normal break-words font-black leading-[1.05] tracking-normal`}
+          style={{ color: tone.text }}
+        >
+          {title}
+        </span>
+        <span className="mt-2 block text-[12px] font-black uppercase tracking-[0.11em] text-[#7B675A]">
+          {subtitle}
+        </span>
       </span>
     </span>
 
     <span
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition group-hover:translate-x-0.5"
+      className="absolute right-4 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg transition group-hover:translate-x-0.5"
       style={{ backgroundColor: tone.accentSoft, color: tone.accent }}
     >
       <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -102,7 +114,7 @@ const TileButton: React.FC<HomeTile> = ({ title, subtitle, onClick, icon, tone, 
 );
 
 const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <h2 className="mb-3 text-[12px] font-black uppercase tracking-[0.18em] text-[#7C5A3A]">{children}</h2>
+  <h2 className="mb-3 text-[12px] font-black uppercase tracking-[0.18em] text-[#6E4A25]">{children}</h2>
 );
 
 const HomePage: React.FC<HomePageProps> = ({ setView }) => {
@@ -215,19 +227,18 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
       <style>{`
         .home-shell {
           background:
-            linear-gradient(180deg, rgba(255, 248, 236, 0.94), rgba(245, 226, 199, 0.94)),
-            linear-gradient(135deg, #F7E6CA 0%, #F3D39D 100%);
+            linear-gradient(180deg, rgba(255, 247, 229, 0.94), rgba(247, 225, 188, 0.95)),
+            linear-gradient(135deg, #FFF2D2 0%, #F4CE89 100%);
         }
 
         .home-shell::before {
           content: '';
           position: absolute;
-          inset: 0;
+          inset: auto 0 0 0;
+          height: 45%;
           pointer-events: none;
-          background-image:
-            linear-gradient(rgba(116, 82, 45, 0.05) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(116, 82, 45, 0.05) 1px, transparent 1px);
-          background-size: 40px 40px;
+          background:
+            linear-gradient(165deg, transparent 0%, rgba(198, 119, 35, 0.10) 55%, rgba(255, 220, 151, 0.28) 100%);
         }
       `}</style>
 
@@ -243,9 +254,9 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         )}
 
         <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1280px] flex-col px-4 py-5 sm:px-6 lg:px-8">
-          <header className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-[#E4C391] pb-4">
+          <header className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-[#DDAE6A] pb-4">
             <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#A3682E]">Accueil</p>
+              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#A05E1D]">Accueil</p>
               <h1 className="text-[2rem] font-black leading-tight tracking-normal text-[#2E1B12] sm:text-[2.55rem]">
                 Hippo Commandes
               </h1>
@@ -259,7 +270,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
                 }
                 setShowPassword(true);
               }}
-              className="inline-flex items-center gap-2 rounded-lg border border-[#D3A973] bg-[#FFF8EA] px-4 py-3 text-[12px] font-black uppercase tracking-[0.12em] text-[#5D3A1E] shadow-sm transition hover:bg-white"
+              className="inline-flex items-center gap-2 rounded-lg border border-[#C98E46] bg-[#FFF6DC] px-4 py-3 text-[12px] font-black uppercase tracking-[0.12em] text-[#5D3A1E] shadow-sm transition hover:bg-white"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -268,9 +279,9 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
             </button>
           </header>
 
-          <section className="mb-7">
+          <section className="mb-8">
             <SectionTitle>Essentiel</SectionTitle>
-            <div className="grid gap-3 lg:grid-cols-4">
+            <div className="grid gap-4 lg:grid-cols-4">
               {mainTiles.map((tile) => (
                 <TileButton key={tile.title} {...tile} />
               ))}
@@ -285,7 +296,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
 
           <section>
             <SectionTitle>Pilotage</SectionTitle>
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-3">
               {analysisTiles.map((tile) => (
                 <TileButton key={tile.title} {...tile} />
               ))}
