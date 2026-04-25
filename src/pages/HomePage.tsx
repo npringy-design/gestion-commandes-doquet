@@ -3,6 +3,7 @@ import { View } from '../constants';
 import { PasswordModal } from '../components/Modals';
 import { useAuth } from '../auth/AuthProvider';
 import { canAccessAdminDashboard, canAccessStatsPage } from '../lib/permissions';
+import restaurantHero from '../assets/hippopotamus-thillois-home.jpg';
 
 interface HomePageProps {
   setView: (v: View) => void;
@@ -187,7 +188,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
     },
     {
       title: 'Mise en place',
-      subtitle: 'Preparation',
+      subtitle: 'Préparation',
       onClick: () => setView('prep_sheet'),
       tone: tones.prep,
       icon: (
@@ -200,8 +201,8 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
 
   if (showStats) {
     mainTiles.push({
-      title: 'Parametres',
-      subtitle: 'Reglages',
+      title: 'Paramètres',
+      subtitle: 'Réglages',
       onClick: () => setView('stats'),
       tone: tones.settings,
       icon: (
@@ -227,7 +228,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
       ),
     },
     {
-      title: 'Cout matiere',
+      title: 'Coût matière',
       subtitle: 'Marge',
       onClick: () => setView('cost_analysis'),
       tone: tones.finance,
@@ -255,10 +256,13 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   return (
     <>
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Great+Vibes&family=Manrope:wght@500;700;800;900&display=swap');
+
         .home-shell {
           background:
-            linear-gradient(180deg, rgba(255, 247, 229, 0.94), rgba(247, 225, 188, 0.95)),
-            linear-gradient(135deg, #FFF2D2 0%, #F4CE89 100%);
+            linear-gradient(180deg, rgba(255, 246, 226, 0.96), rgba(246, 222, 184, 0.96)),
+            linear-gradient(135deg, #FFF0CC 0%, #F1C576 100%);
+          font-family: 'Manrope', system-ui, sans-serif;
         }
 
         .home-shell::before {
@@ -269,6 +273,16 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           pointer-events: none;
           background:
             linear-gradient(165deg, transparent 0%, rgba(198, 119, 35, 0.10) 55%, rgba(255, 220, 151, 0.28) 100%);
+        }
+
+        .restaurant-title {
+          font-family: 'Cormorant Garamond', Georgia, serif;
+          letter-spacing: 0;
+        }
+
+        .restaurant-script {
+          font-family: 'Great Vibes', 'Cormorant Garamond', Georgia, serif;
+          letter-spacing: 0;
         }
       `}</style>
 
@@ -284,29 +298,57 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         )}
 
         <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1280px] flex-col px-4 py-5 sm:px-6 lg:px-8">
-          <header className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-[#DDAE6A] pb-4">
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#A05E1D]">Accueil</p>
-              <h1 className="text-[2rem] font-black leading-tight tracking-normal text-[#2E1B12] sm:text-[2.55rem]">
-                Hippo Commandes
-              </h1>
-            </div>
+          <header className="mb-7 overflow-hidden rounded-lg border border-[#B8793B] bg-[#1F140F] shadow-[0_22px_55px_rgba(65,37,18,0.24)]">
+            <div className="relative min-h-[230px]">
+              <img
+                src={restaurantHero}
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#170E0A]/88 via-[#170E0A]/55 to-[#170E0A]/18" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#170E0A]/75 via-transparent to-transparent" />
 
-            <button
-              onClick={() => {
-                if (canOpenAdmin) {
-                  setView('admin_dashboard');
-                  return;
-                }
-                setShowPassword(true);
-              }}
-              className="inline-flex items-center gap-2 rounded-lg border border-[#C98E46] bg-[#FFF6DC] px-4 py-3 text-[12px] font-black uppercase tracking-[0.12em] text-[#5D3A1E] shadow-sm transition hover:bg-white"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-              Admin
-            </button>
+              <div className="relative z-10 flex min-h-[230px] flex-col justify-between p-5 sm:p-7 lg:p-8">
+                <div className="flex items-start justify-between gap-4">
+                  <span className="rounded-full border border-[#F0C06B]/45 bg-[#2B1A11]/75 px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#FFD28A]">
+                    Steakhouse à la française
+                  </span>
+
+                  <button
+                    onClick={() => {
+                      if (canOpenAdmin) {
+                        setView('admin_dashboard');
+                        return;
+                      }
+                      setShowPassword(true);
+                    }}
+                    className="inline-flex items-center gap-2 rounded-lg border border-[#F0C06B]/60 bg-[#FFF6DC] px-4 py-3 text-[12px] font-black uppercase tracking-[0.12em] text-[#5D3A1E] shadow-sm transition hover:bg-white"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    Admin
+                  </button>
+                </div>
+
+                <div>
+                  <h1 className="restaurant-title max-w-[760px] text-[3.35rem] font-bold leading-[0.9] text-[#FFF6E8] drop-shadow-[0_8px_18px_rgba(0,0,0,0.42)] sm:text-[4.9rem] lg:text-[6rem]">
+                    Hippopotamus
+                    <span className="restaurant-script mt-2 block text-[4rem] font-normal leading-[0.78] text-[#F6B24A] sm:text-[5.8rem] lg:text-[7.2rem]">Thillois</span>
+                  </h1>
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {['Braise', 'Viande', 'Service'].map((item) => (
+                      <span
+                        key={item}
+                        className="rounded-full border border-white/18 bg-white/12 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-[#FFE4B4] backdrop-blur-sm"
+                      >
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
           </header>
 
           <section className="mb-8">
@@ -319,7 +361,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
 
             {!showStats && canSeeStats ? (
               <p className="mt-3 text-[12px] font-semibold text-[#7D604B]">
-                Parametres masques sur telephone.
+                Paramètres masqués sur téléphone.
               </p>
             ) : null}
           </section>
