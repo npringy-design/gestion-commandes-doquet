@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View } from '../constants';
 import { PasswordModal } from '../components/Modals';
 import { useAuth } from '../auth/AuthProvider';
@@ -8,190 +8,369 @@ interface HomePageProps {
   setView: (v: View) => void;
 }
 
-type HomeCardProps = {
-  title: string;
-  subtitle?: string;
-  onClick: () => void;
-  icon: React.ReactNode;
-  delay?: number;
+type ModuleTone = {
+  accent: string;
+  accentDeep: string;
+  border: string;
+  tint: string;
+  shadow: string;
 };
 
-const HomeCard: React.FC<HomeCardProps> = ({
+type ModuleCardProps = {
+  title: string;
+  subtitle: string;
+  description: string;
+  label: string;
+  cta: string;
+  onClick: () => void;
+  icon: React.ReactNode;
+  tone: ModuleTone;
+  delay?: number;
+  featured?: boolean;
+};
+
+type SectionHeadingProps = {
+  eyebrow: string;
+  title: string;
+  description: string;
+};
+
+const tones = {
+  amber: {
+    accent: '#B86A2D',
+    accentDeep: '#7E431E',
+    border: '#E7C990',
+    tint: '#F6E6CD',
+    shadow: 'rgba(184, 106, 45, 0.22)',
+  },
+  honey: {
+    accent: '#C3892A',
+    accentDeep: '#8B5C16',
+    border: '#E7CF98',
+    tint: '#F7EBCF',
+    shadow: 'rgba(195, 137, 42, 0.20)',
+  },
+  copper: {
+    accent: '#B85B3A',
+    accentDeep: '#7A301A',
+    border: '#E8C1AD',
+    tint: '#F5DED2',
+    shadow: 'rgba(184, 91, 58, 0.20)',
+  },
+  bronze: {
+    accent: '#9A6437',
+    accentDeep: '#653B1B',
+    border: '#DFC0A3',
+    tint: '#F2E1D3',
+    shadow: 'rgba(154, 100, 55, 0.18)',
+  },
+} satisfies Record<string, ModuleTone>;
+
+const HomeModuleCard: React.FC<ModuleCardProps> = ({
   title,
   subtitle,
+  description,
+  label,
+  cta,
   onClick,
   icon,
+  tone,
   delay = 0,
+  featured = false,
 }) => {
   return (
     <button
       onClick={onClick}
-      className="menu-card group relative overflow-hidden rounded-lg transition-all duration-500 hover:scale-[1.03]"
+      className={`group relative flex h-full flex-col overflow-hidden rounded-[30px] border px-6 py-6 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_60px_rgba(84,52,24,0.16)] ${
+        featured ? 'lg:col-span-2 lg:min-h-[280px]' : 'min-h-[230px]'
+      }`}
       style={{
-        animation: `slideInUp 0.7s ease-out ${delay}s both`,
+        animation: `riseIn 0.6s ease-out ${delay}s both`,
+        borderColor: tone.border,
+        background: `linear-gradient(165deg, #FFF9F0 0%, ${tone.tint} 100%)`,
       }}
     >
-      {/* Leather texture background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#2a1810] via-[#1f120c] to-[#150a06]" />
-      
-      {/* Noise texture overlay */}
-      <div 
-        className="absolute inset-0 opacity-30"
+      <div
+        className="pointer-events-none absolute inset-0 opacity-70"
         style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
-          backgroundSize: '200px 200px',
+          background: `radial-gradient(circle at top right, ${tone.tint} 0%, transparent 52%)`,
+        }}
+      />
+      <div
+        className="pointer-events-none absolute left-6 right-6 top-0 h-[3px]"
+        style={{
+          background: `linear-gradient(90deg, transparent 0%, ${tone.accent} 50%, transparent 100%)`,
         }}
       />
 
-      {/* Border glow effect */}
-      <div className="absolute inset-0 border-2 border-[#d97742]/20 transition-all duration-500 group-hover:border-[#d97742]/60 group-hover:shadow-[0_0_20px_rgba(217,119,66,0.3)]" />
+      <div className="relative z-10 flex h-full flex-col">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-3">
+            <span
+              className="inline-flex rounded-full px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.24em]"
+              style={{
+                color: tone.accent,
+                backgroundColor: 'rgba(255, 248, 236, 0.95)',
+              }}
+            >
+              {label}
+            </span>
 
-      {/* Top accent bar */}
-      <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-transparent via-[#d97742] to-transparent opacity-60" />
-
-      <div className="relative px-6 py-8">
-        {/* Icon */}
-        <div className="mb-6 flex items-center justify-between">
-          <div 
-            className="flex h-14 w-14 items-center justify-center rounded-lg bg-gradient-to-br from-[#d97742] to-[#a03939] shadow-lg transition-all duration-500 group-hover:scale-110 group-hover:rotate-6 group-hover:shadow-[0_8px_24px_rgba(217,119,66,0.4)]"
-          >
-            <div className="text-white">{icon}</div>
+            <div
+              className="flex h-14 w-14 items-center justify-center rounded-[18px] text-white shadow-[0_18px_32px_rgba(84,52,24,0.18)] transition-transform duration-300 group-hover:scale-105"
+              style={{
+                background: `linear-gradient(145deg, ${tone.accent} 0%, ${tone.accentDeep} 100%)`,
+                boxShadow: `0 18px 34px ${tone.shadow}`,
+              }}
+            >
+              {icon}
+            </div>
           </div>
 
-          {/* Arrow */}
-          <div className="translate-x-0 opacity-0 transition-all duration-300 group-hover:translate-x-2 group-hover:opacity-100">
-            <svg className="h-6 w-6 text-[#d97742]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+          <div
+            className="flex h-11 w-11 items-center justify-center rounded-full transition-transform duration-300 group-hover:translate-x-1"
+            style={{
+              color: tone.accent,
+              backgroundColor: 'rgba(255, 247, 226, 0.92)',
+            }}
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M9 5l7 7-7 7" />
             </svg>
           </div>
         </div>
 
-        {/* Title */}
-        <h3 className="mb-2 font-display text-2xl font-bold uppercase tracking-wide text-[#ffa500] transition-colors duration-300 group-hover:text-[#ff8c00]">
-          {title}
-        </h3>
-        
-        {subtitle && (
-          <p className="font-body text-sm font-medium text-[#d4a574]/80">
+        <div className="mt-8 flex-1">
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: tone.accent }}>
             {subtitle}
           </p>
-        )}
+          <h3 className={`mt-2 text-[#2C1B14] ${featured ? 'text-3xl sm:text-[2.15rem]' : 'text-[1.75rem]'} font-extrabold leading-tight`}>
+            {title}
+          </h3>
+          <p className="mt-4 max-w-[34rem] text-[15px] leading-7 text-[#6B5447]">{description}</p>
+        </div>
 
-        {/* Bottom decorative line */}
-        <div className="mt-6 h-px w-12 bg-gradient-to-r from-[#d97742] to-transparent transition-all duration-500 group-hover:w-full" />
+        <div className="mt-6 flex items-center gap-4">
+          <span className="text-[12px] font-extrabold uppercase tracking-[0.16em] text-[#4C392E]">{cta}</span>
+          <div
+            className="h-px flex-1"
+            style={{
+              background: `linear-gradient(90deg, ${tone.accent} 0%, transparent 100%)`,
+            }}
+          />
+        </div>
       </div>
-
-      {/* Shine effect on hover */}
-      <div className="absolute inset-0 translate-x-[-100%] bg-gradient-to-r from-transparent via-white/5 to-transparent transition-transform duration-700 group-hover:translate-x-[100%]" />
     </button>
   );
 };
 
+const SectionHeading: React.FC<SectionHeadingProps> = ({ eyebrow, title, description }) => (
+  <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+    <div>
+      <p className="text-[11px] font-extrabold uppercase tracking-[0.24em] text-[#B3773D]">{eyebrow}</p>
+      <h2 className="home-serif mt-2 text-[2rem] font-semibold leading-none text-[#2C1B14] sm:text-[2.4rem]">
+        {title}
+      </h2>
+    </div>
+    <p className="max-w-[38rem] text-[15px] leading-7 text-[#6B5447]">{description}</p>
+  </div>
+);
+
 const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   const [showPassword, setShowPassword] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const { profile } = useAuth();
 
-  const isMobile =
-    typeof window !== 'undefined' &&
-    window.matchMedia('(max-width: 1023px)').matches;
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
 
-  const showStats = !isMobile && canAccessStatsPage(profile);
+    const media = window.matchMedia('(max-width: 1023px)');
+    const updateMobile = () => setIsMobile(media.matches);
+
+    updateMobile();
+
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', updateMobile);
+      return () => media.removeEventListener('change', updateMobile);
+    }
+
+    media.addListener(updateMobile);
+    return () => media.removeListener(updateMobile);
+  }, []);
+
+  const canSeeStats = canAccessStatsPage(profile);
+  const canOpenAdmin = canAccessAdminDashboard(profile);
+  const showStats = !isMobile && canSeeStats;
+
+  const operationalModules: ModuleCardProps[] = [
+    {
+      title: 'Commandes',
+      subtitle: 'Flux quotidien',
+      description:
+        'Accedez rapidement a la gestion des commandes fournisseurs avec un point d entree clair et immediat pour l equipe.',
+      label: 'Essentiel',
+      cta: 'Ouvrir le module',
+      onClick: () => setView('suppliers'),
+      tone: tones.amber,
+      featured: true,
+      icon: (
+        <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 10H4L5 9z" />
+        </svg>
+      ),
+    },
+    {
+      title: 'Mise en Place',
+      subtitle: 'Preparation',
+      description:
+        'Retrouvez les supports de preparation dans un acces dedie, pense pour etre lisible et rapide a lancer.',
+      label: 'Operationnel',
+      cta: 'Lancer la preparation',
+      onClick: () => setView('prep_sheet'),
+      tone: tones.bronze,
+      icon: (
+        <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      ),
+    },
+  ];
+
+  if (showStats) {
+    operationalModules.push({
+      title: 'Parametres',
+      subtitle: 'Configuration',
+      description:
+        'Centralisez les reglages sensibles et gardez un acces propre aux donnees qui structurent les autres modules.',
+      label: 'Pilotage',
+      cta: 'Acceder aux reglages',
+      onClick: () => setView('stats'),
+      tone: tones.honey,
+      icon: (
+        <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      ),
+    });
+  }
+
+  const analysisModules: ModuleCardProps[] = [
+    {
+      title: 'Mix Produit',
+      subtitle: 'Lecture commerciale',
+      description:
+        'Analysez la performance des ventes avec une entree plus orientee pilotage et lecture decisionnelle.',
+      label: 'Analyse',
+      cta: 'Voir les indicateurs',
+      onClick: () => setView('product_mix'),
+      tone: tones.copper,
+      icon: (
+        <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+        </svg>
+      ),
+    },
+    {
+      title: 'Cout Matiere',
+      subtitle: 'Lecture financiere',
+      description:
+        'Suivez la rentabilite du mois avec une entree claire vers les analyses de cout et de marge.',
+      label: 'Performance',
+      cta: 'Analyser les couts',
+      onClick: () => setView('cost_analysis'),
+      tone: tones.bronze,
+      icon: (
+        <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+      ),
+    },
+    {
+      title: 'Taux de Prise',
+      subtitle: 'Pilotage des ventes',
+      description:
+        'Accedez rapidement aux performances de prise pour lire les tendances et ajuster vos decisions.',
+      label: 'Suivi',
+      cta: 'Consulter le suivi',
+      onClick: () => setView('take_rate_sheet'),
+      tone: tones.honey,
+      icon: (
+        <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+        </svg>
+      ),
+    },
+  ];
+
+  const availableModuleCount = operationalModules.length + analysisModules.length;
 
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Playfair+Display:wght@400;500;600;700;800;900&family=Lato:wght@400;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
 
-        .font-display {
-          font-family: 'Bebas Neue', sans-serif;
-          letter-spacing: 0.08em;
+        .home-serif {
+          font-family: 'Cormorant Garamond', serif;
         }
 
-        .font-accent {
-          font-family: 'Playfair Display', serif;
+        .home-sans {
+          font-family: 'Manrope', sans-serif;
         }
 
-        .font-body {
-          font-family: 'Lato', sans-serif;
+        .home-shell {
+          background-image:
+            radial-gradient(circle at top left, rgba(244, 190, 106, 0.30), transparent 28%),
+            radial-gradient(circle at top right, rgba(194, 111, 50, 0.18), transparent 24%),
+            radial-gradient(circle at bottom center, rgba(255, 222, 159, 0.30), transparent 34%),
+            linear-gradient(180deg, #FCF3E4 0%, #F4E2C6 48%, #EBCB97 100%);
         }
 
-        @keyframes slideInUp {
+        .home-shell::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background-image:
+            linear-gradient(rgba(156, 112, 68, 0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(156, 112, 68, 0.05) 1px, transparent 1px);
+          background-size: 48px 48px;
+          mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.28), transparent 76%);
+        }
+
+        .home-panel {
+          backdrop-filter: blur(16px);
+          box-shadow: 0 28px 80px rgba(87, 57, 27, 0.12);
+        }
+
+        @keyframes riseIn {
           from {
             opacity: 0;
-            transform: translateY(40px);
+            transform: translateY(24px);
           }
+
           to {
             opacity: 1;
             transform: translateY(0);
           }
         }
 
-        @keyframes flicker {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.92; }
-        }
-
-        @keyframes ember {
-          0%, 100% {
-            text-shadow: 
-              0 0 10px rgba(255, 165, 0, 0.8),
-              0 0 20px rgba(255, 140, 0, 0.6),
-              0 0 30px rgba(217, 119, 66, 0.4);
+        @keyframes floatGlow {
+          0%,
+          100% {
+            transform: translate3d(0, 0, 0);
+            opacity: 0.85;
           }
+
           50% {
-            text-shadow: 
-              0 0 15px rgba(255, 165, 0, 1),
-              0 0 25px rgba(255, 140, 0, 0.8),
-              0 0 35px rgba(217, 119, 66, 0.6);
+            transform: translate3d(0, 18px, 0);
+            opacity: 1;
           }
-        }
-
-        .ember-glow {
-          animation: ember 3s ease-in-out infinite;
-        }
-
-        .wood-grain {
-          background-image: 
-            repeating-linear-gradient(
-              90deg,
-              rgba(212, 165, 116, 0.03) 0px,
-              rgba(212, 165, 116, 0.03) 2px,
-              transparent 2px,
-              transparent 4px
-            ),
-            repeating-linear-gradient(
-              0deg,
-              rgba(184, 144, 109, 0.02) 0px,
-              rgba(184, 144, 109, 0.02) 8px,
-              transparent 8px,
-              transparent 12px
-            );
-        }
-
-        .menu-card {
-          box-shadow: 
-            0 4px 6px rgba(0, 0, 0, 0.4),
-            0 8px 15px rgba(0, 0, 0, 0.3),
-            inset 0 1px 0 rgba(255, 255, 255, 0.05);
-        }
-
-        .menu-card:hover {
-          box-shadow: 
-            0 8px 12px rgba(0, 0, 0, 0.5),
-            0 16px 30px rgba(0, 0, 0, 0.4),
-            0 0 40px rgba(217, 119, 66, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.08);
-        }
-
-        .brick-pattern {
-          background-image: 
-            linear-gradient(rgba(139, 46, 46, 0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(139, 46, 46, 0.1) 1px, transparent 1px);
-          background-size: 60px 30px;
         }
       `}</style>
 
-      <div className="wood-grain brick-pattern relative min-h-screen overflow-hidden bg-gradient-to-b from-[#0f0a08] via-[#1a1410] to-[#0f0a08]">
+      <div className="home-shell home-sans relative min-h-screen overflow-hidden text-[#2C1B14]">
         {showPassword && (
           <PasswordModal
             onConfirm={() => {
@@ -202,174 +381,192 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           />
         )}
 
-        {/* Ambient lighting effects */}
-        <div className="pointer-events-none fixed inset-0">
-          {/* Warm top light */}
-          <div 
-            className="absolute left-1/2 top-0 h-96 w-96 -translate-x-1/2 rounded-full bg-[#d97742] opacity-10 blur-3xl"
-            style={{ animation: 'flicker 4s ease-in-out infinite' }}
+        <div className="pointer-events-none absolute inset-0">
+          <div
+            className="absolute left-[-120px] top-[90px] h-72 w-72 rounded-full bg-[#F3C56D]/25 blur-3xl"
+            style={{ animation: 'floatGlow 8s ease-in-out infinite' }}
           />
-          
-          {/* Corner embers */}
-          <div className="absolute left-0 top-1/4 h-64 w-64 rounded-full bg-[#a03939] opacity-5 blur-3xl" />
-          <div className="absolute bottom-1/4 right-0 h-64 w-64 rounded-full bg-[#ff8c00] opacity-5 blur-3xl" />
+          <div
+            className="absolute right-[-100px] top-[180px] h-80 w-80 rounded-full bg-[#C56B3A]/15 blur-3xl"
+            style={{ animation: 'floatGlow 10s ease-in-out infinite' }}
+          />
+          <div
+            className="absolute bottom-[-80px] left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-[#FFE4A8]/35 blur-3xl"
+            style={{ animation: 'floatGlow 12s ease-in-out infinite' }}
+          />
         </div>
 
-        {/* Metal beam decorations */}
-        <div className="pointer-events-none absolute left-0 right-0 top-0 h-2 bg-gradient-to-r from-transparent via-[#1a1410] to-transparent opacity-60" />
-        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-2 bg-gradient-to-r from-transparent via-[#1a1410] to-transparent opacity-60" />
-
-        <div className="relative z-10 mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-          {/* Header */}
-          <div className="mb-16 text-center" style={{ animation: 'slideInUp 0.6s ease-out' }}>
-            {/* Top ornament */}
-            <div className="mb-8 flex items-center justify-center gap-4">
-              <div className="h-px w-16 bg-gradient-to-r from-transparent to-[#d97742]" />
-              <svg className="h-6 w-6 text-[#d97742]" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-              </svg>
-              <div className="h-px w-16 bg-gradient-to-l from-transparent to-[#d97742]" />
-            </div>
-
-            {/* Main title */}
-            <div className="relative mb-8">
-              <h1 className="ember-glow font-display text-7xl font-black uppercase tracking-wider text-[#ffa500] sm:text-8xl lg:text-9xl">
-                Hippo
-              </h1>
-              <h2 className="font-accent mt-2 text-4xl font-bold italic text-[#d4a574] sm:text-5xl lg:text-6xl">
-                Commandes
-              </h2>
-            </div>
-
-            {/* Decorative separator */}
-            <div className="relative mx-auto h-1 w-48">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#d97742] to-transparent" />
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#ffa500] to-transparent opacity-50 blur-sm" />
-            </div>
-
-            {/* Subtitle */}
-            <p className="font-body mx-auto mt-8 max-w-2xl text-lg font-medium text-[#d4a574]/90">
-              Plateforme de gestion professionnelle pour votre établissement
-            </p>
-          </div>
-
-          {/* Cards Grid */}
-          <div
-            className={`grid gap-6 ${
-              showStats
-                ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'
-                : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
-            }`}
-          >
-            <HomeCard
-              title="Commandes"
-              subtitle="Gestion des commandes"
-              onClick={() => setView('suppliers')}
-              delay={0.1}
-              icon={
-                <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 10H4L5 9z" />
-                </svg>
-              }
-            />
-
-            {showStats && (
-              <HomeCard
-                title="Paramètres"
-                subtitle="Configuration"
-                onClick={() => setView('stats')}
-                delay={0.2}
-                icon={
-                  <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                }
-              />
-            )}
-
-            <HomeCard
-              title="Mix Produit"
-              subtitle="Analyse des ventes"
-              onClick={() => setView('product_mix')}
-              delay={showStats ? 0.3 : 0.2}
-              icon={
-                <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-                </svg>
-              }
-            />
-
-            <HomeCard
-              title="Mise en Place"
-              subtitle="Préparation"
-              onClick={() => setView('prep_sheet')}
-              delay={showStats ? 0.4 : 0.3}
-              icon={
-                <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              }
-            />
-
-            <HomeCard
-              title="Coût Matière"
-              subtitle="Analyse financière"
-              onClick={() => setView('cost_analysis')}
-              delay={showStats ? 0.5 : 0.4}
-              icon={
-                <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              }
-            />
-
-            <HomeCard
-              title="Taux de Prise"
-              subtitle="Performance"
-              onClick={() => setView('take_rate_sheet')}
-              delay={showStats ? 0.6 : 0.5}
-              icon={
-                <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                </svg>
-              }
-            />
-          </div>
-
-          {/* Admin Access */}
-          <div className="mt-20 text-center" style={{ animation: 'slideInUp 1s ease-out 0.8s both' }}>
-            <button
-              onClick={() => {
-                if (canAccessAdminDashboard(profile)) {
-                  setView('admin_dashboard');
-                  return;
-                }
-                setShowPassword(true);
-              }}
-              className="group relative inline-flex items-center gap-3 overflow-hidden rounded-lg border border-[#d97742]/30 bg-gradient-to-r from-[#1a1410] to-[#2a1810] px-8 py-4 transition-all duration-300 hover:border-[#d97742]/60 hover:shadow-[0_0_20px_rgba(217,119,66,0.3)]"
+        <div className="relative z-10 mx-auto max-w-[1380px] px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
+          <section className="grid gap-6 xl:grid-cols-[1.2fr,0.8fr]">
+            <div
+              className="home-panel relative overflow-hidden rounded-[38px] border border-[#E7CFAD] bg-[#FFF8EC]/90 px-7 py-8 sm:px-10 sm:py-10"
+              style={{ animation: 'riseIn 0.55s ease-out both' }}
             >
-              <div className="absolute inset-0 translate-x-[-100%] bg-gradient-to-r from-transparent via-[#d97742]/10 to-transparent transition-transform duration-500 group-hover:translate-x-[100%]" />
-              
-              <svg className="relative h-5 w-5 text-[#d97742] transition-transform duration-300 group-hover:rotate-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-              
-              <span className="font-display relative text-sm font-bold uppercase tracking-widest text-[#d4a574] transition-colors duration-300 group-hover:text-[#ffa500]">
-                Dashboard Admin
-              </span>
-            </button>
-          </div>
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,236,193,0.9),transparent_42%)]" />
 
-          {/* Bottom decorative element */}
-          <div className="mt-16 flex items-center justify-center gap-4 opacity-30">
-            <div className="h-px w-20 bg-gradient-to-r from-transparent to-[#d97742]" />
-            <svg className="h-4 w-4 text-[#d97742]" fill="currentColor" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-            <div className="h-px w-20 bg-gradient-to-l from-transparent to-[#d97742]" />
-          </div>
+              <div className="relative z-10">
+                <span className="inline-flex rounded-full border border-[#E7C990] bg-[#FFF3DA] px-4 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.24em] text-[#A96C31]">
+                  Accueil principal
+                </span>
+
+                <div className="mt-7">
+                  <p className="text-[12px] font-extrabold uppercase tracking-[0.32em] text-[#AF7B47]">Gestion restaurant</p>
+                  <h1 className="home-serif mt-3 text-[3.7rem] font-semibold leading-[0.92] text-[#2B1A13] sm:text-[5rem] lg:text-[5.7rem]">
+                    Hippo
+                    <span className="block text-[#B86A2D]">Commandes</span>
+                  </h1>
+                  <p className="mt-6 max-w-[43rem] text-[17px] leading-8 text-[#694F42]">
+                    Un accueil plus clair pour retrouver vite les modules quotidiens, piloter la performance
+                    et garder une lecture professionnelle de l&apos;application dans une ambiance chaleureuse.
+                  </p>
+                </div>
+
+                <div className="mt-8 flex flex-wrap gap-3">
+                  {[
+                    'Exploitation quotidienne',
+                    'Pilotage & analyse',
+                    'Acces securise',
+                  ].map((item) => (
+                    <span
+                      key={item}
+                      className="rounded-full border border-[#E8D3B5] bg-[#FFF9F0]/95 px-4 py-2 text-[12px] font-bold uppercase tracking-[0.14em] text-[#7A5B49]"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="mt-10 flex flex-wrap gap-3">
+                  <button
+                    onClick={() => setView('suppliers')}
+                    className="rounded-full bg-[#2C1A10] px-6 py-3 text-[12px] font-extrabold uppercase tracking-[0.18em] text-white transition hover:bg-[#3C2417]"
+                  >
+                    Ouvrir les commandes
+                  </button>
+
+                  {showStats ? (
+                    <button
+                      onClick={() => setView('stats')}
+                      className="rounded-full border border-[#E2BE7F] bg-[#FFF4D9] px-6 py-3 text-[12px] font-extrabold uppercase tracking-[0.18em] text-[#7A5A22] transition hover:bg-[#F7E0AD]"
+                    >
+                      Voir les parametres
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            <aside
+              className="home-panel relative overflow-hidden rounded-[38px] border border-[#E7CFAD] bg-[#FFF8EC]/88 p-7 sm:p-8"
+              style={{ animation: 'riseIn 0.65s ease-out 0.08s both' }}
+            >
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(255,229,177,0.7),transparent_38%)]" />
+
+              <div className="relative z-10">
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.24em] text-[#B3773D]">Vue d&apos;ensemble</p>
+                <h2 className="home-serif mt-3 text-[2.2rem] font-semibold leading-none text-[#2C1B14]">
+                  Une entree plus lisible pour toute l&apos;equipe
+                </h2>
+
+                <div className="mt-7 grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+                  {[
+                    {
+                      value: `${availableModuleCount}`,
+                      label: 'Modules',
+                      note: 'acces actifs sur cet accueil',
+                    },
+                    {
+                      value: '2',
+                      label: 'Univers',
+                      note: 'exploitation et pilotage',
+                    },
+                    {
+                      value: canOpenAdmin ? 'Admin' : 'Protege',
+                      label: 'Acces',
+                      note: canOpenAdmin ? 'dashboard autorise' : 'mot de passe requis',
+                    },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="rounded-[24px] border border-[#E6D1B0] bg-[#FFF9F1]/95 px-5 py-5"
+                    >
+                      <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#A87845]">{item.label}</p>
+                      <p className="mt-3 text-[2rem] font-extrabold leading-none text-[#2C1B14]">{item.value}</p>
+                      <p className="mt-2 text-[13px] leading-6 text-[#6E584C]">{item.note}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-7 rounded-[28px] border border-[#E5C497] bg-[#FFF3DA] p-6">
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-[#A96C31]">Administration</p>
+                  <p className="mt-3 text-[15px] leading-7 text-[#60483B]">
+                    L&apos;espace admin reste present, mais mieux integre au reste de l&apos;accueil et plus
+                    explicite sur son niveau d&apos;acces.
+                  </p>
+
+                  {!showStats && canSeeStats ? (
+                    <p className="mt-3 text-[13px] leading-6 text-[#8A6645]">
+                      Le module Parametres est masque sur telephone pour eviter les modifications sensibles.
+                    </p>
+                  ) : null}
+
+                  <button
+                    onClick={() => {
+                      if (canOpenAdmin) {
+                        setView('admin_dashboard');
+                        return;
+                      }
+                      setShowPassword(true);
+                    }}
+                    className="mt-5 inline-flex items-center gap-3 rounded-full border border-[#C98746] bg-[#2C1A10] px-5 py-3 text-[12px] font-extrabold uppercase tracking-[0.18em] text-white transition hover:bg-[#3C2417]"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    Dashboard admin
+                  </button>
+                </div>
+              </div>
+            </aside>
+          </section>
+
+          <section className="mt-10">
+            <SectionHeading
+              eyebrow="Exploitation quotidienne"
+              title="Les acces utilises chaque jour"
+              description="Les modules operationnels sont mis en avant avec une hiérarchie plus claire, pour guider l'equipe sans surcharger l'accueil."
+            />
+
+            <div
+              className={`grid gap-4 ${showStats ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}
+            >
+              {operationalModules.map((module, index) => (
+                <HomeModuleCard
+                  key={module.title}
+                  {...module}
+                  delay={0.14 + index * 0.08}
+                />
+              ))}
+            </div>
+          </section>
+
+          <section className="mt-12">
+            <SectionHeading
+              eyebrow="Pilotage"
+              title="Analyse et performance"
+              description="Les modules de lecture business sont regroupes pour rendre la navigation plus naturelle entre rentabilite, ventes et taux de prise."
+            />
+
+            <div className="grid gap-4 lg:grid-cols-3">
+              {analysisModules.map((module, index) => (
+                <HomeModuleCard
+                  key={module.title}
+                  {...module}
+                  delay={0.28 + index * 0.08}
+                />
+              ))}
+            </div>
+          </section>
         </div>
       </div>
     </>
