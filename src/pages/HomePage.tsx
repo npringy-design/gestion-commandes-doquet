@@ -145,7 +145,7 @@ const TileButton: React.FC<HomeTile> = ({ title, subtitle, onClick, icon, tone, 
 );
 
 const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <h2 className="mb-3 text-[12px] font-black uppercase tracking-[0.18em] text-[#6E4A25]">{children}</h2>
+  <h2 className="mb-3 text-[12px] font-black uppercase tracking-[0.18em] text-[#FFE0A5]">{children}</h2>
 );
 
 const HomePage: React.FC<HomePageProps> = ({ setView }) => {
@@ -253,6 +253,23 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
     },
   ];
 
+  const quickAccessTiles = showStats
+    ? [
+        mainTiles[0],
+        analysisTiles[1],
+        mainTiles[1],
+        analysisTiles[0],
+        analysisTiles[2],
+        mainTiles[2],
+      ]
+    : [
+        mainTiles[0],
+        analysisTiles[1],
+        mainTiles[1],
+        analysisTiles[0],
+        analysisTiles[2],
+      ];
+
   return (
     <>
       <style>{`
@@ -260,8 +277,8 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
 
         .home-shell {
           background:
-            linear-gradient(180deg, rgba(255, 246, 226, 0.96), rgba(246, 222, 184, 0.96)),
-            linear-gradient(135deg, #FFF0CC 0%, #F1C576 100%);
+            linear-gradient(180deg, rgba(38, 22, 16, 0.98) 0%, rgba(92, 45, 28, 0.96) 48%, rgba(177, 107, 45, 0.92) 100%),
+            linear-gradient(135deg, #25140F 0%, #7C3322 48%, #D28B3F 100%);
           font-family: 'Manrope', system-ui, sans-serif;
         }
 
@@ -272,7 +289,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           height: 45%;
           pointer-events: none;
           background:
-            linear-gradient(165deg, transparent 0%, rgba(198, 119, 35, 0.10) 55%, rgba(255, 220, 151, 0.28) 100%);
+            linear-gradient(165deg, transparent 0%, rgba(120, 45, 28, 0.18) 50%, rgba(245, 169, 78, 0.26) 100%);
         }
 
         .restaurant-title {
@@ -298,6 +315,28 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         )}
 
         <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1280px] flex-col px-4 py-5 sm:px-6 lg:px-8">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#FFD28A]">
+              Accueil opérationnel
+            </p>
+
+            <button
+              onClick={() => {
+                if (canOpenAdmin) {
+                  setView('admin_dashboard');
+                  return;
+                }
+                setShowPassword(true);
+              }}
+              className="inline-flex items-center gap-2 rounded-lg border border-[#D99A4A] bg-[#FFF2CF] px-4 py-3 text-[12px] font-black uppercase tracking-[0.12em] text-[#512A16] shadow-[0_10px_22px_rgba(26,13,8,0.18)] transition hover:bg-white"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              Admin
+            </button>
+          </div>
+
           <header className="mb-7 overflow-hidden rounded-lg border border-[#B8793B] bg-[#1F140F] shadow-[0_22px_55px_rgba(65,37,18,0.24)]">
             <div className="relative min-h-[230px]">
               <img
@@ -314,21 +353,6 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
                     Steakhouse à la française
                   </span>
 
-                  <button
-                    onClick={() => {
-                      if (canOpenAdmin) {
-                        setView('admin_dashboard');
-                        return;
-                      }
-                      setShowPassword(true);
-                    }}
-                    className="inline-flex items-center gap-2 rounded-lg border border-[#F0C06B]/60 bg-[#FFF6DC] px-4 py-3 text-[12px] font-black uppercase tracking-[0.12em] text-[#5D3A1E] shadow-sm transition hover:bg-white"
-                  >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                    Admin
-                  </button>
                 </div>
 
                 <div>
@@ -352,28 +376,20 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           </header>
 
           <section className="mb-8">
-            <SectionTitle>Essentiel</SectionTitle>
+            <SectionTitle>Accès rapides</SectionTitle>
             <div className="grid gap-4 lg:grid-cols-4">
-              {mainTiles.map((tile) => (
+              {quickAccessTiles.map((tile) => (
                 <TileButton key={tile.title} {...tile} />
               ))}
             </div>
 
             {!showStats && canSeeStats ? (
-              <p className="mt-3 text-[12px] font-semibold text-[#7D604B]">
+              <p className="mt-3 text-[12px] font-semibold text-[#FFE0A5]">
                 Paramètres masqués sur téléphone.
               </p>
             ) : null}
           </section>
 
-          <section>
-            <SectionTitle>Pilotage</SectionTitle>
-            <div className="grid gap-4 md:grid-cols-3">
-              {analysisTiles.map((tile) => (
-                <TileButton key={tile.title} {...tile} />
-              ))}
-            </div>
-          </section>
         </main>
       </div>
     </>
