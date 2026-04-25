@@ -3,7 +3,6 @@ import { View } from '../constants';
 import { PasswordModal } from '../components/Modals';
 import { useAuth } from '../auth/AuthProvider';
 import { canAccessAdminDashboard, canAccessStatsPage } from '../lib/permissions';
-import homeBgCow from '../assets/supplier-visuals/home-bg-cow.jpg';
 
 interface HomePageProps {
   setView: (v: View) => void;
@@ -11,91 +10,80 @@ interface HomePageProps {
 
 type HomeCardProps = {
   title: string;
-  accent: string;
-  accent2: string;
-  shadow: string;
-  edge: string;
-  iconTone: string;
+  subtitle?: string;
+  gradient: string;
   onClick: () => void;
   icon: React.ReactNode;
+  delay?: number;
 };
 
 const HomeCard: React.FC<HomeCardProps> = ({
   title,
-  accent,
-  accent2,
-  shadow,
-  edge,
-  iconTone,
+  subtitle,
+  gradient,
   onClick,
   icon,
+  delay = 0,
 }) => {
   return (
     <button
       onClick={onClick}
-      className="group relative mx-auto w-full max-w-[350px]"
+      className="group relative overflow-hidden rounded-2xl bg-white p-8 shadow-sm transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl"
+      style={{
+        animation: `fadeInUp 0.8s ease-out ${delay}s both`,
+      }}
     >
+      {/* Gradient accent bar */}
       <div
-        className="absolute inset-0 translate-x-[12px] translate-y-[12px] rounded-[28px]"
-        style={{
-          background: 'linear-gradient(180deg, rgba(74,53,41,0.95) 0%, rgba(47,31,23,0.96) 100%)',
-          boxShadow: '0 18px 34px rgba(0,0,0,0.34)',
-        }}
+        className="absolute left-0 top-0 h-1.5 w-full transition-all duration-500 group-hover:h-2"
+        style={{ background: gradient }}
       />
 
-      <div
-        className="relative overflow-hidden rounded-[28px] border border-white/55 px-7 py-7"
-        style={{
-          background: `linear-gradient(180deg, ${accent} 0%, ${accent2} 52%, ${shadow} 100%)`,
-          boxShadow:
-            'inset 0 2px 0 rgba(255,255,255,0.65), inset 0 -2px 0 rgba(82,48,27,0.30), 0 12px 28px rgba(63,33,18,0.26)',
-        }}
-      >
+      {/* Icon container */}
+      <div className="mb-6 flex items-start justify-between">
         <div
-          className="absolute inset-x-8 top-0 h-[4px] rounded-b-full"
-          style={{ background: 'rgba(255,255,255,0.65)' }}
-        />
-        <div
-          className="absolute inset-0"
+          className="flex h-16 w-16 items-center justify-center rounded-xl transition-all duration-500 group-hover:scale-110 group-hover:rotate-3"
           style={{
-            background:
-              'linear-gradient(180deg, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.10) 22%, rgba(255,255,255,0.02) 44%, rgba(0,0,0,0.03) 74%, rgba(0,0,0,0.12) 100%)',
+            background: `linear-gradient(135deg, ${gradient})`,
+            boxShadow: '0 8px 16px rgba(0,0,0,0.1)',
           }}
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'radial-gradient(circle at 50% 8%, rgba(255,255,255,0.22), transparent 32%), radial-gradient(circle at 50% 100%, rgba(0,0,0,0.10), transparent 38%)',
-          }}
-        />
-
-        <div className="relative flex min-h-[150px] flex-col items-center justify-center gap-5 text-center">
-          <div
-            className="flex h-12 w-12 items-center justify-center rounded-full border"
-            style={{
-              borderColor: 'rgba(255,255,255,0.35)',
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.06) 100%)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.28)',
-              color: iconTone,
-            }}
-          >
-            {icon}
-          </div>
-
-          <h2
-            className="whitespace-pre-line text-center font-black uppercase leading-[0.94] tracking-[-0.04em] text-[#0d2b57]"
-            style={{ fontSize: 'clamp(1.55rem, 2vw, 2.55rem)' }}
-          >
-            {title}
-          </h2>
+        >
+          <div className="text-white">{icon}</div>
         </div>
 
-        <div
-          className="pointer-events-none absolute inset-0 rounded-[28px]"
-          style={{ boxShadow: `0 0 0 1px ${edge} inset` }}
-        />
+        {/* Arrow indicator */}
+        <div className="opacity-0 transition-all duration-300 group-hover:translate-x-1 group-hover:opacity-100">
+          <svg
+            className="h-6 w-6 text-slate-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5l7 7-7 7"
+            />
+          </svg>
+        </div>
       </div>
+
+      {/* Content */}
+      <div className="space-y-2 text-left">
+        <h3 className="text-2xl font-bold text-slate-900 transition-colors duration-300 group-hover:text-slate-700">
+          {title}
+        </h3>
+        {subtitle && (
+          <p className="text-sm font-medium text-slate-500">{subtitle}</p>
+        )}
+      </div>
+
+      {/* Hover overlay */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-5"
+        style={{ background: gradient }}
+      />
     </button>
   );
 };
@@ -111,76 +99,131 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   const showStats = !isMobile && canAccessStatsPage(profile);
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#24130d]">
-      {showPassword && (
-        <PasswordModal
-          onConfirm={() => {
-            setShowPassword(false);
-            setView('admin_dashboard');
-          }}
-          onClose={() => setShowPassword(false)}
-        />
-      )}
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600&display=swap');
 
-      <div
-        className="pointer-events-none absolute inset-0 z-0"
-        style={{
-          backgroundImage: `url(${homeBgCow})`,
-          backgroundSize: 'cover',
-          backgroundPosition: isMobile ? '72% center' : '68% center',
-          backgroundRepeat: 'no-repeat',
-          filter: 'brightness(1.02) saturate(1.08)',
-        }}
-      />
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
 
-      <div
-        className="pointer-events-none absolute inset-0 z-0"
-        style={{
-          background:
-            'linear-gradient(180deg, rgba(78,34,18,0.16) 0%, rgba(50,20,11,0.15) 45%, rgba(31,13,8,0.24) 100%)',
-        }}
-      />
+        @keyframes gradientShift {
+          0%, 100% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+        }
 
-      <div
-        className="pointer-events-none absolute inset-0 z-0"
-        style={{
-          background:
-            'radial-gradient(circle at 50% 18%, rgba(204,128,74,0.10), transparent 32%), radial-gradient(circle at 50% 100%, rgba(137,70,38,0.12), transparent 34%)',
-        }}
-      />
+        @keyframes float {
+          0%, 100% {
+            transform: translateY(0px);
+          }
+          50% {
+            transform: translateY(-20px);
+          }
+        }
 
-      <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
-        <div className="w-full max-w-[1740px]">
-          <div className="mb-10 text-center lg:mb-12">
-            <h1
-              className="mb-4 font-black uppercase leading-none tracking-tighter text-[#ffd700]"
-              style={{ fontSize: 'clamp(3rem, 6vw, 6.8rem)' }}
-            >
-              HIPPO
+        .hero-title {
+          font-family: 'Poppins', sans-serif;
+          background: linear-gradient(135deg, #1e293b 0%, #475569 50%, #1e293b 100%);
+          background-size: 200% 200%;
+          animation: gradientShift 8s ease infinite;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+
+        .accent-line {
+          background: linear-gradient(90deg, 
+            transparent 0%, 
+            #3b82f6 25%, 
+            #8b5cf6 50%, 
+            #ec4899 75%, 
+            transparent 100%
+          );
+          background-size: 200% 100%;
+          animation: gradientShift 3s ease-in-out infinite;
+        }
+      `}</style>
+
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20">
+        {showPassword && (
+          <PasswordModal
+            onConfirm={() => {
+              setShowPassword(false);
+              setView('admin_dashboard');
+            }}
+            onClose={() => setShowPassword(false)}
+          />
+        )}
+
+        {/* Decorative background elements */}
+        <div className="pointer-events-none fixed inset-0 overflow-hidden">
+          <div
+            className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-blue-400/10 blur-3xl"
+            style={{ animation: 'float 15s ease-in-out infinite' }}
+          />
+          <div
+            className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-purple-400/10 blur-3xl"
+            style={{ animation: 'float 20s ease-in-out infinite reverse' }}
+          />
+        </div>
+
+        <div className="relative z-10 mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-20">
+          {/* Header */}
+          <div className="mb-16 text-center" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
+            <div className="mb-6 flex items-center justify-center gap-3">
+              <div className="h-1 w-12 rounded-full bg-gradient-to-r from-transparent to-blue-500" />
+              <span className="text-sm font-semibold uppercase tracking-wider text-slate-600">
+                Plateforme de gestion
+              </span>
+              <div className="h-1 w-12 rounded-full bg-gradient-to-l from-transparent to-purple-500" />
+            </div>
+
+            <h1 className="hero-title mb-6 text-6xl font-black uppercase leading-tight tracking-tight sm:text-7xl lg:text-8xl">
+              Hippo
               <br />
-              <span className="text-white">COMMANDES</span>
+              <span className="text-5xl sm:text-6xl lg:text-7xl">Commandes</span>
             </h1>
-            <div className="mx-auto h-2 w-36 rounded-full bg-red-600 sm:w-44 lg:w-56" />
+
+            <div className="accent-line mx-auto h-1.5 w-32 rounded-full" />
+
+            <p className="mx-auto mt-6 max-w-2xl text-lg font-medium text-slate-600">
+              Gérez vos opérations en toute simplicité avec notre suite d'outils professionnels
+            </p>
           </div>
 
+          {/* Cards Grid */}
           <div
-            className={`grid justify-center gap-x-6 gap-y-8 ${
+            className={`grid gap-6 ${
               showStats
-                ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-5'
-                : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4'
+                ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'
+                : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
             }`}
           >
             <HomeCard
               title="Commandes"
-              accent="#ef9a93"
-              accent2="#d75a4f"
-              shadow="#ab332a"
-              edge="rgba(255,255,255,0.26)"
-              iconTone="#b52a22"
+              subtitle="Gestion des commandes"
+              gradient="linear-gradient(135deg, #3b82f6, #2563eb)"
               onClick={() => setView('suppliers')}
+              delay={0.1}
               icon={
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 10H4L5 9z" />
+                <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 10H4L5 9z"
+                  />
                 </svg>
               }
             />
@@ -188,107 +231,139 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
             {showStats && (
               <HomeCard
                 title="Paramètres"
-                accent="#efd36f"
-                accent2="#d8aa28"
-                shadow="#ae7e10"
-                edge="rgba(255,255,255,0.24)"
-                iconTone="#9e6a06"
+                subtitle="Configuration système"
+                gradient="linear-gradient(135deg, #f59e0b, #d97706)"
                 onClick={() => setView('stats')}
+                delay={0.2}
                 icon={
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M7 5v14M12 5v14M17 5v14" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M5 8h4M10 15h4M15 10h4" />
+                  <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
                   </svg>
                 }
               />
             )}
 
             <HomeCard
-              title={'Mix\nProduit'}
-              accent="#c084fc"
-              accent2="#9333ea"
-              shadow="#7e22ce"
-              edge="rgba(255,255,255,0.24)"
-              iconTone="#6b21a8"
+              title="Mix Produit"
+              subtitle="Analyse des ventes"
+              gradient="linear-gradient(135deg, #8b5cf6, #7c3aed)"
               onClick={() => setView('product_mix')}
+              delay={showStats ? 0.3 : 0.2}
               icon={
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"
+                  />
                 </svg>
               }
             />
 
             <HomeCard
-              title={'Feuille de\nMise en Place'}
-              accent="#e8b382"
-              accent2="#cf7d42"
-              shadow="#a95d2b"
-              edge="rgba(255,255,255,0.23)"
-              iconTone="#9f5122"
+              title="Mise en Place"
+              subtitle="Feuille de préparation"
+              gradient="linear-gradient(135deg, #ec4899, #db2777)"
               onClick={() => setView('prep_sheet')}
+              delay={showStats ? 0.4 : 0.3}
               icon={
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <rect x="7" y="4" width="10" height="16" rx="2" strokeWidth="2.2" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M10 9h4M10 13h4" />
+                <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
                 </svg>
               }
             />
 
             <HomeCard
-              title={'Analyse\nCoût Matière'}
-              accent="#e8c06a"
-              accent2="#cb9322"
-              shadow="#a86f0f"
-              edge="rgba(255,255,255,0.22)"
-              iconTone="#99610d"
+              title="Coût Matière"
+              subtitle="Analyse des coûts"
+              gradient="linear-gradient(135deg, #10b981, #059669)"
               onClick={() => setView('cost_analysis')}
+              delay={showStats ? 0.5 : 0.4}
               icon={
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M5 18h14" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M7 16V9M12 16V6M17 16V11" />
+                <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                  />
                 </svg>
               }
             />
 
             <HomeCard
-              title={'Taux de\nPrise'}
-              accent="#f1d36b"
-              accent2="#d59b1f"
-              shadow="#a06a10"
-              edge="rgba(255,255,255,0.22)"
-              iconTone="#8f580a"
+              title="Taux de Prise"
+              subtitle="Suivi des performances"
+              gradient="linear-gradient(135deg, #06b6d4, #0891b2)"
               onClick={() => setView('take_rate_sheet')}
+              delay={showStats ? 0.6 : 0.5}
               icon={
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M4 18h16" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M7 14l3-3 3 2 4-5" />
-                  <circle cx="7" cy="14" r="1.2" fill="currentColor" stroke="none" />
-                  <circle cx="10" cy="11" r="1.2" fill="currentColor" stroke="none" />
-                  <circle cx="13" cy="13" r="1.2" fill="currentColor" stroke="none" />
-                  <circle cx="17" cy="8" r="1.2" fill="currentColor" stroke="none" />
+                <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                  />
                 </svg>
               }
             />
           </div>
 
-          <button
-            onClick={() => {
-              if (canAccessAdminDashboard(profile)) {
-                setView('admin_dashboard');
-                return;
-              }
-              setShowPassword(true);
-            }}
-            className="mx-auto mt-8 flex items-center gap-4 text-white/25 transition-colors hover:text-[#ffd700]"
-          >
-            <span className="text-[11px] font-black uppercase tracking-widest">
-              Accès Dashboard Admin
-            </span>
-          </button>
+          {/* Admin Access */}
+          <div className="mt-16 text-center" style={{ animation: 'fadeInUp 1s ease-out 0.8s both' }}>
+            <button
+              onClick={() => {
+                if (canAccessAdminDashboard(profile)) {
+                  setView('admin_dashboard');
+                  return;
+                }
+                setShowPassword(true);
+              }}
+              className="group inline-flex items-center gap-3 rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-600 shadow-sm transition-all duration-300 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 hover:shadow-md"
+            >
+              <svg
+                className="h-4 w-4 transition-transform duration-300 group-hover:rotate-12"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                />
+              </svg>
+              <span className="uppercase tracking-wider">Dashboard Admin</span>
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
