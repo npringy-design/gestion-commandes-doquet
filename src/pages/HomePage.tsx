@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { View } from '../constants';
 import { PasswordModal } from '../components/Modals';
 import { useAuth } from '../auth/AuthProvider';
@@ -167,21 +166,6 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
     return () => media.removeListener(updateMobile);
   }, []);
 
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-
-    const previousBodyOverflow = document.body.style.overflow;
-    const previousHtmlOverflow = document.documentElement.style.overflow;
-
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
-
-    return () => {
-      document.body.style.overflow = previousBodyOverflow;
-      document.documentElement.style.overflow = previousHtmlOverflow;
-    };
-  }, []);
-
   const canSeeStats = canAccessStatsPage(profile);
   const canOpenAdmin = canAccessAdminDashboard(profile);
   const showStats = !isMobile && canSeeStats;
@@ -288,16 +272,8 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
     setView('home');
   };
 
-  const fixedActions = (
-    <div
-      className="home-fixed-actions flex items-center justify-end gap-2 sm:gap-3"
-      style={{
-        position: 'fixed',
-        top: 'clamp(1rem, 2.5vh, 1.35rem)',
-        right: 'max(1rem, calc((100vw - 1280px) / 2 + 2rem))',
-        zIndex: 2147483647,
-      }}
-    >
+  const pageActions = (
+    <div className="mb-4 flex flex-wrap items-center justify-end gap-2 sm:gap-3">
       {isAuthConfigured() && user ? (
         <button
           onClick={handleSignOut}
@@ -340,7 +316,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
             linear-gradient(180deg, rgba(38, 22, 16, 0.98) 0%, rgba(92, 45, 28, 0.96) 48%, rgba(177, 107, 45, 0.92) 100%),
             linear-gradient(135deg, #25140F 0%, #7C3322 48%, #D28B3F 100%);
           font-family: 'Manrope', system-ui, sans-serif;
-          height: 100dvh;
+          min-height: 100dvh;
         }
 
         .home-shell::before {
@@ -367,15 +343,8 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
 
         .home-page-frame {
           min-height: 100dvh;
-          padding-top: clamp(5.85rem, 10.5vh, 6.75rem);
+          padding-top: clamp(1rem, 2.5vh, 1.5rem);
           padding-bottom: clamp(1rem, 2.5vh, 1.5rem);
-        }
-
-        .home-fixed-actions {
-          top: clamp(1rem, 2.5vh, 1.35rem);
-          right: max(1rem, calc((100vw - 1280px) / 2 + 2rem));
-          position: fixed !important;
-          z-index: 2147483647;
         }
 
         .home-hero {
@@ -390,16 +359,9 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           min-height: clamp(136px, 19vh, 158px);
         }
 
-        @media (max-width: 640px) {
-          .home-fixed-actions {
-            left: 1rem;
-            right: 1rem;
-          }
-        }
-
         @media (min-width: 1024px) and (max-height: 760px) {
           .home-page-frame {
-            padding-top: 5.5rem;
+            padding-top: 1rem;
             padding-bottom: 0.85rem;
           }
 
@@ -425,9 +387,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         }
       `}</style>
 
-      {typeof document !== 'undefined' ? createPortal(fixedActions, document.body) : fixedActions}
-
-      <div className="home-shell fixed inset-0 overflow-x-hidden overflow-y-auto text-[#2E1B12]">
+      <div className="home-shell relative min-h-[100dvh] overflow-x-hidden text-[#2E1B12]">
         {showPassword && (
           <PasswordModal
             onConfirm={() => {
@@ -439,6 +399,8 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         )}
 
         <main className="home-page-frame relative z-10 mx-auto flex w-full max-w-[1280px] flex-col px-4 sm:px-6 lg:px-8">
+          {pageActions}
+
           <header className="mb-5 overflow-hidden rounded-lg border border-[#B8793B] bg-[#1F140F] shadow-[0_22px_55px_rgba(65,37,18,0.24)]">
             <div className="home-hero relative">
               <img
