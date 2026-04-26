@@ -282,7 +282,6 @@ const StatsPage: React.FC<StatsPageProps> = ({
 
   const selectedHasImport = !!detailedInventory[selectedMonth.key];
   const selectedProductionImported = !!prepImportsByMonth[selectedMonth.key];
-
   const monthsToDisplay = showAllMonths ? MONTHS_DISPLAY_CONFIG : MONTHS_DISPLAY_CONFIG.slice(0, 6);
 
   return (
@@ -301,10 +300,11 @@ const StatsPage: React.FC<StatsPageProps> = ({
         <main className="p-4 md:p-6">
           {/* En-tête */}
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
+            <div className="hidden">
             <h1 className="text-2xl font-bold text-gray-900">Données mensuelles</h1>
             <p className="mt-1 text-sm text-gray-600">Saisie et imports des données du restaurant</p>
             </div>
+            <h1 className="text-2xl font-bold text-gray-900">Paramètres</h1>
 
             <button
               type="button"
@@ -316,7 +316,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
           </div>
 
           {/* Navigation mois */}
-          <div className="mb-6">
+          <div className="hidden">
             <div className="flex items-center gap-2 overflow-x-auto pb-2">
               {MONTHS_DISPLAY_CONFIG.map((month) => {
                 const isSelected = month.key === selectedMonthKey;
@@ -351,7 +351,40 @@ const StatsPage: React.FC<StatsPageProps> = ({
           </div>
 
           {/* Contenu principal */}
-          <div className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+            <aside className="rounded-xl bg-white p-4 shadow-sm lg:sticky lg:top-6 lg:self-start">
+              <h2 className="text-sm font-bold uppercase tracking-wide text-gray-600">Mois</h2>
+              <div className="mt-4 grid gap-2">
+                {MONTHS_DISPLAY_CONFIG.map((month) => {
+                  const isSelected = month.key === selectedMonthKey;
+                  const inventoryImported = !!detailedInventory[month.key];
+                  const productionImported = !!prepImportsByMonth[month.key];
+                  const importCount = Number(inventoryImported) + Number(productionImported);
+                  const statusColor =
+                    importCount === 2 ? 'bg-green-500' : importCount === 1 ? 'bg-orange-500' : 'bg-red-500';
+                  const statusLabel = importCount === 2 ? 'Complet' : importCount === 1 ? 'Partiel' : 'Vide';
+
+                  return (
+                    <button
+                      key={month.key}
+                      type="button"
+                      onClick={() => setSelectedMonthKey(month.key)}
+                      className={`flex w-full items-center gap-3 rounded-lg border-2 px-3 py-3 text-left text-sm font-semibold transition ${
+                        isSelected
+                          ? 'border-blue-600 bg-blue-50 text-blue-900'
+                          : 'border-gray-100 bg-white text-gray-800 hover:border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      <span className={`h-2.5 w-2.5 rounded-full ${statusColor}`} />
+                      <span className="min-w-0 flex-1">{month.label}</span>
+                      <span className="text-xs font-bold uppercase tracking-wide text-gray-400">{statusLabel}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </aside>
+
+            <div className="space-y-6">
             {/* Section chiffres */}
             <section className="rounded-xl bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
@@ -515,7 +548,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
             </div>
 
             {/* Tableau récapitulatif */}
-            <section className="rounded-xl bg-white p-6 shadow-sm">
+            <section className="hidden">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-bold text-gray-900">Vue d'ensemble</h2>
                 <button
@@ -586,6 +619,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
                 </table>
               </div>
             </section>
+          </div>
           </div>
         </main>
       </div>
