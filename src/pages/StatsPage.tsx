@@ -1,7 +1,7 @@
 // =============================================================
 // pages/StatsPage.tsx
-// Refonte visuelle uniquement - alignée sur Calcul prod ratio
-// Mécanique conservée
+// Version optimisée pour opérationnels terrain
+// Interface simplifiée, ergonomique et pratique
 // =============================================================
 
 import React, { useMemo, useRef, useState } from 'react';
@@ -90,6 +90,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
   const [selectedMonthKey, setSelectedMonthKey] = useState(
     MONTHS_DISPLAY_CONFIG[new Date().getMonth()]?.key ?? MONTHS_DISPLAY_CONFIG[0].key
   );
+  const [showAllMonths, setShowAllMonths] = useState(false);
   const cellRefs = useRef<Record<CellKey, HTMLInputElement | null>>({});
 
   const editableColumns = useMemo<EditableField[]>(() => ['sales', 'cm', 'covers'], []);
@@ -117,20 +118,19 @@ const StatsPage: React.FC<StatsPageProps> = ({
 
       if (modalState.target === 'inventory') {
         setDetailedInventory((prev) => ({ ...prev, [targetMonth]: content }));
-        showToast(`Import inventaire ${targetMonth.toUpperCase()} réussi ✓`, 'success');
+        showToast(`✓ Inventaire ${targetMonth.toUpperCase()} importé`, 'success');
       } else {
         setPrepImportsByMonth((prev) => ({ ...prev, [targetMonth]: content }));
-        showToast(`Import production ${targetMonth.toUpperCase()} réussi ✓`, 'success');
+        showToast(`✓ Production ${targetMonth.toUpperCase()} importée`, 'success');
       }
       setModalState(null);
     } catch (err) {
-      showToast('Erreur lors de la lecture du fichier : ' + (err as Error).message, 'error');
+      showToast('Erreur : ' + (err as Error).message, 'error');
     }
   };
 
   const removeInventoryForMonth = (monthKey: string) => {
     if (!canRemoveImport) return;
-
     setDetailedInventory((prev) => {
       if (!prev?.[monthKey]) return prev;
       const next = { ...prev };
@@ -141,7 +141,6 @@ const StatsPage: React.FC<StatsPageProps> = ({
 
   const removeProductionImportForMonth = (monthKey: string) => {
     if (!canRemoveImport) return;
-
     setPrepImportsByMonth((prev) => {
       if (!prev?.[monthKey]) return prev;
       const next = { ...prev };
@@ -166,675 +165,418 @@ const StatsPage: React.FC<StatsPageProps> = ({
   const setValue = (monthKey: string, field: EditableField, value: number) => {
     if (field === 'sales') {
       setSalesHtByMonth((prev) => ({ ...prev, [monthKey]: value }));
-      return;
-    }
-    if (field === 'cm') {
+    } else if (field === 'cm') {
       setCostMatterByMonth((prev) => ({ ...prev, [monthKey]: value }));
-      return;
+    } else {
+      setCovers((prev) => ({ ...prev, [monthKey]: value }));
     }
-    setCovers((prev) => ({ ...prev, [monthKey]: value }));
   };
 
-  const getCellKey = (monthKey: string, field: EditableField): CellKey => `${monthKey}-${field}`;
+  const startEdit = (monthKey: string, field: EditableField, monthIndex: number) => {
+    if (validatedMonths[monthKey] || !canEditFields) return;
+    const cellKey: CellKey = `${monthKey}-${field}`;
+    const val = getValue(monthKey, field);
+    const allowDecimals = field !== 'covers';
+    setDrafts((prev) => ({ ...prev, [cellKey]: getRawValue(val, allowDecimals) }));
+    setActiveCell(cellKey);
 
-  const commitDraft = (monthKey: string, field: EditableField) => {
-    const cellKey = getCellKey(monthKey, field);
-    const draftValue = drafts[cellKey];
-    if (draftValue === undefined) {
-      setActiveCell((prev) => (prev === cellKey ? null : prev));
-      return;
-    }
+    setTimeout(() => {
+      const input = cellRefs.current[cellKey];
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }, 10);
+  };
 
-    const parsed = parseInputValue(draftValue, field !== 'covers');
-    setValue(monthKey, field, parsed);
+  const commitEdit = (monthKey: string, field: EditableField) => {
+    const cellKey: CellKey = `${monthKey}-${field}`;
+    const draft = drafts[cellKey] ?? '';
+    const allowDecimals = field !== 'covers';
+    const newVal = parseInputValue(draft, allowDecimals);
 
+    setValue(monthKey, field, newVal);
+    setActiveCell(null);
     setDrafts((prev) => {
       const next = { ...prev };
       delete next[cellKey];
       return next;
     });
-    setActiveCell((prev) => (prev === cellKey ? null : prev));
   };
 
-  const moveToCell = (rowIndex: number, columnIndex: number) => {
-    const month = MONTHS_DISPLAY_CONFIG[rowIndex];
-    const field = editableColumns[columnIndex];
-    if (!month || !field) return;
-    const nextCellKey = getCellKey(month.key, field);
-    setSelectedMonthKey(month.key);
-    requestAnimationFrame(() => {
-      const nextInput = cellRefs.current[nextCellKey];
-      if (nextInput) {
-        nextInput.focus();
-        nextInput.select();
-      }
+  const cancelEdit = (monthKey: string, field: EditableField) => {
+    const cellKey: CellKey = `${monthKey}-${field}`;
+    setActiveCell(null);
+    setDrafts((prev) => {
+      const next = { ...prev };
+      delete next[cellKey];
+      return next;
     });
   };
 
-  const inputBase =
-    'h-10 w-full rounded-[10px] border px-3 text-center text-[13px] font-extrabold outline-none transition disabled:cursor-not-allowed disabled:opacity-50';
-  const inputTheme =
-    'border-[#CDAF8A] bg-[#FBF6EE] text-[#2F1F17] placeholder:text-[#9A806A] focus:border-[#9E5E2B] focus:bg-white focus:ring-2 focus:ring-[#9E5E2B]/15';
+  const renderEditableInput = (
+    monthKey: string,
+    monthIndex: number,
+    field: EditableField,
+    placeholder: string,
+    className = ''
+  ) => {
+    const cellKey: CellKey = `${monthKey}-${field}`;
+    const isActive = activeCell === cellKey;
+    const locked = validatedMonths[monthKey];
+    const val = getValue(monthKey, field);
+    const displayVal = formatDisplayValue(field, val);
+    const draft = drafts[cellKey] ?? '';
 
-  const selectedMonthIndex = Math.max(
-    0,
-    MONTHS_DISPLAY_CONFIG.findIndex((month) => month.key === selectedMonthKey)
-  );
-  const selectedMonth = MONTHS_DISPLAY_CONFIG[selectedMonthIndex] ?? MONTHS_DISPLAY_CONFIG[0];
-  const selectedImportState = getImportState(selectedMonth.key);
-  const selectedHasImport = selectedImportState === 'imported';
-  const selectedProductionImported = !!prepImportsByMonth[selectedMonth.key];
+    if (isActive && !locked) {
+      return (
+        <input
+          ref={(el) => (cellRefs.current[cellKey] = el)}
+          type="text"
+          inputMode={field === 'covers' ? 'numeric' : 'decimal'}
+          value={draft}
+          onChange={(e) => setDrafts((prev) => ({ ...prev, [cellKey]: e.target.value }))}
+          onBlur={() => commitEdit(monthKey, field)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              commitEdit(monthKey, field);
+            }
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              cancelEdit(monthKey, field);
+            }
+          }}
+          placeholder={placeholder}
+          className={`w-full rounded-lg border-2 border-blue-500 bg-white px-4 py-3 font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none ${className}`}
+        />
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={() => canEditFields && !locked && startEdit(monthKey, field, monthIndex)}
+        disabled={!canEditFields || locked}
+        className={`w-full rounded-lg border-2 px-4 py-3 text-left font-semibold transition ${
+          locked
+            ? 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400'
+            : canEditFields
+            ? 'border-gray-200 bg-white text-gray-900 hover:border-gray-300 hover:bg-gray-50'
+            : 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-600'
+        } ${className}`}
+      >
+        {displayVal || <span className="text-gray-400">{placeholder}</span>}
+      </button>
+    );
+  };
+
+  const selectedMonthIndex = MONTHS_DISPLAY_CONFIG.findIndex((m) => m.key === selectedMonthKey);
+  const selectedMonth = MONTHS_DISPLAY_CONFIG[selectedMonthIndex] || MONTHS_DISPLAY_CONFIG[0];
+
   const selectedHasNumbers = !!(
     getValue(selectedMonth.key, 'sales') ||
     getValue(selectedMonth.key, 'cm') ||
     getValue(selectedMonth.key, 'covers')
   );
-  const selectedMonthReady = selectedHasNumbers && selectedHasImport && selectedProductionImported;
-  const nextMonth = MONTHS_DISPLAY_CONFIG[selectedMonthIndex + 1] ?? null;
-  const selectedMainAction = !selectedHasNumbers
-    ? {
-        label: 'Saisir les 3 chiffres',
-        hint: 'CA HT, CM et couverts',
-        tone: 'bg-[#F7D48A] text-[#3A2418]',
-      }
-    : !selectedHasImport
-    ? {
-        label: "Ajouter l'inventaire",
-        hint: 'Fichier inventaire du mois',
-        tone: 'bg-[#EBC28C] text-[#3A2418]',
-      }
-    : !selectedProductionImported
-    ? {
-        label: 'Ajouter la production',
-        hint: 'Fichier production cuisine',
-        tone: 'bg-[#D6E0C6] text-[#263A1D]',
-      }
-    : {
-        label: 'Mois prêt',
-        hint: 'Les ratios peuvent être consultés',
-        tone: 'bg-[#E8F0DE] text-[#263A1D]',
-      };
-  const completedImportsCount = MONTHS_DISPLAY_CONFIG.filter(
-    (month) => detailedInventory[month.key] && prepImportsByMonth[month.key]
-  ).length;
-  const filledIndicatorsCount = MONTHS_DISPLAY_CONFIG.filter(
-    (month) => getValue(month.key, 'sales') || getValue(month.key, 'cm') || getValue(month.key, 'covers')
-  ).length;
 
-  const renderEditableInput = (monthKey: string, rowIndex: number, field: EditableField, title: string, className = '') => {
-    const cellKey = getCellKey(monthKey, field);
-    const value = getValue(monthKey, field);
-    const isActive = activeCell === cellKey;
-    const displayValue = isActive
-      ? drafts[cellKey] ?? getRawValue(value, field !== 'covers')
-      : formatDisplayValue(field, value);
-    const columnIndex = editableColumns.indexOf(field);
+  const selectedHasImport = !!detailedInventory[selectedMonth.key];
+  const selectedProductionImported = !!prepImportsByMonth[selectedMonth.key];
 
-    return (
-      <input
-        ref={(el) => {
-          cellRefs.current[cellKey] = el;
-        }}
-        type="text"
-        inputMode={field === 'covers' ? 'numeric' : 'decimal'}
-        value={displayValue}
-        onFocus={(e) => {
-          setActiveCell(cellKey);
-          setDrafts((prev) => ({
-            ...prev,
-            [cellKey]: getRawValue(value, field !== 'covers'),
-          }));
-          requestAnimationFrame(() => e.target.select());
-        }}
-        onMouseUp={(e) => e.preventDefault()}
-        onChange={(e) => {
-          setDrafts((prev) => ({
-            ...prev,
-            [cellKey]: e.target.value,
-          }));
-        }}
-        onBlur={() => commitDraft(monthKey, field)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            commitDraft(monthKey, field);
-            moveToCell(Math.min(rowIndex + 1, MONTHS_DISPLAY_CONFIG.length - 1), columnIndex);
-            return;
-          }
-
-          if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            commitDraft(monthKey, field);
-            moveToCell(Math.min(rowIndex + 1, MONTHS_DISPLAY_CONFIG.length - 1), columnIndex);
-            return;
-          }
-
-          if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            commitDraft(monthKey, field);
-            moveToCell(Math.max(rowIndex - 1, 0), columnIndex);
-            return;
-          }
-
-          if (e.key === 'ArrowRight' && (e.currentTarget.selectionStart ?? 0) === e.currentTarget.value.length) {
-            e.preventDefault();
-            commitDraft(monthKey, field);
-            moveToCell(rowIndex, Math.min(columnIndex + 1, editableColumns.length - 1));
-            return;
-          }
-
-          if (e.key === 'ArrowLeft' && (e.currentTarget.selectionStart ?? 0) === 0) {
-            e.preventDefault();
-            commitDraft(monthKey, field);
-            moveToCell(rowIndex, Math.max(columnIndex - 1, 0));
-          }
-        }}
-        disabled={!canEditFields}
-        className={`${inputBase} ${inputTheme} ${className}`}
-        placeholder=""
-        title={title}
-      />
-    );
-  };
+  const monthsToDisplay = showAllMonths ? MONTHS_DISPLAY_CONFIG : MONTHS_DISPLAY_CONFIG.slice(0, 6);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_18%_0%,rgba(246,178,74,0.28),transparent_30%),linear-gradient(180deg,#2B160F_0%,#6B2D1D_46%,#C07832_100%)] text-[#34271F]">
-      {modalState && canImport && (
+    <div className="min-h-screen bg-gray-50">
+      {modalState && (
         <ImportModal
-          monthLabel={MONTHS_DISPLAY_CONFIG.find((m) => m.key === modalState.month)?.label || ''}
+          isOpen={!!modalState}
           onClose={() => setModalState(null)}
-          onFileSelected={handleFile}
-          type="detailed"
+          onFileSelect={handleFile}
+          targetMonth={modalState.month}
+          targetType={modalState.target}
         />
       )}
 
-      <div className="mx-auto flex min-h-screen max-w-[1760px] flex-col gap-4 p-3 sm:p-4 lg:p-5">
-        <header className="shrink-0 overflow-hidden rounded-[24px] border border-[#9F6635] bg-[linear-gradient(135deg,rgba(31,20,15,0.98)_0%,rgba(76,37,25,0.96)_58%,rgba(122,68,34,0.94)_100%)] shadow-[0_18px_42px_rgba(30,13,8,0.22)]">
-          <div className="h-1 bg-gradient-to-r from-[#C89245] via-[#A95D2F] to-[#5A2C1D]" />
-          <div className="flex flex-col gap-5 p-5 lg:flex-row lg:items-stretch lg:justify-between lg:p-6">
-            <div className="min-w-0">
-              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[#FFD28A]">
-                Hippopotamus Thillois
-              </p>
-              <h1 className="mt-2 text-[34px] font-black leading-none tracking-tight text-[#FFF6E8] lg:text-[42px]">
-                Paramètres
-              </h1>
-              <p className="mt-3 max-w-[680px] text-sm font-bold leading-relaxed text-[#F6DEC0]">
-                Saisie des indicateurs mensuels, imports inventaire et production, accès aux ratios.
-              </p>
-            </div>
+      <div className="mx-auto max-w-7xl">
+        <main className="p-4 md:p-6">
+          {/* En-tête */}
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-gray-900">Données mensuelles</h1>
+            <p className="mt-1 text-sm text-gray-600">Saisie et imports des données du restaurant</p>
+          </div>
 
-            <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[560px] lg:grid-cols-4">
-              <button
-                onClick={() => setView('home')}
-                className="group rounded-[16px] border border-[#CBA36D]/70 bg-[#FFF7EA]/95 px-4 py-3 text-left shadow-[0_8px_16px_rgba(26,13,8,0.10)] transition hover:border-[#DEB477] hover:bg-white"
-              >
-                <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#8C5A35]">Retour</span>
-                <span className="mt-1 block text-[15px] font-black text-[#332117]">Accueil</span>
-              </button>
+          {/* Navigation mois */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 overflow-x-auto pb-2">
+              {MONTHS_DISPLAY_CONFIG.map((month) => {
+                const isSelected = month.key === selectedMonthKey;
+                const hasData = !!(
+                  getValue(month.key, 'sales') ||
+                  getValue(month.key, 'cm') ||
+                  getValue(month.key, 'covers')
+                );
+                const isLocked = validatedMonths[month.key];
 
-              {canOpenRatios && (
-                <>
+                return (
                   <button
-                    onClick={() => setView('ratios')}
-                    className="group rounded-[16px] border border-[#CBA36D]/70 bg-[#FFF7EA]/95 px-4 py-3 text-left shadow-[0_8px_16px_rgba(26,13,8,0.10)] transition hover:border-[#DEB477] hover:bg-white"
+                    key={month.key}
+                    onClick={() => setSelectedMonthKey(month.key)}
+                    className={`flex-shrink-0 rounded-lg px-4 py-2.5 text-sm font-semibold transition ${
+                      isSelected
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : hasData
+                        ? 'bg-white text-gray-900 shadow-sm hover:bg-gray-50'
+                        : 'bg-white text-gray-500 shadow-sm hover:bg-gray-50'
+                    }`}
                   >
-                    <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#8C5A35]">Calcul</span>
-                    <span className="mt-1 block text-[15px] font-black text-[#332117]">Vente ratio</span>
+                    <div className="flex items-center gap-2">
+                      {month.label}
+                      {isLocked && <span className="text-xs">🔒</span>}
+                      {!isLocked && hasData && <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>}
+                    </div>
                   </button>
-
-                  <button
-                    onClick={() => setView('prep_ratios')}
-                    className="group rounded-[16px] border border-[#CBA36D]/70 bg-[#FFF7EA]/95 px-4 py-3 text-left shadow-[0_8px_16px_rgba(26,13,8,0.10)] transition hover:border-[#DEB477] hover:bg-white"
-                  >
-                    <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#8C5A35]">Calcul</span>
-                    <span className="mt-1 block text-[15px] font-black text-[#332117]">Prod ratio</span>
-                  </button>
-
-                  <button
-                    onClick={() => setView('take_rate')}
-                    className="group rounded-[16px] border border-[#CBA36D]/70 bg-[#FFF7EA]/95 px-4 py-3 text-left shadow-[0_8px_16px_rgba(26,13,8,0.10)] transition hover:border-[#DEB477] hover:bg-white"
-                  >
-                    <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#8C5A35]">Paramétrage</span>
-                    <span className="mt-1 block text-[15px] font-black text-[#332117]">Taux de prise</span>
-                  </button>
-                </>
-              )}
+                );
+              })}
             </div>
           </div>
-        </header>
 
-        <main className="min-w-0 flex-1">
-          <section className="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
-            <aside className="rounded-[24px] border border-[#C9A57C] bg-[#F8EFE3] p-4 shadow-[0_18px_42px_rgba(54,24,12,0.16)]">
-              <div className="rounded-[18px] border border-[#D4B58F] bg-[#EFE0CC] px-4 py-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#B56A28]">
-                  Planning
-                </p>
-                <h2 className="mt-1 text-[22px] font-black tracking-tight text-[#342016]">
-                  Choisir le mois
-                </h2>
-                <p className="mt-1 text-sm font-bold text-[#7B543B]">
-                  On travaille un mois à la fois pour garder l’écran lisible.
-                </p>
+          {/* Contenu principal */}
+          <div className="space-y-6">
+            {/* Section chiffres */}
+            <section className="rounded-xl bg-white p-6 shadow-sm">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-lg font-bold text-gray-900">Chiffres du mois</h2>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    selectedHasNumbers
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-amber-100 text-amber-700'
+                  }`}
+                >
+                  {selectedHasNumbers ? '✓ Complété' : 'À saisir'}
+                </span>
               </div>
 
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <div className="rounded-[14px] border border-[#D4B58F] bg-[#FCF7EF] px-3 py-3">
-                  <span className="block text-[10px] font-black uppercase tracking-[0.14em] text-[#71513C]">Chiffres</span>
-                  <span className="mt-1 block text-xl font-black text-[#342016]">{filledIndicatorsCount}/12</span>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">CA HT (€)</label>
+                  {renderEditableInput(selectedMonth.key, selectedMonthIndex, 'sales', '0', 'text-lg')}
                 </div>
-                <div className="rounded-[14px] border border-[#D4B58F] bg-[#FCF7EF] px-3 py-3">
-                  <span className="block text-[10px] font-black uppercase tracking-[0.14em] text-[#71513C]">Imports</span>
-                  <span className="mt-1 block text-xl font-black text-[#342016]">{completedImportsCount}/12</span>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Coût matière (%)</label>
+                  {renderEditableInput(selectedMonth.key, selectedMonthIndex, 'cm', '0', 'text-lg')}
                 </div>
-              </div>
 
-              <div className="mt-4 grid gap-2">
-                {MONTHS_DISPLAY_CONFIG.map((month) => {
-                  const monthImportState = getImportState(month.key);
-                  const monthProductionImported = !!prepImportsByMonth[month.key];
-                  const monthHasNumbers = !!(
-                    getValue(month.key, 'sales') ||
-                    getValue(month.key, 'cm') ||
-                    getValue(month.key, 'covers')
-                  );
-                  const isSelected = month.key === selectedMonth.key;
-                  const monthReady = monthImportState === 'imported' && monthProductionImported;
-
-                  return (
-                    <button
-                      key={month.key}
-                      type="button"
-                      onClick={() => setSelectedMonthKey(month.key)}
-                      className={`flex items-center gap-3 rounded-[14px] border px-3 py-3 text-left transition ${
-                        isSelected
-                          ? 'border-[#9E5E2B] bg-[#3A2418] text-[#FFF6E8] shadow-[0_8px_18px_rgba(54,24,12,0.20)]'
-                          : 'border-[#D4B58F] bg-[#FCF7EF] text-[#342016] hover:border-[#B9854E] hover:bg-white'
-                      }`}
-                    >
-                      <span
-                        className={`h-2.5 w-2.5 rounded-full ${
-                          monthReady ? 'bg-[#6F8B4B]' : monthHasNumbers ? 'bg-[#C89245]' : 'bg-[#B7A28B]'
-                        }`}
-                      />
-                      <span className="min-w-0 flex-1 text-[13px] font-black uppercase tracking-[0.04em]">
-                        {month.label}
-                      </span>
-                      <span className={`text-[10px] font-black uppercase tracking-[0.08em] ${isSelected ? 'text-[#F6DEC0]' : 'text-[#84624A]'}`}>
-                        {monthReady ? 'Prêt' : monthHasNumbers ? 'En cours' : 'À faire'}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </aside>
-
-            <section className="flex flex-col overflow-hidden rounded-[24px] border border-[#C9A57C] bg-[#F8EFE3] shadow-[0_18px_42px_rgba(54,24,12,0.16)]">
-              <div className="border-b border-[#D4B58F] bg-[#EFE0CC] px-5 py-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#B56A28]">
-                      Mois sélectionné
-                    </p>
-                    <h2 className="mt-1 text-[34px] font-black leading-none tracking-tight text-[#342016]">
-                      {selectedMonth.label}
-                    </h2>
-                    <p className="mt-2 text-sm font-bold text-[#7B543B]">
-                      Les trois chiffres essentiels, puis les fichiers à déposer.
-                    </p>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <span
-                      className={`rounded-[10px] border px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] ${
-                        selectedHasImport
-                          ? 'border-[#A8B69A] bg-[#EEF3E9] text-[#4D613C]'
-                          : selectedImportState === 'validated'
-                          ? 'border-[#CDAA77] bg-[#F3E7D7] text-[#8B5A2C]'
-                          : 'border-[#D4C1AA] bg-[#F3EAE0] text-[#76614D]'
-                      }`}
-                    >
-                      Inventaire {selectedHasImport ? 'OK' : selectedImportState === 'validated' ? 'à faire' : 'vide'}
-                    </span>
-                    <span
-                      className={`rounded-[10px] border px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] ${
-                        selectedProductionImported
-                          ? 'border-[#A8B69A] bg-[#EEF3E9] text-[#4D613C]'
-                          : 'border-[#D4C1AA] bg-[#F3EAE0] text-[#76614D]'
-                      }`}
-                    >
-                      Production {selectedProductionImported ? 'OK' : 'vide'}
-                    </span>
-                  </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Couverts</label>
+                  {renderEditableInput(selectedMonth.key, selectedMonthIndex, 'covers', '0', 'text-lg')}
                 </div>
               </div>
+            </section>
 
-              {false && (
-              <div className="hidden">
-                <div className="flex min-h-0 flex-col gap-4">
-                  <div className="grid gap-3 md:grid-cols-3">
-                  <label className="rounded-[18px] border border-[#D4B58F] bg-[#FCF7EF] p-4">
-                    <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#71513C]">CA HT</span>
-                    <span className="mt-1 block text-xs font-bold text-[#8B6B54]">Chiffre d’affaires du mois</span>
-                    {renderEditableInput(selectedMonth.key, selectedMonthIndex, 'sales', "Chiffre d'affaires HT", 'mt-4 h-14 text-[20px]')}
-                  </label>
+            {/* Section imports et actions */}
+            <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
+              {/* Imports */}
+              <section className="rounded-xl bg-white p-6 shadow-sm">
+                <h2 className="mb-4 text-lg font-bold text-gray-900">Imports fichiers</h2>
 
-                  <label className="rounded-[18px] border border-[#D4B58F] bg-[#FCF7EF] p-4">
-                    <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#71513C]">CM</span>
-                    <span className="mt-1 block text-xs font-bold text-[#8B6B54]">Coût matière en %</span>
-                    {renderEditableInput(selectedMonth.key, selectedMonthIndex, 'cm', 'Coût matière (%)', 'mt-4 h-14 text-[20px]')}
-                  </label>
-
-                  <label className="rounded-[18px] border border-[#D4B58F] bg-[#FCF7EF] p-4">
-                    <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#71513C]">Couverts</span>
-                    <span className="mt-1 block text-xs font-bold text-[#8B6B54]">Nombre de clients servis</span>
-                    {renderEditableInput(selectedMonth.key, selectedMonthIndex, 'covers', 'Couverts', 'mt-4 h-14 text-[20px]')}
-                  </label>
-                  </div>
-
-                  <div className="grid flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-                    <div className="flex min-h-[230px] flex-col rounded-[22px] border border-[#A25E2E] bg-[linear-gradient(135deg,#3A2418_0%,#64301F_54%,#9E5E2B_100%)] p-5 text-[#FFF6E8] shadow-[0_16px_32px_rgba(54,24,12,0.18)]">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#F7D48A]">
-                            Prochaine action
-                          </p>
-                          <h3 className="mt-2 text-[28px] font-black leading-tight tracking-tight">
-                            {selectedMainAction.label}
-                          </h3>
-                          <p className="mt-2 text-sm font-bold text-[#F6DEC0]">
-                            {selectedMainAction.hint}
-                          </p>
-                        </div>
-                        <span className={`rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] ${selectedMainAction.tone}`}>
-                          {selectedMonthReady ? 'Prêt' : 'À faire'}
-                        </span>
-                      </div>
-
-                      <div className="mt-auto grid gap-2 pt-6 sm:grid-cols-3">
-                        <div className="rounded-[16px] border border-white/15 bg-white/10 p-3">
-                          <span className="block text-[10px] font-black uppercase tracking-[0.12em] text-[#F7D48A]">Chiffres</span>
-                          <span className="mt-1 block text-sm font-black">{selectedHasNumbers ? 'OK' : 'À saisir'}</span>
-                        </div>
-                        <div className="rounded-[16px] border border-white/15 bg-white/10 p-3">
-                          <span className="block text-[10px] font-black uppercase tracking-[0.12em] text-[#F7D48A]">Inventaire</span>
-                          <span className="mt-1 block text-sm font-black">{selectedHasImport ? 'OK' : 'À ajouter'}</span>
-                        </div>
-                        <div className="rounded-[16px] border border-white/15 bg-white/10 p-3">
-                          <span className="block text-[10px] font-black uppercase tracking-[0.12em] text-[#F7D48A]">Production</span>
-                          <span className="mt-1 block text-sm font-black">{selectedProductionImported ? 'OK' : 'À ajouter'}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-[22px] border border-[#D4B58F] bg-[#FCF7EF] p-5">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#B56A28]">
-                        Repère terrain
-                      </p>
-                      <div className="mt-4 grid gap-3">
-                        <div className="flex items-center gap-3 rounded-[16px] bg-[#F3E6D5] p-3">
-                          <span className="grid h-9 w-9 place-items-center rounded-full bg-[#3A2418] text-sm font-black text-[#F7D48A]">1</span>
-                          <span className="text-sm font-black text-[#342016]">Les chiffres du mois</span>
-                        </div>
-                        <div className="flex items-center gap-3 rounded-[16px] bg-[#F3E6D5] p-3">
-                          <span className="grid h-9 w-9 place-items-center rounded-full bg-[#3A2418] text-sm font-black text-[#F7D48A]">2</span>
-                          <span className="text-sm font-black text-[#342016]">Les deux fichiers</span>
-                        </div>
-                        <div className="flex items-center gap-3 rounded-[16px] bg-[#F3E6D5] p-3">
-                          <span className="grid h-9 w-9 place-items-center rounded-full bg-[#3A2418] text-sm font-black text-[#F7D48A]">3</span>
-                          <span className="text-sm font-black text-[#342016]">Lecture des ratios</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex min-h-0 flex-col gap-3">
-                  <div className="rounded-[18px] border border-[#D4B58F] bg-[#FCF7EF] p-4">
-                    <div className="flex items-start justify-between gap-3">
+                <div className="grid gap-4 md:grid-cols-2">
+                  {/* Inventaire */}
+                  <div className="rounded-lg border-2 border-gray-200 p-4">
+                    <div className="mb-3 flex items-start justify-between">
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#71513C]">Inventaire</p>
-                        <p className="mt-1 text-sm font-bold text-[#342016]">
-                          {selectedHasImport ? 'Fichier chargé' : 'Fichier à ajouter'}
-                        </p>
+                        <h3 className="font-semibold text-gray-900">Inventaire</h3>
+                        <div className="mt-1 flex items-center gap-2">
+                          <span
+                            className={`h-2 w-2 rounded-full ${
+                              selectedHasImport ? 'bg-green-500' : 'bg-gray-300'
+                            }`}
+                          />
+                          <span className="text-sm text-gray-600">
+                            {selectedHasImport ? 'Importé' : 'Non importé'}
+                          </span>
+                        </div>
                       </div>
                       <button
                         onClick={() => canImport && setModalState({ month: selectedMonth.key, target: 'inventory' })}
                         disabled={!canImport}
-                        className={`rounded-[12px] border px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] transition ${
-                          selectedHasImport
-                            ? 'border-[#A8B69A] bg-[#EEF3E9] text-[#4D613C] hover:bg-[#E7EEE0]'
-                            : 'border-[#CDB08A] bg-[#FBF6EE] text-[#6F4A34] hover:bg-white'
-                        } ${!canImport ? 'cursor-not-allowed opacity-50' : ''}`}
+                        className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                          canImport
+                            ? 'bg-blue-600 text-white hover:bg-blue-700'
+                            : 'cursor-not-allowed bg-gray-100 text-gray-400'
+                        }`}
                       >
-                        {selectedHasImport ? 'Modifier' : 'Ajouter'}
+                        {selectedHasImport ? 'Modifier' : 'Importer'}
                       </button>
                     </div>
 
                     {selectedHasImport && (
                       <button
-                        type="button"
                         onClick={() => removeInventoryForMonth(selectedMonth.key)}
                         disabled={!canRemoveImport}
-                        title={`Supprimer l'import inventaire ${selectedMonth.label}`}
-                        className="mt-3 w-full rounded-[12px] border border-[#CDB08A] bg-[#FBF6EE] px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] text-[#8A452C] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+                        className="w-full rounded-lg border-2 border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Supprimer l’import
+                        Supprimer
                       </button>
                     )}
                   </div>
 
-                  <div className="rounded-[18px] border border-[#D4B58F] bg-[#FCF7EF] p-4">
-                    <div className="flex items-start justify-between gap-3">
+                  {/* Production */}
+                  <div className="rounded-lg border-2 border-gray-200 p-4">
+                    <div className="mb-3 flex items-start justify-between">
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#71513C]">Production</p>
-                        <p className="mt-1 text-sm font-bold text-[#342016]">
-                          {selectedProductionImported ? 'Fichier chargé' : 'Fichier à ajouter'}
-                        </p>
+                        <h3 className="font-semibold text-gray-900">Production</h3>
+                        <div className="mt-1 flex items-center gap-2">
+                          <span
+                            className={`h-2 w-2 rounded-full ${
+                              selectedProductionImported ? 'bg-green-500' : 'bg-gray-300'
+                            }`}
+                          />
+                          <span className="text-sm text-gray-600">
+                            {selectedProductionImported ? 'Importé' : 'Non importé'}
+                          </span>
+                        </div>
                       </div>
                       <button
                         onClick={() => canImport && setModalState({ month: selectedMonth.key, target: 'production' })}
                         disabled={!canImport}
-                        className={`rounded-[12px] border px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] transition ${
-                          selectedProductionImported
-                            ? 'border-[#A8B69A] bg-[#EEF3E9] text-[#4D613C] hover:bg-[#E7EEE0]'
-                            : 'border-[#CDB08A] bg-[#FBF6EE] text-[#6F4A34] hover:bg-white'
-                        } ${!canImport ? 'cursor-not-allowed opacity-50' : ''}`}
+                        className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                          canImport
+                            ? 'bg-blue-600 text-white hover:bg-blue-700'
+                            : 'cursor-not-allowed bg-gray-100 text-gray-400'
+                        }`}
                       >
-                        {selectedProductionImported ? 'Modifier' : 'Ajouter'}
+                        {selectedProductionImported ? 'Modifier' : 'Importer'}
                       </button>
                     </div>
 
                     {selectedProductionImported && (
                       <button
-                        type="button"
                         onClick={() => removeProductionImportForMonth(selectedMonth.key)}
                         disabled={!canRemoveImport}
-                        title={`Supprimer l'import production ${selectedMonth.label}`}
-                        className="mt-3 w-full rounded-[12px] border border-[#CDB08A] bg-[#FBF6EE] px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] text-[#8A452C] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+                        className="w-full rounded-lg border-2 border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Supprimer l’import
+                        Supprimer
                       </button>
-                    )}
-                  </div>
-
-                  <div className="flex flex-1 flex-col justify-end rounded-[18px] border border-[#D4B58F] bg-[#F3E6D5] p-4">
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#71513C]">
-                      Suite logique
-                    </p>
-                    <p className="mt-2 text-lg font-black text-[#342016]">
-                      {nextMonth ? nextMonth.label : 'Année complète'}
-                    </p>
-                    {nextMonth ? (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedMonthKey(nextMonth.key)}
-                        className="mt-4 w-full rounded-[14px] border border-[#9E5E2B] bg-[#3A2418] px-4 py-3 text-[12px] font-black uppercase tracking-[0.1em] text-[#FFF6E8] transition hover:bg-[#4B2A1B]"
-                      >
-                        Passer au mois suivant
-                      </button>
-                    ) : (
-                      <span className="mt-4 block rounded-[14px] border border-[#A8B69A] bg-[#EEF3E9] px-4 py-3 text-center text-[12px] font-black uppercase tracking-[0.1em] text-[#4D613C]">
-                        Tous les mois sont visibles
-                      </span>
                     )}
                   </div>
                 </div>
-              </div>
-              )}
+              </section>
 
-              <div className="grid gap-5 p-5">
-                <section>
-                  <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-                    <h3 className="text-[18px] font-black tracking-tight text-[#342016]">
-                      Chiffres mensuels
-                    </h3>
-                    <span
-                      className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.1em] ${
-                        selectedHasNumbers ? 'bg-[#EEF3E9] text-[#4D613C]' : 'bg-[#F3E6D5] text-[#71513C]'
-                      }`}
+              {/* Actions rapides */}
+              <aside className="rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 p-6 shadow-sm">
+                <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-600">
+                  Actions rapides
+                </h2>
+
+                {canOpenRatios ? (
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => setView('ratios')}
+                      className="w-full rounded-lg bg-gray-900 px-4 py-3.5 text-left font-semibold text-white transition hover:bg-gray-800"
                     >
-                      {selectedHasNumbers ? 'Chiffres saisis' : 'À compléter'}
-                    </span>
+                      <span className="block text-sm">Vente</span>
+                      <span className="mt-0.5 block text-xs text-gray-400">Ratios de vente</span>
+                    </button>
+                    <button
+                      onClick={() => setView('prep_ratios')}
+                      className="w-full rounded-lg bg-blue-600 px-4 py-3.5 text-left font-semibold text-white transition hover:bg-blue-700"
+                    >
+                      <span className="block text-sm">Production</span>
+                      <span className="mt-0.5 block text-xs text-blue-200">Ratios de production</span>
+                    </button>
                   </div>
+                ) : (
+                  <button
+                    disabled
+                    className="w-full cursor-not-allowed rounded-lg bg-gray-200 px-4 py-3 text-sm font-semibold text-gray-500"
+                  >
+                    Accès ratios indisponible
+                  </button>
+                )}
 
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <label className="rounded-[18px] border border-[#E0C7AA] bg-[#FFFCF7] p-4 shadow-[0_12px_24px_rgba(54,24,12,0.08)]">
-                      <span className="block text-[13px] font-black text-[#6A5444]">CA HT</span>
-                      {renderEditableInput(selectedMonth.key, selectedMonthIndex, 'sales', "Chiffre d'affaires HT", 'mt-3 h-14 text-[20px]')}
-                    </label>
+                <div className="mt-4 rounded-lg bg-white/60 p-3">
+                  <p className="text-xs text-gray-600">
+                    💡 Le taux de prise utilise les données de production
+                  </p>
+                </div>
+              </aside>
+            </div>
 
-                    <label className="rounded-[18px] border border-[#E0C7AA] bg-[#FFFCF7] p-4 shadow-[0_12px_24px_rgba(54,24,12,0.08)]">
-                      <span className="block text-[13px] font-black text-[#6A5444]">Coût matière en %</span>
-                      {renderEditableInput(selectedMonth.key, selectedMonthIndex, 'cm', 'Coût matière (%)', 'mt-3 h-14 text-[20px]')}
-                    </label>
+            {/* Tableau récapitulatif */}
+            <section className="rounded-xl bg-white p-6 shadow-sm">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-lg font-bold text-gray-900">Vue d'ensemble</h2>
+                <button
+                  onClick={() => setShowAllMonths(!showAllMonths)}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                >
+                  {showAllMonths ? 'Voir moins' : 'Voir tout'}
+                </button>
+              </div>
 
-                    <label className="rounded-[18px] border border-[#E0C7AA] bg-[#FFFCF7] p-4 shadow-[0_12px_24px_rgba(54,24,12,0.08)]">
-                      <span className="block text-[13px] font-black text-[#6A5444]">Couverts</span>
-                      {renderEditableInput(selectedMonth.key, selectedMonthIndex, 'covers', 'Couverts', 'mt-3 h-14 text-[20px]')}
-                    </label>
-                  </div>
-                </section>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b-2 border-gray-200">
+                      <th className="pb-3 pr-4 font-semibold text-gray-900">Mois</th>
+                      <th className="pb-3 pr-4 font-semibold text-gray-900">CA HT</th>
+                      <th className="pb-3 pr-4 font-semibold text-gray-900">Coût %</th>
+                      <th className="pb-3 pr-4 font-semibold text-gray-900">Couverts</th>
+                      <th className="pb-3 font-semibold text-gray-900">État</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monthsToDisplay.map((month) => {
+                      const sales = getValue(month.key, 'sales');
+                      const cm = getValue(month.key, 'cm');
+                      const couverts = getValue(month.key, 'covers');
+                      const isLocked = validatedMonths[month.key];
+                      const hasImport = !!detailedInventory[month.key];
 
-                <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-                  <div>
-                    <h3 className="mb-3 text-[18px] font-black tracking-tight text-[#342016]">
-                      Imports du mois
-                    </h3>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="rounded-[18px] border border-[#E0C7AA] bg-[#FFFCF7] p-4 shadow-[0_12px_24px_rgba(54,24,12,0.08)]">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-[15px] font-black text-[#342016]">Inventaire</p>
-                            <p className="mt-2 inline-flex items-center gap-2 text-sm font-bold text-[#6A5444]">
-                              <span className={`h-2.5 w-2.5 rounded-full ${selectedHasImport ? 'bg-[#6F8B4B]' : 'bg-[#C89245]'}`} />
-                              {selectedHasImport ? 'Fichier chargé' : 'Fichier à ajouter'}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => canImport && setModalState({ month: selectedMonth.key, target: 'inventory' })}
-                            disabled={!canImport}
-                            className={`rounded-[12px] border px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] transition ${
-                              selectedHasImport
-                                ? 'border-[#A8B69A] bg-[#EEF3E9] text-[#4D613C] hover:bg-[#E7EEE0]'
-                                : 'border-[#CDB08A] bg-[#FBF6EE] text-[#6F4A34] hover:bg-white'
-                            } ${!canImport ? 'cursor-not-allowed opacity-50' : ''}`}
-                          >
-                            {selectedHasImport ? 'Modifier' : 'Ajouter'}
-                          </button>
-                        </div>
-
-                        {selectedHasImport && (
-                          <button
-                            type="button"
-                            onClick={() => removeInventoryForMonth(selectedMonth.key)}
-                            disabled={!canRemoveImport}
-                            title={`Supprimer l'import inventaire ${selectedMonth.label}`}
-                            className="mt-4 w-full rounded-[12px] border border-[#CDB08A] bg-[#FBF6EE] px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] text-[#8A452C] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            Supprimer l'import
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="rounded-[18px] border border-[#E0C7AA] bg-[#FFFCF7] p-4 shadow-[0_12px_24px_rgba(54,24,12,0.08)]">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-[15px] font-black text-[#342016]">Production</p>
-                            <p className="mt-2 inline-flex items-center gap-2 text-sm font-bold text-[#6A5444]">
-                              <span className={`h-2.5 w-2.5 rounded-full ${selectedProductionImported ? 'bg-[#6F8B4B]' : 'bg-[#C89245]'}`} />
-                              {selectedProductionImported ? 'Fichier chargé' : 'Fichier à ajouter'}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => canImport && setModalState({ month: selectedMonth.key, target: 'production' })}
-                            disabled={!canImport}
-                            className={`rounded-[12px] border px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] transition ${
-                              selectedProductionImported
-                                ? 'border-[#A8B69A] bg-[#EEF3E9] text-[#4D613C] hover:bg-[#E7EEE0]'
-                                : 'border-[#CDB08A] bg-[#FBF6EE] text-[#6F4A34] hover:bg-white'
-                            } ${!canImport ? 'cursor-not-allowed opacity-50' : ''}`}
-                          >
-                            {selectedProductionImported ? 'Modifier' : 'Ajouter'}
-                          </button>
-                        </div>
-
-                        {selectedProductionImported && (
-                          <button
-                            type="button"
-                            onClick={() => removeProductionImportForMonth(selectedMonth.key)}
-                            disabled={!canRemoveImport}
-                            title={`Supprimer l'import production ${selectedMonth.label}`}
-                            className="mt-4 w-full rounded-[12px] border border-[#CDB08A] bg-[#FBF6EE] px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] text-[#8A452C] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            Supprimer l'import
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <aside className="rounded-[20px] border border-[#D4B58F] bg-[#F3E6D5] p-4">
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8C5A35]">
-                      Accès utiles
-                    </p>
-                    <p className="mt-2 text-sm font-bold text-[#6A5444]">
-                      Le taux de prise utilise l'import production, donc pas de doublon ici.
-                    </p>
-
-                    {canOpenRatios ? (
-                      <div className="mt-4 grid gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setView('ratios')}
-                          className="rounded-[14px] border border-[#9E5E2B] bg-[#3A2418] px-4 py-3 text-left text-[13px] font-black uppercase tracking-[0.08em] text-[#FFF6E8] transition hover:bg-[#4B2A1B]"
-                        >
-                          Vente ratios
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setView('prep_ratios')}
-                          className="rounded-[14px] border border-[#D98B3D] bg-[#C96F24] px-4 py-3 text-left text-[13px] font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#B85F1D]"
-                        >
-                          Prod ratios
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled
-                        className="mt-4 w-full cursor-not-allowed rounded-[14px] border border-[#CDB08A] bg-[#FBF6EE] px-4 py-3 text-[12px] font-black uppercase tracking-[0.08em] text-[#8B6B54] opacity-70"
-                      >
-                        Accès ratios indisponible
-                      </button>
-                    )}
-                  </aside>
-                </section>
+                      return (
+                        <tr key={month.key} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 pr-4 font-medium text-gray-900">{month.label}</td>
+                          <td className="py-3 pr-4 text-gray-700">
+                            {sales ? `${formatNumber(sales)} €` : '-'}
+                          </td>
+                          <td className="py-3 pr-4 text-gray-700">
+                            {cm ? `${formatNumber(cm)} %` : '-'}
+                          </td>
+                          <td className="py-3 pr-4 text-gray-700">
+                            {couverts ? formatNumber(couverts, 0) : '-'}
+                          </td>
+                          <td className="py-3">
+                            <div className="flex items-center gap-2">
+                              {isLocked && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
+                                  🔒 Validé
+                                </span>
+                              )}
+                              {!isLocked && hasImport && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
+                                  ✓ Importé
+                                </span>
+                              )}
+                              {!isLocked && !hasImport && (sales || cm || couverts) && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700">
+                                  ✓ Saisi
+                                </span>
+                              )}
+                              {!isLocked && !hasImport && !sales && !cm && !couverts && (
+                                <span className="text-xs text-gray-400">Vide</span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </section>
-          </section>
+          </div>
         </main>
       </div>
     </div>
