@@ -288,31 +288,72 @@ const StatsPage: React.FC<StatsPageProps> = ({
     <div className="min-h-screen bg-gray-50">
       {modalState && (
         <ImportModal
-          isOpen={!!modalState}
+          monthLabel={MONTHS_DISPLAY_CONFIG.find((m) => m.key === modalState.month)?.label || ''}
           onClose={() => setModalState(null)}
-          onFileSelect={handleFile}
-          targetMonth={modalState.month}
-          targetType={modalState.target}
+          onFileSelected={handleFile}
+          type="detailed"
         />
       )}
 
       <div className="mx-auto max-w-7xl">
         <main className="p-4 md:p-6">
           {/* En-tête */}
-          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mb-6 flex flex-col gap-4 rounded-xl bg-white p-4 shadow-sm xl:flex-row xl:items-center xl:justify-between">
             <div className="hidden">
             <h1 className="text-2xl font-bold text-gray-900">Données mensuelles</h1>
             <p className="mt-1 text-sm text-gray-600">Saisie et imports des données du restaurant</p>
             </div>
             <h1 className="text-2xl font-bold text-gray-900">Paramètres</h1>
 
-            <button
-              type="button"
-              onClick={() => setView('home')}
-              className="inline-flex items-center justify-center rounded-lg border-2 border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
-            >
-              Retour accueil
-            </button>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5 xl:min-w-[720px]">
+              <button
+                type="button"
+                onClick={() => setView('home')}
+                className="rounded-xl border-2 border-gray-200 bg-white px-4 py-3 text-left text-sm font-bold text-gray-900 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
+              >
+                <span className="block text-[10px] font-black uppercase tracking-wide text-gray-400">Retour</span>
+                Accueil
+              </button>
+
+              <button
+                type="button"
+                disabled
+                className="rounded-xl border-2 border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm font-bold text-amber-900 shadow-sm"
+              >
+                <span className="block text-[10px] font-black uppercase tracking-wide text-amber-500">Page active</span>
+                ParamÃ¨tres
+              </button>
+
+              <button
+                type="button"
+                onClick={() => canOpenRatios && setView('ratios')}
+                disabled={!canOpenRatios}
+                className="rounded-xl border-2 border-gray-200 bg-white px-4 py-3 text-left text-sm font-bold text-gray-900 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <span className="block text-[10px] font-black uppercase tracking-wide text-gray-400">Calcul</span>
+                Vente ratio
+              </button>
+
+              <button
+                type="button"
+                onClick={() => canOpenRatios && setView('prep_ratios')}
+                disabled={!canOpenRatios}
+                className="rounded-xl border-2 border-gray-200 bg-white px-4 py-3 text-left text-sm font-bold text-gray-900 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <span className="block text-[10px] font-black uppercase tracking-wide text-gray-400">Calcul</span>
+                Production
+              </button>
+
+              <button
+                type="button"
+                onClick={() => canOpenRatios && setView('take_rate')}
+                disabled={!canOpenRatios}
+                className="rounded-xl border-2 border-gray-200 bg-white px-4 py-3 text-left text-sm font-bold text-gray-900 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <span className="block text-[10px] font-black uppercase tracking-wide text-gray-400">Suivi</span>
+                Taux de prise
+              </button>
+            </div>
           </div>
 
           {/* Navigation mois */}
@@ -419,7 +460,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
             </section>
 
             {/* Section imports et actions */}
-            <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
+            <div className="grid gap-6 lg:grid-cols-1">
               {/* Imports */}
               <section className="rounded-xl bg-white p-6 shadow-sm">
                 <h2 className="mb-4 text-lg font-bold text-gray-900">Imports fichiers</h2>
@@ -508,7 +549,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
               </section>
 
               {/* Actions rapides */}
-              <aside className="rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 p-6 shadow-sm">
+              <aside className="hidden">
                 <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-600">
                   Actions rapides
                 </h2>
