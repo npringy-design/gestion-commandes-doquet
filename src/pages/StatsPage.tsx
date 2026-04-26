@@ -300,9 +300,19 @@ const StatsPage: React.FC<StatsPageProps> = ({
       <div className="mx-auto max-w-7xl">
         <main className="p-4 md:p-6">
           {/* En-tête */}
-          <div className="mb-6">
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
             <h1 className="text-2xl font-bold text-gray-900">Données mensuelles</h1>
             <p className="mt-1 text-sm text-gray-600">Saisie et imports des données du restaurant</p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setView('home')}
+              className="inline-flex items-center justify-center rounded-lg border-2 border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
+            >
+              Retour accueil
+            </button>
           </div>
 
           {/* Navigation mois */}
