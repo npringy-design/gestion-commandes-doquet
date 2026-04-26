@@ -248,7 +248,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
             }
           }}
           placeholder={placeholder}
-          className={`w-full rounded-lg border-2 border-blue-500 bg-white px-4 py-3 font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none ${className}`}
+          className={`w-full rounded-lg border-2 border-[#B66A2C] bg-[#FFFDF8] px-4 py-3 font-semibold text-[#2F1D14] placeholder:text-[#A88B72] focus:outline-none ${className}`}
         />
       );
     }
@@ -260,10 +260,10 @@ const StatsPage: React.FC<StatsPageProps> = ({
         disabled={!canEditFields || locked}
         className={`w-full rounded-lg border-2 px-4 py-3 text-left font-semibold transition ${
           locked
-            ? 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400'
+            ? 'cursor-not-allowed border-[#DEC4A3] bg-[#F4E8D8] text-[#9A806A]'
             : canEditFields
-            ? 'border-gray-200 bg-white text-gray-900 hover:border-gray-300 hover:bg-gray-50'
-            : 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-600'
+            ? 'border-[#DEC4A3] bg-[#FFFDF8] text-[#2F1D14] hover:border-[#B66A2C] hover:bg-white'
+            : 'cursor-not-allowed border-[#DEC4A3] bg-[#F4E8D8] text-[#7B5A43]'
         } ${className}`}
       >
         {displayVal || <span className="text-gray-400">{placeholder}</span>}
@@ -285,7 +285,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
   const monthsToDisplay = showAllMonths ? MONTHS_DISPLAY_CONFIG : MONTHS_DISPLAY_CONFIG.slice(0, 6);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_20%_0%,rgba(245,166,58,0.28),transparent_30%),linear-gradient(180deg,#FFF7EA_0%,#F3DDC0_46%,#C97933_100%)] text-[#2F1D14]">
       {modalState && (
         <ImportModal
           monthLabel={MONTHS_DISPLAY_CONFIG.find((m) => m.key === modalState.month)?.label || ''}
@@ -298,14 +298,25 @@ const StatsPage: React.FC<StatsPageProps> = ({
       <div className="mx-auto max-w-7xl">
         <main className="p-4 md:p-6">
           {/* En-tête */}
-          <div className="mb-6 flex flex-col gap-4 rounded-xl bg-white p-4 shadow-sm xl:flex-row xl:items-center xl:justify-between">
+          <div className="mb-6 flex flex-col gap-4 rounded-[24px] border border-[#C89245]/55 bg-[linear-gradient(135deg,#3A2116_0%,#69331F_58%,#A85F2A_100%)] p-4 shadow-[0_18px_42px_rgba(54,24,12,0.18)] xl:flex-row xl:items-center xl:justify-between [&>h1]:hidden">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <h1 className="text-3xl font-black tracking-tight text-[#FFF7EA]">Paramètres</h1>
+              <button
+                type="button"
+                onClick={() => setView('home')}
+                className="rounded-[16px] border border-[#F1C27B]/70 bg-[#FFF7EA] px-5 py-3 text-left text-sm font-black text-[#3A2116] shadow-[0_8px_18px_rgba(31,14,8,0.18)] transition hover:bg-white"
+              >
+                <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#A85F2A]">Retour</span>
+                Accueil
+              </button>
+            </div>
             <div className="hidden">
             <h1 className="text-2xl font-bold text-gray-900">Données mensuelles</h1>
             <p className="mt-1 text-sm text-gray-600">Saisie et imports des données du restaurant</p>
             </div>
             <h1 className="text-2xl font-bold text-gray-900">Paramètres</h1>
 
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5 xl:min-w-[720px]">
+            <div className="grid gap-2 sm:grid-cols-3 xl:min-w-[560px] [&>button:nth-child(-n+2)]:hidden">
               <button
                 type="button"
                 onClick={() => setView('home')}
@@ -328,9 +339,9 @@ const StatsPage: React.FC<StatsPageProps> = ({
                 type="button"
                 onClick={() => canOpenRatios && setView('ratios')}
                 disabled={!canOpenRatios}
-                className="rounded-xl border-2 border-gray-200 bg-white px-4 py-3 text-left text-sm font-bold text-gray-900 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-[16px] border border-[#E2B16E]/70 bg-[#FFF7EA]/95 px-4 py-3 text-left text-sm font-black text-[#3A2116] shadow-[0_8px_18px_rgba(31,14,8,0.14)] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <span className="block text-[10px] font-black uppercase tracking-wide text-gray-400">Calcul</span>
+                <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#A85F2A]">Calcul</span>
                 Vente ratio
               </button>
 
@@ -338,9 +349,9 @@ const StatsPage: React.FC<StatsPageProps> = ({
                 type="button"
                 onClick={() => canOpenRatios && setView('prep_ratios')}
                 disabled={!canOpenRatios}
-                className="rounded-xl border-2 border-gray-200 bg-white px-4 py-3 text-left text-sm font-bold text-gray-900 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-[16px] border border-[#E2B16E]/70 bg-[#FFF7EA]/95 px-4 py-3 text-left text-sm font-black text-[#3A2116] shadow-[0_8px_18px_rgba(31,14,8,0.14)] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <span className="block text-[10px] font-black uppercase tracking-wide text-gray-400">Calcul</span>
+                <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#A85F2A]">Calcul</span>
                 Production
               </button>
 
@@ -348,9 +359,9 @@ const StatsPage: React.FC<StatsPageProps> = ({
                 type="button"
                 onClick={() => canOpenRatios && setView('take_rate')}
                 disabled={!canOpenRatios}
-                className="rounded-xl border-2 border-gray-200 bg-white px-4 py-3 text-left text-sm font-bold text-gray-900 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-[16px] border border-[#E2B16E]/70 bg-[#FFF7EA]/95 px-4 py-3 text-left text-sm font-black text-[#3A2116] shadow-[0_8px_18px_rgba(31,14,8,0.14)] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <span className="block text-[10px] font-black uppercase tracking-wide text-gray-400">Suivi</span>
+                <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#A85F2A]">Suivi</span>
                 Taux de prise
               </button>
             </div>
@@ -393,8 +404,8 @@ const StatsPage: React.FC<StatsPageProps> = ({
 
           {/* Contenu principal */}
           <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
-            <aside className="rounded-xl bg-white p-4 shadow-sm lg:sticky lg:top-6 lg:self-start">
-              <h2 className="text-sm font-bold uppercase tracking-wide text-gray-600">Mois</h2>
+            <aside className="rounded-[24px] border border-[#D8AE77] bg-[#FFF7EA] p-4 shadow-[0_14px_30px_rgba(80,38,18,0.12)] lg:sticky lg:top-6 lg:self-start">
+              <h2 className="text-sm font-black uppercase tracking-[0.16em] text-[#7B4B2A]">Mois</h2>
               <div className="mt-4 grid gap-2">
                 {MONTHS_DISPLAY_CONFIG.map((month) => {
                   const isSelected = month.key === selectedMonthKey;
@@ -412,13 +423,13 @@ const StatsPage: React.FC<StatsPageProps> = ({
                       onClick={() => setSelectedMonthKey(month.key)}
                       className={`flex w-full items-center gap-3 rounded-lg border-2 px-3 py-3 text-left text-sm font-semibold transition ${
                         isSelected
-                          ? 'border-blue-600 bg-blue-50 text-blue-900'
-                          : 'border-gray-100 bg-white text-gray-800 hover:border-gray-200 hover:bg-gray-50'
+                          ? 'border-[#A85F2A] bg-[#3A2116] text-[#FFF7EA] shadow-[0_8px_18px_rgba(54,24,12,0.18)]'
+                          : 'border-[#E5C89D] bg-[#FFFDF8] text-[#342016] hover:border-[#C89245] hover:bg-white'
                       }`}
                     >
                       <span className={`h-2.5 w-2.5 rounded-full ${statusColor}`} />
                       <span className="min-w-0 flex-1">{month.label}</span>
-                      <span className="text-xs font-bold uppercase tracking-wide text-gray-400">{statusLabel}</span>
+                      <span className={`text-xs font-black uppercase tracking-wide ${isSelected ? 'text-[#F1C27B]' : 'text-[#9A806A]'}`}>{statusLabel}</span>
                     </button>
                   );
                 })}
@@ -427,14 +438,14 @@ const StatsPage: React.FC<StatsPageProps> = ({
 
             <div className="space-y-6">
             {/* Section chiffres */}
-            <section className="rounded-xl bg-white p-6 shadow-sm">
+            <section className="rounded-[24px] border border-[#D8AE77] bg-[#FFF7EA] p-6 shadow-[0_14px_30px_rgba(80,38,18,0.12)] [&_label]:font-black [&_label]:text-[#6A432D]">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-bold text-gray-900">Chiffres du mois</h2>
+                <h2 className="text-lg font-black text-[#2F1D14]">Chiffres du mois</h2>
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-semibold ${
                     selectedHasNumbers
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-amber-100 text-amber-700'
+                      ? 'bg-[#E8F0DE] text-[#4D613C]'
+                      : 'bg-[#F6DEB1] text-[#7B4B2A]'
                   }`}
                 >
                   {selectedHasNumbers ? '✓ Complété' : 'À saisir'}
@@ -462,22 +473,22 @@ const StatsPage: React.FC<StatsPageProps> = ({
             {/* Section imports et actions */}
             <div className="grid gap-6 lg:grid-cols-1">
               {/* Imports */}
-              <section className="rounded-xl bg-white p-6 shadow-sm">
-                <h2 className="mb-4 text-lg font-bold text-gray-900">Imports fichiers</h2>
+              <section className="rounded-[24px] border border-[#D8AE77] bg-[#FFF7EA] p-6 shadow-[0_14px_30px_rgba(80,38,18,0.12)]">
+                <h2 className="mb-4 text-lg font-black text-[#2F1D14]">Imports fichiers</h2>
 
                 <div className="grid gap-4 md:grid-cols-2">
                   {/* Inventaire */}
-                  <div className="rounded-lg border-2 border-gray-200 p-4">
+                  <div className="rounded-[18px] border-2 border-[#E2C39B] bg-[#FFFDF8] p-4 shadow-[0_8px_18px_rgba(80,38,18,0.08)]">
                     <div className="mb-3 flex items-start justify-between">
                       <div>
-                        <h3 className="font-semibold text-gray-900">Inventaire</h3>
+                        <h3 className="font-black text-[#2F1D14]">Inventaire</h3>
                         <div className="mt-1 flex items-center gap-2">
                           <span
                             className={`h-2 w-2 rounded-full ${
                               selectedHasImport ? 'bg-green-500' : 'bg-gray-300'
                             }`}
                           />
-                          <span className="text-sm text-gray-600">
+                          <span className="text-sm font-bold text-[#6A432D]">
                             {selectedHasImport ? 'Importé' : 'Non importé'}
                           </span>
                         </div>
@@ -487,8 +498,8 @@ const StatsPage: React.FC<StatsPageProps> = ({
                         disabled={!canImport}
                         className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
                           canImport
-                            ? 'bg-blue-600 text-white hover:bg-blue-700'
-                            : 'cursor-not-allowed bg-gray-100 text-gray-400'
+                            ? 'bg-[#C86F24] text-white shadow-[0_4px_0_#8B431C] hover:bg-[#B85F1D]'
+                            : 'cursor-not-allowed bg-[#F4E8D8] text-[#9A806A]'
                         }`}
                       >
                         {selectedHasImport ? 'Modifier' : 'Importer'}
@@ -499,7 +510,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
                       <button
                         onClick={() => removeInventoryForMonth(selectedMonth.key)}
                         disabled={!canRemoveImport}
-                        className="w-full rounded-lg border-2 border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="w-full rounded-lg border-2 border-[#E7B7A0] bg-[#FFF1EA] px-4 py-2 text-sm font-black text-[#9B3F21] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Supprimer
                       </button>
@@ -507,17 +518,17 @@ const StatsPage: React.FC<StatsPageProps> = ({
                   </div>
 
                   {/* Production */}
-                  <div className="rounded-lg border-2 border-gray-200 p-4">
+                  <div className="rounded-[18px] border-2 border-[#E2C39B] bg-[#FFFDF8] p-4 shadow-[0_8px_18px_rgba(80,38,18,0.08)]">
                     <div className="mb-3 flex items-start justify-between">
                       <div>
-                        <h3 className="font-semibold text-gray-900">Production</h3>
+                        <h3 className="font-black text-[#2F1D14]">Production</h3>
                         <div className="mt-1 flex items-center gap-2">
                           <span
                             className={`h-2 w-2 rounded-full ${
                               selectedProductionImported ? 'bg-green-500' : 'bg-gray-300'
                             }`}
                           />
-                          <span className="text-sm text-gray-600">
+                          <span className="text-sm font-bold text-[#6A432D]">
                             {selectedProductionImported ? 'Importé' : 'Non importé'}
                           </span>
                         </div>
@@ -527,8 +538,8 @@ const StatsPage: React.FC<StatsPageProps> = ({
                         disabled={!canImport}
                         className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
                           canImport
-                            ? 'bg-blue-600 text-white hover:bg-blue-700'
-                            : 'cursor-not-allowed bg-gray-100 text-gray-400'
+                            ? 'bg-[#C86F24] text-white shadow-[0_4px_0_#8B431C] hover:bg-[#B85F1D]'
+                            : 'cursor-not-allowed bg-[#F4E8D8] text-[#9A806A]'
                         }`}
                       >
                         {selectedProductionImported ? 'Modifier' : 'Importer'}
@@ -539,7 +550,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
                       <button
                         onClick={() => removeProductionImportForMonth(selectedMonth.key)}
                         disabled={!canRemoveImport}
-                        className="w-full rounded-lg border-2 border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="w-full rounded-lg border-2 border-[#E7B7A0] bg-[#FFF1EA] px-4 py-2 text-sm font-black text-[#9B3F21] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Supprimer
                       </button>
