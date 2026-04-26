@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { View } from '../constants';
 import { PasswordModal } from '../components/Modals';
 import { useAuth } from '../auth/AuthProvider';
@@ -272,6 +273,40 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
     setView('home');
   };
 
+  const fixedActions = (
+    <div className="home-fixed-actions z-[9998] flex items-center justify-end gap-2 sm:gap-3">
+      {isAuthConfigured() && user ? (
+        <button
+          onClick={handleSignOut}
+          className="inline-flex items-center gap-2 rounded-lg border border-[#D99A4A] bg-[#FFF2CF] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#512A16] shadow-[0_10px_22px_rgba(26,13,8,0.18)] transition hover:bg-white sm:px-4 sm:py-3 sm:text-[12px]"
+          title="Se déconnecter"
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M15.75 9V5.75A2.75 2.75 0 0013 3H6.75A2.75 2.75 0 004 5.75v12.5A2.75 2.75 0 006.75 21H13a2.75 2.75 0 002.75-2.75V15" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 12h8m0 0l-3-3m3 3l-3 3" />
+          </svg>
+          Déconnexion
+        </button>
+      ) : null}
+
+      <button
+        onClick={() => {
+          if (canOpenAdmin) {
+            setView('admin_dashboard');
+            return;
+          }
+          setShowPassword(true);
+        }}
+        className="inline-flex items-center gap-2 rounded-lg border border-[#D99A4A] bg-[#FFF2CF] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#512A16] shadow-[0_10px_22px_rgba(26,13,8,0.18)] transition hover:bg-white sm:px-4 sm:py-3 sm:text-[12px]"
+      >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+        Admin
+      </button>
+    </div>
+  );
+
   return (
     <>
       <style>{`
@@ -316,7 +351,8 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         .home-fixed-actions {
           top: clamp(1rem, 2.5vh, 1.35rem);
           right: max(1rem, calc((100vw - 1280px) / 2 + 2rem));
-          position: fixed;
+          position: fixed !important;
+          transform: translateZ(0);
         }
 
         .home-hero {
@@ -366,6 +402,8 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         }
       `}</style>
 
+      {typeof document !== 'undefined' ? createPortal(fixedActions, document.body) : fixedActions}
+
       <div className="home-shell relative min-h-[100dvh] overflow-x-hidden overflow-y-auto text-[#2E1B12]">
         {showPassword && (
           <PasswordModal
@@ -378,38 +416,6 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         )}
 
         <main className="home-page-frame relative z-10 mx-auto flex w-full max-w-[1280px] flex-col px-4 sm:px-6 lg:px-8">
-          <div className="home-fixed-actions z-[9998] flex items-center justify-end gap-2 sm:gap-3">
-            {isAuthConfigured() && user ? (
-              <button
-                onClick={handleSignOut}
-                className="inline-flex items-center gap-2 rounded-lg border border-[#D99A4A] bg-[#FFF2CF] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#512A16] shadow-[0_10px_22px_rgba(26,13,8,0.18)] transition hover:bg-white sm:px-4 sm:py-3 sm:text-[12px]"
-                title="Se déconnecter"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M15.75 9V5.75A2.75 2.75 0 0013 3H6.75A2.75 2.75 0 004 5.75v12.5A2.75 2.75 0 006.75 21H13a2.75 2.75 0 002.75-2.75V15" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 12h8m0 0l-3-3m3 3l-3 3" />
-                </svg>
-                Déconnexion
-              </button>
-            ) : null}
-
-            <button
-              onClick={() => {
-                if (canOpenAdmin) {
-                  setView('admin_dashboard');
-                  return;
-                }
-                setShowPassword(true);
-              }}
-              className="inline-flex items-center gap-2 rounded-lg border border-[#D99A4A] bg-[#FFF2CF] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#512A16] shadow-[0_10px_22px_rgba(26,13,8,0.18)] transition hover:bg-white sm:px-4 sm:py-3 sm:text-[12px]"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-              Admin
-            </button>
-          </div>
-
           <header className="mb-5 overflow-hidden rounded-lg border border-[#B8793B] bg-[#1F140F] shadow-[0_22px_55px_rgba(65,37,18,0.24)]">
             <div className="home-hero relative">
               <img
