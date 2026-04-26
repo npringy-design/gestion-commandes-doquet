@@ -206,12 +206,12 @@ const StatsPage: React.FC<StatsPageProps> = ({
   };
 
   const inputBase =
-    'h-10 w-full rounded-[14px] border px-3 text-center text-[13px] font-bold outline-none transition disabled:opacity-50 disabled:cursor-not-allowed';
+    'h-11 w-full rounded-[16px] border px-3 text-center text-[13px] font-black outline-none transition disabled:cursor-not-allowed disabled:opacity-50';
   const inputTheme =
-    'border-[#D4B08C] bg-[#FFFDF9] text-[#3A2A1F] placeholder:text-[#A88D77] focus:border-[#A93E2A] focus:ring-2 focus:ring-[#A93E2A]/15';
+    'border-[#D8B993] bg-[#FFFDF7] text-[#322016] placeholder:text-[#A88D77] shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] focus:border-[#C46B22] focus:bg-white focus:ring-2 focus:ring-[#F0B35E]/25';
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[linear-gradient(180deg,#F6EFE6_0%,#F1E7DA_42%,#E9DDCE_100%)] text-[#34271F]">
+    <div className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_18%_0%,rgba(246,178,74,0.28),transparent_30%),linear-gradient(180deg,#2B160F_0%,#6B2D1D_46%,#C07832_100%)] text-[#34271F]">
       {modalState && canImport && (
         <ImportModal
           monthLabel={MONTHS_DISPLAY_CONFIG.find((m) => m.key === modalState.month)?.label || ''}
@@ -221,72 +221,79 @@ const StatsPage: React.FC<StatsPageProps> = ({
         />
       )}
 
-      <div className="mx-auto flex h-screen max-w-[1720px] flex-col gap-3 p-3 lg:flex-row lg:gap-4 lg:p-3.5">
-        <aside className="w-full shrink-0 lg:w-[255px] xl:w-[270px]">
-          <div className="flex flex-col gap-3 lg:sticky lg:top-3.5">
-            <div className="overflow-hidden rounded-[26px] border border-[#B46E58] bg-[linear-gradient(135deg,#A93E2A_0%,#922F20_48%,#7A231A_100%)] shadow-[0_10px_20px_rgba(122,35,26,0.14)]">
-              <div className="h-1.5 bg-gradient-to-r from-[#F1C15A] via-[#D86A2C] to-[#A93E2A]" />
-              <div className="p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#FFE1B8]">
-                  Hippopotamus Thillois
-                </p>
-                <h1 className="mt-2 text-[21px] font-black leading-none text-[#FFF9F3] xl:text-[23px]">
-                  Paramètres
-                </h1>
-              </div>
+      <div className="mx-auto flex h-screen max-w-[1760px] flex-col gap-4 p-3 sm:p-4 lg:p-5">
+        <header className="shrink-0 overflow-hidden rounded-[30px] border border-[#B8793B] bg-[linear-gradient(135deg,rgba(31,20,15,0.96)_0%,rgba(83,38,24,0.96)_58%,rgba(147,78,35,0.94)_100%)] shadow-[0_24px_60px_rgba(30,13,8,0.24)]">
+          <div className="h-1.5 bg-gradient-to-r from-[#F6B24A] via-[#D96B28] to-[#7C3322]" />
+          <div className="flex flex-col gap-5 p-5 lg:flex-row lg:items-stretch lg:justify-between lg:p-6">
+            <div className="min-w-0">
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[#FFD28A]">
+                Hippopotamus Thillois
+              </p>
+              <h1 className="mt-2 text-[34px] font-black leading-none tracking-tight text-[#FFF6E8] lg:text-[42px]">
+                Paramètres
+              </h1>
+              <p className="mt-3 max-w-[680px] text-sm font-bold leading-relaxed text-[#F6DEC0]">
+                Saisie des indicateurs mensuels, imports inventaire et production, accès aux ratios.
+              </p>
             </div>
 
-            <button
-              onClick={() => setView('home')}
-              className="rounded-[22px] border border-[#D9A72B] bg-[linear-gradient(180deg,#F3C63D_0%,#E3A91F_100%)] px-4 py-3.5 text-center text-[13px] font-black uppercase tracking-[0.12em] text-[#4D2B18] shadow-[0_4px_0_#B8810F] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#B8810F]"
-            >
-              Retour accueil
-            </button>
+            <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[560px] lg:grid-cols-4">
+              <button
+                onClick={() => setView('home')}
+                className="group rounded-[20px] border border-[#E7B56F] bg-[#FFF2CF] px-4 py-4 text-left shadow-[0_10px_22px_rgba(26,13,8,0.16)] transition hover:-translate-y-0.5 hover:bg-white"
+              >
+                <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#A56B23]">Retour</span>
+                <span className="mt-1 block text-[15px] font-black text-[#512A16]">Accueil</span>
+              </button>
 
-            {canOpenRatios && (
-              <>
-                <button
-                  onClick={() => setView('ratios')}
-                  className="rounded-[22px] border border-[#B55A3C] bg-[linear-gradient(180deg,#C9603D_0%,#B0472B_55%,#943320_100%)] px-4 py-4 text-center text-[11px] font-black uppercase tracking-[0.14em] text-[#FFF8F0] shadow-[0_4px_0_#762719] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#762719]"
-                >
-                  Calcul
-                  <br />
-                  Vente ratio
-                </button>
+              {canOpenRatios && (
+                <>
+                  <button
+                    onClick={() => setView('ratios')}
+                    className="group rounded-[20px] border border-[#DCA178] bg-[#FFF8F0] px-4 py-4 text-left shadow-[0_10px_22px_rgba(26,13,8,0.14)] transition hover:-translate-y-0.5 hover:bg-white"
+                  >
+                    <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#A95031]">Calcul</span>
+                    <span className="mt-1 block text-[15px] font-black text-[#5A2618]">Vente ratio</span>
+                  </button>
 
-                <button
-                  onClick={() => setView('prep_ratios')}
-                  className="rounded-[22px] border border-[#2E8D63] bg-[linear-gradient(180deg,#39B37D_0%,#239062_100%)] px-4 py-4 text-center text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-[0_4px_0_#196A48] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#196A48]"
-                >
-                  Calcul
-                  <br />
-                  Prod ratio
-                </button>
+                  <button
+                    onClick={() => setView('prep_ratios')}
+                    className="group rounded-[20px] border border-[#BFD19E] bg-[#F4F8EA] px-4 py-4 text-left shadow-[0_10px_22px_rgba(26,13,8,0.14)] transition hover:-translate-y-0.5 hover:bg-white"
+                  >
+                    <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#5E7A3E]">Calcul</span>
+                    <span className="mt-1 block text-[15px] font-black text-[#273C18]">Prod ratio</span>
+                  </button>
 
-
-                <button
-                  onClick={() => setView('take_rate')}
-                  className="rounded-[22px] border border-[#2E8D63] bg-[linear-gradient(180deg,#3FB98B_0%,#238763_100%)] px-4 py-4 text-center text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-[0_4px_0_#195B42] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#195B42]"
-                >
-                  Paramétrage
-                  <br />
-                  Taux de prise
-                </button>
-
-              </>
-            )}
+                  <button
+                    onClick={() => setView('take_rate')}
+                    className="group rounded-[20px] border border-[#DDBB82] bg-[#FFF5E4] px-4 py-4 text-left shadow-[0_10px_22px_rgba(26,13,8,0.14)] transition hover:-translate-y-0.5 hover:bg-white"
+                  >
+                    <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#8F6A2F]">Paramétrage</span>
+                    <span className="mt-1 block text-[15px] font-black text-[#3F2B16]">Taux de prise</span>
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-        </aside>
+        </header>
 
         <main className="flex min-h-0 min-w-0 flex-1">
-          <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[26px] border border-[#D7B79B] bg-[#FAF5EE] shadow-[0_16px_32px_rgba(145,105,75,0.10)]">
-            <div className="border-b border-[#B45439] bg-[linear-gradient(180deg,#A93E2A_0%,#912F20_55%,#782219_100%)] px-4 py-3">
-              <h2 className="text-[18px] font-black uppercase tracking-[0.08em] text-[#FFF8F1]">
-                Suivi mensuel
-              </h2>
+          <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[30px] border border-[#D9B891] bg-[#FFF8F0] shadow-[0_24px_60px_rgba(54,24,12,0.18)]">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E2C6A4] bg-[linear-gradient(180deg,#FFF3E1_0%,#F4E2CD_100%)] px-5 py-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#B56A28]">
+                  Pilotage
+                </p>
+                <h2 className="mt-1 text-[22px] font-black tracking-tight text-[#342016]">
+                  Suivi mensuel
+                </h2>
+              </div>
+              <p className="rounded-full border border-[#D9B891] bg-white px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-[#7B543B]">
+                {MONTHS_DISPLAY_CONFIG.length} mois
+              </p>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-auto bg-[#F7F0E7]">
+            <div className="min-h-0 flex-1 overflow-auto bg-[#FFF8F0]">
               <table className="w-full min-w-[1080px] table-fixed border-separate border-spacing-0">
                 <colgroup>
                   <col className="w-[11%]" />
@@ -297,20 +304,20 @@ const StatsPage: React.FC<StatsPageProps> = ({
                 </colgroup>
 
                 <thead className="sticky top-0 z-10">
-                  <tr className="bg-[#EADACA] text-[#71402D]">
-                    <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">
+                  <tr className="bg-[#F0D8BB] text-[#71402D]">
+                    <th className="border-b border-[#D6B38D] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">
                       Mois
                     </th>
-                    <th className="border-b border-[#DCC2AB] px-3 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">
+                    <th className="border-b border-[#D6B38D] px-3 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">
                       CA HT
                     </th>
-                    <th className="border-b border-[#DCC2AB] px-3 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">
+                    <th className="border-b border-[#D6B38D] px-3 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">
                       CM
                     </th>
-                    <th className="border-b border-[#DCC2AB] px-3 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">
+                    <th className="border-b border-[#D6B38D] px-3 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">
                       Couverts
                     </th>
-                    <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">
+                    <th className="border-b border-[#D6B38D] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">
                       Imports du mois
                     </th>
                   </tr>
@@ -320,6 +327,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
                   {MONTHS_DISPLAY_CONFIG.map((m, rowIndex) => {
                     const importState = getImportState(m.key);
                     const hasImport = importState === 'imported';
+                    const rowSurface = rowIndex % 2 === 0 ? 'bg-[#FFF9F2]' : 'bg-[#FFF3E8]';
 
                     const renderEditableInput = (field: EditableField, title: string) => {
                       const cellKey = getCellKey(m.key, field);
@@ -399,24 +407,24 @@ const StatsPage: React.FC<StatsPageProps> = ({
 
                     return (
                       <tr key={m.key} className="align-middle">
-                        <td className="border-b border-[#E2CEBD] bg-[#F7F0E7] px-3 py-4 text-[15px] font-black uppercase tracking-[0.03em] text-[#4E2E22]">
+                        <td className={`border-b border-[#E7D0B8] ${rowSurface} px-3 py-4 text-[15px] font-black uppercase tracking-[0.03em] text-[#4E2E22]`}>
                           {m.label}
                         </td>
 
-                        <td className="border-b border-[#E2CEBD] bg-[#F7F0E7] px-3 py-3">
+                        <td className={`border-b border-[#E7D0B8] ${rowSurface} px-3 py-3`}>
                           {renderEditableInput('sales', "Chiffre d'affaires HT")}
                         </td>
 
-                        <td className="border-b border-[#E2CEBD] bg-[#F7F0E7] px-3 py-3">
+                        <td className={`border-b border-[#E7D0B8] ${rowSurface} px-3 py-3`}>
                           {renderEditableInput('cm', 'Coût matière (%)')}
                         </td>
 
-                        <td className="border-b border-[#E2CEBD] bg-[#F7F0E7] px-3 py-3">
+                        <td className={`border-b border-[#E7D0B8] ${rowSurface} px-3 py-3`}>
                           {renderEditableInput('covers', 'Couverts')}
                         </td>
 
-                        <td className="border-b border-[#E2CEBD] bg-[#F7F0E7] px-3 py-3">
-                          <div className="rounded-[18px] border border-[#D6B293] bg-[#FBF7F1] px-3.5 py-3 shadow-[0_2px_0_rgba(188,145,106,0.16)]">
+                        <td className={`border-b border-[#E7D0B8] ${rowSurface} px-3 py-3`}>
+                          <div className="rounded-[20px] border border-[#D6B293] bg-white px-3.5 py-3 shadow-[0_8px_18px_rgba(87,52,33,0.06)]">
                             <div className="space-y-2.5">
                               <div className="flex items-center gap-2.5">
                                 <span className="min-w-[88px] text-[11px] font-black uppercase tracking-[0.08em] text-[#7D543E]">
