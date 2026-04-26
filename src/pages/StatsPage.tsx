@@ -224,6 +224,36 @@ const StatsPage: React.FC<StatsPageProps> = ({
   const selectedImportState = getImportState(selectedMonth.key);
   const selectedHasImport = selectedImportState === 'imported';
   const selectedProductionImported = !!prepImportsByMonth[selectedMonth.key];
+  const selectedHasNumbers = !!(
+    getValue(selectedMonth.key, 'sales') ||
+    getValue(selectedMonth.key, 'cm') ||
+    getValue(selectedMonth.key, 'covers')
+  );
+  const selectedMonthReady = selectedHasNumbers && selectedHasImport && selectedProductionImported;
+  const nextMonth = MONTHS_DISPLAY_CONFIG[selectedMonthIndex + 1] ?? null;
+  const selectedMainAction = !selectedHasNumbers
+    ? {
+        label: 'Saisir les 3 chiffres',
+        hint: 'CA HT, CM et couverts',
+        tone: 'bg-[#F7D48A] text-[#3A2418]',
+      }
+    : !selectedHasImport
+    ? {
+        label: "Ajouter l'inventaire",
+        hint: 'Fichier inventaire du mois',
+        tone: 'bg-[#EBC28C] text-[#3A2418]',
+      }
+    : !selectedProductionImported
+    ? {
+        label: 'Ajouter la production',
+        hint: 'Fichier production cuisine',
+        tone: 'bg-[#D6E0C6] text-[#263A1D]',
+      }
+    : {
+        label: 'Mois prêt',
+        hint: 'Les ratios peuvent être consultés',
+        tone: 'bg-[#E8F0DE] text-[#263A1D]',
+      };
   const completedImportsCount = MONTHS_DISPLAY_CONFIG.filter(
     (month) => detailedInventory[month.key] && prepImportsByMonth[month.key]
   ).length;
@@ -440,7 +470,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
               </div>
             </aside>
 
-            <section className="overflow-hidden rounded-[24px] border border-[#C9A57C] bg-[#F8EFE3] shadow-[0_18px_42px_rgba(54,24,12,0.16)]">
+            <section className="flex min-h-[620px] flex-col overflow-hidden rounded-[24px] border border-[#C9A57C] bg-[#F8EFE3] shadow-[0_18px_42px_rgba(54,24,12,0.16)]">
               <div className="border-b border-[#D4B58F] bg-[#EFE0CC] px-5 py-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -480,8 +510,9 @@ const StatsPage: React.FC<StatsPageProps> = ({
                 </div>
               </div>
 
-              <div className="grid gap-4 p-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-                <div className="grid gap-3 md:grid-cols-3">
+              <div className="grid flex-1 gap-4 p-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+                <div className="flex min-h-0 flex-col gap-4">
+                  <div className="grid gap-3 md:grid-cols-3">
                   <label className="rounded-[18px] border border-[#D4B58F] bg-[#FCF7EF] p-4">
                     <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#71513C]">CA HT</span>
                     <span className="mt-1 block text-xs font-bold text-[#8B6B54]">Chiffre d’affaires du mois</span>
@@ -499,9 +530,66 @@ const StatsPage: React.FC<StatsPageProps> = ({
                     <span className="mt-1 block text-xs font-bold text-[#8B6B54]">Nombre de clients servis</span>
                     {renderEditableInput(selectedMonth.key, selectedMonthIndex, 'covers', 'Couverts', 'mt-4 h-14 text-[20px]')}
                   </label>
+                  </div>
+
+                  <div className="grid flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+                    <div className="flex min-h-[230px] flex-col rounded-[22px] border border-[#A25E2E] bg-[linear-gradient(135deg,#3A2418_0%,#64301F_54%,#9E5E2B_100%)] p-5 text-[#FFF6E8] shadow-[0_16px_32px_rgba(54,24,12,0.18)]">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#F7D48A]">
+                            Prochaine action
+                          </p>
+                          <h3 className="mt-2 text-[28px] font-black leading-tight tracking-tight">
+                            {selectedMainAction.label}
+                          </h3>
+                          <p className="mt-2 text-sm font-bold text-[#F6DEC0]">
+                            {selectedMainAction.hint}
+                          </p>
+                        </div>
+                        <span className={`rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] ${selectedMainAction.tone}`}>
+                          {selectedMonthReady ? 'Prêt' : 'À faire'}
+                        </span>
+                      </div>
+
+                      <div className="mt-auto grid gap-2 pt-6 sm:grid-cols-3">
+                        <div className="rounded-[16px] border border-white/15 bg-white/10 p-3">
+                          <span className="block text-[10px] font-black uppercase tracking-[0.12em] text-[#F7D48A]">Chiffres</span>
+                          <span className="mt-1 block text-sm font-black">{selectedHasNumbers ? 'OK' : 'À saisir'}</span>
+                        </div>
+                        <div className="rounded-[16px] border border-white/15 bg-white/10 p-3">
+                          <span className="block text-[10px] font-black uppercase tracking-[0.12em] text-[#F7D48A]">Inventaire</span>
+                          <span className="mt-1 block text-sm font-black">{selectedHasImport ? 'OK' : 'À ajouter'}</span>
+                        </div>
+                        <div className="rounded-[16px] border border-white/15 bg-white/10 p-3">
+                          <span className="block text-[10px] font-black uppercase tracking-[0.12em] text-[#F7D48A]">Production</span>
+                          <span className="mt-1 block text-sm font-black">{selectedProductionImported ? 'OK' : 'À ajouter'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-[22px] border border-[#D4B58F] bg-[#FCF7EF] p-5">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#B56A28]">
+                        Repère terrain
+                      </p>
+                      <div className="mt-4 grid gap-3">
+                        <div className="flex items-center gap-3 rounded-[16px] bg-[#F3E6D5] p-3">
+                          <span className="grid h-9 w-9 place-items-center rounded-full bg-[#3A2418] text-sm font-black text-[#F7D48A]">1</span>
+                          <span className="text-sm font-black text-[#342016]">Les chiffres du mois</span>
+                        </div>
+                        <div className="flex items-center gap-3 rounded-[16px] bg-[#F3E6D5] p-3">
+                          <span className="grid h-9 w-9 place-items-center rounded-full bg-[#3A2418] text-sm font-black text-[#F7D48A]">2</span>
+                          <span className="text-sm font-black text-[#342016]">Les deux fichiers</span>
+                        </div>
+                        <div className="flex items-center gap-3 rounded-[16px] bg-[#F3E6D5] p-3">
+                          <span className="grid h-9 w-9 place-items-center rounded-full bg-[#3A2418] text-sm font-black text-[#F7D48A]">3</span>
+                          <span className="text-sm font-black text-[#342016]">Lecture des ratios</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="grid gap-3">
+                <div className="flex min-h-0 flex-col gap-3">
                   <div className="rounded-[18px] border border-[#D4B58F] bg-[#FCF7EF] p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -567,6 +655,28 @@ const StatsPage: React.FC<StatsPageProps> = ({
                       >
                         Supprimer l’import
                       </button>
+                    )}
+                  </div>
+
+                  <div className="flex flex-1 flex-col justify-end rounded-[18px] border border-[#D4B58F] bg-[#F3E6D5] p-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#71513C]">
+                      Suite logique
+                    </p>
+                    <p className="mt-2 text-lg font-black text-[#342016]">
+                      {nextMonth ? nextMonth.label : 'Année complète'}
+                    </p>
+                    {nextMonth ? (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedMonthKey(nextMonth.key)}
+                        className="mt-4 w-full rounded-[14px] border border-[#9E5E2B] bg-[#3A2418] px-4 py-3 text-[12px] font-black uppercase tracking-[0.1em] text-[#FFF6E8] transition hover:bg-[#4B2A1B]"
+                      >
+                        Passer au mois suivant
+                      </button>
+                    ) : (
+                      <span className="mt-4 block rounded-[14px] border border-[#A8B69A] bg-[#EEF3E9] px-4 py-3 text-center text-[12px] font-black uppercase tracking-[0.1em] text-[#4D613C]">
+                        Tous les mois sont visibles
+                      </span>
                     )}
                   </div>
                 </div>
