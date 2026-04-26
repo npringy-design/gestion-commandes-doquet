@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View } from '../constants';
 import { PasswordModal } from '../components/Modals';
 import { useAuth } from '../auth/AuthProvider';
+import { isSupabaseConfigured as isAuthConfigured } from '../lib/supabaseClient';
 import { canAccessAdminDashboard, canAccessStatsPage } from '../lib/permissions';
 import restaurantHero from '../assets/hippopotamus-thillois-home.jpg';
 
@@ -74,8 +75,8 @@ const tones = {
 const TileButton: React.FC<HomeTile> = ({ title, subtitle, onClick, icon, tone, primary = false }) => (
   <button
     onClick={onClick}
-    className={`group relative flex w-full overflow-hidden rounded-lg border bg-white p-5 text-left shadow-[0_8px_24px_rgba(81,52,24,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_32px_rgba(81,52,24,0.14)] ${
-      primary ? 'min-h-[148px] lg:col-span-2 lg:min-h-[158px]' : 'min-h-[156px]'
+    className={`home-tile group relative flex w-full overflow-hidden rounded-lg border bg-white p-4 text-left shadow-[0_8px_24px_rgba(81,52,24,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_32px_rgba(81,52,24,0.14)] sm:p-5 ${
+      primary ? 'home-tile-primary lg:col-span-2' : ''
     }`}
     style={{ borderColor: tone.border }}
   >
@@ -93,7 +94,7 @@ const TileButton: React.FC<HomeTile> = ({ title, subtitle, onClick, icon, tone, 
           </span>
 
           <span className="min-w-0">
-            <span className="block whitespace-normal text-[2rem] font-black leading-[1.05] tracking-normal sm:text-[2.25rem]" style={{ color: tone.text }}>
+            <span className="home-tile-title-primary block whitespace-normal text-[2rem] font-black leading-[1.05] tracking-normal sm:text-[2.25rem]" style={{ color: tone.text }}>
               {title}
             </span>
             <span className="mt-2 block text-[12px] font-black uppercase tracking-[0.11em] text-[#7B675A]">
@@ -132,7 +133,7 @@ const TileButton: React.FC<HomeTile> = ({ title, subtitle, onClick, icon, tone, 
         </span>
 
         <span>
-          <span className="block whitespace-normal text-[1.55rem] font-black leading-[1.08] tracking-normal" style={{ color: tone.text }}>
+          <span className="home-tile-title block whitespace-normal text-[1.55rem] font-black leading-[1.08] tracking-normal" style={{ color: tone.text }}>
             {title}
           </span>
           <span className="mt-2 block text-[12px] font-black uppercase tracking-[0.11em] text-[#7B675A]">
@@ -151,7 +152,7 @@ const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const { profile } = useAuth();
+  const { profile, user, signOut } = useAuth();
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -270,6 +271,11 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         analysisTiles[2],
       ];
 
+  const handleSignOut = async () => {
+    await signOut();
+    setView('home');
+  };
+
   return (
     <>
       <style>{`
@@ -280,6 +286,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
             linear-gradient(180deg, rgba(38, 22, 16, 0.98) 0%, rgba(92, 45, 28, 0.96) 48%, rgba(177, 107, 45, 0.92) 100%),
             linear-gradient(135deg, #25140F 0%, #7C3322 48%, #D28B3F 100%);
           font-family: 'Manrope', system-ui, sans-serif;
+          min-height: 100dvh;
         }
 
         .home-shell::before {
@@ -295,15 +302,73 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         .restaurant-title {
           font-family: 'Cormorant Garamond', Georgia, serif;
           letter-spacing: 0;
+          font-size: clamp(3.35rem, 7vw, 6rem);
         }
 
         .restaurant-script {
           font-family: 'Great Vibes', 'Cormorant Garamond', Georgia, serif;
           letter-spacing: 0;
+          font-size: clamp(4rem, 8vw, 7.2rem);
+        }
+
+        .home-page-frame {
+          min-height: 100dvh;
+          padding-top: clamp(4.5rem, 8.5vh, 5.25rem);
+          padding-bottom: clamp(1rem, 2.5vh, 1.5rem);
+        }
+
+        .home-fixed-actions {
+          right: max(1rem, calc((100vw - 1280px) / 2 + 2rem));
+        }
+
+        .home-hero {
+          min-height: clamp(190px, 28vh, 230px);
+        }
+
+        .home-tile {
+          min-height: clamp(132px, 18vh, 156px);
+        }
+
+        .home-tile-primary {
+          min-height: clamp(136px, 19vh, 158px);
+        }
+
+        @media (max-width: 640px) {
+          .home-fixed-actions {
+            left: 1rem;
+            right: 1rem;
+          }
+        }
+
+        @media (min-width: 1024px) and (max-height: 760px) {
+          .home-page-frame {
+            padding-top: 4.4rem;
+            padding-bottom: 0.85rem;
+          }
+
+          .home-hero {
+            min-height: 185px;
+          }
+
+          .home-tile {
+            min-height: 124px;
+          }
+
+          .home-tile-primary {
+            min-height: 128px;
+          }
+
+          .home-tile-title {
+            font-size: 1.35rem;
+          }
+
+          .home-tile-title-primary {
+            font-size: 1.9rem;
+          }
         }
       `}</style>
 
-      <div className="home-shell relative min-h-screen overflow-hidden text-[#2E1B12]">
+      <div className="home-shell relative min-h-[100dvh] overflow-x-hidden overflow-y-auto text-[#2E1B12]">
         {showPassword && (
           <PasswordModal
             onConfirm={() => {
@@ -314,8 +379,22 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           />
         )}
 
-        <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1280px] flex-col px-4 py-5 sm:px-6 lg:px-8">
-          <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
+        <main className="home-page-frame relative z-10 mx-auto flex w-full max-w-[1280px] flex-col px-4 sm:px-6 lg:px-8">
+          <div className="home-fixed-actions fixed top-4 z-[9998] flex items-center justify-end gap-2 sm:gap-3">
+            {isAuthConfigured() && user ? (
+              <button
+                onClick={handleSignOut}
+                className="inline-flex items-center gap-2 rounded-lg border border-[#D99A4A] bg-[#FFF2CF] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#512A16] shadow-[0_10px_22px_rgba(26,13,8,0.18)] transition hover:bg-white sm:px-4 sm:py-3 sm:text-[12px]"
+                title="Se déconnecter"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M15.75 9V5.75A2.75 2.75 0 0013 3H6.75A2.75 2.75 0 004 5.75v12.5A2.75 2.75 0 006.75 21H13a2.75 2.75 0 002.75-2.75V15" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 12h8m0 0l-3-3m3 3l-3 3" />
+                </svg>
+                Déconnexion
+              </button>
+            ) : null}
+
             <button
               onClick={() => {
                 if (canOpenAdmin) {
@@ -324,7 +403,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
                 }
                 setShowPassword(true);
               }}
-              className="inline-flex items-center gap-2 rounded-lg border border-[#D99A4A] bg-[#FFF2CF] px-4 py-3 text-[12px] font-black uppercase tracking-[0.12em] text-[#512A16] shadow-[0_10px_22px_rgba(26,13,8,0.18)] transition hover:bg-white"
+              className="inline-flex items-center gap-2 rounded-lg border border-[#D99A4A] bg-[#FFF2CF] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#512A16] shadow-[0_10px_22px_rgba(26,13,8,0.18)] transition hover:bg-white sm:px-4 sm:py-3 sm:text-[12px]"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -333,8 +412,8 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
             </button>
           </div>
 
-          <header className="mb-7 overflow-hidden rounded-lg border border-[#B8793B] bg-[#1F140F] shadow-[0_22px_55px_rgba(65,37,18,0.24)]">
-            <div className="relative min-h-[230px]">
+          <header className="mb-5 overflow-hidden rounded-lg border border-[#B8793B] bg-[#1F140F] shadow-[0_22px_55px_rgba(65,37,18,0.24)]">
+            <div className="home-hero relative">
               <img
                 src={restaurantHero}
                 alt=""
@@ -343,7 +422,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
               <div className="absolute inset-0 bg-gradient-to-r from-[#170E0A]/88 via-[#170E0A]/55 to-[#170E0A]/18" />
               <div className="absolute inset-0 bg-gradient-to-t from-[#170E0A]/75 via-transparent to-transparent" />
 
-              <div className="relative z-10 flex min-h-[230px] flex-col justify-end p-5 sm:p-7 lg:p-8">
+              <div className="home-hero relative z-10 flex flex-col justify-end p-5 sm:p-7 lg:p-8">
                 <div>
                   <h1 className="restaurant-title max-w-[760px] text-[3.35rem] font-bold leading-[0.9] text-[#FFF6E8] drop-shadow-[0_8px_18px_rgba(0,0,0,0.42)] sm:text-[4.9rem] lg:text-[6rem]">
                     Hippopotamus

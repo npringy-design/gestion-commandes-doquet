@@ -1,5 +1,4 @@
 import React, { Suspense, lazy } from 'react';
-import { isSupabaseConfigured as isAuthConfigured } from '../lib/supabaseClient';
 import { useAuth } from '../auth/AuthProvider';
 import { canAccessAdminDashboard, canAccessDailyForecast, canAccessRatiosPage, canAccessStatsPage, canAccessSupplierSettings, canAccessUserManagement } from '../lib/permissions';
 import type { View } from '../constants';
@@ -49,7 +48,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
   syncRatiosScroll,
 }) => {
   const { view, setView } = state;
-  const { user, signOut, isAdmin, profile } = useAuth();
+  const { profile } = useAuth();
 
   const [isMobile, setIsMobile] = React.useState(false);
   React.useEffect(() => {
@@ -66,32 +65,11 @@ const AppRouter: React.FC<AppRouterProps> = ({
   const renderWithShell = (node: React.ReactNode) => (
     <>
       {node}
-      {LogoutButton}
     </>
   );
 
   const renderLazyPage = (node: React.ReactNode, label?: string) =>
     renderWithShell(<Suspense fallback={<PageLoader label={label} />}>{node}</Suspense>);
-
-  const LogoutButton = isAuthConfigured() && user && view === 'home' ? (
-    <button
-      onClick={async () => {
-        await signOut();
-        try {
-          setView('home');
-        } catch (_e) {}
-      }}
-      className="fixed right-5 top-5 z-[9999] inline-flex items-center gap-2 rounded-lg border border-[#D99A4A] bg-[#FFF2CF] px-4 py-3 text-[12px] font-black uppercase tracking-[0.12em] text-[#512A16] shadow-[0_10px_22px_rgba(26,13,8,0.18)] transition hover:bg-white"
-      title="Se déconnecter"
-    >
-      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M15.75 9V5.75A2.75 2.75 0 0013 3H6.75A2.75 2.75 0 004 5.75v12.5A2.75 2.75 0 006.75 21H13a2.75 2.75 0 002.75-2.75V15" />
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 12h8m0 0l-3-3m3 3l-3 3" />
-      </svg>
-      Déconnexion
-    </button>
-  ) : null;
-
 
   const AccessDenied: React.FC<{ title?: string; message?: string }> = ({
     title = 'Accès refusé',
