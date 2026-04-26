@@ -292,37 +292,37 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
   }, [selectedProduct, selectedMonthValue, salesForSelectedMonth]);
 
   return (
-    <div className={`min-h-screen lg:h-screen flex flex-col overflow-y-auto lg:overflow-y-auto text-slate-900 bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50`}>
+    <div className={`min-h-screen lg:h-screen flex flex-col overflow-y-auto lg:overflow-y-auto text-[#2F1D14] bg-[radial-gradient(circle_at_16%_0%,rgba(245,166,58,0.28),transparent_30%),linear-gradient(180deg,#FFF7EA_0%,#F3DDC0_48%,#C97933_100%)]`}>
 
       {/* ══ HEADER ══════════════════════════════════════════════════════ */}
-      <header className="flex-none bg-white/90 backdrop-blur border-b border-slate-200 px-3 sm:px-5 py-2.5">
+      <header className="flex-none border-b border-[#A85F2A]/30 bg-[linear-gradient(135deg,#3A2116_0%,#69331F_58%,#A85F2A_100%)] px-3 py-3 shadow-[0_14px_34px_rgba(54,24,12,0.18)] sm:px-5 [&_h1]:text-[#FFF7EA] [&_h1]:text-base [&_h1]:font-black [&_p]:text-[#F1C27B] [&_p]:font-bold">
         <div className="flex items-center justify-between gap-3 flex-wrap">
 
           {/* Gauche : retour + titre + badge mois */}
           <div className="flex items-center gap-3">
             {onBackHome && (
               <button onClick={onBackHome}
-                className="flex items-center gap-1.5 text-slate-500 hover:text-slate-900 font-bold text-xs transition-colors">
+                className="flex items-center gap-1.5 rounded-[14px] border border-[#F1C27B]/60 bg-[#FFF7EA] px-3 py-2 text-xs font-black text-[#3A2116] shadow-[0_8px_18px_rgba(31,14,8,0.14)] transition hover:bg-white">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
                 </svg>
                 <span className="hidden sm:inline">Accueil</span>
               </button>
             )}
-            <div className="hidden sm:block w-px h-5 bg-slate-200" />
+            <div className="hidden h-8 w-px bg-[#F1C27B]/35 sm:block" />
             <div>
-              <h1 className="text-sm font-extrabold text-slate-900 leading-none">Analyse Coût Matière</h1>
+              <h1 className="text-sm font-extrabold text-slate-900 leading-none">Coût matière</h1>
               <p className="text-[10px] text-slate-500 mt-0.5">{importedMonthsCount}/12 mois importés</p>
             </div>
           </div>
 
           {/* Centre : sélecteur de période */}
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wide">Période</span>
+          <div className="flex items-center gap-2 rounded-[16px] border border-[#F1C27B]/60 bg-[#FFF7EA]/95 px-3 py-2 shadow-[0_8px_18px_rgba(31,14,8,0.12)]">
+            <span className="text-[10px] font-black text-[#A85F2A] uppercase tracking-[0.14em]">Période</span>
             <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value as PeriodKey)}
-              className="bg-transparent text-sm font-bold text-slate-800 outline-none cursor-pointer"
+              className="cursor-pointer bg-transparent text-sm font-black text-[#3A2116] outline-none"
             >
               {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
               <option value="Annuel">Annuel</option>
@@ -336,7 +336,7 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
 {!isDesktop && (
               <button
                 onClick={() => setIsMobileFocusOpen(true)}
-                className="text-[11px] font-extrabold text-white bg-slate-900 hover:bg-slate-800 rounded-xl px-3 py-1.5 transition-colors"
+                className="rounded-[14px] bg-[#2F1D14] px-3 py-2 text-[11px] font-black text-white transition-colors hover:bg-[#472719]"
               >
                 Focus produit
               </button>
@@ -344,7 +344,7 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
             {!readOnlyAnalyse && (
               <button
                 onClick={() => { ensureDailySheetExists(); setDailyMode('page'); }}
-                className="text-[11px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl px-3 py-1.5 transition-colors"
+                className="rounded-[14px] border border-[#F1C27B]/70 bg-[#F7B24A] px-3 py-2 text-[11px] font-black text-[#3A2116] transition-colors hover:bg-[#FFC266]"
               >
                 Journalier
               </button>
@@ -355,7 +355,7 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
       </header>
 
       {/* ══ CONTENU ══════════════════════════════════════════════════════ */}
-      <main className={dailyMode === 'page' ? "hidden" : "flex-1 min-h-0 p-3 pb-6 sm:p-4 sm:pb-4 lg:p-5 grid grid-cols-12 gap-4 overflow-visible lg:overflow-y-auto lg:overflow-x-hidden"}>
+      <main className={dailyMode === 'page' ? "hidden" : "mx-auto grid w-full max-w-[1760px] flex-1 grid-cols-12 gap-4 overflow-visible p-3 pb-6 sm:p-4 sm:pb-4 lg:min-h-0 lg:overflow-y-auto lg:overflow-x-hidden lg:p-5"}>
 
         {/* ── Colonne gauche : KPIs + tableaux ──────────────────────────── */}
         <div className="col-span-12 lg:col-span-8 flex flex-col gap-4 min-h-0">
@@ -379,13 +379,13 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
           <div className="flex-1 min-h-0 flex flex-col gap-3">
 
             {/* Onglets mobile */}
-            <div className="md:hidden flex gap-2 bg-white/70 backdrop-blur rounded-2xl border border-white/60 p-1.5">
+            <div className="flex gap-2 rounded-2xl border border-[#D8AE77] bg-[#FFF7EA]/85 p-1.5 backdrop-blur md:hidden">
               <button onClick={() => setMobileTopTab('liquides')}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-extrabold transition-colors ${mobileTopTab === 'liquides' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-600'}`}>
+                className={`flex-1 rounded-xl py-2.5 text-sm font-black transition-colors ${mobileTopTab === 'liquides' ? 'bg-[#2F1D14] text-white shadow-sm' : 'text-[#6A432D]'}`}>
                 🥤 Liquides
               </button>
               <button onClick={() => setMobileTopTab('solides')}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-extrabold transition-colors ${mobileTopTab === 'solides' ? 'bg-orange-600 text-white shadow-sm' : 'text-slate-600'}`}>
+                className={`flex-1 rounded-xl py-2.5 text-sm font-black transition-colors ${mobileTopTab === 'solides' ? 'bg-[#C86F24] text-white shadow-sm' : 'text-[#6A432D]'}`}>
                 🍽️ Solides
               </button>
             </div>
@@ -423,34 +423,34 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
           </div>
 
           {/* Bloc recherche + switch €/Qté — hauteur fixe */}
-          <div className="bg-white/80 backdrop-blur rounded-2xl border border-slate-200/70 shadow-sm p-3 flex-none">
-            <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2">Analyse produit</p>
+          <div className="flex-none rounded-[22px] border border-[#D8AE77] bg-[#FFF7EA]/90 p-3 shadow-[0_12px_26px_rgba(80,38,18,0.12)] backdrop-blur">
+            <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#A85F2A]">Analyse produit</p>
             <div className="flex gap-2 mb-1.5">
               <input
                 value={searchText}
                 onChange={(e) => { setSearchText(e.target.value); setFocusId(null); }}
                 placeholder="Chercher un produit…"
-                className={`flex-1 text-xs px-3 py-2 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-400 transition-colors ${selectedProduct ? 'border-indigo-300 bg-indigo-50/30' : 'border-slate-200 bg-white'}`}
+                className={`flex-1 rounded-xl border px-3 py-2 text-xs outline-none transition-colors focus:ring-2 focus:ring-[#C86F24]/30 ${selectedProduct ? 'border-[#C86F24] bg-[#FFF1EA]' : 'border-[#E2C39B] bg-[#FFFDF8]'}`}
                 list="products-list"
               />
               {selectedProduct && (
                 <button onClick={() => { setSearchText(''); setFocusId(null); }}
-                  className="px-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-400 text-xs font-bold transition-colors">
+                  className="rounded-xl border border-[#E2C39B] bg-[#FFFDF8] px-2.5 text-xs font-bold text-[#9A806A] transition-colors hover:bg-white">
                   ✕
                 </button>
               )}
             </div>
             {selectedProduct
-              ? <p className="text-[10px] text-indigo-700 font-semibold truncate mb-2">↳ {selectedProduct.name}</p>
-              : <p className="text-[10px] text-slate-400 mb-2">Clique un produit dans le Top 10 pour l'analyser</p>
+              ? <p className="text-[10px] text-[#A85F2A] font-black truncate mb-2">↳ {selectedProduct.name}</p>
+              : <p className="text-[10px] text-[#8B6B54] mb-2">Clique un produit dans le Top 10 pour l'analyser</p>
             }
             <div className="flex gap-1.5">
               <button onClick={() => setTrendMode('euro')}
-                className={`flex-1 text-[10px] font-extrabold py-1.5 rounded-lg border transition-colors ${trendMode === 'euro' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>
+                className={`flex-1 rounded-lg border py-1.5 text-[10px] font-black transition-colors ${trendMode === 'euro' ? 'border-[#3A2116] bg-[#3A2116] text-white' : 'border-[#E2C39B] bg-[#FFFDF8] text-[#6A432D] hover:border-[#C86F24]'}`}>
                 Valeur €
               </button>
               <button onClick={() => setTrendMode('qty')}
-                className={`flex-1 text-[10px] font-extrabold py-1.5 rounded-lg border transition-colors ${trendMode === 'qty' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>
+                className={`flex-1 rounded-lg border py-1.5 text-[10px] font-black transition-colors ${trendMode === 'qty' ? 'border-[#416D72] bg-[#416D72] text-white' : 'border-[#E2C39B] bg-[#FFFDF8] text-[#6A432D] hover:border-[#416D72]'}`}>
                 Quantité
               </button>
             </div>
@@ -468,10 +468,10 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
           <div className="flex-1 min-h-0 flex flex-col gap-3">
             {/* Panel focus — visible seulement si un produit est sélectionné */}
             {selectedProduct && (
-              <div className="bg-slate-900 text-white rounded-2xl p-3 flex-none border border-white/10 shadow-lg">
+              <div className="rounded-[22px] border border-[#F1C27B]/20 bg-[linear-gradient(135deg,#2F1D14_0%,#5A2B1B_100%)] p-3 text-white shadow-[0_14px_30px_rgba(54,24,12,0.22)] flex-none">
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <div className="min-w-0">
-                    <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Focus article</p>
+                    <p className="text-[9px] font-extrabold text-[#F1C27B] uppercase tracking-wider">Focus article</p>
                     <p className="text-xs font-extrabold mt-0.5 truncate">{selectedProduct.name}</p>
                   </div>
                   <div className="shrink-0 flex flex-col items-end gap-1">
@@ -485,7 +485,7 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
   <div className="flex items-center gap-1">
     <button
       onClick={() => setIsDetailOpen(true)}
-      className="px-2 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-extrabold"
+      className="px-2 py-1 rounded-lg bg-[#F7B24A] hover:bg-[#FFC266] text-[#3A2116] text-[10px] font-black"
       title="Ouvrir le détail produit"
       type="button"
     >
@@ -505,16 +505,16 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
 </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 mb-3">
-                  <div className="bg-white/5 rounded-xl p-2 border border-white/10">
-                    <p className="text-[9px] text-slate-400 uppercase mb-0.5">
+                  <div className="bg-white/10 rounded-xl p-2 border border-[#F1C27B]/20">
+                    <p className="text-[9px] text-[#F1C27B] uppercase mb-0.5">
                       {selectedMonthValue > 0 ? 'Perte' : selectedMonthValue < 0 ? 'Gain' : 'Écart'}
                     </p>
                     <p className={`text-sm font-extrabold ${selectedMonthValue > 0 ? 'text-rose-300' : selectedMonthValue < 0 ? 'text-emerald-300' : 'text-slate-200'}`}>
                       {Math.abs(selectedMonthValue).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                     </p>
                   </div>
-                  <div className="bg-white/5 rounded-xl p-2 border border-white/10">
-                    <p className="text-[9px] text-slate-400 uppercase mb-0.5">Impact CM</p>
+                  <div className="bg-white/10 rounded-xl p-2 border border-[#F1C27B]/20">
+                    <p className="text-[9px] text-[#F1C27B] uppercase mb-0.5">Impact CM</p>
                     <p className="text-sm font-extrabold text-slate-200">
                       {impactCmPoints == null
                         ? <span className="text-slate-500 text-[10px] font-medium">Renseigne le CA</span>
@@ -525,7 +525,7 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
                 {/* (On garde aussi les libellés complets en dessous sur grands écrans) */}
 <div className="hidden md:grid grid-cols-2 gap-2">
   <button onClick={() => setIsDetailOpen(true)}
-    className="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-extrabold py-2 rounded-xl transition-colors"
+    className="bg-[#FFF7EA] hover:bg-white text-[#3A2116] text-[10px] font-black py-2 rounded-xl transition-colors"
     type="button">
     Détail produit
   </button>
@@ -547,10 +547,10 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
         <div className="col-span-12 lg:hidden flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-2">
             <button onClick={() => setIsMobileFocusOpen(true)}
-              className="min-h-[46px] rounded-xl bg-slate-900 text-white text-xs font-extrabold">Focus produit</button>
+              className="min-h-[46px] rounded-xl bg-[#2F1D14] text-white text-xs font-black shadow-[0_10px_20px_rgba(54,24,12,0.18)]">Focus produit</button>
             {!readOnlyAnalyse && (
               <button onClick={() => { ensureDailySheetExists(); setDailyMode('page'); }}
-                className="min-h-[46px] rounded-xl bg-amber-500 text-white text-xs font-extrabold">Journalier</button>
+                className="min-h-[46px] rounded-xl bg-[#F7B24A] text-[#3A2116] text-xs font-black shadow-[0_10px_20px_rgba(54,24,12,0.14)]">Journalier</button>
             )}
 </div>
           {!mobileTerrainMode && (
@@ -564,33 +564,33 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
       {/* Mobile Focus Drawer */}
       {isMobileFocusOpen && (
         <div className="lg:hidden fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-slate-900/45" onClick={() => setIsMobileFocusOpen(false)} />
-          <div className={`absolute inset-x-0 bottom-0 ${isNarrowMobile ? 'top-2' : 'top-8'} bg-white rounded-t-3xl shadow-2xl border-t border-slate-200 flex flex-col overflow-hidden`}>
-            <div className="p-3 border-b border-slate-200 bg-white">
+          <div className="absolute inset-0 bg-[#2F1D14]/55" onClick={() => setIsMobileFocusOpen(false)} />
+          <div className={`absolute inset-x-0 bottom-0 ${isNarrowMobile ? 'top-2' : 'top-8'} bg-[#FFF7EA] rounded-t-3xl shadow-2xl border-t border-[#D8AE77] flex flex-col overflow-hidden`}>
+            <div className="p-3 border-b border-[#E2C39B] bg-[#FFF7EA]">
               <div className="flex items-center justify-between gap-2 mb-2">
-                <p className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Focus produit</p>
-                <button onClick={() => setIsMobileFocusOpen(false)} className="px-3 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-extrabold">Fermer</button>
+                <p className="text-xs font-black text-[#A85F2A] uppercase tracking-wider">Focus produit</p>
+                <button onClick={() => setIsMobileFocusOpen(false)} className="px-3 py-2 rounded-xl bg-[#F3DDC0] text-[#3A2116] text-xs font-black">Fermer</button>
               </div>
               <div className="flex flex-col gap-2">
                 <input
                   value={searchText}
                   onChange={(e) => { setSearchText(e.target.value); setFocusId(null); }}
                   placeholder="Rechercher un produit…"
-                  className={`w-full text-sm px-3 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 ${selectedProduct ? 'border-indigo-300 bg-white' : 'border-slate-200 bg-white'}`}
+                  className={`w-full text-sm px-3 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-[#C86F24]/30 ${selectedProduct ? 'border-[#C86F24] bg-[#FFF1EA]' : 'border-[#E2C39B] bg-[#FFFDF8]'}`}
                   list="products-list"
                 />
                 <div className="grid grid-cols-3 gap-2">
-                  <button onClick={() => { setSearchText(''); setFocusId(null); }} className="min-h-[44px] rounded-xl border border-slate-200 bg-white text-xs font-extrabold">Effacer</button>
-                  <button onClick={() => setTrendMode('euro')} className={`min-h-[44px] rounded-xl border text-xs font-extrabold ${trendMode === 'euro' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-700 border-slate-200'}`}>€</button>
-                  <button onClick={() => setTrendMode('qty')} className={`min-h-[44px] rounded-xl border text-xs font-extrabold ${trendMode === 'qty' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-700 border-slate-200'}`}>Qté</button>
+                  <button onClick={() => { setSearchText(''); setFocusId(null); }} className="min-h-[44px] rounded-xl border border-[#E2C39B] bg-[#FFFDF8] text-xs font-black text-[#6A432D]">Effacer</button>
+                  <button onClick={() => setTrendMode('euro')} className={`min-h-[44px] rounded-xl border text-xs font-black ${trendMode === 'euro' ? 'bg-[#3A2116] text-white border-[#3A2116]' : 'bg-[#FFFDF8] text-[#6A432D] border-[#E2C39B]'}`}>€</button>
+                  <button onClick={() => setTrendMode('qty')} className={`min-h-[44px] rounded-xl border text-xs font-black ${trendMode === 'qty' ? 'bg-[#416D72] text-white border-[#416D72]' : 'bg-[#FFFDF8] text-[#6A432D] border-[#E2C39B]'}`}>Qté</button>
                 </div>
               </div>
             </div>
             <div className="flex-1 min-h-0 overflow-auto p-3 space-y-3">
               <div className="h-[220px]"><ProductTrendChart key={`mobile-${trendMode}`} data={trendData} title={focusTitle} mode={trendMode} /></div>
-              <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-amber-900/70 text-white rounded-2xl p-3 shadow-lg border border-white/10">
+              <div className="bg-[linear-gradient(135deg,#2F1D14_0%,#5A2B1B_100%)] text-white rounded-[22px] p-3 shadow-[0_14px_30px_rgba(54,24,12,0.22)] border border-[#F1C27B]/20">
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-[10px] font-extrabold text-slate-200/80 uppercase tracking-wider">Focus Article</h4>
+                  <h4 className="text-[10px] font-black text-[#F1C27B] uppercase tracking-wider">Focus Article</h4>
                   <span className="bg-rose-500/90 text-[10px] px-2 py-1 rounded-full font-extrabold">ALERTE</span>
                 </div>
                 <p className="text-sm font-bold mb-2">{focusTitle}</p>
@@ -605,7 +605,7 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => { setIsDetailOpen(true); setIsMobileFocusOpen(false); }} className="min-h-[44px] bg-indigo-600 text-white text-xs font-extrabold rounded-xl">Détail</button>
+                  <button onClick={() => { setIsDetailOpen(true); setIsMobileFocusOpen(false); }} className="min-h-[44px] bg-[#FFF7EA] text-[#3A2116] text-xs font-black rounded-xl">Détail</button>
                   {!readOnlyAnalyse && (
                     <button onClick={addSelectedToDaily} className="min-h-[44px] bg-amber-500/90 text-white text-xs font-extrabold rounded-xl">+ Journalier</button>
                   )}

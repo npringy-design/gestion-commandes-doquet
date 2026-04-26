@@ -34,10 +34,10 @@ const convertMonthKeys = <T,>(
 };
 
 const CostAnalysisFallback = () => (
-  <div className="min-h-screen bg-[#FFF8E7] flex items-center justify-center px-4">
-    <div className="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] px-6 py-4 text-center">
-      <div className="text-lg font-semibold text-[#111827]">Chargement de l'analyse coût matière…</div>
-      <div className="text-sm text-[#6B7280] mt-1">Préparation du tableau de bord et des données mensuelles.</div>
+  <div className="min-h-screen bg-[linear-gradient(180deg,#FFF7EA_0%,#F3DDC0_55%,#C97933_100%)] flex items-center justify-center px-4">
+    <div className="bg-[#FFF7EA]/95 rounded-[22px] shadow-[0_14px_34px_rgba(54,24,12,0.18)] border border-[#D8AE77] px-6 py-4 text-center">
+      <div className="text-lg font-black text-[#2F1D14]">Chargement de l'analyse coût matière…</div>
+      <div className="text-sm font-semibold text-[#8B5A35] mt-1">Préparation du tableau de bord et des données mensuelles.</div>
     </div>
   </div>
 );
@@ -78,7 +78,7 @@ const CostAnalysisPage: React.FC<CostAnalysisPageProps> = ({
 
   return (
     <Suspense fallback={<CostAnalysisFallback />}>
-      <div className="min-h-screen bg-[#FFF8E7]">
+      <div className="min-h-screen bg-[linear-gradient(180deg,#FFF7EA_0%,#F3DDC0_55%,#C97933_100%)]">
         <DashboardApp
           csvByMonth={csvByMonth}
           coversByMonthFromParams={coversByMonthFromParams}

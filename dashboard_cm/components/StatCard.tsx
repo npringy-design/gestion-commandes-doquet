@@ -21,10 +21,10 @@ const formatNumberFR = (n: number, opts?: { min?: number; max?: number }) => {
 
 const StatCard: React.FC<StatCardProps> = ({ label, value, suffix, color = 'indigo', subLabel, subValue }) => {
   const colorMap = {
-    indigo: 'border-indigo-200 text-indigo-900 bg-white/70',
-    emerald: 'border-emerald-200 text-emerald-900 bg-white/70',
-    rose: 'border-rose-200 text-rose-900 bg-white/70',
-    orange: 'border-orange-200 text-orange-900 bg-white/70',
+    indigo: 'border-[#D8AE77] text-[#2F1D14] bg-[#FFF7EA]/90',
+    emerald: 'border-[#A8B69A] text-[#263A1D] bg-[#F1F5E9]/90',
+    rose: 'border-[#D9A08B] text-[#6E2F1E] bg-[#FFF1EA]/90',
+    orange: 'border-[#D8AE77] text-[#6A3A17] bg-[#FFE8C2]/90',
   } as const;
 
   const displayValue = (() => {
@@ -41,17 +41,17 @@ const StatCard: React.FC<StatCardProps> = ({ label, value, suffix, color = 'indi
   })();
 
   return (
-    <div className={`px-3 sm:px-4 py-3 rounded-2xl border shadow-sm backdrop-blur ${colorMap[color]} flex flex-col justify-center h-full min-h-[84px]`}>
-      <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-1">{label}</p>
+    <div className={`px-3 sm:px-4 py-3 rounded-[22px] border shadow-[0_12px_26px_rgba(80,38,18,0.12)] backdrop-blur ${colorMap[color]} flex flex-col justify-center h-full min-h-[84px]`}>
+      <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#8B5A35] mb-1">{label}</p>
       <div className="flex items-baseline gap-1">
         <span className="text-lg sm:text-xl font-extrabold leading-tight tabular-nums">{displayValue}</span>
         {suffix && <span className="text-[10px] font-medium opacity-70">{suffix}</span>}
       </div>
       {(subLabel || subValue) && (
         <div className="mt-2 flex items-center justify-between gap-2">
-          {subLabel && <span className="text-[10px] font-semibold text-slate-500">{subLabel}</span>}
+          {subLabel && <span className="text-[10px] font-semibold text-[#8B6B54]">{subLabel}</span>}
           {subValue && (
-            <span className="text-[10px] font-extrabold px-2 py-1 rounded-full bg-white/70 border border-white/70 text-slate-700 tabular-nums">
+            <span className="text-[10px] font-extrabold px-2 py-1 rounded-full bg-[#FFFDF8]/80 border border-[#E2C39B] text-[#6A432D] tabular-nums">
               {subValue}
             </span>
           )}
