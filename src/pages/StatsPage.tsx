@@ -470,7 +470,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
               </div>
             </aside>
 
-            <section className="flex min-h-[620px] flex-col overflow-hidden rounded-[24px] border border-[#C9A57C] bg-[#F8EFE3] shadow-[0_18px_42px_rgba(54,24,12,0.16)]">
+            <section className="flex flex-col overflow-hidden rounded-[24px] border border-[#C9A57C] bg-[#F8EFE3] shadow-[0_18px_42px_rgba(54,24,12,0.16)]">
               <div className="border-b border-[#D4B58F] bg-[#EFE0CC] px-5 py-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -510,7 +510,8 @@ const StatsPage: React.FC<StatsPageProps> = ({
                 </div>
               </div>
 
-              <div className="grid flex-1 gap-4 p-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+              {false && (
+              <div className="hidden">
                 <div className="flex min-h-0 flex-col gap-4">
                   <div className="grid gap-3 md:grid-cols-3">
                   <label className="rounded-[18px] border border-[#D4B58F] bg-[#FCF7EF] p-4">
@@ -680,6 +681,157 @@ const StatsPage: React.FC<StatsPageProps> = ({
                     )}
                   </div>
                 </div>
+              </div>
+              )}
+
+              <div className="grid gap-5 p-5">
+                <section>
+                  <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+                    <h3 className="text-[18px] font-black tracking-tight text-[#342016]">
+                      Chiffres mensuels
+                    </h3>
+                    <span
+                      className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.1em] ${
+                        selectedHasNumbers ? 'bg-[#EEF3E9] text-[#4D613C]' : 'bg-[#F3E6D5] text-[#71513C]'
+                      }`}
+                    >
+                      {selectedHasNumbers ? 'Chiffres saisis' : 'À compléter'}
+                    </span>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <label className="rounded-[18px] border border-[#E0C7AA] bg-[#FFFCF7] p-4 shadow-[0_12px_24px_rgba(54,24,12,0.08)]">
+                      <span className="block text-[13px] font-black text-[#6A5444]">CA HT</span>
+                      {renderEditableInput(selectedMonth.key, selectedMonthIndex, 'sales', "Chiffre d'affaires HT", 'mt-3 h-14 text-[20px]')}
+                    </label>
+
+                    <label className="rounded-[18px] border border-[#E0C7AA] bg-[#FFFCF7] p-4 shadow-[0_12px_24px_rgba(54,24,12,0.08)]">
+                      <span className="block text-[13px] font-black text-[#6A5444]">Coût matière en %</span>
+                      {renderEditableInput(selectedMonth.key, selectedMonthIndex, 'cm', 'Coût matière (%)', 'mt-3 h-14 text-[20px]')}
+                    </label>
+
+                    <label className="rounded-[18px] border border-[#E0C7AA] bg-[#FFFCF7] p-4 shadow-[0_12px_24px_rgba(54,24,12,0.08)]">
+                      <span className="block text-[13px] font-black text-[#6A5444]">Couverts</span>
+                      {renderEditableInput(selectedMonth.key, selectedMonthIndex, 'covers', 'Couverts', 'mt-3 h-14 text-[20px]')}
+                    </label>
+                  </div>
+                </section>
+
+                <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+                  <div>
+                    <h3 className="mb-3 text-[18px] font-black tracking-tight text-[#342016]">
+                      Imports du mois
+                    </h3>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="rounded-[18px] border border-[#E0C7AA] bg-[#FFFCF7] p-4 shadow-[0_12px_24px_rgba(54,24,12,0.08)]">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-[15px] font-black text-[#342016]">Inventaire</p>
+                            <p className="mt-2 inline-flex items-center gap-2 text-sm font-bold text-[#6A5444]">
+                              <span className={`h-2.5 w-2.5 rounded-full ${selectedHasImport ? 'bg-[#6F8B4B]' : 'bg-[#C89245]'}`} />
+                              {selectedHasImport ? 'Fichier chargé' : 'Fichier à ajouter'}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => canImport && setModalState({ month: selectedMonth.key, target: 'inventory' })}
+                            disabled={!canImport}
+                            className={`rounded-[12px] border px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] transition ${
+                              selectedHasImport
+                                ? 'border-[#A8B69A] bg-[#EEF3E9] text-[#4D613C] hover:bg-[#E7EEE0]'
+                                : 'border-[#CDB08A] bg-[#FBF6EE] text-[#6F4A34] hover:bg-white'
+                            } ${!canImport ? 'cursor-not-allowed opacity-50' : ''}`}
+                          >
+                            {selectedHasImport ? 'Modifier' : 'Ajouter'}
+                          </button>
+                        </div>
+
+                        {selectedHasImport && (
+                          <button
+                            type="button"
+                            onClick={() => removeInventoryForMonth(selectedMonth.key)}
+                            disabled={!canRemoveImport}
+                            title={`Supprimer l'import inventaire ${selectedMonth.label}`}
+                            className="mt-4 w-full rounded-[12px] border border-[#CDB08A] bg-[#FBF6EE] px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] text-[#8A452C] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            Supprimer l'import
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="rounded-[18px] border border-[#E0C7AA] bg-[#FFFCF7] p-4 shadow-[0_12px_24px_rgba(54,24,12,0.08)]">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-[15px] font-black text-[#342016]">Production</p>
+                            <p className="mt-2 inline-flex items-center gap-2 text-sm font-bold text-[#6A5444]">
+                              <span className={`h-2.5 w-2.5 rounded-full ${selectedProductionImported ? 'bg-[#6F8B4B]' : 'bg-[#C89245]'}`} />
+                              {selectedProductionImported ? 'Fichier chargé' : 'Fichier à ajouter'}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => canImport && setModalState({ month: selectedMonth.key, target: 'production' })}
+                            disabled={!canImport}
+                            className={`rounded-[12px] border px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] transition ${
+                              selectedProductionImported
+                                ? 'border-[#A8B69A] bg-[#EEF3E9] text-[#4D613C] hover:bg-[#E7EEE0]'
+                                : 'border-[#CDB08A] bg-[#FBF6EE] text-[#6F4A34] hover:bg-white'
+                            } ${!canImport ? 'cursor-not-allowed opacity-50' : ''}`}
+                          >
+                            {selectedProductionImported ? 'Modifier' : 'Ajouter'}
+                          </button>
+                        </div>
+
+                        {selectedProductionImported && (
+                          <button
+                            type="button"
+                            onClick={() => removeProductionImportForMonth(selectedMonth.key)}
+                            disabled={!canRemoveImport}
+                            title={`Supprimer l'import production ${selectedMonth.label}`}
+                            className="mt-4 w-full rounded-[12px] border border-[#CDB08A] bg-[#FBF6EE] px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] text-[#8A452C] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            Supprimer l'import
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <aside className="rounded-[20px] border border-[#D4B58F] bg-[#F3E6D5] p-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8C5A35]">
+                      Accès utiles
+                    </p>
+                    <p className="mt-2 text-sm font-bold text-[#6A5444]">
+                      Le taux de prise utilise l'import production, donc pas de doublon ici.
+                    </p>
+
+                    {canOpenRatios ? (
+                      <div className="mt-4 grid gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setView('ratios')}
+                          className="rounded-[14px] border border-[#9E5E2B] bg-[#3A2418] px-4 py-3 text-left text-[13px] font-black uppercase tracking-[0.08em] text-[#FFF6E8] transition hover:bg-[#4B2A1B]"
+                        >
+                          Vente ratios
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setView('prep_ratios')}
+                          className="rounded-[14px] border border-[#D98B3D] bg-[#C96F24] px-4 py-3 text-left text-[13px] font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#B85F1D]"
+                        >
+                          Prod ratios
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        className="mt-4 w-full cursor-not-allowed rounded-[14px] border border-[#CDB08A] bg-[#FBF6EE] px-4 py-3 text-[12px] font-black uppercase tracking-[0.08em] text-[#8B6B54] opacity-70"
+                      >
+                        Accès ratios indisponible
+                      </button>
+                    )}
+                  </aside>
+                </section>
               </div>
             </section>
           </section>
