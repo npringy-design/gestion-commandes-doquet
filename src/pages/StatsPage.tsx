@@ -211,7 +211,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
     'border-[#D8B993] bg-[#FFFDF7] text-[#322016] placeholder:text-[#A88D77] shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] focus:border-[#C46B22] focus:bg-white focus:ring-2 focus:ring-[#F0B35E]/25';
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_18%_0%,rgba(246,178,74,0.28),transparent_30%),linear-gradient(180deg,#2B160F_0%,#6B2D1D_46%,#C07832_100%)] text-[#34271F]">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_18%_0%,rgba(246,178,74,0.28),transparent_30%),linear-gradient(180deg,#2B160F_0%,#6B2D1D_46%,#C07832_100%)] text-[#34271F]">
       {modalState && canImport && (
         <ImportModal
           monthLabel={MONTHS_DISPLAY_CONFIG.find((m) => m.key === modalState.month)?.label || ''}
@@ -221,7 +221,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
         />
       )}
 
-      <div className="mx-auto flex h-screen max-w-[1760px] flex-col gap-4 p-3 sm:p-4 lg:p-5">
+      <div className="mx-auto flex min-h-screen max-w-[1760px] flex-col gap-4 p-3 sm:p-4 lg:p-5">
         <header className="shrink-0 overflow-hidden rounded-[30px] border border-[#B8793B] bg-[linear-gradient(135deg,rgba(31,20,15,0.96)_0%,rgba(83,38,24,0.96)_58%,rgba(147,78,35,0.94)_100%)] shadow-[0_24px_60px_rgba(30,13,8,0.24)]">
           <div className="h-1.5 bg-gradient-to-r from-[#F6B24A] via-[#D96B28] to-[#7C3322]" />
           <div className="flex flex-col gap-5 p-5 lg:flex-row lg:items-stretch lg:justify-between lg:p-6">
@@ -277,242 +277,227 @@ const StatsPage: React.FC<StatsPageProps> = ({
           </div>
         </header>
 
-        <main className="flex min-h-0 min-w-0 flex-1">
-          <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[30px] border border-[#D9B891] bg-[#FFF8F0] shadow-[0_24px_60px_rgba(54,24,12,0.18)]">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E2C6A4] bg-[linear-gradient(180deg,#FFF3E1_0%,#F4E2CD_100%)] px-5 py-4">
+        <main className="min-w-0 flex-1">
+          <section className="rounded-[30px] border border-[#D9B891] bg-[#FFF8F0] p-4 shadow-[0_24px_60px_rgba(54,24,12,0.18)] lg:p-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-[#E2C6A4] bg-[linear-gradient(180deg,#FFF3E1_0%,#F4E2CD_100%)] px-5 py-4">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#B56A28]">
                   Pilotage
                 </p>
                 <h2 className="mt-1 text-[22px] font-black tracking-tight text-[#342016]">
-                  Suivi mensuel
+                  Indicateurs mensuels
                 </h2>
+                <p className="mt-1 text-sm font-bold text-[#7B543B]">
+                  CA HT, coût matière et couverts par mois, avec les imports associés.
+                </p>
               </div>
               <p className="rounded-full border border-[#D9B891] bg-white px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-[#7B543B]">
                 {MONTHS_DISPLAY_CONFIG.length} mois
               </p>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-auto bg-[#FFF8F0]">
-              <table className="w-full min-w-[1080px] table-fixed border-separate border-spacing-0">
-                <colgroup>
-                  <col className="w-[11%]" />
-                  <col className="w-[18%]" />
-                  <col className="w-[16%]" />
-                  <col className="w-[15%]" />
-                  <col className="w-[40%]" />
-                </colgroup>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              {MONTHS_DISPLAY_CONFIG.map((m, rowIndex) => {
+                const importState = getImportState(m.key);
+                const hasImport = importState === 'imported';
+                const productionImported = !!prepImportsByMonth[m.key];
 
-                <thead className="sticky top-0 z-10">
-                  <tr className="bg-[#F0D8BB] text-[#71402D]">
-                    <th className="border-b border-[#D6B38D] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">
-                      Mois
-                    </th>
-                    <th className="border-b border-[#D6B38D] px-3 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">
-                      CA HT
-                    </th>
-                    <th className="border-b border-[#D6B38D] px-3 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">
-                      CM
-                    </th>
-                    <th className="border-b border-[#D6B38D] px-3 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">
-                      Couverts
-                    </th>
-                    <th className="border-b border-[#D6B38D] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">
-                      Imports du mois
-                    </th>
-                  </tr>
-                </thead>
+                const renderEditableInput = (field: EditableField, title: string) => {
+                  const cellKey = getCellKey(m.key, field);
+                  const value = getValue(m.key, field);
+                  const isActive = activeCell === cellKey;
+                  const displayValue = isActive
+                    ? drafts[cellKey] ?? getRawValue(value, field !== 'covers')
+                    : formatDisplayValue(field, value);
+                  const columnIndex = editableColumns.indexOf(field);
 
-                <tbody>
-                  {MONTHS_DISPLAY_CONFIG.map((m, rowIndex) => {
-                    const importState = getImportState(m.key);
-                    const hasImport = importState === 'imported';
-                    const rowSurface = rowIndex % 2 === 0 ? 'bg-[#FFF9F2]' : 'bg-[#FFF3E8]';
+                  return (
+                    <input
+                      ref={(el) => {
+                        cellRefs.current[cellKey] = el;
+                      }}
+                      type="text"
+                      inputMode={field === 'covers' ? 'numeric' : 'decimal'}
+                      value={displayValue}
+                      onFocus={(e) => {
+                        setActiveCell(cellKey);
+                        setDrafts((prev) => ({
+                          ...prev,
+                          [cellKey]: getRawValue(value, field !== 'covers'),
+                        }));
+                        requestAnimationFrame(() => e.target.select());
+                      }}
+                      onMouseUp={(e) => e.preventDefault()}
+                      onChange={(e) => {
+                        setDrafts((prev) => ({
+                          ...prev,
+                          [cellKey]: e.target.value,
+                        }));
+                      }}
+                      onBlur={() => commitDraft(m.key, field)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          commitDraft(m.key, field);
+                          moveToCell(Math.min(rowIndex + 1, MONTHS_DISPLAY_CONFIG.length - 1), columnIndex);
+                          return;
+                        }
 
-                    const renderEditableInput = (field: EditableField, title: string) => {
-                      const cellKey = getCellKey(m.key, field);
-                      const value = getValue(m.key, field);
-                      const isActive = activeCell === cellKey;
-                      const displayValue = isActive
-                        ? drafts[cellKey] ?? getRawValue(value, field !== 'covers')
-                        : formatDisplayValue(field, value);
-                      const columnIndex = editableColumns.indexOf(field);
+                        if (e.key === 'ArrowDown') {
+                          e.preventDefault();
+                          commitDraft(m.key, field);
+                          moveToCell(Math.min(rowIndex + 1, MONTHS_DISPLAY_CONFIG.length - 1), columnIndex);
+                          return;
+                        }
 
-                      return (
-                        <input
-                          ref={(el) => {
-                            cellRefs.current[cellKey] = el;
-                          }}
-                          type="text"
-                          inputMode={field === 'covers' ? 'numeric' : 'decimal'}
-                          value={displayValue}
-                          onFocus={(e) => {
-                            setActiveCell(cellKey);
-                            setDrafts((prev) => ({
-                              ...prev,
-                              [cellKey]: getRawValue(value, field !== 'covers'),
-                            }));
-                            requestAnimationFrame(() => e.target.select());
-                          }}
-                          onMouseUp={(e) => e.preventDefault()}
-                          onChange={(e) => {
-                            setDrafts((prev) => ({
-                              ...prev,
-                              [cellKey]: e.target.value,
-                            }));
-                          }}
-                          onBlur={() => commitDraft(m.key, field)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              commitDraft(m.key, field);
-                              moveToCell(Math.min(rowIndex + 1, MONTHS_DISPLAY_CONFIG.length - 1), columnIndex);
-                              return;
-                            }
+                        if (e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          commitDraft(m.key, field);
+                          moveToCell(Math.max(rowIndex - 1, 0), columnIndex);
+                          return;
+                        }
 
-                            if (e.key === 'ArrowDown') {
-                              e.preventDefault();
-                              commitDraft(m.key, field);
-                              moveToCell(Math.min(rowIndex + 1, MONTHS_DISPLAY_CONFIG.length - 1), columnIndex);
-                              return;
-                            }
+                        if (e.key === 'ArrowRight' && (e.currentTarget.selectionStart ?? 0) === e.currentTarget.value.length) {
+                          e.preventDefault();
+                          commitDraft(m.key, field);
+                          moveToCell(rowIndex, Math.min(columnIndex + 1, editableColumns.length - 1));
+                          return;
+                        }
 
-                            if (e.key === 'ArrowUp') {
-                              e.preventDefault();
-                              commitDraft(m.key, field);
-                              moveToCell(Math.max(rowIndex - 1, 0), columnIndex);
-                              return;
-                            }
+                        if (e.key === 'ArrowLeft' && (e.currentTarget.selectionStart ?? 0) === 0) {
+                          e.preventDefault();
+                          commitDraft(m.key, field);
+                          moveToCell(rowIndex, Math.max(columnIndex - 1, 0));
+                        }
+                      }}
+                      disabled={!canEditFields}
+                      className={`${inputBase} ${inputTheme}`}
+                      placeholder=""
+                      title={title}
+                    />
+                  );
+                };
 
-                            if (e.key === 'ArrowRight' && (e.currentTarget.selectionStart ?? 0) === e.currentTarget.value.length) {
-                              e.preventDefault();
-                              commitDraft(m.key, field);
-                              moveToCell(rowIndex, Math.min(columnIndex + 1, editableColumns.length - 1));
-                              return;
-                            }
+                return (
+                  <article
+                    key={m.key}
+                    className="overflow-hidden rounded-[26px] border border-[#E1BE94] bg-[#FFFDF8] shadow-[0_14px_28px_rgba(87,52,33,0.10)]"
+                  >
+                    <div className="flex items-center justify-between gap-3 border-b border-[#EAD2B5] bg-[linear-gradient(180deg,#FFF0DA_0%,#F7E2C6_100%)] px-4 py-3">
+                      <h3 className="text-[17px] font-black uppercase tracking-[0.04em] text-[#3C2415]">
+                        {m.label}
+                      </h3>
+                      <div className="flex gap-1.5">
+                        <span
+                          className={`rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-[0.08em] ${
+                            importState === 'imported'
+                              ? 'border-[#9FC9A7] bg-[#E6F3E8] text-[#3F6B4A]'
+                              : importState === 'validated'
+                              ? 'border-[#D0A57A] bg-[#F6E7D6] text-[#A06535]'
+                              : 'border-[#D6B293] bg-[#F5E8DA] text-[#8E6A4E]'
+                          }`}
+                        >
+                          Inv. {importState === 'imported' ? 'OK' : importState === 'validated' ? 'À faire' : 'vide'}
+                        </span>
+                        <span
+                          className={`rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-[0.08em] ${
+                            productionImported
+                              ? 'border-[#9FC9A7] bg-[#E6F3E8] text-[#3F6B4A]'
+                              : 'border-[#D6B293] bg-[#F5E8DA] text-[#8E6A4E]'
+                          }`}
+                        >
+                          Prod. {productionImported ? 'OK' : 'vide'}
+                        </span>
+                      </div>
+                    </div>
 
-                            if (e.key === 'ArrowLeft' && (e.currentTarget.selectionStart ?? 0) === 0) {
-                              e.preventDefault();
-                              commitDraft(m.key, field);
-                              moveToCell(rowIndex, Math.max(columnIndex - 1, 0));
-                            }
-                          }}
-                          disabled={!canEditFields}
-                          className={`${inputBase} ${inputTheme}`}
-                          placeholder=""
-                          title={title}
-                        />
-                      );
-                    };
-
-                    return (
-                      <tr key={m.key} className="align-middle">
-                        <td className={`border-b border-[#E7D0B8] ${rowSurface} px-3 py-4 text-[15px] font-black uppercase tracking-[0.03em] text-[#4E2E22]`}>
-                          {m.label}
-                        </td>
-
-                        <td className={`border-b border-[#E7D0B8] ${rowSurface} px-3 py-3`}>
+                    <div className="space-y-4 p-4">
+                      <div className="grid grid-cols-3 gap-2">
+                        <label className="block">
+                          <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.12em] text-[#8B5A38]">CA HT</span>
                           {renderEditableInput('sales', "Chiffre d'affaires HT")}
-                        </td>
+                        </label>
 
-                        <td className={`border-b border-[#E7D0B8] ${rowSurface} px-3 py-3`}>
+                        <label className="block">
+                          <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.12em] text-[#8B5A38]">CM</span>
                           {renderEditableInput('cm', 'Coût matière (%)')}
-                        </td>
+                        </label>
 
-                        <td className={`border-b border-[#E7D0B8] ${rowSurface} px-3 py-3`}>
+                        <label className="block">
+                          <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.12em] text-[#8B5A38]">Couverts</span>
                           {renderEditableInput('covers', 'Couverts')}
-                        </td>
+                        </label>
+                      </div>
 
-                        <td className={`border-b border-[#E7D0B8] ${rowSurface} px-3 py-3`}>
-                          <div className="rounded-[20px] border border-[#D6B293] bg-white px-3.5 py-3 shadow-[0_8px_18px_rgba(87,52,33,0.06)]">
-                            <div className="space-y-2.5">
-                              <div className="flex items-center gap-2.5">
-                                <span className="min-w-[88px] text-[11px] font-black uppercase tracking-[0.08em] text-[#7D543E]">
-                                  Inventaire
-                                </span>
-                                <span
-                                  className={`inline-flex min-w-[58px] justify-center rounded-full border px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${
-                                    importState === 'imported'
-                                      ? 'border-[#9FC9A7] bg-[#E6F3E8] text-[#3F6B4A]'
-                                      : importState === 'validated'
-                                      ? 'border-[#D0A57A] bg-[#F6E7D6] text-[#A06535]'
-                                      : 'border-[#D6B293] bg-[#F5E8DA] text-[#8E6A4E]'
-                                  }`}
-                                >
-                                  {importState === 'imported' ? 'OK' : importState === 'validated' ? 'À faire' : 'Vide'}
-                                </span>
-                                <button
-                                  onClick={() => canImport && setModalState({ month: m.key, target: 'inventory' })}
-                                  disabled={!canImport}
-                                  className={`rounded-[13px] border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.06em] transition ${
-                                    importState === 'imported'
-                                      ? 'border-[#9FC9A7] bg-[#E6F3E8] text-[#3F6B4A] hover:bg-[#DDEEE0]'
-                                      : 'border-[#D6B293] bg-[#F5E8DA] text-[#8E6A4E] hover:bg-[#EFDCC8]'
-                                  } ${!canImport ? 'cursor-not-allowed opacity-50' : ''}`}
-                                >
-                                  {importState === 'imported' ? 'Modifier' : 'Ajouter'}
-                                </button>
-                                {hasImport && (
-                                  <button
-                                    type="button"
-                                    onClick={() => removeInventoryForMonth(m.key)}
-                                    disabled={!canRemoveImport}
-                                    title={`Supprimer l'import inventaire ${m.label}`}
-                                    className="ml-auto flex h-8 w-8 items-center justify-center rounded-[12px] border border-[#D6B293] bg-[#F7EBDD] text-[#A5502F] transition hover:bg-[#F0DECB] disabled:cursor-not-allowed disabled:opacity-40"
-                                  >
-                                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 6l12 12M18 6L6 18" />
-                                    </svg>
-                                  </button>
-                                )}
-                              </div>
-
-                              <div className="flex items-center gap-2.5">
-                                <span className="min-w-[88px] text-[11px] font-black uppercase tracking-[0.08em] text-[#7D543E]">
-                                  Production
-                                </span>
-                                <span
-                                  className={`inline-flex min-w-[58px] justify-center rounded-full border px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${
-                                    prepImportsByMonth[m.key]
-                                      ? 'border-[#9FC9A7] bg-[#E6F3E8] text-[#3F6B4A]'
-                                      : 'border-[#D6B293] bg-[#F5E8DA] text-[#8E6A4E]'
-                                  }`}
-                                >
-                                  {prepImportsByMonth[m.key] ? 'OK' : 'Vide'}
-                                </span>
-                                <button
-                                  onClick={() => canImport && setModalState({ month: m.key, target: 'production' })}
-                                  disabled={!canImport}
-                                  className={`rounded-[13px] border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.06em] transition ${
-                                    prepImportsByMonth[m.key]
-                                      ? 'border-[#9FC9A7] bg-[#E6F3E8] text-[#3F6B4A] hover:bg-[#DDEEE0]'
-                                      : 'border-[#D6B293] bg-[#F5E8DA] text-[#8E6A4E] hover:bg-[#EFDCC8]'
-                                  } ${!canImport ? 'cursor-not-allowed opacity-50' : ''}`}
-                                >
-                                  {prepImportsByMonth[m.key] ? 'Modifier' : 'Ajouter'}
-                                </button>
-                                {prepImportsByMonth[m.key] && (
-                                  <button
-                                    type="button"
-                                    onClick={() => removeProductionImportForMonth(m.key)}
-                                    disabled={!canRemoveImport}
-                                    title={`Supprimer l'import production ${m.label}`}
-                                    className="ml-auto flex h-8 w-8 items-center justify-center rounded-[12px] border border-[#D6B293] bg-[#F7EBDD] text-[#A5502F] transition hover:bg-[#F0DECB] disabled:cursor-not-allowed disabled:opacity-40"
-                                  >
-                                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 6l12 12M18 6L6 18" />
-                                    </svg>
-                                  </button>
-                                )}
-                              </div>
-                            </div>
+                      <div className="grid gap-2">
+                        <div className="rounded-[20px] border border-[#E1C5A5] bg-[#FFF8EF] p-3">
+                          <div className="flex items-center gap-2">
+                            <span className="mr-auto text-[11px] font-black uppercase tracking-[0.12em] text-[#70452D]">
+                              Inventaire
+                            </span>
+                            <button
+                              onClick={() => canImport && setModalState({ month: m.key, target: 'inventory' })}
+                              disabled={!canImport}
+                              className={`rounded-[13px] border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.06em] transition ${
+                                importState === 'imported'
+                                  ? 'border-[#9FC9A7] bg-[#E6F3E8] text-[#3F6B4A] hover:bg-[#DDEEE0]'
+                                  : 'border-[#D6B293] bg-[#F5E8DA] text-[#8E6A4E] hover:bg-[#EFDCC8]'
+                              } ${!canImport ? 'cursor-not-allowed opacity-50' : ''}`}
+                            >
+                              {importState === 'imported' ? 'Modifier' : 'Ajouter'}
+                            </button>
+                            {hasImport && (
+                              <button
+                                type="button"
+                                onClick={() => removeInventoryForMonth(m.key)}
+                                disabled={!canRemoveImport}
+                                title={`Supprimer l'import inventaire ${m.label}`}
+                                className="flex h-8 w-8 items-center justify-center rounded-[12px] border border-[#D6B293] bg-[#F7EBDD] text-[#A5502F] transition hover:bg-[#F0DECB] disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 6l12 12M18 6L6 18" />
+                                </svg>
+                              </button>
+                            )}
                           </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        </div>
+
+                        <div className="rounded-[20px] border border-[#E1C5A5] bg-[#FFF8EF] p-3">
+                          <div className="flex items-center gap-2">
+                            <span className="mr-auto text-[11px] font-black uppercase tracking-[0.12em] text-[#70452D]">
+                              Production
+                            </span>
+                            <button
+                              onClick={() => canImport && setModalState({ month: m.key, target: 'production' })}
+                              disabled={!canImport}
+                              className={`rounded-[13px] border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.06em] transition ${
+                                productionImported
+                                  ? 'border-[#9FC9A7] bg-[#E6F3E8] text-[#3F6B4A] hover:bg-[#DDEEE0]'
+                                  : 'border-[#D6B293] bg-[#F5E8DA] text-[#8E6A4E] hover:bg-[#EFDCC8]'
+                              } ${!canImport ? 'cursor-not-allowed opacity-50' : ''}`}
+                            >
+                              {productionImported ? 'Modifier' : 'Ajouter'}
+                            </button>
+                            {productionImported && (
+                              <button
+                                type="button"
+                                onClick={() => removeProductionImportForMonth(m.key)}
+                                disabled={!canRemoveImport}
+                                title={`Supprimer l'import production ${m.label}`}
+                                className="flex h-8 w-8 items-center justify-center rounded-[12px] border border-[#D6B293] bg-[#F7EBDD] text-[#A5502F] transition hover:bg-[#F0DECB] disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 6l12 12M18 6L6 18" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           </section>
         </main>
