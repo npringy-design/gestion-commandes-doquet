@@ -145,10 +145,6 @@ const TileButton: React.FC<HomeTile> = ({ title, subtitle, onClick, icon, tone, 
   </button>
 );
 
-const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <h2 className="mb-3 text-[12px] font-black uppercase tracking-[0.18em] text-[#FFE0A5]">{children}</h2>
-);
-
 const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -313,12 +309,14 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
 
         .home-page-frame {
           min-height: 100dvh;
-          padding-top: clamp(4.5rem, 8.5vh, 5.25rem);
+          padding-top: clamp(5.85rem, 10.5vh, 6.75rem);
           padding-bottom: clamp(1rem, 2.5vh, 1.5rem);
         }
 
         .home-fixed-actions {
+          top: clamp(1rem, 2.5vh, 1.35rem);
           right: max(1rem, calc((100vw - 1280px) / 2 + 2rem));
+          position: fixed;
         }
 
         .home-hero {
@@ -342,7 +340,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
 
         @media (min-width: 1024px) and (max-height: 760px) {
           .home-page-frame {
-            padding-top: 4.4rem;
+            padding-top: 5.5rem;
             padding-bottom: 0.85rem;
           }
 
@@ -380,7 +378,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         )}
 
         <main className="home-page-frame relative z-10 mx-auto flex w-full max-w-[1280px] flex-col px-4 sm:px-6 lg:px-8">
-          <div className="home-fixed-actions fixed top-4 z-[9998] flex items-center justify-end gap-2 sm:gap-3">
+          <div className="home-fixed-actions z-[9998] flex items-center justify-end gap-2 sm:gap-3">
             {isAuthConfigured() && user ? (
               <button
                 onClick={handleSignOut}
@@ -434,7 +432,6 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           </header>
 
           <section className="mb-8">
-            <SectionTitle>Accès rapides</SectionTitle>
             <div className="grid gap-4 lg:grid-cols-4">
               {quickAccessTiles.map((tile) => (
                 <TileButton key={tile.title} {...tile} />
