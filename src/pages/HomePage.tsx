@@ -167,6 +167,21 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
     return () => media.removeListener(updateMobile);
   }, []);
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, []);
+
   const canSeeStats = canAccessStatsPage(profile);
   const canOpenAdmin = canAccessAdminDashboard(profile);
   const showStats = !isMobile && canSeeStats;
@@ -274,7 +289,15 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   };
 
   const fixedActions = (
-    <div className="home-fixed-actions z-[9998] flex items-center justify-end gap-2 sm:gap-3">
+    <div
+      className="home-fixed-actions flex items-center justify-end gap-2 sm:gap-3"
+      style={{
+        position: 'fixed',
+        top: 'clamp(1rem, 2.5vh, 1.35rem)',
+        right: 'max(1rem, calc((100vw - 1280px) / 2 + 2rem))',
+        zIndex: 2147483647,
+      }}
+    >
       {isAuthConfigured() && user ? (
         <button
           onClick={handleSignOut}
@@ -317,7 +340,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
             linear-gradient(180deg, rgba(38, 22, 16, 0.98) 0%, rgba(92, 45, 28, 0.96) 48%, rgba(177, 107, 45, 0.92) 100%),
             linear-gradient(135deg, #25140F 0%, #7C3322 48%, #D28B3F 100%);
           font-family: 'Manrope', system-ui, sans-serif;
-          min-height: 100dvh;
+          height: 100dvh;
         }
 
         .home-shell::before {
@@ -352,7 +375,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           top: clamp(1rem, 2.5vh, 1.35rem);
           right: max(1rem, calc((100vw - 1280px) / 2 + 2rem));
           position: fixed !important;
-          transform: translateZ(0);
+          z-index: 2147483647;
         }
 
         .home-hero {
@@ -404,7 +427,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
 
       {typeof document !== 'undefined' ? createPortal(fixedActions, document.body) : fixedActions}
 
-      <div className="home-shell relative min-h-[100dvh] overflow-x-hidden overflow-y-auto text-[#2E1B12]">
+      <div className="home-shell fixed inset-0 overflow-x-hidden overflow-y-auto text-[#2E1B12]">
         {showPassword && (
           <PasswordModal
             onConfirm={() => {
