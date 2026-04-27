@@ -76,7 +76,6 @@ const StatsPage: React.FC<StatsPageProps> = ({
   setDetailedInventory,
   prepImportsByMonth,
   setPrepImportsByMonth,
-  validatedMonths,
   prepValidatedMonths = {},
 }) => {
   const { profile } = useAuth();
@@ -97,7 +96,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
   const editableColumns = useMemo<EditableField[]>(() => ['sales', 'cm', 'covers'], []);
 
   const resolveImportTargetMonth = (requestedMonth: string, target: 'inventory' | 'production') => {
-    const lockMap = target === 'production' ? prepValidatedMonths : validatedMonths;
+    const lockMap = target === 'production' ? prepValidatedMonths : {}; // le figé Calcul vente ratio ne verrouille pas les imports Paramètres
     if (!lockMap[requestedMonth]) return requestedMonth;
     const startIndex = MONTHS_DISPLAY_CONFIG.findIndex((m) => m.key === requestedMonth);
     if (startIndex === -1) return requestedMonth;
@@ -153,7 +152,6 @@ const StatsPage: React.FC<StatsPageProps> = ({
   const getImportState = (monthKey: string) => {
     const hasImport = !!detailedInventory[monthKey];
     if (hasImport) return 'imported';
-    if (validatedMonths[monthKey]) return 'validated';
     return 'empty';
   };
 
@@ -174,7 +172,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
   };
 
   const startEdit = (monthKey: string, field: EditableField, monthIndex: number) => {
-    if (validatedMonths[monthKey] || !canEditFields) return;
+    if (!canEditFields) return;
     const cellKey: CellKey = `${monthKey}-${field}`;
     const val = getValue(monthKey, field);
     const allowDecimals = field !== 'covers';
@@ -224,7 +222,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
   ) => {
     const cellKey: CellKey = `${monthKey}-${field}`;
     const isActive = activeCell === cellKey;
-    const locked = validatedMonths[monthKey];
+    const locked = false;
     const val = getValue(monthKey, field);
     const displayVal = formatDisplayValue(field, val);
     const draft = drafts[cellKey] ?? '';
@@ -380,7 +378,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
                   getValue(month.key, 'cm') ||
                   getValue(month.key, 'covers')
                 );
-                const isLocked = validatedMonths[month.key];
+                const isLocked = false;
 
                 return (
                   <button
@@ -630,7 +628,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
                       const sales = getValue(month.key, 'sales');
                       const cm = getValue(month.key, 'cm');
                       const couverts = getValue(month.key, 'covers');
-                      const isLocked = validatedMonths[month.key];
+                      const isLocked = false;
                       const hasImport = !!detailedInventory[month.key];
 
                       return (

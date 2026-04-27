@@ -43,10 +43,11 @@ const ProductCard: React.FC<{
     updateSearchName, updateImportDivisor,
     activeMappingId, setActiveMappingId,
     allAvailableImportNames, products,
-    validatedMonths, toggleValidateMonth,
+    validatedMonths, ratioValidatedMonths, toggleValidateMonth,
     getProductStats,
   } = state;
 
+  const monthFreezeMap = ratioValidatedMonths ?? validatedMonths;
   const { avgRatio, mR, mS } = getProductStats(p);
   const isMapped = Array.from(allAvailableImportNames).includes(p.searchName);
   const alert    = !isMapped && p.searchName.trim().length > 0;
@@ -69,35 +70,32 @@ const ProductCard: React.FC<{
           onChange={e => updateSearchName(p.id, e.target.value)}
           disabled={!canEdit}
         />
-        <div className="relative shrink-0">
-          <button
-            onClick={() => setActiveMappingId(activeMappingId === p.id ? null : p.id)}
-            disabled={!canEdit}
-            className={`flex h-9 w-9 items-center justify-center rounded-xl ${alert ? 'bg-amber-100 text-amber-700' : 'bg-[#F3DDC0] text-[#6A432D] hover:bg-[#FFE8C2]'} disabled:opacity-50`}
-            title="Rechercher un mapping"
-          >
-            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"/>
-            </svg>
-          </button>
-
-          {activeMappingId === p.id && (
-            <div className="absolute right-0 top-full z-[9999] mt-2 w-[320px] max-w-[calc(100vw-32px)]">
-              <RatiosMappingPopover
-                orphanNames={Array.from(allAvailableImportNames).filter((name) => {
-                  const normalizedName = String(name).trim().toLowerCase();
-                  return !products.some((pr) => (
-                    pr.id !== p.id &&
-                    pr.supplierId === p.supplierId &&
-                    pr.searchName.trim().toLowerCase() === normalizedName
-                  ));
-                })}
-                onSelect={n => { if (!canEdit) return; updateSearchName(p.id, n); setActiveMappingId(null); }}
-                onClose={() => setActiveMappingId(null)}
-              />
-            </div>
-          )}
-        </div>
+        <button
+          onClick={() => setActiveMappingId(activeMappingId === p.id ? null : p.id)}
+          disabled={!canEdit}
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${alert ? 'bg-amber-100 text-amber-700' : 'bg-[#F3DDC0] text-[#6A432D] hover:bg-[#FFE8C2]'} disabled:opacity-50`}
+          title="Rechercher un mapping"
+        >
+          <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"/>
+          </svg>
+        </button>
+        {activeMappingId === p.id && (
+          <div className="absolute z-50 mt-12 ml-8">
+            <RatiosMappingPopover
+              orphanNames={Array.from(allAvailableImportNames).filter((name) => {
+                const normalizedName = String(name).trim().toLowerCase();
+                return !products.some((pr) => (
+                  pr.id !== p.id &&
+                  pr.supplierId === p.supplierId &&
+                  pr.searchName.trim().toLowerCase() === normalizedName
+                ));
+              })}
+              onSelect={n => { if (!canEdit) return; updateSearchName(p.id, n); setActiveMappingId(null); }}
+              onClose={() => setActiveMappingId(null)}
+            />
+          </div>
+        )}
         <div className="shrink-0 rounded-xl border border-[#D8CAB8] bg-[#F6EFE6] px-2.5 py-1 text-center">
           <div className="text-[8px] font-black uppercase text-[#8B5A35]">Ratio</div>
           <div className="text-sm font-black leading-none text-[#2F1D14]">{avgRatio.toFixed(3)}</div>
@@ -153,9 +151,9 @@ const ProductCard: React.FC<{
                   <button
                     onClick={() => toggleValidateMonth(m)}
                     disabled={!canEdit}
-                    className={`mt-0.5 w-full rounded py-0.5 text-[7px] font-black uppercase disabled:cursor-not-allowed disabled:opacity-50 ${validatedMonths[m] ? 'bg-[#2F7A42] text-white' : 'bg-[#F3DDC0] text-[#8B6B54]'}`}
+                    className={`mt-0.5 w-full rounded py-0.5 text-[7px] font-black uppercase disabled:cursor-not-allowed disabled:opacity-50 ${monthFreezeMap[m] ? 'bg-[#2F7A42] text-white' : 'bg-[#F3DDC0] text-[#8B6B54]'}`}
                   >
-                    {validatedMonths[m] ? 'Figé' : 'Val.'}
+                    {monthFreezeMap[m] ? 'Figé' : 'Val.'}
                   </button>
                 </div>
               ))}
@@ -203,6 +201,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
     addNewProduct,
     deleteSelectedProducts,
     validatedMonths,
+    ratioValidatedMonths,
   } = state;
 
   const supplierTabs: { id: SupplierId; label: string }[] = Object.values(supplierConfigs)
@@ -241,11 +240,15 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
   const selectedVisibleCount = displayedRatioProducts.filter(p => selectedProductIds.has(p.id)).length;
   const activeSupplierLabel = supplierTabs.find(tab => tab.id === safeRatioTab)?.label ?? 'Fournisseur';
   const workMonthKey = String(state.importTargetMonth);
-  const isWorkMonthValidated = !!validatedMonths[workMonthKey];
-  const lastValidatedMonth = React.useMemo(
-    () => MONTHS_ORDER.slice().reverse().find(m => validatedMonths[m]),
-    [validatedMonths]
-  );
+  const monthFreezeMap = ratioValidatedMonths ?? validatedMonths;
+  const isWorkMonthValidated = !!monthFreezeMap[workMonthKey];
+  const [freezeMonthKey, setFreezeMonthKey] = React.useState<string>(workMonthKey);
+
+  React.useEffect(() => {
+    if (!MONTHS_ORDER.includes(freezeMonthKey)) setFreezeMonthKey(workMonthKey);
+  }, [freezeMonthKey, workMonthKey]);
+
+  const isSelectedFreezeMonthValidated = !!monthFreezeMap[freezeMonthKey];
 
   return (
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_12%_0%,rgba(184,91,43,0.18),transparent_30%),radial-gradient(circle_at_88%_8%,rgba(109,143,78,0.12),transparent_28%),linear-gradient(180deg,#F8F1E7_0%,#EFE1D0_52%,#D7AA78_100%)] text-[#2F1D14]">
@@ -283,14 +286,29 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">{isWorkMonthValidated ? 'Mois figé' : 'Fin de mois'}</p>
                 <p className="mt-1 text-sm font-black text-[#3A2116]">{isWorkMonthValidated ? 'Défiger' : 'Figer le mois'}</p>
               </button>
-              <button
-                onClick={() => lastValidatedMonth && state.toggleValidateMonth(lastValidatedMonth)}
-                disabled={!canEdit || !lastValidatedMonth}
-                className="rounded-2xl border border-[#D8CAB8] bg-[#F8F0E6] px-3 py-2.5 text-left shadow-sm transition hover:bg-[#FFF7EA] disabled:opacity-45"
-              >
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Correction</p>
-                <p className="mt-1 text-sm font-black text-[#3A2116]">{lastValidatedMonth ? `Défiger ${MONTH_LABELS[lastValidatedMonth]}` : 'Aucun mois'}</p>
-              </button>
+              <div className="rounded-2xl border border-[#D8CAB8] bg-[#F8F0E6] px-3 py-2.5 shadow-sm">
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Correction mois</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <select
+                    value={freezeMonthKey}
+                    onChange={(e) => setFreezeMonthKey(e.target.value)}
+                    disabled={!canEdit}
+                    className="min-w-0 flex-1 rounded-xl border border-[#D8CAB8] bg-[#FFFDF8] px-2 py-1 text-xs font-black text-[#3A2116] outline-none disabled:opacity-50"
+                  >
+                    {MONTHS_ORDER.map(m => (
+                      <option key={m} value={m}>{MONTH_LABELS[m]}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => state.toggleValidateMonth(freezeMonthKey)}
+                    disabled={!canEdit || !freezeMonthKey}
+                    className="rounded-xl border border-[#D4922F] bg-[#FFF1DF] px-2 py-1 text-xs font-black text-[#3A2116] transition hover:bg-[#FFE8C2] disabled:opacity-50"
+                  >
+                    {isSelectedFreezeMonthValidated ? 'Défiger' : 'Figer'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </header>

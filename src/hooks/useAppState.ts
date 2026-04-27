@@ -84,8 +84,16 @@ export const useAppState = () => {
   const [costMatterByMonth, setCostMatterByMonth] =
     useState<Record<string, number>>(() => loadState('costMatterByMonth', INITIAL_COVERS));
 
-  const [validatedMonths, setValidatedMonths] =
-    useState<Record<string, boolean>>(() => loadState('validatedMonths', {}));
+  // Figeage propre à la page Calcul vente ratio.
+  // On garde la clé cloud existante `validatedMonths` pour ne pas casser la synchro Supabase,
+  // mais on n'expose plus ce verrou à la page Paramètres.
+  const [ratioValidatedMonths, setRatioValidatedMonths] =
+    useState<Record<string, boolean>>(() =>
+      loadState('ratioValidatedMonths', loadState('validatedMonths', {} as Record<string, boolean>))
+    );
+
+  // La page Paramètres doit rester modifiable : le figé ratio ne doit pas la verrouiller.
+  const validatedMonths = useMemo<Record<string, boolean>>(() => ({}), []);
 
   const [prepValidatedMonths, setPrepValidatedMonths] =
     useState<Record<string, boolean>>(() => loadState('prepValidatedMonths', {}));
@@ -151,6 +159,10 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     saveState('ratioTab', ratioTab, onSaveError);
   }, [ratioTab]);
 
+  useEffect(() => {
+    saveState('ratioValidatedMonths', ratioValidatedMonths, onSaveError);
+  }, [ratioValidatedMonths]);
+
   const { supabaseLoaded, syncStatus } = useCloudSync({
     covers,
     dailyCovers,
@@ -158,7 +170,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     detailedInventory,
     salesHtByMonth,
     costMatterByMonth,
-    validatedMonths,
+    validatedMonths: ratioValidatedMonths,
     prepValidatedMonths,
     supplierConfigs,
     deliveryDateBySupplier,
@@ -174,7 +186,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     setDetailedInventory,
     setSalesHtByMonth,
     setCostMatterByMonth,
-    setValidatedMonths,
+    setValidatedMonths: setRatioValidatedMonths,
     setPrepValidatedMonths,
     setSupplierConfigs,
     setDeliveryDateBySupplier,
@@ -228,11 +240,11 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
 
   // Mois cible d'import inventaire: premier mois non figé disposant d'un CSV, sinon fallback sur le premier mois importé
   const importTargetMonth = useMemo(() => {
-    const firstOpenWithCsv = MONTHS_ORDER.find(m => !validatedMonths[m] && !!detailedInventory[m]);
+    const firstOpenWithCsv = MONTHS_ORDER.find(m => !ratioValidatedMonths[m] && !!detailedInventory[m]);
     if (firstOpenWithCsv) return firstOpenWithCsv;
     const firstWithCsv = MONTHS_ORDER.find(m => !!detailedInventory[m]);
     return firstWithCsv ?? MONTHS_ORDER[0];
-  }, [detailedInventory, validatedMonths]);
+  }, [detailedInventory, ratioValidatedMonths]);
 
   // Mois cible d'import production: indépendant du figé ventes
   const prepImportTargetMonth = useMemo(() => {
@@ -265,7 +277,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     // - Mois de travail (importTargetMonth) : seul mois autorisé à lire/parsing CSV + matching/alertes
     // - Autres mois non figés : 0 (pas de parsing, pas de fallback salesHistory)
     MONTHS_ORDER.forEach(m => {
-      const isValidated = validatedMonths[m] || false;
+      const isValidated = ratioValidatedMonths[m] || false;
       const isWorkMonth = m === importTargetMonth;
 
       let importedVal: number | null = null;
@@ -290,18 +302,18 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     });
 
     return { avgRatio: countR > 0 ? totalR / countR : 0, mR, mS };
-  }, [detailedInventory, validatedMonths, covers, importTargetMonth]);
+  }, [detailedInventory, ratioValidatedMonths, covers, importTargetMonth]);
 
   // Valide / dévalide un mois (fige les valeurs importées dans l'historique)
   const toggleValidateMonth = (m: string) => {
-    const next = !validatedMonths[m];
+    const next = !ratioValidatedMonths[m];
     if (next) {
       setProducts(prev => prev.map(p => ({
         ...p,
         salesHistory: { ...p.salesHistory, [m]: Math.round(getProductStats(p).mS[m].value) },
       })));
     }
-    setValidatedMonths(prev => ({ ...prev, [m]: next }));
+    setRatioValidatedMonths(prev => ({ ...prev, [m]: next }));
   };
 
   // Valide / dévalide un mois production (fige les valeurs importées dans ratioHistory des prepItems)
@@ -354,15 +366,9 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
 
   const deleteSelectedProducts = useCallback(() => {
     const idsToDelete = Array.from(selectedProductIds);
-
     if (idsToDelete.length > 0) {
-      setDeletedRatioProductIds(prev => {
-        const next = new Set(prev);
-        idsToDelete.forEach(id => next.add(id));
-        return Array.from(next);
-      });
+      setDeletedRatioProductIds(prev => Array.from(new Set([...prev, ...idsToDelete])));
     }
-
     deleteSelectedProductsBase();
   }, [deleteSelectedProductsBase, selectedProductIds]);
 
@@ -390,6 +396,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     salesHtByMonth, setSalesHtByMonth,
     costMatterByMonth, setCostMatterByMonth,
     validatedMonths,
+    ratioValidatedMonths,
     prepValidatedMonths,
     importTargetMonth,
     prepImportTargetMonth,
