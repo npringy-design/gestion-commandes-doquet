@@ -96,6 +96,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   const { profile } = useAuth();
   const canEdit = canEditRatios(profile);
   const [search, setSearch] = React.useState('');
+  const [showOnlyUnlinked, setShowOnlyUnlinked] = React.useState(false);
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [activePopover, setActivePopover] = React.useState<{ id: string; mode: MappingPopoverMode } | null>(null);
   const workMonth = prepImportTargetMonth || MONTHS_ORDER[0];
@@ -108,13 +109,31 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   const rows = React.useMemo(() => {
     const q = search.trim().toLowerCase();
     return prepItems.filter((item) => {
+      if (showOnlyUnlinked && parseMappingNames(item.searchName).length > 0) return false;
       if (!q) return true;
       return [item.name, item.searchName, getBaseProduction(item)]
         .join(' ')
         .toLowerCase()
         .includes(q);
     });
-  }, [prepItems, search]);
+  }, [prepItems, search, showOnlyUnlinked]);
+
+  const pageStats = React.useMemo(() => {
+    const linkedItems = prepItems.filter((item) => parseMappingNames(item.searchName).length > 0).length;
+    const lockedMonths = MONTHS_ORDER.filter((month) => prepValidatedMonths[month]).length;
+    return {
+      linkedItems,
+      unlinkedItems: prepItems.length - linkedItems,
+      visibleItems: rows.length,
+      importLines: allAvailableImportNames.size,
+      lockedMonths,
+    };
+  }, [allAvailableImportNames.size, prepItems, prepValidatedMonths, rows.length]);
+
+  const selectedVisibleCount = React.useMemo(
+    () => rows.filter((item) => selectedIds.has(item.id)).length,
+    [rows, selectedIds]
+  );
 
   const updateItem = React.useCallback((id: string, patch: Partial<PrepItemExtended>) => {
     setPrepItems((prev) => prev.map((item) => item.id === id ? ({ ...item, ...patch } as PrepItem) : item));
@@ -216,7 +235,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   return (
     <div className="min-h-screen overflow-hidden bg-[linear-gradient(180deg,#F6EFE6_0%,#F2E8DD_45%,#EBDDCE_100%)] text-[#34271F]">
       <div className="mx-auto flex h-screen max-w-[1920px] flex-col gap-3 p-2 sm:p-3 lg:flex-row lg:gap-4 lg:p-3">
-        <aside className="w-full shrink-0 lg:w-[250px]">
+        <aside className="w-full shrink-0 lg:w-[258px]">
           <div className="flex flex-col gap-3 lg:sticky lg:top-3">
             <AppNavTile onClick={() => setView('home')} eyebrow="Retour" icon="home" size="lg" className="w-full">Accueil</AppNavTile>
             <AppNavTile onClick={() => setView('stats')} eyebrow="Retour" icon="settings" size="lg" tone="gold" className="w-full">Paramètres</AppNavTile>
@@ -230,6 +249,26 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
               </div>
             </div>
 
+            <div className="rounded-[22px] border border-[#D7B79B] bg-[#FFF9F1] p-3 shadow-[0_8px_18px_rgba(145,105,75,0.08)]">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A85F2A]">Mois de travail</p>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <div className="text-3xl font-black uppercase leading-none text-[#2F1D14]">{MONTH_LABELS[workMonth]}</div>
+                <div className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${prepValidatedMonths[workMonth] ? 'bg-emerald-600 text-white' : 'bg-amber-100 text-[#8A5A2F]'}`}>
+                  {prepValidatedMonths[workMonth] ? 'Fige' : 'Ouvert'}
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-center">
+                <div className="rounded-2xl bg-white px-2 py-2">
+                  <div className="text-lg font-black text-[#2F1D14]">{pageStats.linkedItems}</div>
+                  <div className="text-[9px] font-black uppercase tracking-[0.08em] text-[#8A604B]">Liees</div>
+                </div>
+                <div className="rounded-2xl bg-white px-2 py-2">
+                  <div className="text-lg font-black text-[#A93E2A]">{pageStats.unlinkedItems}</div>
+                  <div className="text-[9px] font-black uppercase tracking-[0.08em] text-[#8A604B]">A traiter</div>
+                </div>
+              </div>
+            </div>
+
             <button onClick={addItem} disabled={!canEdit} className="rounded-[20px] border border-slate-300 bg-white px-4 py-4 text-sm font-black uppercase tracking-[0.12em] text-slate-700 shadow-sm disabled:opacity-50">Ajouter une production</button>
             <button onClick={deleteSelected} disabled={!canEdit || selectedIds.size === 0} className="rounded-[20px] border border-red-200 bg-red-50 px-4 py-4 text-sm font-black uppercase tracking-[0.12em] text-red-700 shadow-sm disabled:opacity-50">Supprimer la sélection</button>
           </div>
@@ -237,24 +276,75 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
 
         <main className="flex min-h-0 min-w-0 flex-1">
           <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[28px] border border-[#D7B79B] bg-[#FAF5EE] shadow-[0_16px_32px_rgba(145,105,75,0.10)]">
-            <div className="border-b border-[#B45439] bg-[linear-gradient(180deg,#A93E2A_0%,#912F20_55%,#782219_100%)] px-5 py-3">
-              <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                <h2 className="text-lg font-black uppercase tracking-[0.08em] text-[#FFF8F1]">Productions & ratios</h2>
-                <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher une production..." className="rounded-2xl border border-white/20 bg-white/95 px-4 py-2 text-sm font-bold text-slate-800 outline-none xl:w-[280px]" />
+            <div className="border-b border-[#B45439] bg-[linear-gradient(180deg,#A93E2A_0%,#912F20_55%,#782219_100%)] px-4 py-3 sm:px-5">
+              <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#FFE1B8]">Poste de pilotage</p>
+                  <h2 className="mt-1 text-xl font-black leading-none text-[#FFF8F1]">Productions & ratios</h2>
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 2xl:w-[560px]">
+                  <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2">
+                    <div className="text-lg font-black leading-none text-white">{pageStats.visibleItems}</div>
+                    <div className="mt-1 text-[9px] font-black uppercase tracking-[0.10em] text-[#FFE1B8]">Affichees</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2">
+                    <div className="text-lg font-black leading-none text-white">{pageStats.importLines}</div>
+                    <div className="mt-1 text-[9px] font-black uppercase tracking-[0.10em] text-[#FFE1B8]">Imports</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2">
+                    <div className="text-lg font-black leading-none text-white">{pageStats.lockedMonths}/12</div>
+                    <div className="mt-1 text-[9px] font-black uppercase tracking-[0.10em] text-[#FFE1B8]">Figes</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2">
+                    <div className="text-lg font-black leading-none text-white">{selectedVisibleCount}</div>
+                    <div className="mt-1 text-[9px] font-black uppercase tracking-[0.10em] text-[#FFE1B8]">Selection</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 flex flex-col gap-2 xl:flex-row xl:items-center">
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Rechercher une production, une base ou un import..."
+                  className="min-h-[42px] flex-1 rounded-2xl border border-white/20 bg-white/95 px-4 py-2 text-sm font-bold text-slate-800 outline-none"
+                />
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowOnlyUnlinked((value) => !value)}
+                    className={`min-h-[42px] rounded-2xl border px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] transition ${showOnlyUnlinked ? 'border-[#F6C35B] bg-[#F6C35B] text-[#4D2B18]' : 'border-white/25 bg-white/10 text-white hover:bg-white/20'}`}
+                  >
+                    {showOnlyUnlinked ? 'Tout afficher' : 'Non liees'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedIds(
+                      selectedVisibleCount === rows.length && rows.length > 0
+                        ? new Set()
+                        : new Set(rows.map((item) => item.id))
+                    )}
+                    disabled={!canEdit || rows.length === 0}
+                    className="min-h-[42px] rounded-2xl border border-white/25 bg-white/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] text-white transition hover:bg-white/20 disabled:opacity-40"
+                  >
+                    {selectedVisibleCount === rows.length && rows.length > 0 ? 'Deselectionner' : 'Tout selectionner'}
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-auto">
-              <table className="min-w-[1760px] w-full text-sm">
+            <div className="custom-scrollbar min-h-0 flex-1 overflow-auto">
+              <table className="w-full min-w-[1840px] border-separate border-spacing-0 text-sm">
                 <thead className="sticky top-0 z-10 bg-[#F4E4D2] text-[#6C3C2B]">
                   <tr>
-                    <th className="px-3 py-2 text-left font-black uppercase">Sel.</th>
-                    <th className="px-2 py-2 text-left font-black uppercase">Produit</th>
-                    <th className="px-2 py-2 text-left font-black uppercase">Base</th>
+                    <th className="sticky left-0 z-20 w-[58px] border-r border-[#D8CAB8] bg-[#F4E4D2] px-3 py-2 text-left font-black uppercase">Sel.</th>
+                    <th className="sticky left-[58px] z-20 w-[282px] border-r border-[#D8CAB8] bg-[#F4E4D2] px-2 py-2 text-left font-black uppercase">Produit</th>
+                    <th className="sticky left-[340px] z-20 w-[250px] border-r border-[#D8CAB8] bg-[#F4E4D2] px-2 py-2 text-left font-black uppercase">Base</th>
                     <th className="px-2 py-2 text-left font-black uppercase">Poste</th>
                     <th className="px-2 py-2 text-left font-black uppercase">Recherche import</th>
                     <th className="px-2 py-2 text-center font-black uppercase">Poids g</th>
-                    {MONTHS_ORDER.map((month) => <th key={month} className="px-2 py-2 text-center font-black uppercase">{MONTH_LABELS[month]}</th>)}
+                    {MONTHS_ORDER.map((month) => <th key={month} className={`px-2 py-2 text-center font-black uppercase ${month === workMonth ? 'bg-[#FFE1A8] text-[#5B321E]' : ''}`}>{MONTH_LABELS[month]}</th>)}
                     <th className="px-3 py-2 text-center font-black uppercase">Ratio moy.</th>
                     <th className="px-2 py-2 text-center font-black uppercase">DLC h</th>
                     <th className="px-2 py-2 text-center font-black uppercase">Buffer</th>
@@ -309,8 +399,8 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
 
                     return (
                       <tr key={item.id} className={idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}>
-                        <td className="border-t border-[#E0CCBA] px-3 py-2 text-center"><input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} className="h-4 w-4" /></td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-2">
+                        <td className={`sticky left-0 z-[8] border-r border-t border-[#E0CCBA] px-3 py-2 text-center ${idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}`}><input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} disabled={!canEdit} className="h-4 w-4 accent-[#A93E2A]" /></td>
+                        <td className={`sticky left-[58px] z-[8] border-r border-t border-[#E0CCBA] px-2 py-2 ${idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}`}>
                           <div className="flex items-center gap-2">
                             <input
                               key={`${item.id}-name-${item.name}`}
@@ -326,7 +416,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                             </select>
                           </div>
                         </td>
-                        <td className="border-t border-[#E0CCBA] px-2 py-2">
+                        <td className={`sticky left-[340px] z-[8] border-r border-t border-[#E0CCBA] px-2 py-2 ${idx % 2 === 0 ? 'bg-[#FCF8F2]' : 'bg-[#F7EFE5]'}`}>
                           <div className="flex items-center gap-2">
                             <input
                               key={`${item.id}-base-${getBaseProduction(item)}`}
@@ -405,7 +495,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                           const monthValue = getMonthValue(item, month);
                           const monthRatio = getMonthRatio(item, month);
                           return (
-                            <td key={`${item.id}-${month}`} className="border-t border-[#E0CCBA] px-1.5 py-2 text-center">
+                            <td key={`${item.id}-${month}`} className={`border-t border-[#E0CCBA] px-1.5 py-2 text-center ${month === workMonth ? 'bg-[#FFF1C9]' : ''}`}>
                               <div className={`rounded-lg p-1 ${prepValidatedMonths[month] ? 'bg-indigo-50 border border-indigo-100' : monthValue > 0 ? 'bg-emerald-50' : 'bg-slate-50'}`}>
                                 <div className={`font-black text-[11px] leading-none ${prepValidatedMonths[month] ? 'text-indigo-800' : monthValue > 0 ? 'text-emerald-700' : 'text-slate-400'}`}>{monthValue || '–'}</div>
                                 <div className="mt-1 text-[9px] font-mono text-slate-500">{monthRatio.toFixed(3)}</div>
