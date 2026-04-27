@@ -293,7 +293,7 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
   }, [selectedProduct, selectedMonthValue, salesForSelectedMonth]);
 
   return (
-    <div className={`min-h-screen lg:h-screen flex flex-col overflow-y-auto lg:overflow-y-auto text-[#2F1D14] bg-[radial-gradient(circle_at_16%_0%,rgba(245,166,58,0.28),transparent_30%),linear-gradient(180deg,#FFF7EA_0%,#F3DDC0_48%,#C97933_100%)]`}>
+    <div className={`min-h-[100dvh] lg:h-[100dvh] flex flex-col overflow-y-auto lg:overflow-y-auto text-[#2F1D14] bg-[radial-gradient(circle_at_16%_0%,rgba(245,166,58,0.28),transparent_30%),linear-gradient(180deg,#FFF7EA_0%,#F3DDC0_48%,#C97933_100%)]`}>
 
       {/* ══ HEADER ══════════════════════════════════════════════════════ */}
       <header className="flex-none border-b border-[#A85F2A]/30 bg-[linear-gradient(135deg,#3A2116_0%,#69331F_58%,#A85F2A_100%)] px-3 py-3 shadow-[0_14px_34px_rgba(54,24,12,0.18)] sm:px-5 [&_h1]:text-[#FFF7EA] [&_h1]:text-base [&_h1]:font-black [&_p]:text-[#F1C27B] [&_p]:font-bold">
@@ -352,13 +352,13 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
       </header>
 
       {/* ══ CONTENU ══════════════════════════════════════════════════════ */}
-      <main className={dailyMode === 'page' ? "hidden" : "mx-auto grid w-full max-w-[1760px] flex-1 grid-cols-12 gap-4 overflow-visible p-3 pb-6 sm:p-4 sm:pb-4 lg:min-h-0 lg:overflow-y-auto lg:overflow-x-hidden lg:p-5"}>
+      <main className={dailyMode === 'page' ? "hidden" : "mx-auto grid w-full max-w-[1760px] flex-1 grid-cols-12 gap-3 overflow-visible p-3 pb-6 sm:p-4 sm:pb-4 lg:min-h-0 lg:overflow-y-auto lg:overflow-x-hidden lg:p-4 lg:pb-6 2xl:gap-4 2xl:p-5"}>
 
         {/* ── Colonne gauche : KPIs + tableaux ──────────────────────────── */}
-        <div className="col-span-12 xl:col-span-7 flex flex-col gap-4 min-h-0">
+        <div className="col-span-12 xl:col-span-7 flex flex-col gap-3 min-h-0 2xl:gap-4">
 
           {/* KPIs */}
-          <div className="flex-none rounded-[26px] border border-[#D8AE77] bg-[#FFF7EA]/75 p-3 shadow-[0_14px_30px_rgba(80,38,18,0.10)] backdrop-blur">
+          <div className="flex-none rounded-[26px] border border-[#D8AE77] bg-[#FFF7EA]/75 p-3 shadow-[0_14px_30px_rgba(80,38,18,0.10)] backdrop-blur 2xl:p-4">
             <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A85F2A]">Lecture du mois</p>
@@ -428,15 +428,15 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
         </div>
 
         {/* ── Colonne droite : graphiques + focus produit ──────────────── */}
-        <div className="hidden xl:flex col-span-5 flex-col gap-3 min-h-0 overflow-hidden">
+        <div className="hidden xl:flex col-span-5 min-h-0 flex-col gap-2 overflow-y-auto overflow-x-hidden pr-1 pb-2 2xl:gap-3">
 
           {/* Graphique coût matière — hauteur fixe */}
-          <div className="h-[160px] flex-none">
+          <div className="h-[clamp(118px,18vh,160px)] flex-none">
             <FoodCostChart data={costChartData} />
           </div>
 
           {/* Bloc recherche + switch €/Qté — hauteur fixe */}
-          <div className="flex-none rounded-[22px] border border-[#D8AE77] bg-[#FFF7EA]/90 p-3 shadow-[0_12px_26px_rgba(80,38,18,0.12)] backdrop-blur">
+          <div className="flex-none rounded-[22px] border border-[#D8AE77] bg-[#FFF7EA]/90 p-2.5 shadow-[0_12px_26px_rgba(80,38,18,0.12)] backdrop-blur 2xl:p-3">
             <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#A85F2A]">Analyse produit</p>
             <div className="flex gap-2 mb-1.5">
               <input
@@ -473,15 +473,15 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
           </div>
 
           {/* Graphique tendance — hauteur fixe, TOUJOURS visible */}
-          <div className="h-[180px] flex-none">
+          <div className="h-[clamp(126px,20vh,180px)] flex-none">
             <ProductTrendChart key={trendMode} data={trendData} title={focusTitle} mode={trendMode} />
           </div>
 
           {/* Panel focus — sans scroll interne (le scroll doit rester celui de la page) */}
-          <div className="flex-1 min-h-0 flex flex-col gap-3">
+          <div className="flex-1 min-h-0 flex flex-col gap-2 2xl:gap-3">
             {/* Panel focus — visible seulement si un produit est sélectionné */}
             {selectedProduct && (
-              <div className="rounded-[22px] border border-[#F1C27B]/20 bg-[linear-gradient(135deg,#2F1D14_0%,#5A2B1B_100%)] p-3 text-white shadow-[0_14px_30px_rgba(54,24,12,0.22)] flex-none">
+              <div className="rounded-[22px] border border-[#F1C27B]/20 bg-[linear-gradient(135deg,#2F1D14_0%,#5A2B1B_100%)] p-2.5 text-white shadow-[0_14px_30px_rgba(54,24,12,0.22)] flex-none 2xl:p-3">
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <div className="min-w-0">
                     <p className="text-[9px] font-extrabold text-[#F1C27B] uppercase tracking-wider">Focus article</p>
