@@ -3,6 +3,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { canAccessAdminDashboard, canAccessDailyForecast, canAccessRatiosPage, canAccessStatsPage, canAccessSupplierSettings, canAccessUserManagement } from '../lib/permissions';
 import type { View } from '../constants';
 import type { AppState } from '../hooks/useAppState';
+import AppNavTile from './AppNavTile';
 
 import HomePage from '../pages/HomePage';
 import SuppliersPage from '../pages/SuppliersPage';
@@ -79,12 +80,16 @@ const AppRouter: React.FC<AppRouterProps> = ({
       <div className="max-w-md bg-white rounded-3xl p-6 shadow-2xl border-4 border-red-600">
         <h2 className="text-2xl font-black uppercase tracking-tight text-slate-800 mb-2">{title}</h2>
         <p className="text-slate-600 text-sm font-semibold">{message}</p>
-        <button
+        <AppNavTile
           onClick={() => setView('home')}
-          className="mt-5 w-full bg-red-600 text-white font-black uppercase tracking-widest text-sm py-3 rounded-2xl hover:opacity-95"
+          eyebrow="Retour"
+          icon="home"
+          tone="gold"
+          size="md"
+          className="mt-5 w-full"
         >
-          Retour à l’accueil
-        </button>
+          Accueil
+        </AppNavTile>
       </div>
     </div>
   );
@@ -96,12 +101,16 @@ const AppRouter: React.FC<AppRouterProps> = ({
           Cette section est volontairement désactivée sur téléphone pour éviter les réglages accidentels.
           Utilise un PC pour modifier les paramètres.
         </p>
-        <button
+        <AppNavTile
           onClick={() => setView('home')}
-          className="mt-5 w-full bg-red-600 text-white font-black uppercase tracking-widest text-sm py-3 rounded-2xl hover:opacity-95"
+          eyebrow="Retour"
+          icon="home"
+          tone="gold"
+          size="md"
+          className="mt-5 w-full"
         >
-          Retour à l’accueil
-        </button>
+          Accueil
+        </AppNavTile>
       </div>
     </div>
   );

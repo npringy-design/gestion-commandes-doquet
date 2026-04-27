@@ -9,6 +9,7 @@ import { readFileAsCSV } from '../utils/csvHelpers';
 import { useToast } from '../components/Toast';
 import { View, MONTHS_DISPLAY_CONFIG } from '../constants';
 import { ImportModal } from '../components/Modals';
+import AppNavTile from '../components/AppNavTile';
 import { useAuth } from '../auth/AuthProvider';
 import {
   canAccessRatiosPage,
@@ -301,14 +302,16 @@ const StatsPage: React.FC<StatsPageProps> = ({
           <div className="mb-6 flex flex-col gap-4 rounded-[24px] border border-[#C89245]/55 bg-[linear-gradient(135deg,#3A2116_0%,#69331F_58%,#A85F2A_100%)] p-4 shadow-[0_18px_42px_rgba(54,24,12,0.18)] xl:flex-row xl:items-center xl:justify-between [&>h1]:hidden">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <h1 className="text-3xl font-black tracking-tight text-[#FFF7EA]">Paramètres</h1>
-              <button
+              <AppNavTile
                 type="button"
                 onClick={() => setView('home')}
-                className="rounded-[16px] border border-[#F1C27B]/70 bg-[#FFF7EA] px-5 py-3 text-left text-sm font-black text-[#3A2116] shadow-[0_8px_18px_rgba(31,14,8,0.18)] transition hover:bg-white"
+                eyebrow="Retour"
+                icon="home"
+                tone="dark"
+                size="md"
               >
-                <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#A85F2A]">Retour</span>
                 Accueil
-              </button>
+              </AppNavTile>
             </div>
             <div className="hidden">
             <h1 className="text-2xl font-bold text-gray-900">Données mensuelles</h1>
@@ -335,35 +338,35 @@ const StatsPage: React.FC<StatsPageProps> = ({
                 ParamÃ¨tres
               </button>
 
-              <button
+              <AppNavTile
                 type="button"
                 onClick={() => canOpenRatios && setView('ratios')}
                 disabled={!canOpenRatios}
-                className="rounded-[16px] border border-[#E2B16E]/70 bg-[#FFF7EA]/95 px-4 py-3 text-left text-sm font-black text-[#3A2116] shadow-[0_8px_18px_rgba(31,14,8,0.14)] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                eyebrow="Calcul"
+                size="md"
               >
-                <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#A85F2A]">Calcul</span>
                 Vente ratio
-              </button>
+              </AppNavTile>
 
-              <button
+              <AppNavTile
                 type="button"
                 onClick={() => canOpenRatios && setView('prep_ratios')}
                 disabled={!canOpenRatios}
-                className="rounded-[16px] border border-[#E2B16E]/70 bg-[#FFF7EA]/95 px-4 py-3 text-left text-sm font-black text-[#3A2116] shadow-[0_8px_18px_rgba(31,14,8,0.14)] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                eyebrow="Calcul"
+                size="md"
               >
-                <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#A85F2A]">Calcul</span>
                 Production
-              </button>
+              </AppNavTile>
 
-              <button
+              <AppNavTile
                 type="button"
                 onClick={() => canOpenRatios && setView('take_rate')}
                 disabled={!canOpenRatios}
-                className="rounded-[16px] border border-[#E2B16E]/70 bg-[#FFF7EA]/95 px-4 py-3 text-left text-sm font-black text-[#3A2116] shadow-[0_8px_18px_rgba(31,14,8,0.14)] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                eyebrow="Suivi"
+                size="md"
               >
-                <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#A85F2A]">Suivi</span>
                 Taux de prise
-              </button>
+              </AppNavTile>
             </div>
           </div>
 

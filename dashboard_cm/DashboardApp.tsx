@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import StatCard from './components/StatCard';
 import EcartsList from './components/EcartsList';
 import { FoodCostChart, ProductTrendChart } from './components/Charts';
+import AppNavTile from '../src/components/AppNavTile';
 import { loadJSON, saveJSON } from "./utils/storage";
 
 import { MONTHS } from './constants';
@@ -301,13 +302,9 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
           {/* Gauche : retour + titre + badge mois */}
           <div className="flex items-center gap-3">
             {onBackHome && (
-              <button onClick={onBackHome}
-                className="flex items-center gap-1.5 rounded-[14px] border border-[#F1C27B]/60 bg-[#FFF7EA] px-3 py-2 text-xs font-black text-[#3A2116] shadow-[0_8px_18px_rgba(31,14,8,0.14)] transition hover:bg-white">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                </svg>
-                <span className="hidden sm:inline">Accueil</span>
-              </button>
+              <AppNavTile onClick={onBackHome} eyebrow="Retour" icon="home" tone="dark" size="sm">
+                Accueil
+              </AppNavTile>
             )}
             <div className="hidden h-8 w-px bg-[#F1C27B]/35 sm:block" />
             <div>

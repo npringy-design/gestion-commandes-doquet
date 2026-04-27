@@ -13,6 +13,7 @@ import { getDeliveryDates, getForecastForWindow } from '../utils/dateHelpers';
 import { calculateOrder, calculateTargetOrder, capitalizeFirstLetter, toNumber } from '../utils/calculations';
 import { ResetConfirmModal } from '../components/Modals';
 import WindowsCalendar from '../components/WindowsCalendar';
+import AppNavTile from '../components/AppNavTile';
 import {
   DOQUET_CONFIG, VINS_CONFIG, VIANDES_CONFIG,
   DOMAFRAIS_CONFIG, DOMAFRAIS_BOF_CONFIG, POMONA_TERRE_AZUR_CONFIG, POMONA_EPISAVEURS_CONFIG,
@@ -254,14 +255,8 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                 </div>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                <button onClick={() => setView('home')} title="Accueil"
-                  className="w-9 h-9 rounded-xl bg-[#FCEEB5] text-slate-500 flex items-center justify-center">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-                </button>
-                <button onClick={() => setView('suppliers')} title="Fournisseurs"
-                  className="w-9 h-9 rounded-xl bg-[#FCEEB5] text-slate-500 flex items-center justify-center">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                </button>
+                <AppNavTile onClick={() => setView('home')} title="Accueil" aria-label="Accueil" icon="home" size="icon" />
+                <AppNavTile onClick={() => setView('suppliers')} title="Fournisseurs" aria-label="Fournisseurs" icon="back" size="icon" />
                 <button onClick={() => setShowResetConfirm(true)}
                   className="h-9 px-3 bg-red-50 text-red-600 font-black uppercase text-[10px] rounded-xl border border-red-100">
                   RAZ
@@ -414,14 +409,8 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
             </div>
 
             <div className="flex gap-3">
-              <button onClick={() => setView('home')} title="Retour Accueil"
-                className="w-12 h-12 rounded-2xl bg-[#FCEEB5] text-slate-400 hover:bg-slate-200 hover:text-slate-600 flex items-center justify-center transition-all shadow-sm">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-              </button>
-              <button onClick={() => setView('suppliers')} title="Retour Commandes"
-                className="w-12 h-12 rounded-2xl bg-[#FCEEB5] text-slate-400 hover:bg-slate-200 hover:text-slate-600 flex items-center justify-center transition-all shadow-sm">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-              </button>
+              <AppNavTile onClick={() => setView('home')} title="Retour Accueil" aria-label="Retour Accueil" icon="home" size="icon" className="h-12 w-12" />
+              <AppNavTile onClick={() => setView('suppliers')} title="Retour Commandes" aria-label="Retour Commandes" icon="back" size="icon" className="h-12 w-12" />
               <button onClick={() => setShowResetConfirm(true)}
                 className="px-6 py-3 bg-red-50 text-red-600 font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-red-600 hover:text-white transition-all border border-red-100 shadow-sm">
                 RAZ

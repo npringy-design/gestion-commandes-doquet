@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { View } from '../constants';
+import AppNavTile from '../components/AppNavTile';
 import { SupplierConfig } from '../types';
 import { getSupplierVisual } from '../lib/supplierVisuals';
 
@@ -37,12 +38,15 @@ const SuppliersPage: React.FC<SuppliersPageProps> = ({ setView, supplierConfigs 
             </h2>
             <div className="h-1.5 w-32 bg-red-600 rounded-full" />
           </div>
-          <button
+          <AppNavTile
             onClick={() => setView('home')}
-            className="px-4 sm:px-8 py-3 sm:py-4 bg-gradient-to-b from-[#e5e5e5] to-[#a3a3a3] rounded-2xl shadow-[0_4px_0_#525252] sm:shadow-[0_8px_0_#525252] active:translate-y-1 transition-all shrink-0"
+            eyebrow="Retour"
+            icon="home"
+            tone="dark"
+            size="md"
           >
-            <span className="font-black text-slate-800 uppercase text-sm sm:text-lg tracking-tight">Accueil</span>
-          </button>
+            Accueil
+          </AppNavTile>
         </div>
 
         <div

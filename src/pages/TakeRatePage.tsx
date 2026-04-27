@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MONTHS_DISPLAY_CONFIG, STORAGE_PREFIX, View } from '../constants';
+import AppNavTile from '../components/AppNavTile';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { loadAllFromSupabase, saveToSupabaseDebounced } from '../utils/supabase';
 
@@ -1311,19 +1312,26 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
           </div>
         </div>
 
-        <button
+        <AppNavTile
           onClick={() => setView('stats')}
-          className="rounded-[22px] border border-[#D9A72B] bg-[linear-gradient(180deg,#F3C63D_0%,#E3A91F_100%)] px-4 py-3.5 text-center text-[13px] font-black uppercase tracking-[0.12em] text-[#4D2B18] shadow-[0_4px_0_#B8810F] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#B8810F]"
+          eyebrow="Retour"
+          icon="settings"
+          size="lg"
+          tone="gold"
+          className="w-full"
         >
-          Retour paramètres
-        </button>
+          Paramètres
+        </AppNavTile>
 
-        <button
+        <AppNavTile
           onClick={() => setView('take_rate_sheet')}
-          className="rounded-[22px] border border-[#B69034] bg-[linear-gradient(180deg,#E5B548_0%,#CC9530_100%)] px-4 py-3.5 text-center text-[13px] font-black uppercase tracking-[0.12em] text-[#4D2B18] shadow-[0_4px_0_#9A691B] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#9A691B]"
+          eyebrow="Ouvrir"
+          icon="sheet"
+          size="lg"
+          className="w-full"
         >
           Voir la feuille
-        </button>
+        </AppNavTile>
 
         <div className="rounded-[22px] border border-[#D7BFAB] bg-[#FFF8F1] px-4 py-4 shadow-[0_8px_18px_rgba(96,56,34,0.08)]">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#93644D]">Résumé</p>

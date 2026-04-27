@@ -8,6 +8,7 @@ import React, { useState } from 'react';
 import { MONTHS_ORDER, SupplierId } from '../constants';
 import { SupplierConfig } from '../types';
 import RatiosMappingPopover from '../components/RatiosMappingPopover';
+import AppNavTile from '../components/AppNavTile';
 import { useAppState } from '../hooks/useAppState';
 import { useAuth } from '../auth/AuthProvider';
 import { canEditRatios } from '../lib/permissions';
@@ -239,7 +240,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
 
             <div className="border-b border-[#E0CCBA] bg-[#FFF9F3] px-4 py-3">
               <div className="flex items-center gap-3">
-                <button onClick={() => setView('stats')} className="rounded-[16px] border border-[#D9A72B] bg-[linear-gradient(180deg,#F3C63D_0%,#E3A91F_100%)] px-4 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-[#4D2B18] shadow-[0_4px_0_#B8810F] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#B8810F]">Retour paramètres</button>
+                <AppNavTile onClick={() => setView('stats')} eyebrow="Retour" icon="settings" size="sm" tone="gold">Paramètres</AppNavTile>
                 <button onClick={addNewProduct} disabled={!canEdit} className="rounded-[16px] border border-slate-300 bg-white px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-slate-700 shadow-sm disabled:opacity-50">Ajouter un produit</button>
                 <button onClick={deleteSelectedProducts} disabled={!canEdit || selectedProductIds.size === 0} className="rounded-[16px] border border-red-200 bg-red-50 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-red-700 shadow-sm disabled:opacity-50">Supprimer la sélection</button>
               </div>

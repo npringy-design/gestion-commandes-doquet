@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { View } from '../constants';
 import { useAuth } from '../auth/AuthProvider';
 import { useToast } from '../components/Toast';
+import AppNavTile from '../components/AppNavTile';
 import { ROLE_LABELS, canAccessUserManagement, canManageTarget as canManageTargetUi, getAssignableRoleOptions, getCreatableRoles } from '../lib/permissions';
 
 type Role = 'super_admin' | 'global_admin' | 'director' | 'manager_plus' | 'manager' | 'commande';
@@ -239,12 +240,15 @@ if (!canAccessUserManagement(profile)) {
         <p className="text-slate-500 font-semibold mt-2">
           Cette section est réservée aux administrateurs actifs.
         </p>
-        <button
+        <AppNavTile
           onClick={() => setView('admin_dashboard')}
-          className="mt-5 h-10 px-4 rounded-xl bg-slate-900 text-white font-black uppercase text-[11px]"
+          eyebrow="Retour"
+          icon="back"
+          size="sm"
+          className="mt-5 w-full"
         >
-          Retour Dashboard
-        </button>
+          Dashboard
+        </AppNavTile>
       </div>
     </div>
   );
@@ -263,12 +267,14 @@ if (!canAccessUserManagement(profile)) {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button
+              <AppNavTile
                 onClick={() => setView('admin_dashboard')}
-                className="px-4 py-2.5 rounded-xl bg-slate-900 text-white font-black uppercase text-[11px] tracking-wider"
+                eyebrow="Retour"
+                icon="back"
+                size="sm"
               >
-                Retour Dashboard
-              </button>
+                Dashboard
+              </AppNavTile>
               <button
                 onClick={() => setCreateOpen(true)}
                 className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-black uppercase text-[11px] tracking-wider"

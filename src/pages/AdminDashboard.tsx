@@ -6,6 +6,7 @@
 
 import React from 'react';
 import { View } from '../constants';
+import AppNavTile from '../components/AppNavTile';
 import type { AppProfile } from '../auth/AuthProvider';
 import { canAccessSupplierSettings, canAccessUserManagement } from '../lib/permissions';
 
@@ -21,12 +22,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ setView, profile = null
         <h1 className="text-[#ffd700] text-6xl font-black uppercase tracking-tighter leading-none">
           ADMIN DASHBOARD
         </h1>
-        <button
+        <AppNavTile
           onClick={() => setView('home')}
-          className="px-8 py-4 bg-white/5 text-white border border-white/10 rounded-2xl hover:bg-white/10 font-black uppercase text-xs tracking-widest transition-all"
+          eyebrow="Retour"
+          icon="home"
+          tone="dark"
+          size="md"
         >
-          Retour Accueil
-        </button>
+          Accueil
+        </AppNavTile>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

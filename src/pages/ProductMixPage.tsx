@@ -5,6 +5,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { View, MONTHS_DISPLAY_CONFIG } from '../constants';
+import AppNavTile from '../components/AppNavTile';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface ProductMixPageProps {
@@ -144,12 +145,16 @@ const ProductMixPage: React.FC<ProductMixPageProps> = ({ setView, salesHtByMonth
       {/* Header */}
       <div className="bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 px-6 py-8 shadow-2xl border-b-4 border-purple-500">
         <div className="max-w-7xl mx-auto">
-          <button
+          <AppNavTile
             onClick={() => setView('home')}
-            className="mb-4 px-4 py-2 bg-white/10 backdrop-blur rounded-full text-xs font-black uppercase tracking-widest hover:bg-white/20 transition-all border border-white/20"
+            eyebrow="Retour"
+            icon="home"
+            tone="dark"
+            size="sm"
+            className="mb-4"
           >
-            ← Retour
-          </button>
+            Accueil
+          </AppNavTile>
           <h1 className="text-4xl font-black uppercase tracking-tight mb-2">
             Mix Produit
           </h1>

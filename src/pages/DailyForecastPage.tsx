@@ -6,6 +6,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { View, MONTHS_DISPLAY_CONFIG } from '../constants';
+import AppNavTile from '../components/AppNavTile';
 import { DailyCoversState } from '../utils/dateHelpers';
 import { useAuth } from '../auth/AuthProvider';
 import { canEditPreviCouverts } from '../lib/permissions';
@@ -41,12 +42,15 @@ const DailyForecastPage: React.FC<DailyForecastPageProps> = ({
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-800 uppercase tracking-tighter leading-tight">
             Prévisions <span className="text-emerald-600">Journalières</span>
           </h1>
-          <button
+          <AppNavTile
             onClick={() => setView('admin_dashboard')}
-            className="w-full sm:w-auto px-4 sm:px-8 py-3 sm:py-4 bg-white border-2 border-slate-200 text-slate-500 font-black uppercase text-xs rounded-2xl hover:bg-slate-50 transition-all"
+            eyebrow="Retour"
+            icon="back"
+            size="md"
+            className="w-full sm:w-auto"
           >
-            Retour
-          </button>
+            Dashboard
+          </AppNavTile>
         </div>
 
         {!canEdit && (

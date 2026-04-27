@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { MONTHS_DISPLAY_CONFIG, MONTH_KEY_TO_NAME, STORAGE_PREFIX, View } from '../constants';
+import AppNavTile from '../components/AppNavTile';
 import type { TakeRateMappingRow } from './TakeRatePage';
 
 interface TakeRateResultsPageProps {
@@ -265,12 +266,14 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
             <h1 className="mt-2 text-[26px] font-black leading-tight text-[#1D120D]">Taux de prise</h1>
           </div>
 
-          <button
+          <AppNavTile
             onClick={() => setView('home')}
-            className="rounded-[14px] border border-[#E7C990] bg-[#FFF7E2] px-4 py-3 text-[12px] font-black uppercase tracking-[0.08em] text-[#7A5A22] transition hover:bg-[#F7E0AD]"
+            eyebrow="Retour"
+            icon="home"
+            size="sm"
           >
-            ← Retour accueil
-          </button>
+            Accueil
+          </AppNavTile>
         </div>
 
         <div className="flex flex-wrap gap-2">

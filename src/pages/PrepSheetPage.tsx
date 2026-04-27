@@ -1,5 +1,6 @@
 import React from 'react';
 import { MONTHS_DISPLAY_CONFIG, MONTHS_ORDER, type View } from '../constants';
+import AppNavTile from '../components/AppNavTile';
 import type { PrepCategory, PrepImportsByMonth, PrepItem } from '../types';
 import { getImportedValueForProduct } from '../utils/csvHelpers';
 import type { DailyCoversState } from '../utils/dateHelpers';
@@ -357,7 +358,7 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
               </div>
             </div>
 
-            <button onClick={() => setView('home')} className="flex items-center justify-center gap-3 rounded-[18px] border border-[#D9A72B] bg-[linear-gradient(180deg,#F3C63D_0%,#E3A91F_100%)] px-4 py-4 text-center text-sm font-black uppercase tracking-[0.12em] text-[#4D2B18] shadow-[0_4px_0_#B8810F] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#B8810F]">Retour accueil</button>
+            <AppNavTile onClick={() => setView('home')} eyebrow="Retour" icon="home" size="lg" tone="gold" className="w-full">Accueil</AppNavTile>
 
             <div className="rounded-[20px] border border-[#D7B79B] bg-[#FBF7F1] p-2 shadow-sm">
               <div className="mb-2 px-2 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Postes</div>
