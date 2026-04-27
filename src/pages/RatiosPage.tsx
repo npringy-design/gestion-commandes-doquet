@@ -69,32 +69,35 @@ const ProductCard: React.FC<{
           onChange={e => updateSearchName(p.id, e.target.value)}
           disabled={!canEdit}
         />
-        <button
-          onClick={() => setActiveMappingId(activeMappingId === p.id ? null : p.id)}
-          disabled={!canEdit}
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${alert ? 'bg-amber-100 text-amber-700' : 'bg-[#F3DDC0] text-[#6A432D] hover:bg-[#FFE8C2]'} disabled:opacity-50`}
-          title="Rechercher un mapping"
-        >
-          <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"/>
-          </svg>
-        </button>
-        {activeMappingId === p.id && (
-          <div className="absolute z-50 mt-12 ml-8">
-            <RatiosMappingPopover
-              orphanNames={Array.from(allAvailableImportNames).filter((name) => {
-                const normalizedName = String(name).trim().toLowerCase();
-                return !products.some((pr) => (
-                  pr.id !== p.id &&
-                  pr.supplierId === p.supplierId &&
-                  pr.searchName.trim().toLowerCase() === normalizedName
-                ));
-              })}
-              onSelect={n => { if (!canEdit) return; updateSearchName(p.id, n); setActiveMappingId(null); }}
-              onClose={() => setActiveMappingId(null)}
-            />
-          </div>
-        )}
+        <div className="relative shrink-0">
+          <button
+            onClick={() => setActiveMappingId(activeMappingId === p.id ? null : p.id)}
+            disabled={!canEdit}
+            className={`flex h-9 w-9 items-center justify-center rounded-xl ${alert ? 'bg-amber-100 text-amber-700' : 'bg-[#F3DDC0] text-[#6A432D] hover:bg-[#FFE8C2]'} disabled:opacity-50`}
+            title="Rechercher un mapping"
+          >
+            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"/>
+            </svg>
+          </button>
+
+          {activeMappingId === p.id && (
+            <div className="absolute right-0 top-full z-[9999] mt-2 w-[320px] max-w-[calc(100vw-32px)]">
+              <RatiosMappingPopover
+                orphanNames={Array.from(allAvailableImportNames).filter((name) => {
+                  const normalizedName = String(name).trim().toLowerCase();
+                  return !products.some((pr) => (
+                    pr.id !== p.id &&
+                    pr.supplierId === p.supplierId &&
+                    pr.searchName.trim().toLowerCase() === normalizedName
+                  ));
+                })}
+                onSelect={n => { if (!canEdit) return; updateSearchName(p.id, n); setActiveMappingId(null); }}
+                onClose={() => setActiveMappingId(null)}
+              />
+            </div>
+          )}
+        </div>
         <div className="shrink-0 rounded-xl border border-[#D8CAB8] bg-[#F6EFE6] px-2.5 py-1 text-center">
           <div className="text-[8px] font-black uppercase text-[#8B5A35]">Ratio</div>
           <div className="text-sm font-black leading-none text-[#2F1D14]">{avgRatio.toFixed(3)}</div>
