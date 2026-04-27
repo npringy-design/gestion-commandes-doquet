@@ -35,7 +35,8 @@ const ProductCard: React.FC<{
   total: number;
   state: AppState;
   canEdit: boolean;
-}> = ({ p, idx, total, state, canEdit }) => {
+  displayMonthKey: string;
+}> = ({ p, idx, total, state, canEdit, displayMonthKey }) => {
   const [expanded, setExpanded] = useState(false);
   const {
     selectedProductIds, toggleProductSelection,
@@ -49,8 +50,15 @@ const ProductCard: React.FC<{
 
   const monthFreezeMap = ratioValidatedMonths ?? validatedMonths;
   const { avgRatio, mR, mS } = getProductStats(p);
-  const isMapped = Array.from(allAvailableImportNames).includes(p.searchName);
-  const alert    = !isMapped && p.searchName.trim().length > 0;
+  const isFrozenDisplay = !!monthFreezeMap[displayMonthKey];
+  const frozenSnapshot = isFrozenDisplay ? p.ratioSnapshots?.[displayMonthKey] : undefined;
+  const hasLegacyFrozenValue = isFrozenDisplay && !frozenSnapshot && Number(p.salesHistory?.[displayMonthKey] || 0) > 0;
+  const displaySearchName = frozenSnapshot?.searchName ?? p.searchName;
+  const displayProductName = frozenSnapshot?.productName ?? p.name;
+  const isMapped = frozenSnapshot
+    ? !!frozenSnapshot.isLinked
+    : hasLegacyFrozenValue || Array.from(allAvailableImportNames).includes(p.searchName);
+  const alert    = !isMapped && displaySearchName.trim().length > 0;
   const selected = selectedProductIds.has(p.id);
 
   return (
@@ -65,16 +73,16 @@ const ProductCard: React.FC<{
         />
         <input
           className={`min-w-0 flex-1 rounded-xl border bg-[#FFFDF8] px-3 py-2 text-sm font-black italic outline-none ${alert ? 'border-amber-300 text-amber-700' : 'border-transparent text-[#24160F]'}`}
-          value={p.searchName}
+          value={displaySearchName}
           placeholder="Nom produit dans l'import..."
           onChange={e => updateSearchName(p.id, e.target.value)}
-          disabled={!canEdit}
+          disabled={!canEdit || isFrozenDisplay}
         />
         <div className="relative z-[70] shrink-0 overflow-visible">
           <button
             type="button"
             onClick={() => setActiveMappingId(activeMappingId === p.id ? null : p.id)}
-            disabled={!canEdit}
+            disabled={!canEdit || isFrozenDisplay}
             className={`flex h-9 w-9 items-center justify-center rounded-xl ${alert ? 'bg-amber-100 text-amber-700' : 'bg-[#F3DDC0] text-[#6A432D] hover:bg-[#FFE8C2]'} disabled:opacity-50`}
             title="Rechercher un mapping"
           >
@@ -82,7 +90,7 @@ const ProductCard: React.FC<{
               <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"/>
             </svg>
           </button>
-          {activeMappingId === p.id && (
+          {activeMappingId === p.id && !isFrozenDisplay && (
             <div className="absolute right-0 top-[calc(100%+10px)] z-[9999] w-[320px] max-w-[calc(100vw-32px)] overflow-visible">
               <RatiosMappingPopover
                 orphanNames={Array.from(allAvailableImportNames).filter((name) => {
@@ -121,10 +129,10 @@ const ProductCard: React.FC<{
               <div className="flex items-center gap-1">
                 <input
                   className="min-w-0 flex-1 rounded-xl border border-[#E2C39B] bg-[#FFFDF8] px-3 py-2 text-xs font-black uppercase text-[#24160F] outline-none focus:border-[#C86F24]"
-                  value={p.name}
+                  value={displayProductName}
                   placeholder="Nom visible dans les commandes..."
                   onChange={e => handleNameChange(p.id, e.target.value)}
-                  disabled={!canEdit}
+                  disabled={!canEdit || isFrozenDisplay}
                 />
               </div>
             </div>
@@ -135,7 +143,7 @@ const ProductCard: React.FC<{
                 type="number"
                 value={p.importDivisor ?? ''}
                 onChange={e => updateImportDivisor(p.id, e.target.value)}
-                disabled={!canEdit}
+                disabled={!canEdit || isFrozenDisplay}
                 className="w-full rounded-xl border border-[#E2C39B] bg-[#FFFDF8] px-2 py-2 text-center text-sm font-black text-[#6A432D] outline-none focus:border-[#C86F24]"
               />
             </div>
@@ -228,19 +236,6 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
     [state.allAvailableImportNames]
   );
 
-  const isLinkedProduct = React.useCallback(
-    (p: any) => p.searchName.trim().length > 0 && availableImportNames.includes(p.searchName),
-    [availableImportNames]
-  );
-
-  const displayedRatioProducts = React.useMemo(() => {
-    if (!showOnlyUnlinked) return supplierRatioProducts;
-    return supplierRatioProducts.filter(p => !isLinkedProduct(p));
-  }, [supplierRatioProducts, showOnlyUnlinked, isLinkedProduct]);
-
-  const mappedProductsCount = supplierRatioProducts.filter(isLinkedProduct).length;
-  const alertProductsCount = supplierRatioProducts.length - mappedProductsCount;
-  const selectedVisibleCount = displayedRatioProducts.filter(p => selectedProductIds.has(p.id)).length;
   const activeSupplierLabel = supplierTabs.find(tab => tab.id === safeRatioTab)?.label ?? 'Fournisseur';
   const workMonthKey = String(state.importTargetMonth);
   const monthFreezeMap = ratioValidatedMonths ?? validatedMonths;
@@ -252,6 +247,26 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
   }, [freezeMonthKey, workMonthKey]);
 
   const isSelectedFreezeMonthValidated = !!monthFreezeMap[freezeMonthKey];
+  const displayMonthKey = isSelectedFreezeMonthValidated ? freezeMonthKey : workMonthKey;
+
+  const isLinkedProduct = React.useCallback((p: any) => {
+    const frozenSnapshot = monthFreezeMap[displayMonthKey] ? p.ratioSnapshots?.[displayMonthKey] : undefined;
+    if (frozenSnapshot) return !!frozenSnapshot.isLinked;
+
+    const hasLegacyFrozenValue = monthFreezeMap[displayMonthKey] && Number(p.salesHistory?.[displayMonthKey] || 0) > 0;
+    if (hasLegacyFrozenValue) return true;
+
+    return p.searchName.trim().length > 0 && availableImportNames.includes(p.searchName);
+  }, [availableImportNames, displayMonthKey, monthFreezeMap]);
+
+  const displayedRatioProducts = React.useMemo(() => {
+    if (!showOnlyUnlinked) return supplierRatioProducts;
+    return supplierRatioProducts.filter(p => !isLinkedProduct(p));
+  }, [supplierRatioProducts, showOnlyUnlinked, isLinkedProduct]);
+
+  const mappedProductsCount = supplierRatioProducts.filter(isLinkedProduct).length;
+  const alertProductsCount = supplierRatioProducts.length - mappedProductsCount;
+  const selectedVisibleCount = displayedRatioProducts.filter(p => selectedProductIds.has(p.id)).length;
 
   return (
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_12%_0%,rgba(184,91,43,0.18),transparent_30%),radial-gradient(circle_at_88%_8%,rgba(109,143,78,0.12),transparent_28%),linear-gradient(180deg,#F8F1E7_0%,#EFE1D0_52%,#D7AA78_100%)] text-[#2F1D14]">
@@ -397,6 +412,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                       total={displayedRatioProducts.length}
                       state={state}
                       canEdit={canEdit}
+                      displayMonthKey={displayMonthKey}
                     />
                   ))}
                 </div>

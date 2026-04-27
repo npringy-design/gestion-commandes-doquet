@@ -29,6 +29,24 @@ import {
 import { useProductActions } from './useProductActions';
 import { useCloudSync } from './useCloudSync';
 
+type RatioProductMonthSnapshot = {
+  salesValue: number;
+  ratio: number;
+  productName: string;
+  searchName: string;
+  mappingId?: string;
+  isLinked: boolean;
+};
+
+type ProductWithRatioSnapshots = ProductWithHistory & {
+  ratioSnapshots?: Record<string, RatioProductMonthSnapshot>;
+};
+
+const normalizeRatioMappingId = (value?: string) => String(value || '').trim().toLowerCase();
+
+const getRatioSnapshot = (product: ProductWithHistory, month: string) =>
+  (product as ProductWithRatioSnapshots).ratioSnapshots?.[month];
+
 // -----------------------------------------------------------
 // Hook principal
 // -----------------------------------------------------------
@@ -273,7 +291,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     const mS: Record<string, { value: number; isImported: boolean; isValidated: boolean }> = {};
 
     // RÈGLE PERF (workMonth) :
-    // - Mois figés (validated) : on affiche uniquement le snapshot (salesHistory) -> jamais de lecture CSV
+    // - Mois figés (validated) : on affiche uniquement le snapshot figé -> jamais de lecture CSV
     // - Mois de travail (importTargetMonth) : seul mois autorisé à lire/parsing CSV + matching/alertes
     // - Autres mois non figés : 0 (pas de parsing, pas de fallback salesHistory)
     MONTHS_ORDER.forEach(m => {
@@ -282,9 +300,11 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
 
       let importedVal: number | null = null;
       let val = 0;
+      let r = 0;
+      const snapshot = getRatioSnapshot(p, m);
 
       if (isValidated) {
-        val = Math.round(p.salesHistory[m] || 0);
+        val = Math.round(snapshot?.salesValue ?? p.salesHistory[m] ?? 0);
       } else if (isWorkMonth) {
         importedVal = getImportedValueForProduct(detailedInventory[m], p.searchName, p.importDivisor);
         val = importedVal ?? 0;
@@ -293,7 +313,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
       }
 
       const c = covers[m] || 1;
-      const r = val / c;
+      r = isValidated && snapshot ? Number(snapshot.ratio || 0) : val / c;
 
       mS[m] = { value: val, isImported: !isValidated && isWorkMonth && importedVal !== null, isValidated };
       mR[m] = r;
@@ -308,10 +328,39 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
   const toggleValidateMonth = (m: string) => {
     const next = !ratioValidatedMonths[m];
     if (next) {
-      setProducts(prev => prev.map(p => ({
-        ...p,
-        salesHistory: { ...p.salesHistory, [m]: Math.round(getProductStats(p).mS[m].value) },
-      })));
+      const importNamesForMonth = extractAllNamesFromCsvs(
+        detailedInventory[m] ? { [m]: detailedInventory[m] } : {}
+      );
+      const normalizedImportNamesForMonth = new Set(
+        Array.from(importNamesForMonth).map(normalizeRatioMappingId)
+      );
+
+      setProducts(prev => prev.map(p => {
+        const importedValue = getImportedValueForProduct(detailedInventory[m], p.searchName, p.importDivisor);
+        const salesValue = Math.round(importedValue ?? getProductStats(p).mS[m].value);
+        const monthCovers = covers[m] || 1;
+        const ratio = salesValue / monthCovers;
+        const searchName = String(p.searchName || '');
+        const mappingId = normalizeRatioMappingId(searchName);
+        const isLinked = mappingId.length > 0 && normalizedImportNamesForMonth.has(mappingId);
+        const previousSnapshots = (p as ProductWithRatioSnapshots).ratioSnapshots || {};
+
+        return {
+          ...p,
+          salesHistory: { ...p.salesHistory, [m]: salesValue },
+          ratioSnapshots: {
+            ...previousSnapshots,
+            [m]: {
+              salesValue,
+              ratio,
+              productName: p.name,
+              searchName,
+              mappingId: mappingId || undefined,
+              isLinked,
+            },
+          },
+        };
+      }));
     }
     setRatioValidatedMonths(prev => ({ ...prev, [m]: next }));
   };
