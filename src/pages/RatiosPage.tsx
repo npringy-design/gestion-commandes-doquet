@@ -53,7 +53,7 @@ const ProductCard: React.FC<{
   const selected = selectedProductIds.has(p.id);
 
   return (
-    <div className={`rounded-[22px] border-l-[6px] border-y border-r transition-all shadow-[0_10px_22px_rgba(66,42,24,0.07)] ${selected ? 'border-l-[#B85B2B] border-y-[#D8AE77] border-r-[#D8AE77] bg-[#FFF4E4]' : alert ? 'border-l-[#D4922F] border-y-[#D8CAB8] border-r-[#D8CAB8] bg-[#FFFCF6]' : 'border-l-[#6D8F4E] border-y-[#D8CAB8] border-r-[#D8CAB8] bg-[#FFFCF6]'}`}>
+    <div className={`relative rounded-[22px] border-l-[6px] border-y border-r transition-all shadow-[0_10px_22px_rgba(66,42,24,0.07)] ${selected ? 'border-l-[#B85B2B] border-y-[#D8AE77] border-r-[#D8AE77] bg-[#FFF4E4]' : alert ? 'border-l-[#D4922F] border-y-[#D8CAB8] border-r-[#D8CAB8] bg-[#FFFCF6]' : 'border-l-[#6D8F4E] border-y-[#D8CAB8] border-r-[#D8CAB8] bg-[#FFFCF6]'}`}>
       <div className="flex items-center gap-2 p-3">
         <input
           type="checkbox"
@@ -63,12 +63,38 @@ const ProductCard: React.FC<{
           className="h-5 w-5 shrink-0 cursor-pointer accent-[#C86F24]"
         />
         <input
-          className="min-w-0 flex-1 bg-transparent text-sm font-black uppercase text-[#24160F] outline-none"
-          value={p.name}
-          placeholder="NOM PRODUIT..."
-          onChange={e => handleNameChange(p.id, e.target.value)}
+          className={`min-w-0 flex-1 rounded-xl border bg-[#FFFDF8] px-3 py-2 text-sm font-black italic outline-none ${alert ? 'border-amber-300 text-amber-700' : 'border-transparent text-[#24160F]'}`}
+          value={p.searchName}
+          placeholder="Nom produit dans l'import..."
+          onChange={e => updateSearchName(p.id, e.target.value)}
           disabled={!canEdit}
         />
+        <button
+          onClick={() => setActiveMappingId(activeMappingId === p.id ? null : p.id)}
+          disabled={!canEdit}
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${alert ? 'bg-amber-100 text-amber-700' : 'bg-[#F3DDC0] text-[#6A432D] hover:bg-[#FFE8C2]'} disabled:opacity-50`}
+          title="Rechercher un mapping"
+        >
+          <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"/>
+          </svg>
+        </button>
+        {activeMappingId === p.id && (
+          <div className="absolute z-50 mt-12 ml-8">
+            <RatiosMappingPopover
+              orphanNames={Array.from(allAvailableImportNames).filter((name) => {
+                const normalizedName = String(name).trim().toLowerCase();
+                return !products.some((pr) => (
+                  pr.id !== p.id &&
+                  pr.supplierId === p.supplierId &&
+                  pr.searchName.trim().toLowerCase() === normalizedName
+                ));
+              })}
+              onSelect={n => { if (!canEdit) return; updateSearchName(p.id, n); setActiveMappingId(null); }}
+              onClose={() => setActiveMappingId(null)}
+            />
+          </div>
+        )}
         <div className="shrink-0 rounded-xl border border-[#D8CAB8] bg-[#F6EFE6] px-2.5 py-1 text-center">
           <div className="text-[8px] font-black uppercase text-[#8B5A35]">Ratio</div>
           <div className="text-sm font-black leading-none text-[#2F1D14]">{avgRatio.toFixed(3)}</div>
@@ -87,39 +113,15 @@ const ProductCard: React.FC<{
         <div className="flex flex-col gap-3 border-t border-[#E2C39B] bg-[#F8F0E6]/80 p-3">
           <div className="flex gap-2">
             <div className="flex-1 min-w-0">
-              <div className="mb-1 text-[9px] font-black uppercase tracking-[0.12em] text-[#A85F2A]">Mapping import</div>
-              <div className="relative flex items-center gap-1">
+              <div className="mb-1 text-[9px] font-black uppercase tracking-[0.12em] text-[#A85F2A]">Nom affiché dans les commandes</div>
+              <div className="flex items-center gap-1">
                 <input
-                  className={`min-w-0 flex-1 rounded-xl border bg-[#FFFDF8] px-3 py-2 text-xs font-bold italic outline-none ${alert ? 'border-amber-300 text-amber-700' : 'border-[#E2C39B] text-[#6A432D]'}`}
-                  value={p.searchName}
-                  placeholder="nom dans le CSV..."
-                  onChange={e => updateSearchName(p.id, e.target.value)}
+                  className="min-w-0 flex-1 rounded-xl border border-[#E2C39B] bg-[#FFFDF8] px-3 py-2 text-xs font-black uppercase text-[#24160F] outline-none focus:border-[#C86F24]"
+                  value={p.name}
+                  placeholder="Nom visible dans les commandes..."
+                  onChange={e => handleNameChange(p.id, e.target.value)}
+                  disabled={!canEdit}
                 />
-                <button
-                  onClick={() => setActiveMappingId(activeMappingId === p.id ? null : p.id)}
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${alert ? 'bg-amber-100 text-amber-700' : 'bg-[#F3DDC0] text-[#6A432D] hover:bg-[#FFE8C2]'}`}
-                  title="Rechercher un mapping"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"/>
-                  </svg>
-                </button>
-                {activeMappingId === p.id && (
-                  <div className="absolute top-full left-0 z-50 mt-1">
-                    <RatiosMappingPopover
-                      orphanNames={Array.from(allAvailableImportNames).filter((name) => {
-                        const normalizedName = String(name).trim().toLowerCase();
-                        return !products.some((pr) => (
-                          pr.id !== p.id &&
-                          pr.supplierId === p.supplierId &&
-                          pr.searchName.trim().toLowerCase() === normalizedName
-                        ));
-                      })}
-                      onSelect={n => { if (!canEdit) return; updateSearchName(p.id, n); setActiveMappingId(null); }}
-                      onClose={() => setActiveMappingId(null)}
-                    />
-                  </div>
-                )}
               </div>
             </div>
 
@@ -237,6 +239,10 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
   const activeSupplierLabel = supplierTabs.find(tab => tab.id === safeRatioTab)?.label ?? 'Fournisseur';
   const workMonthKey = String(state.importTargetMonth);
   const isWorkMonthValidated = !!validatedMonths[workMonthKey];
+  const lastValidatedMonth = React.useMemo(
+    () => MONTHS_ORDER.slice().reverse().find(m => validatedMonths[m]),
+    [validatedMonths]
+  );
 
   return (
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_12%_0%,rgba(184,91,43,0.18),transparent_30%),radial-gradient(circle_at_88%_8%,rgba(109,143,78,0.12),transparent_28%),linear-gradient(180deg,#F8F1E7_0%,#EFE1D0_52%,#D7AA78_100%)] text-[#2F1D14]">
@@ -253,7 +259,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[580px]">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 lg:min-w-[700px]">
               <div className="rounded-2xl border border-[#D8CAB8] bg-[#F8F0E6] px-3 py-2.5 shadow-sm">
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Mois</p>
                 <p className="mt-1 truncate text-sm font-black text-[#3A2116]">{state.importTargetMonth?.toUpperCase?.() ?? state.importTargetMonth}</p>
@@ -273,6 +279,14 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
               >
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">{isWorkMonthValidated ? 'Mois figé' : 'Fin de mois'}</p>
                 <p className="mt-1 text-sm font-black text-[#3A2116]">{isWorkMonthValidated ? 'Défiger' : 'Figer le mois'}</p>
+              </button>
+              <button
+                onClick={() => lastValidatedMonth && state.toggleValidateMonth(lastValidatedMonth)}
+                disabled={!canEdit || !lastValidatedMonth}
+                className="rounded-2xl border border-[#D8CAB8] bg-[#F8F0E6] px-3 py-2.5 text-left shadow-sm transition hover:bg-[#FFF7EA] disabled:opacity-45"
+              >
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Correction</p>
+                <p className="mt-1 text-sm font-black text-[#3A2116]">{lastValidatedMonth ? `Défiger ${MONTH_LABELS[lastValidatedMonth]}` : 'Aucun mois'}</p>
               </button>
             </div>
           </div>
@@ -350,7 +364,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-3 2xl:grid-cols-2">
+                <div className="grid grid-cols-1 items-start gap-3 2xl:grid-cols-2">
                   {displayedRatioProducts.map((p, idx) => (
                     <ProductCard
                       key={p.id}

@@ -43,7 +43,7 @@ export const useAppState = () => {
   const [calculationMode, setCalculationMode] = useState<'margin' | 'target'>('margin');
 
   // Onglet actif sur la page Ratios
-  const [ratioTab, setRatioTab] = useState<SupplierId>('doquet');
+  const [ratioTab, setRatioTab] = useState<SupplierId>(() => loadState<SupplierId>('ratioTab', 'doquet'));
 
   // Modale de confirmation RAZ
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -120,6 +120,11 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
 
   // --- Persistance automatique à chaque changement ---
   const onSaveError = (msg: string) => showToast(msg, 'error');
+
+  useEffect(() => {
+    saveState('ratioTab', ratioTab, onSaveError);
+  }, [ratioTab]);
+
   const { supabaseLoaded, syncStatus } = useCloudSync({
     covers,
     dailyCovers,
