@@ -227,7 +227,8 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
           <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[28px] border border-[#D7B79B] bg-[#FAF5EE] shadow-[0_16px_32px_rgba(145,105,75,0.10)]">
             <div className="border-b border-[#B45439] bg-[linear-gradient(180deg,#A93E2A_0%,#912F20_55%,#782219_100%)] px-5 py-4">
               <div className="flex items-start justify-between gap-4">
-                <div>
+                <div className="flex flex-col items-start gap-3">
+                  <AppNavTile onClick={() => setView('stats')} eyebrow="Retour" icon="settings" size="sm" tone="gold">Paramètres</AppNavTile>
                   <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#FFE1B8]">Hippopotamus Thillois</p>
                   <h2 className="mt-1 text-[30px] font-black leading-none text-[#FFF8F1]">Calcul vente ratio</h2>
                 </div>
@@ -240,7 +241,6 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
 
             <div className="border-b border-[#E0CCBA] bg-[#FFF9F3] px-4 py-3">
               <div className="flex items-center gap-3">
-                <AppNavTile onClick={() => setView('stats')} eyebrow="Retour" icon="settings" size="sm" tone="gold">Paramètres</AppNavTile>
                 <button onClick={addNewProduct} disabled={!canEdit} className="rounded-[16px] border border-slate-300 bg-white px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-slate-700 shadow-sm disabled:opacity-50">Ajouter un produit</button>
                 <button onClick={deleteSelectedProducts} disabled={!canEdit || selectedProductIds.size === 0} className="rounded-[16px] border border-red-200 bg-red-50 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-red-700 shadow-sm disabled:opacity-50">Supprimer la sélection</button>
               </div>

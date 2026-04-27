@@ -31,13 +31,7 @@ const SuppliersPage: React.FC<SuppliersPageProps> = ({ setView, supplierConfigs 
         style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/brick-wall.png')` }}
       />
       <div className="w-full max-w-[1800px] z-10 flex flex-col h-full">
-        <div className="flex justify-between items-center mb-6 sm:mb-12 gap-2">
-          <div className="flex flex-col">
-            <h2 className="text-[#ffd700] text-3xl sm:text-5xl font-black uppercase tracking-tighter leading-none mb-2">
-              Fournisseurs
-            </h2>
-            <div className="h-1.5 w-32 bg-red-600 rounded-full" />
-          </div>
+        <div className="mb-6 flex flex-col items-start gap-4 sm:mb-12">
           <AppNavTile
             onClick={() => setView('home')}
             eyebrow="Retour"
@@ -47,6 +41,12 @@ const SuppliersPage: React.FC<SuppliersPageProps> = ({ setView, supplierConfigs 
           >
             Accueil
           </AppNavTile>
+          <div className="flex flex-col">
+            <h2 className="text-[#ffd700] text-3xl sm:text-5xl font-black uppercase tracking-tighter leading-none mb-2">
+              Fournisseurs
+            </h2>
+            <div className="h-1.5 w-32 bg-red-600 rounded-full" />
+          </div>
         </div>
 
         <div

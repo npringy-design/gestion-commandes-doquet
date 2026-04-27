@@ -38,10 +38,7 @@ const DailyForecastPage: React.FC<DailyForecastPageProps> = ({
       <div className="max-w-[1600px] mx-auto">
 
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-800 uppercase tracking-tighter leading-tight">
-            Prévisions <span className="text-emerald-600">Journalières</span>
-          </h1>
+        <div className="mb-4 flex flex-col items-start gap-3 sm:mb-8">
           <AppNavTile
             onClick={() => setView('admin_dashboard')}
             eyebrow="Retour"
@@ -51,6 +48,9 @@ const DailyForecastPage: React.FC<DailyForecastPageProps> = ({
           >
             Dashboard
           </AppNavTile>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-800 uppercase tracking-tighter leading-tight">
+            Prévisions <span className="text-emerald-600">Journalières</span>
+          </h1>
         </div>
 
         {!canEdit && (

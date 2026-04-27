@@ -198,6 +198,10 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
       <div className="mx-auto flex h-screen max-w-[1920px] flex-col gap-3 p-2 sm:p-3 lg:flex-row lg:gap-4 lg:p-3">
         <aside className="w-full shrink-0 lg:w-[250px]">
           <div className="flex flex-col gap-3 lg:sticky lg:top-3">
+            <AppNavTile onClick={() => setView('home')} eyebrow="Retour" icon="home" size="lg" className="w-full">Accueil</AppNavTile>
+            <AppNavTile onClick={() => setView('stats')} eyebrow="Retour" icon="settings" size="lg" tone="gold" className="w-full">Paramètres</AppNavTile>
+            <AppNavTile onClick={() => setView('prep_sheet')} eyebrow="Ouvrir" icon="sheet" size="lg" className="w-full">Feuille de mise en place</AppNavTile>
+
             <div className="overflow-hidden rounded-[24px] border border-[#B46E58] bg-[linear-gradient(135deg,#A93E2A_0%,#922F20_48%,#7A231A_100%)] shadow-[0_10px_20px_rgba(122,35,26,0.14)]">
               <div className="h-1.5 bg-gradient-to-r from-[#F1C15A] via-[#D86A2C] to-[#A93E2A]" />
               <div className="p-4">
@@ -206,9 +210,6 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
               </div>
             </div>
 
-            <AppNavTile onClick={() => setView('home')} eyebrow="Retour" icon="home" size="lg" className="w-full">Accueil</AppNavTile>
-            <AppNavTile onClick={() => setView('stats')} eyebrow="Retour" icon="settings" size="lg" tone="gold" className="w-full">Paramètres</AppNavTile>
-            <AppNavTile onClick={() => setView('prep_sheet')} eyebrow="Ouvrir" icon="sheet" size="lg" className="w-full">Feuille de mise en place</AppNavTile>
             <button onClick={addItem} disabled={!canEdit} className="rounded-[20px] border border-slate-300 bg-white px-4 py-4 text-sm font-black uppercase tracking-[0.12em] text-slate-700 shadow-sm disabled:opacity-50">Ajouter une production</button>
             <button onClick={deleteSelected} disabled={!canEdit || selectedIds.size === 0} className="rounded-[20px] border border-red-200 bg-red-50 px-4 py-4 text-sm font-black uppercase tracking-[0.12em] text-red-700 shadow-sm disabled:opacity-50">Supprimer la sélection</button>
           </div>

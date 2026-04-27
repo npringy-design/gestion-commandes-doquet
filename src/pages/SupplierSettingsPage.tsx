@@ -225,7 +225,29 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
       <div className="max-w-6xl mx-auto relative z-10">
         <div className="flex flex-col gap-4 mb-10">
           <div className="flex justify-between items-center gap-4 flex-wrap">
-            <h1 className="text-[#ffd700] text-4xl font-black uppercase">Paramètres Fournisseurs</h1>
+            <div className="flex flex-col items-start gap-3">
+              <div className="flex flex-wrap gap-3">
+                <AppNavTile
+                  onClick={() => setView('admin_dashboard')}
+                  eyebrow="Retour"
+                  icon="back"
+                  tone="dark"
+                  size="sm"
+                >
+                  Dashboard
+                </AppNavTile>
+                <AppNavTile
+                  onClick={() => setView('home')}
+                  eyebrow="Retour"
+                  icon="home"
+                  tone="gold"
+                  size="sm"
+                >
+                  Accueil
+                </AppNavTile>
+              </div>
+              <h1 className="text-[#ffd700] text-4xl font-black uppercase">Paramètres Fournisseurs</h1>
+            </div>
             <div className="flex gap-4 flex-wrap justify-end">
               <button
                 onClick={() => setShowCreate(v => !v)}
@@ -233,24 +255,6 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
               >
                 + Créer un fournisseur
               </button>
-              <AppNavTile
-                onClick={() => setView('admin_dashboard')}
-                eyebrow="Retour"
-                icon="back"
-                tone="dark"
-                size="sm"
-              >
-                Dashboard
-              </AppNavTile>
-              <AppNavTile
-                onClick={() => setView('home')}
-                eyebrow="Retour"
-                icon="home"
-                tone="gold"
-                size="sm"
-              >
-                Accueil
-              </AppNavTile>
             </div>
           </div>
 

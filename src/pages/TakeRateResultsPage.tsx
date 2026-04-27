@@ -260,12 +260,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
   return (
     <div className="min-h-screen bg-[#F8DEA3] text-[#2E1B12]" style={pageBackgroundStyle}>
       <main className="mx-auto flex min-h-screen w-full max-w-[1480px] flex-col gap-5 px-6 py-5 xl:px-8">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.20em] text-[#A97718]">Lecture mensuelle</p>
-            <h1 className="mt-2 text-[26px] font-black leading-tight text-[#1D120D]">Taux de prise</h1>
-          </div>
-
+        <div className="flex flex-col items-start gap-4">
           <AppNavTile
             onClick={() => setView('home')}
             eyebrow="Retour"
@@ -274,6 +269,10 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
           >
             Accueil
           </AppNavTile>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.20em] text-[#A97718]">Lecture mensuelle</p>
+            <h1 className="mt-2 text-[26px] font-black leading-tight text-[#1D120D]">Taux de prise</h1>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2">

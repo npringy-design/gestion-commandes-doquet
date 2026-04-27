@@ -239,7 +239,19 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
           ══════════════════════════════════════════════ */}
           <div className="lg:hidden flex flex-col gap-2">
 
-            {/* ── Rangée 1 : icône + nom + boutons nav ── */}
+            {/* ── Rangée 1 : navigation toujours au même endroit ── */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <AppNavTile onClick={() => setView('home')} title="Accueil" aria-label="Accueil" icon="home" size="icon" />
+                <AppNavTile onClick={() => setView('suppliers')} title="Fournisseurs" aria-label="Fournisseurs" icon="back" size="icon" />
+              </div>
+              <button onClick={() => setShowResetConfirm(true)}
+                className="h-9 px-3 bg-red-50 text-red-600 font-black uppercase text-[10px] rounded-xl border border-red-100">
+                RAZ
+              </button>
+            </div>
+
+            {/* ── Rangée 2 : icône + nom fournisseur ── */}
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="w-9 h-9 shrink-0 bg-slate-900 rounded-full flex items-center justify-center text-[#ffd700]">
@@ -253,14 +265,6 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                     {supplierLabel.subtitle}
                   </p>
                 </div>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <AppNavTile onClick={() => setView('home')} title="Accueil" aria-label="Accueil" icon="home" size="icon" />
-                <AppNavTile onClick={() => setView('suppliers')} title="Fournisseurs" aria-label="Fournisseurs" icon="back" size="icon" />
-                <button onClick={() => setShowResetConfirm(true)}
-                  className="h-9 px-3 bg-red-50 text-red-600 font-black uppercase text-[10px] rounded-xl border border-red-100">
-                  RAZ
-                </button>
               </div>
             </div>
 
@@ -316,6 +320,10 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
           <div className="hidden lg:flex items-center justify-between gap-6">
 
             <div className="flex flex-col gap-1">
+              <div className="mb-2 flex gap-2">
+                <AppNavTile onClick={() => setView('home')} title="Retour Accueil" aria-label="Retour Accueil" icon="home" size="icon" className="h-12 w-12" />
+                <AppNavTile onClick={() => setView('suppliers')} title="Retour Commandes" aria-label="Retour Commandes" icon="back" size="icon" className="h-12 w-12" />
+              </div>
               <h1 className="text-3xl font-black text-slate-800 uppercase tracking-tighter flex items-center gap-3">
                 <span className="w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center text-[#ffd700] shadow-lg">
                   <SupplierIcon view={view} />
@@ -409,8 +417,6 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
             </div>
 
             <div className="flex gap-3">
-              <AppNavTile onClick={() => setView('home')} title="Retour Accueil" aria-label="Retour Accueil" icon="home" size="icon" className="h-12 w-12" />
-              <AppNavTile onClick={() => setView('suppliers')} title="Retour Commandes" aria-label="Retour Commandes" icon="back" size="icon" className="h-12 w-12" />
               <button onClick={() => setShowResetConfirm(true)}
                 className="px-6 py-3 bg-red-50 text-red-600 font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-red-600 hover:text-white transition-all border border-red-100 shadow-sm">
                 RAZ

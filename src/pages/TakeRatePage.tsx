@@ -1300,18 +1300,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   return (
     <div className="flex h-full min-h-screen bg-[#EDE2D6] text-[#4B2D22]">
       <aside className="hidden w-[250px] shrink-0 border-r border-[#D2B8A1] bg-[linear-gradient(180deg,#F4E8DC_0%,#E9D8C8_100%)] px-4 py-5 xl:flex xl:flex-col xl:gap-4">
-        <div className="overflow-hidden rounded-[26px] border border-[#2E8D63] bg-[linear-gradient(180deg,#39B37D_0%,#239062_100%)] shadow-[0_10px_20px_rgba(30,96,68,0.18)]">
-          <div className="h-1.5 bg-gradient-to-r from-[#D4F3E4] via-[#8AE0B9] to-[#239062]" />
-          <div className="p-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#E7FFF3]">Paramétrage</p>
-            <h1 className="mt-2 text-[21px] font-black leading-none text-white xl:text-[23px]">
-              Taux
-              <br />
-              de prise
-            </h1>
-          </div>
-        </div>
-
         <AppNavTile
           onClick={() => setView('stats')}
           eyebrow="Retour"
@@ -1332,6 +1320,18 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
         >
           Voir la feuille
         </AppNavTile>
+
+        <div className="overflow-hidden rounded-[26px] border border-[#2E8D63] bg-[linear-gradient(180deg,#39B37D_0%,#239062_100%)] shadow-[0_10px_20px_rgba(30,96,68,0.18)]">
+          <div className="h-1.5 bg-gradient-to-r from-[#D4F3E4] via-[#8AE0B9] to-[#239062]" />
+          <div className="p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#E7FFF3]">Paramétrage</p>
+            <h1 className="mt-2 text-[21px] font-black leading-none text-white xl:text-[23px]">
+              Taux
+              <br />
+              de prise
+            </h1>
+          </div>
+        </div>
 
         <div className="rounded-[22px] border border-[#D7BFAB] bg-[#FFF8F1] px-4 py-4 shadow-[0_8px_18px_rgba(96,56,34,0.08)]">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#93644D]">Résumé</p>

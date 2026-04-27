@@ -18,10 +18,7 @@ interface AdminDashboardProps {
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ setView, profile = null }) => (
   <div className="min-h-screen bg-[#1a0f0a] p-4 sm:p-8 lg:p-12 relative overflow-hidden">
     <div className="max-w-6xl mx-auto relative z-10">
-      <div className="flex justify-between items-center mb-16">
-        <h1 className="text-[#ffd700] text-6xl font-black uppercase tracking-tighter leading-none">
-          ADMIN DASHBOARD
-        </h1>
+      <div className="mb-16 flex flex-col items-start gap-5">
         <AppNavTile
           onClick={() => setView('home')}
           eyebrow="Retour"
@@ -31,6 +28,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ setView, profile = null
         >
           Accueil
         </AppNavTile>
+        <h1 className="text-[#ffd700] text-6xl font-black uppercase tracking-tighter leading-none">
+          ADMIN DASHBOARD
+        </h1>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

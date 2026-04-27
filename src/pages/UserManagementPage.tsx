@@ -257,16 +257,8 @@ if (!canAccessUserManagement(profile)) {
     <div className="min-h-screen bg-[#f1f5f9] p-3 lg:p-6 pb-20">
       <div className="max-w-[1400px] mx-auto">
         <div className="bg-white border border-slate-200 rounded-[30px] shadow-xl p-4 lg:p-6 mb-4 lg:mb-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-            <div>
-              <h1 className="text-2xl lg:text-3xl font-black uppercase tracking-tight text-slate-800">
-                Gestion des utilisateurs
-              </h1>
-              <p className="text-slate-500 text-sm font-semibold mt-1">
-                {usersCount} compte{usersCount > 1 ? 's' : ''} · Administration des accès
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex flex-col items-start gap-3">
               <AppNavTile
                 onClick={() => setView('admin_dashboard')}
                 eyebrow="Retour"
@@ -275,6 +267,14 @@ if (!canAccessUserManagement(profile)) {
               >
                 Dashboard
               </AppNavTile>
+              <h1 className="text-2xl lg:text-3xl font-black uppercase tracking-tight text-slate-800">
+                Gestion des utilisateurs
+              </h1>
+              <p className="text-slate-500 text-sm font-semibold mt-1">
+                {usersCount} compte{usersCount > 1 ? 's' : ''} · Administration des accès
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setCreateOpen(true)}
                 className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-black uppercase text-[11px] tracking-wider"

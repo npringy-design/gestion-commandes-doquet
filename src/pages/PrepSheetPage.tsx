@@ -349,6 +349,8 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
       <div className="mx-auto flex min-h-screen max-w-[1760px] flex-col gap-3 p-2 lg:flex-row lg:gap-3 lg:p-3">
         <aside className="w-full shrink-0 lg:w-[230px] xl:w-[240px]">
           <div className="flex h-full flex-col gap-3">
+            <AppNavTile onClick={() => setView('home')} eyebrow="Retour" icon="home" size="lg" tone="gold" className="w-full">Accueil</AppNavTile>
+
             <div className="overflow-hidden rounded-[22px] border border-[#B46E58] bg-[linear-gradient(135deg,#A93E2A_0%,#922F20_48%,#7A231A_100%)] shadow-[0_10px_20px_rgba(122,35,26,0.14)]">
               <div className="h-1.5 bg-gradient-to-r from-[#F1C15A] via-[#D86A2C] to-[#A93E2A]" />
               <div className="p-4">
@@ -357,8 +359,6 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
                 <p className="mt-3 text-[12px] font-semibold leading-5 text-[#FFE7CF]">Vue terrain simple par poste, centrée uniquement sur ce qu&apos;il faut produire.</p>
               </div>
             </div>
-
-            <AppNavTile onClick={() => setView('home')} eyebrow="Retour" icon="home" size="lg" tone="gold" className="w-full">Accueil</AppNavTile>
 
             <div className="rounded-[20px] border border-[#D7B79B] bg-[#FBF7F1] p-2 shadow-sm">
               <div className="mb-2 px-2 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Postes</div>
