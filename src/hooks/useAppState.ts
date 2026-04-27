@@ -97,6 +97,32 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     createInitialProducts(loadState('products', [] as ProductWithHistory[]))
   );
 
+  // Produits supprimés volontairement dans Calcul vente ratio.
+  // Garde-fou contre un rechargement cloud/import qui réinjecte les produits quelques secondes après.
+  const [deletedRatioProductIds, setDeletedRatioProductIds] =
+    useState<string[]>(() => loadState('deletedRatioProductIds', [] as string[]));
+
+  const deletedRatioProductIdSet = useMemo(
+    () => new Set(deletedRatioProductIds),
+    [deletedRatioProductIds]
+  );
+
+  const visibleProducts = useMemo(
+    () => products.filter(p => !deletedRatioProductIdSet.has(p.id)),
+    [products, deletedRatioProductIdSet]
+  );
+
+  const setProductsWithoutDeleted = useCallback((updater: ProductWithHistory[] | ((prev: ProductWithHistory[]) => ProductWithHistory[])) => {
+    setProducts(prev => {
+      const next = typeof updater === 'function'
+        ? (updater as (prev: ProductWithHistory[]) => ProductWithHistory[])(prev)
+        : updater;
+
+      if (!deletedRatioProductIdSet.size) return next;
+      return next.filter(p => !deletedRatioProductIdSet.has(p.id));
+    });
+  }, [deletedRatioProductIdSet]);
+
   const [prepItems, setPrepItems] =
     useState<PrepItem[]>(() => loadState('prepItems', [] as PrepItem[]));
 
@@ -137,7 +163,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     supplierConfigs,
     deliveryDateBySupplier,
     nextDeliveryDateBySupplier,
-    products,
+    products: visibleProducts,
     prepItems,
     prepImportsByMonth,
     prepBatches,
@@ -153,13 +179,41 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     setSupplierConfigs,
     setDeliveryDateBySupplier,
     setNextDeliveryDateBySupplier,
-    setProducts,
+    setProducts: setProductsWithoutDeleted,
     setPrepItems,
     setPrepImportsByMonth,
     setPrepBatches,
     setPrepForecasts,
     onSaveError,
   });
+
+  useEffect(() => {
+    saveState('deletedRatioProductIds', deletedRatioProductIds, onSaveError);
+  }, [deletedRatioProductIds]);
+
+  useEffect(() => {
+    if (!deletedRatioProductIdSet.size) return;
+
+    setProducts(prev => {
+      const filtered = prev.filter(p => !deletedRatioProductIdSet.has(p.id));
+      return filtered.length === prev.length ? prev : filtered;
+    });
+
+    setSelectedProductIds(prev => {
+      let changed = false;
+      const next = new Set<string>();
+
+      prev.forEach(id => {
+        if (deletedRatioProductIdSet.has(id)) {
+          changed = true;
+        } else {
+          next.add(id);
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [deletedRatioProductIdSet]);
 
   // --- Valeurs calculées ---
 
@@ -281,22 +335,36 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     updateProductValue,
     performReset,
     addNewProduct,
-    deleteSelectedProducts,
+    deleteSelectedProducts: deleteSelectedProductsBase,
     toggleProductSelection,
     moveProduct,
     handleNameChange,
     updateSearchName,
     updateImportDivisor,
   } = useProductActions({
-    products,
+    products: visibleProducts,
     view,
     ratioTab,
     selectedProductIds,
-    setProducts,
+    setProducts: setProductsWithoutDeleted,
     setSelectedProductIds,
     setShowResetConfirm,
     showToast,
   });
+
+  const deleteSelectedProducts = useCallback(() => {
+    const idsToDelete = Array.from(selectedProductIds);
+
+    if (idsToDelete.length > 0) {
+      setDeletedRatioProductIds(prev => {
+        const next = new Set(prev);
+        idsToDelete.forEach(id => next.add(id));
+        return Array.from(next);
+      });
+    }
+
+    deleteSelectedProductsBase();
+  }, [deleteSelectedProductsBase, selectedProductIds]);
 
 
   return {
@@ -326,7 +394,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     importTargetMonth,
     prepImportTargetMonth,
     supplierConfigs, setSupplierConfigs,
-    products, setProducts,
+    products: visibleProducts, setProducts: setProductsWithoutDeleted,
     prepItems, setPrepItems,
     prepImportsByMonth, setPrepImportsByMonth,
     prepBatches, setPrepBatches,
