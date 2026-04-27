@@ -53,7 +53,7 @@ const ProductCard: React.FC<{
   const selected = selectedProductIds.has(p.id);
 
   return (
-    <div className={`rounded-[22px] border transition-all shadow-[0_10px_22px_rgba(80,38,18,0.08)] ${selected ? 'border-[#C86F24] bg-[#FFF1DF]' : 'border-[#E2C39B] bg-[#FFFDF8]'}`}>
+    <div className={`rounded-[22px] border-l-[6px] border-y border-r transition-all shadow-[0_10px_22px_rgba(66,42,24,0.07)] ${selected ? 'border-l-[#B85B2B] border-y-[#D8AE77] border-r-[#D8AE77] bg-[#FFF4E4]' : alert ? 'border-l-[#D4922F] border-y-[#D8CAB8] border-r-[#D8CAB8] bg-[#FFFCF6]' : 'border-l-[#6D8F4E] border-y-[#D8CAB8] border-r-[#D8CAB8] bg-[#FFFCF6]'}`}>
       <div className="flex items-center gap-2 p-3">
         <input
           type="checkbox"
@@ -69,13 +69,13 @@ const ProductCard: React.FC<{
           onChange={e => handleNameChange(p.id, e.target.value)}
           disabled={!canEdit}
         />
-        <div className="shrink-0 rounded-xl border border-[#D8AE77] bg-[#FFE8C2] px-2.5 py-1 text-center">
-          <div className="text-[8px] font-black uppercase text-[#A85F2A]">Ratio</div>
-          <div className="text-sm font-black leading-none text-[#6A3A17]">{avgRatio.toFixed(3)}</div>
+        <div className="shrink-0 rounded-xl border border-[#D8CAB8] bg-[#F6EFE6] px-2.5 py-1 text-center">
+          <div className="text-[8px] font-black uppercase text-[#8B5A35]">Ratio</div>
+          <div className="text-sm font-black leading-none text-[#2F1D14]">{avgRatio.toFixed(3)}</div>
         </div>
         <button
           onClick={() => setExpanded(v => !v)}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#E2C39B] bg-[#FFF7EA] text-[#6A432D]"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#D8CAB8] bg-[#F6EFE6] text-[#6A432D]"
         >
           <svg className={`w-4 h-4 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"/>
@@ -84,7 +84,7 @@ const ProductCard: React.FC<{
       </div>
 
       {expanded && (
-        <div className="flex flex-col gap-3 border-t border-[#E2C39B] bg-[#FFF7EA]/70 p-3">
+        <div className="flex flex-col gap-3 border-t border-[#E2C39B] bg-[#F8F0E6]/80 p-3">
           <div className="flex gap-2">
             <div className="flex-1 min-w-0">
               <div className="mb-1 text-[9px] font-black uppercase tracking-[0.12em] text-[#A85F2A]">Mapping import</div>
@@ -226,34 +226,35 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
   const activeSupplierLabel = supplierTabs.find(tab => tab.id === safeRatioTab)?.label ?? 'Fournisseur';
 
   return (
-    <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_12%_0%,rgba(247,178,74,0.26),transparent_32%),linear-gradient(180deg,#FFF7EA_0%,#F2DEC5_50%,#C97933_100%)] text-[#2F1D14]">
+    <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_12%_0%,rgba(184,91,43,0.18),transparent_30%),radial-gradient(circle_at_88%_8%,rgba(109,143,78,0.12),transparent_28%),linear-gradient(180deg,#F8F1E7_0%,#EFE1D0_52%,#D7AA78_100%)] text-[#2F1D14]">
       <div className="mx-auto flex min-h-[100dvh] max-w-[1760px] flex-col gap-3 p-3 lg:h-[100dvh] lg:min-h-0 lg:overflow-hidden lg:p-4">
-        <header className="flex-none overflow-hidden rounded-[28px] border border-[#D8AE77] bg-[linear-gradient(135deg,#3A2116_0%,#69331F_58%,#A85F2A_100%)] shadow-[0_18px_36px_rgba(54,24,12,0.20)]">
+        <header className="flex-none overflow-hidden rounded-[28px] border border-[#D6B58C] bg-[#FFFBF4]/94 shadow-[0_18px_36px_rgba(66,42,24,0.12)] backdrop-blur">
+          <div className="h-2 bg-[linear-gradient(90deg,#2F1D14_0%,#7B3A1E_45%,#D4922F_100%)]" />
           <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between lg:p-5">
             <div className="flex min-w-0 items-center gap-3">
-              <AppNavTile onClick={() => setView('stats')} eyebrow="Retour" icon="settings" size="sm" tone="dark">Paramètres</AppNavTile>
-              <div className="hidden h-12 w-px bg-[#F1C27B]/35 sm:block" />
+              <AppNavTile onClick={() => setView('stats')} eyebrow="Retour" icon="settings" size="sm" tone="cream">Paramètres</AppNavTile>
+              <div className="hidden h-12 w-px bg-[#D8CAB8] sm:block" />
               <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#F1C27B]">Hippopotamus Thillois</p>
-                <h2 className="mt-1 truncate text-2xl font-black leading-none text-[#FFF8F1] sm:text-[30px]">Calcul vente ratio</h2>
-                <p className="mt-2 text-xs font-bold text-[#FFE1B8]">Construire les ratios de vente sans se perdre dans un grand tableau.</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#A85F2A]">Hippopotamus Thillois</p>
+                <h2 className="mt-1 truncate text-2xl font-black leading-none text-[#2F1D14] sm:text-[30px]">Calcul vente ratio</h2>
+                <p className="mt-2 text-xs font-bold text-[#8B6B54]">Construire les ratios de vente sans se perdre dans un grand tableau.</p>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[520px]">
-              <div className="rounded-2xl border border-[#F1C27B]/45 bg-[#FFF7EA]/95 px-3 py-2.5 shadow-sm">
+              <div className="rounded-2xl border border-[#D8CAB8] bg-[#F8F0E6] px-3 py-2.5 shadow-sm">
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Mois</p>
                 <p className="mt-1 truncate text-sm font-black text-[#3A2116]">{state.importTargetMonth?.toUpperCase?.() ?? state.importTargetMonth}</p>
               </div>
-              <div className="rounded-2xl border border-[#F1C27B]/45 bg-[#FFF7EA]/95 px-3 py-2.5 shadow-sm">
+              <div className="rounded-2xl border border-[#D8CAB8] bg-[#F8F0E6] px-3 py-2.5 shadow-sm">
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Produits</p>
                 <p className="mt-1 text-sm font-black text-[#3A2116]">{displayedRatioProducts.length}</p>
               </div>
-              <div className="rounded-2xl border border-[#F1C27B]/45 bg-[#FFF7EA]/95 px-3 py-2.5 shadow-sm">
+              <div className="rounded-2xl border border-[#D8CAB8] bg-[#F8F0E6] px-3 py-2.5 shadow-sm">
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Mapping</p>
                 <p className="mt-1 text-sm font-black text-[#3A2116]">{mappedProductsCount}/{displayedRatioProducts.length}</p>
               </div>
-              <div className="rounded-2xl border border-[#F1C27B]/45 bg-[#FFF7EA]/95 px-3 py-2.5 shadow-sm">
+              <div className="rounded-2xl border border-[#D8CAB8] bg-[#F8F0E6] px-3 py-2.5 shadow-sm">
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Mois figés</p>
                 <p className="mt-1 text-sm font-black text-[#3A2116]">{validatedMonthsCount}/12</p>
               </div>
@@ -269,17 +270,17 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
 
         <main className="grid min-h-0 flex-1 grid-cols-12 gap-3 overflow-hidden">
           <aside className="col-span-12 flex min-h-0 flex-col gap-3 overflow-hidden xl:col-span-3">
-            <section className="rounded-[24px] border border-[#D8AE77] bg-[#FFF7EA]/90 p-3 shadow-[0_14px_30px_rgba(80,38,18,0.10)] backdrop-blur">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A85F2A]">Action rapide</p>
-              <h3 className="mt-1 text-lg font-black text-[#2F1D14]">Atelier ratios</h3>
-              <p className="mt-1 text-xs font-bold leading-5 text-[#8B6B54]">Ajoute, range et vérifie les produits du fournisseur sélectionné.</p>
+            <section className="rounded-[24px] border border-[#2F1D14]/25 bg-[linear-gradient(135deg,#2F1D14_0%,#5A2B1B_100%)] p-3 text-[#FFF7EA] shadow-[0_14px_30px_rgba(54,24,12,0.16)]">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#F1C27B]">Action rapide</p>
+              <h3 className="mt-1 text-lg font-black">Atelier ratios</h3>
+              <p className="mt-1 text-xs font-bold leading-5 text-[#F3DDC0]">Ajoute, range et vérifie les produits du fournisseur sélectionné.</p>
               <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
                 <button onClick={addNewProduct} disabled={!canEdit} className="min-h-[46px] rounded-[16px] border border-[#D8AE77] bg-[#F7B24A] px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-[#3A2116] shadow-[0_6px_0_#B8810F] transition disabled:opacity-50">Ajouter un produit</button>
-                <button onClick={deleteSelectedProducts} disabled={!canEdit || selectedProductIds.size === 0} className="min-h-[46px] rounded-[16px] border border-[#D9A08B] bg-[#FFF1EA] px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-[#8A2F20] shadow-sm transition disabled:opacity-50">Supprimer la sélection</button>
+                <button onClick={deleteSelectedProducts} disabled={!canEdit || selectedProductIds.size === 0} className="min-h-[46px] rounded-[16px] border border-[#F1C27B]/35 bg-white/10 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-[#FFF7EA] shadow-sm transition hover:bg-white/15 disabled:opacity-50">Supprimer la sélection</button>
               </div>
             </section>
 
-            <section className="min-h-0 rounded-[24px] border border-[#D8AE77] bg-[#FFF7EA]/90 p-3 shadow-[0_14px_30px_rgba(80,38,18,0.10)] backdrop-blur xl:flex xl:flex-1 xl:flex-col">
+            <section className="min-h-0 rounded-[24px] border border-[#D8CAB8] bg-[#FFFBF4]/92 p-3 shadow-[0_14px_30px_rgba(66,42,24,0.08)] backdrop-blur xl:flex xl:flex-1 xl:flex-col">
               <div className="flex items-end justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A85F2A]">Fournisseur</p>
@@ -292,7 +293,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                   <button
                     key={tab.id}
                     onClick={() => setRatioTab(tab.id)}
-                    className={`min-h-[44px] shrink-0 rounded-2xl border px-4 py-2 text-left text-[11px] font-black uppercase tracking-[0.08em] transition xl:w-full ${safeRatioTab === tab.id ? 'border-[#C86F24] bg-[#3A2116] text-[#FFF7EA] shadow-[0_10px_18px_rgba(54,24,12,0.18)]' : 'border-[#E2C39B] bg-[#FFFDF8] text-[#6A432D] hover:border-[#C86F24]'}`}
+                    className={`min-h-[44px] shrink-0 rounded-2xl border px-4 py-2 text-left text-[11px] font-black uppercase tracking-[0.08em] transition xl:w-full ${safeRatioTab === tab.id ? 'border-[#2F1D14] bg-[#2F1D14] text-[#FFF7EA] shadow-[0_10px_18px_rgba(54,24,12,0.18)]' : 'border-[#D8CAB8] bg-[#FFFCF6] text-[#6A432D] hover:border-[#A85F2A]'}`}
                   >
                     {tab.label}
                   </button>
@@ -300,7 +301,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
               </div>
             </section>
 
-            <section className="rounded-[24px] border border-[#D8AE77] bg-[#FFF7EA]/90 p-3 shadow-[0_14px_30px_rgba(80,38,18,0.10)] backdrop-blur">
+            <section className="rounded-[24px] border border-[#D8CAB8] bg-[#FFFBF4]/92 p-3 shadow-[0_14px_30px_rgba(66,42,24,0.08)] backdrop-blur">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A85F2A]">Point de contrôle</p>
               <div className="mt-3 grid grid-cols-3 gap-2 text-center">
                 <div className="rounded-2xl border border-[#E2C39B] bg-white/70 px-2 py-3">
@@ -319,8 +320,8 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
             </section>
           </aside>
 
-          <section className="col-span-12 flex min-h-0 flex-col overflow-hidden rounded-[28px] border border-[#D8AE77] bg-[#FFF7EA]/86 shadow-[0_16px_32px_rgba(80,38,18,0.12)] backdrop-blur xl:col-span-9">
-            <div className="flex flex-col gap-3 border-b border-[#E2C39B] bg-[#FFF7EA]/95 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+          <section className="col-span-12 flex min-h-0 flex-col overflow-hidden rounded-[28px] border border-[#D8CAB8] bg-[#FFFBF4]/88 shadow-[0_16px_32px_rgba(66,42,24,0.10)] backdrop-blur xl:col-span-9">
+            <div className="flex flex-col gap-3 border-b border-[#D8CAB8] bg-[#F8F0E6]/95 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A85F2A]">Produits à paramétrer</p>
                 <h3 className="text-xl font-black text-[#2F1D14]">{activeSupplierLabel}</h3>
