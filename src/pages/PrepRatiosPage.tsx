@@ -32,6 +32,7 @@ interface PrepRatiosPageProps {
   prepItems: PrepItem[];
   setPrepItems: React.Dispatch<React.SetStateAction<PrepItem[]>>;
   prepImportsByMonth: PrepImportsByMonth;
+  prepImportTargetMonth?: string;
 }
 
 type PrepItemExtended = PrepItem & {
@@ -90,16 +91,18 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   prepItems,
   setPrepItems,
   prepImportsByMonth,
+  prepImportTargetMonth,
 }) => {
   const { profile } = useAuth();
   const canEdit = canEditRatios(profile);
   const [search, setSearch] = React.useState('');
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [activePopover, setActivePopover] = React.useState<{ id: string; mode: MappingPopoverMode } | null>(null);
+  const workMonth = prepImportTargetMonth || MONTHS_ORDER[0];
 
   const allAvailableImportNames = React.useMemo(
-    () => extractAllNamesFromCsvs(prepImportsByMonth),
-    [prepImportsByMonth]
+    () => extractAllNamesFromCsvs(prepImportsByMonth[workMonth] ? { [workMonth]: prepImportsByMonth[workMonth] } : {}),
+    [prepImportsByMonth, workMonth]
   );
 
   const rows = React.useMemo(() => {
@@ -157,7 +160,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
     setSelectedIds(new Set());
   };
 
-  const getMonthValue = (item: PrepItem, month: string) => {
+  const getImportedMonthValue = (item: PrepItem, month: string) => {
     const mappingNames = parseMappingNames(item.searchName);
     if (mappingNames.length === 0) return 0;
 
@@ -172,11 +175,28 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
     }, 0);
   };
 
+  const getMonthValue = (item: PrepItem, month: string) => {
+    const coversValue = Number(covers[month] || 0);
+    const isValidated = !!prepValidatedMonths[month];
+    const isWorkMonth = month === workMonth;
+
+    if (isValidated) {
+      const frozenRatio = Number(item.ratioHistory[month] || 0);
+      return coversValue > 0 && frozenRatio > 0 ? Math.round(frozenRatio * coversValue) : 0;
+    }
+
+    // Same performance rule as vente ratio: only the active work month can read imports live.
+    if (!isWorkMonth) return 0;
+
+    return getImportedMonthValue(item, month);
+  };
+
   const getMonthRatio = (item: PrepItem, month: string) => {
     const coversValue = Number(covers[month] || 0);
     if (!coversValue) return 0;
-    if (prepValidatedMonths[month] && Number(item.ratioHistory[month] || 0) > 0) return Number(item.ratioHistory[month] || 0);
-    const imported = getMonthValue(item, month);
+    if (prepValidatedMonths[month]) return Number(item.ratioHistory[month] || 0);
+    if (month !== workMonth) return 0;
+    const imported = getImportedMonthValue(item, month);
     return imported > 0 ? imported / coversValue : 0;
   };
 

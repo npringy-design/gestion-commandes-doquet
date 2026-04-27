@@ -204,6 +204,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
         prepItems={state.prepItems}
         setPrepItems={state.setPrepItems}
         prepImportsByMonth={state.prepImportsByMonth}
+        prepImportTargetMonth={state.prepImportTargetMonth}
       />,
       'Chargement du calcul prod ratio…'
     );
