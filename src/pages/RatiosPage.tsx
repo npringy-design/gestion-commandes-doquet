@@ -187,6 +187,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
 }) => {
   const { profile } = useAuth();
   const canEdit = canEditRatios(profile);
+  const [showOnlyUnlinked, setShowOnlyUnlinked] = React.useState(false);
 
   const {
     setView,
@@ -211,7 +212,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
     if (safeRatioTab !== ratioTab) setRatioTab(safeRatioTab);
   }, [ratioTab, safeRatioTab, setRatioTab]);
 
-  const displayedRatioProducts = React.useMemo(() => {
+  const supplierRatioProducts = React.useMemo(() => {
     return products.filter(p => p.supplierId === safeRatioTab);
   }, [products, safeRatioTab]);
 
@@ -219,11 +220,23 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
     () => Array.from(state.allAvailableImportNames),
     [state.allAvailableImportNames]
   );
-  const mappedProductsCount = displayedRatioProducts.filter(p => availableImportNames.includes(p.searchName)).length;
-  const alertProductsCount = displayedRatioProducts.filter(p => p.searchName.trim().length > 0 && !availableImportNames.includes(p.searchName)).length;
+
+  const isLinkedProduct = React.useCallback(
+    (p: any) => p.searchName.trim().length > 0 && availableImportNames.includes(p.searchName),
+    [availableImportNames]
+  );
+
+  const displayedRatioProducts = React.useMemo(() => {
+    if (!showOnlyUnlinked) return supplierRatioProducts;
+    return supplierRatioProducts.filter(p => !isLinkedProduct(p));
+  }, [supplierRatioProducts, showOnlyUnlinked, isLinkedProduct]);
+
+  const mappedProductsCount = supplierRatioProducts.filter(isLinkedProduct).length;
+  const alertProductsCount = supplierRatioProducts.length - mappedProductsCount;
   const selectedVisibleCount = displayedRatioProducts.filter(p => selectedProductIds.has(p.id)).length;
-  const validatedMonthsCount = MONTHS_ORDER.filter(m => validatedMonths[m]).length;
   const activeSupplierLabel = supplierTabs.find(tab => tab.id === safeRatioTab)?.label ?? 'Fournisseur';
+  const workMonthKey = String(state.importTargetMonth);
+  const isWorkMonthValidated = !!validatedMonths[workMonthKey];
 
   return (
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_12%_0%,rgba(184,91,43,0.18),transparent_30%),radial-gradient(circle_at_88%_8%,rgba(109,143,78,0.12),transparent_28%),linear-gradient(180deg,#F8F1E7_0%,#EFE1D0_52%,#D7AA78_100%)] text-[#2F1D14]">
@@ -237,27 +250,30 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
               <div className="min-w-0">
                 <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#A85F2A]">Hippopotamus Thillois</p>
                 <h2 className="mt-1 truncate text-2xl font-black leading-none text-[#2F1D14] sm:text-[30px]">Calcul vente ratio</h2>
-                <p className="mt-2 text-xs font-bold text-[#8B6B54]">Construire les ratios de vente sans se perdre dans un grand tableau.</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[520px]">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[580px]">
               <div className="rounded-2xl border border-[#D8CAB8] bg-[#F8F0E6] px-3 py-2.5 shadow-sm">
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Mois</p>
                 <p className="mt-1 truncate text-sm font-black text-[#3A2116]">{state.importTargetMonth?.toUpperCase?.() ?? state.importTargetMonth}</p>
               </div>
               <div className="rounded-2xl border border-[#D8CAB8] bg-[#F8F0E6] px-3 py-2.5 shadow-sm">
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Produits</p>
-                <p className="mt-1 text-sm font-black text-[#3A2116]">{displayedRatioProducts.length}</p>
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">OK</p>
+                <p className="mt-1 text-sm font-black text-[#2F7A42]">{mappedProductsCount}</p>
               </div>
               <div className="rounded-2xl border border-[#D8CAB8] bg-[#F8F0E6] px-3 py-2.5 shadow-sm">
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Mapping</p>
-                <p className="mt-1 text-sm font-black text-[#3A2116]">{mappedProductsCount}/{displayedRatioProducts.length}</p>
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">À revoir</p>
+                <p className="mt-1 text-sm font-black text-[#B5412D]">{alertProductsCount}</p>
               </div>
-              <div className="rounded-2xl border border-[#D8CAB8] bg-[#F8F0E6] px-3 py-2.5 shadow-sm">
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Mois figés</p>
-                <p className="mt-1 text-sm font-black text-[#3A2116]">{validatedMonthsCount}/12</p>
-              </div>
+              <button
+                onClick={() => state.toggleValidateMonth(workMonthKey)}
+                disabled={!canEdit}
+                className={`rounded-2xl border px-3 py-2.5 text-left shadow-sm transition disabled:opacity-50 ${isWorkMonthValidated ? 'border-[#6D8F4E] bg-[#F1F5E9]' : 'border-[#D4922F] bg-[#FFF1DF] hover:bg-[#FFE8C2]'}`}
+              >
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">{isWorkMonthValidated ? 'Mois figé' : 'Fin de mois'}</p>
+                <p className="mt-1 text-sm font-black text-[#3A2116]">{isWorkMonthValidated ? 'Défiger' : 'Figer le mois'}</p>
+              </button>
             </div>
           </div>
         </header>
@@ -268,83 +284,69 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
           </div>
         )}
 
+        <nav className="flex-none rounded-[24px] border border-[#D8CAB8] bg-[#FFFBF4]/92 p-3 shadow-[0_10px_22px_rgba(66,42,24,0.08)] backdrop-blur">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mr-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#A85F2A]">Fournisseur</span>
+            {supplierTabs.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setRatioTab(tab.id)}
+                className={`min-h-[40px] rounded-2xl border px-4 py-2 text-[11px] font-black uppercase tracking-[0.08em] transition ${safeRatioTab === tab.id ? 'border-[#2F1D14] bg-[#2F1D14] text-[#FFF7EA] shadow-[0_8px_16px_rgba(54,24,12,0.16)]' : 'border-[#D8CAB8] bg-[#FFFCF6] text-[#6A432D] hover:border-[#A85F2A]'}`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </nav>
+
         <main className="grid min-h-0 flex-1 grid-cols-12 gap-3 overflow-hidden">
-          <aside className="col-span-12 flex min-h-0 flex-col gap-3 overflow-hidden xl:col-span-3">
-            <section className="rounded-[24px] border border-[#2F1D14]/25 bg-[linear-gradient(135deg,#2F1D14_0%,#5A2B1B_100%)] p-3 text-[#FFF7EA] shadow-[0_14px_30px_rgba(54,24,12,0.16)]">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#F1C27B]">Action rapide</p>
-              <h3 className="mt-1 text-lg font-black">Atelier ratios</h3>
-              <p className="mt-1 text-xs font-bold leading-5 text-[#F3DDC0]">Ajoute, range et vérifie les produits du fournisseur sélectionné.</p>
-              <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
-                <button onClick={addNewProduct} disabled={!canEdit} className="min-h-[46px] rounded-[16px] border border-[#D8AE77] bg-[#F7B24A] px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-[#3A2116] shadow-[0_6px_0_#B8810F] transition disabled:opacity-50">Ajouter un produit</button>
-                <button onClick={deleteSelectedProducts} disabled={!canEdit || selectedProductIds.size === 0} className="min-h-[46px] rounded-[16px] border border-[#F1C27B]/35 bg-white/10 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-[#FFF7EA] shadow-sm transition hover:bg-white/15 disabled:opacity-50">Supprimer la sélection</button>
-              </div>
-            </section>
-
-            <section className="min-h-0 rounded-[24px] border border-[#D8CAB8] bg-[#FFFBF4]/92 p-3 shadow-[0_14px_30px_rgba(66,42,24,0.08)] backdrop-blur xl:flex xl:flex-1 xl:flex-col">
-              <div className="flex items-end justify-between gap-3">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A85F2A]">Fournisseur</p>
-                  <h3 className="mt-1 text-lg font-black text-[#2F1D14]">Sélection</h3>
-                </div>
-                <span className="rounded-full border border-[#E2C39B] bg-white/70 px-2.5 py-1 text-[10px] font-black text-[#6A432D]">{supplierTabs.length}</span>
-              </div>
-              <div className="mt-3 flex gap-2 overflow-x-auto pb-1 xl:min-h-0 xl:flex-1 xl:flex-col xl:overflow-y-auto xl:overflow-x-hidden">
-                {supplierTabs.map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setRatioTab(tab.id)}
-                    className={`min-h-[44px] shrink-0 rounded-2xl border px-4 py-2 text-left text-[11px] font-black uppercase tracking-[0.08em] transition xl:w-full ${safeRatioTab === tab.id ? 'border-[#2F1D14] bg-[#2F1D14] text-[#FFF7EA] shadow-[0_10px_18px_rgba(54,24,12,0.18)]' : 'border-[#D8CAB8] bg-[#FFFCF6] text-[#6A432D] hover:border-[#A85F2A]'}`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            <section className="rounded-[24px] border border-[#D8CAB8] bg-[#FFFBF4]/92 p-3 shadow-[0_14px_30px_rgba(66,42,24,0.08)] backdrop-blur">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A85F2A]">Point de contrôle</p>
-              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                <div className="rounded-2xl border border-[#E2C39B] bg-white/70 px-2 py-3">
-                  <p className="text-lg font-black text-[#2F1D14]">{selectedVisibleCount}</p>
-                  <p className="text-[9px] font-black uppercase text-[#8B6B54]">Sélection</p>
-                </div>
-                <div className="rounded-2xl border border-[#E2C39B] bg-white/70 px-2 py-3">
-                  <p className="text-lg font-black text-[#2F7A42]">{mappedProductsCount}</p>
-                  <p className="text-[9px] font-black uppercase text-[#8B6B54]">OK</p>
-                </div>
-                <div className="rounded-2xl border border-[#E2C39B] bg-white/70 px-2 py-3">
-                  <p className="text-lg font-black text-[#B5412D]">{alertProductsCount}</p>
-                  <p className="text-[9px] font-black uppercase text-[#8B6B54]">À revoir</p>
-                </div>
-              </div>
-            </section>
-          </aside>
-
-          <section className="col-span-12 flex min-h-0 flex-col overflow-hidden rounded-[28px] border border-[#D8CAB8] bg-[#FFFBF4]/88 shadow-[0_16px_32px_rgba(66,42,24,0.10)] backdrop-blur xl:col-span-9">
+          <section className="col-span-12 flex min-h-0 flex-col overflow-hidden rounded-[28px] border border-[#D8CAB8] bg-[#FFFBF4]/88 shadow-[0_16px_32px_rgba(66,42,24,0.10)] backdrop-blur">
             <div className="flex flex-col gap-3 border-b border-[#D8CAB8] bg-[#F8F0E6]/95 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A85F2A]">Produits à paramétrer</p>
                 <h3 className="text-xl font-black text-[#2F1D14]">{activeSupplierLabel}</h3>
               </div>
-              <button
-                onClick={() => setSelectedProductIds(
-                  selectedVisibleCount === displayedRatioProducts.length
-                    ? new Set()
-                    : new Set(displayedRatioProducts.map(p => p.id))
-                )}
-                disabled={!canEdit || displayedRatioProducts.length === 0}
-                className="rounded-[16px] border border-[#D8AE77] bg-[#FFFDF8] px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-[#6A432D] shadow-sm transition hover:bg-white disabled:opacity-50"
-              >
-                {selectedVisibleCount === displayedRatioProducts.length && displayedRatioProducts.length > 0 ? 'Tout désélectionner' : 'Tout sélectionner'}
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={addNewProduct}
+                  disabled={!canEdit}
+                  className="rounded-[16px] border border-[#D8AE77] bg-[#F7B24A] px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-[#3A2116] shadow-sm transition hover:bg-[#FFC266] disabled:opacity-50"
+                >
+                  Ajouter produit
+                </button>
+                <button
+                  onClick={deleteSelectedProducts}
+                  disabled={!canEdit || selectedProductIds.size === 0}
+                  className="rounded-[16px] border border-[#D9A08B] bg-[#FFF1EA] px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-[#8A2F20] shadow-sm transition hover:bg-white disabled:opacity-50"
+                >
+                  Supprimer produit
+                </button>
+                <button
+                  onClick={() => setShowOnlyUnlinked(v => !v)}
+                  className={`rounded-[16px] border px-4 py-3 text-xs font-black uppercase tracking-[0.12em] shadow-sm transition ${showOnlyUnlinked ? 'border-[#2F1D14] bg-[#2F1D14] text-[#FFF7EA]' : 'border-[#D8AE77] bg-[#FFFDF8] text-[#6A432D] hover:bg-white'}`}
+                >
+                  {showOnlyUnlinked ? 'Tous les produits' : 'Produits non liés'}
+                </button>
+                <button
+                  onClick={() => setSelectedProductIds(
+                    selectedVisibleCount === displayedRatioProducts.length
+                      ? new Set()
+                      : new Set(displayedRatioProducts.map(p => p.id))
+                  )}
+                  disabled={!canEdit || displayedRatioProducts.length === 0}
+                  className="rounded-[16px] border border-[#D8AE77] bg-[#FFFDF8] px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-[#6A432D] shadow-sm transition hover:bg-white disabled:opacity-50"
+                >
+                  {selectedVisibleCount === displayedRatioProducts.length && displayedRatioProducts.length > 0 ? 'Tout désélectionner' : 'Tout sélectionner'}
+                </button>
+              </div>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto p-3 lg:p-4">
               {displayedRatioProducts.length === 0 ? (
                 <div className="flex min-h-[260px] items-center justify-center rounded-[22px] border border-dashed border-[#D8AE77] bg-[#FFFDF8]/75 p-6 text-center">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A85F2A]">Aucun produit</p>
-                    <h4 className="mt-2 text-xl font-black text-[#2F1D14]">Ajoute un premier produit pour démarrer.</h4>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A85F2A]">{showOnlyUnlinked ? 'Tout est lié' : 'Aucun produit'}</p>
+                    <h4 className="mt-2 text-xl font-black text-[#2F1D14]">{showOnlyUnlinked ? 'Aucun produit non lié pour ce fournisseur.' : 'Ajoute un premier produit pour démarrer.'}</h4>
                   </div>
                 </div>
               ) : (
