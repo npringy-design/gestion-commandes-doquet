@@ -355,25 +355,41 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
       <main className={dailyMode === 'page' ? "hidden" : "mx-auto grid w-full max-w-[1760px] flex-1 grid-cols-12 gap-4 overflow-visible p-3 pb-6 sm:p-4 sm:pb-4 lg:min-h-0 lg:overflow-y-auto lg:overflow-x-hidden lg:p-5"}>
 
         {/* ── Colonne gauche : KPIs + tableaux ──────────────────────────── */}
-        <div className="col-span-12 lg:col-span-8 flex flex-col gap-4 min-h-0">
+        <div className="col-span-12 xl:col-span-7 flex flex-col gap-4 min-h-0">
 
           {/* KPIs */}
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 flex-none">
-            <StatCard label="Couverts" value={coversForSelectedMonth == null ? "—" : Math.round(coversForSelectedMonth)} suffix="Pax" color="indigo" />
-            <StatCard label="Marge Brute" value={costForSelectedMonth == null ? "—" : (100 - costForSelectedMonth)} suffix="%" color="emerald" />
-            <StatCard
-              label="Coût Matière"
-              value={costForSelectedMonth == null ? '—' : costForSelectedMonth}
-              suffix="%"
-              color="rose"
-              subLabel="vs objectif 25.5%"
-              subValue={vsObjectivePts == null ? '—' : `${vsObjectivePts >= 0 ? '+' : ''}${vsObjectivePts.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pts`}
-            />
-            <StatCard label="Écart Total" value={ecartTotal} suffix="€" color="orange" />
+          <div className="flex-none rounded-[26px] border border-[#D8AE77] bg-[#FFF7EA]/75 p-3 shadow-[0_14px_30px_rgba(80,38,18,0.10)] backdrop-blur">
+            <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A85F2A]">Lecture du mois</p>
+                <h2 className="text-lg font-black text-[#2F1D14]">Les repères essentiels</h2>
+              </div>
+              <p className="text-xs font-bold text-[#8B6B54]">Couverts, marge, CM et écarts au même endroit.</p>
+            </div>
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+              <StatCard label="Couverts" value={coversForSelectedMonth == null ? "—" : Math.round(coversForSelectedMonth)} suffix="Pax" color="indigo" />
+              <StatCard label="Marge Brute" value={costForSelectedMonth == null ? "—" : (100 - costForSelectedMonth)} suffix="%" color="emerald" />
+              <StatCard
+                label="Coût Matière"
+                value={costForSelectedMonth == null ? '—' : costForSelectedMonth}
+                suffix="%"
+                color="rose"
+                subLabel="vs objectif 25.5%"
+                subValue={vsObjectivePts == null ? '—' : `${vsObjectivePts >= 0 ? '+' : ''}${vsObjectivePts.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pts`}
+              />
+              <StatCard label="Écart Total" value={ecartTotal} suffix="€" color="orange" />
+            </div>
           </div>
 
           {/* Tableaux Top 10 */}
-          <div className="flex-1 min-h-0 flex flex-col gap-3">
+          <div className="flex-1 min-h-0 flex flex-col gap-3 rounded-[26px] border border-[#D8AE77] bg-[#FFF7EA]/65 p-3 shadow-[0_14px_30px_rgba(80,38,18,0.10)] backdrop-blur">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A85F2A]">Priorités terrain</p>
+                <h2 className="text-lg font-black text-[#2F1D14]">Écarts à traiter</h2>
+              </div>
+              <p className="text-xs font-bold text-[#8B6B54]">Clique un produit pour ouvrir son analyse.</p>
+            </div>
 
             {/* Onglets mobile */}
             <div className="flex gap-2 rounded-2xl border border-[#D8AE77] bg-[#FFF7EA]/85 p-1.5 backdrop-blur md:hidden">
@@ -412,7 +428,7 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
         </div>
 
         {/* ── Colonne droite : graphiques + focus produit ──────────────── */}
-        <div className="hidden lg:flex col-span-4 flex-col gap-3 min-h-0 overflow-hidden">
+        <div className="hidden xl:flex col-span-5 flex-col gap-3 min-h-0 overflow-hidden">
 
           {/* Graphique coût matière — hauteur fixe */}
           <div className="h-[160px] flex-none">
@@ -471,35 +487,13 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
                     <p className="text-[9px] font-extrabold text-[#F1C27B] uppercase tracking-wider">Focus article</p>
                     <p className="text-xs font-extrabold mt-0.5 truncate">{selectedProduct.name}</p>
                   </div>
-                  <div className="shrink-0 flex flex-col items-end gap-1">
-  {selectedMonthValue > 0
-    ? <span className="bg-rose-500 text-[9px] px-2 py-0.5 rounded-full font-extrabold">PERTE</span>
-    : selectedMonthValue < 0
-    ? <span className="bg-emerald-500 text-[9px] px-2 py-0.5 rounded-full font-extrabold">GAIN</span>
-    : null}
-
-  {/* Actions toujours visibles (même si la page est courte) */}
-  <div className="flex items-center gap-1">
-    <button
-      onClick={() => setIsDetailOpen(true)}
-      className="px-2 py-1 rounded-lg bg-[#F7B24A] hover:bg-[#FFC266] text-[#3A2116] text-[10px] font-black"
-      title="Ouvrir le détail produit"
-      type="button"
-    >
-      Détail
-    </button>
-    {!readOnlyAnalyse && (
-      <button
-        onClick={addSelectedToDaily}
-        className="px-2 py-1 rounded-lg bg-amber-500/90 hover:bg-amber-400 text-white text-[10px] font-extrabold"
-        title="Ajouter ce produit au suivi journalier"
-        type="button"
-      >
-        + Jour
-      </button>
-    )}
-  </div>
-</div>
+                  <div className="shrink-0">
+                    {selectedMonthValue > 0
+                      ? <span className="bg-rose-500 text-[9px] px-2 py-0.5 rounded-full font-extrabold">PERTE</span>
+                      : selectedMonthValue < 0
+                      ? <span className="bg-emerald-500 text-[9px] px-2 py-0.5 rounded-full font-extrabold">GAIN</span>
+                      : null}
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   <div className="bg-white/10 rounded-xl p-2 border border-[#F1C27B]/20">
@@ -519,21 +513,35 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
                     </p>
                   </div>
                 </div>
-                {/* (On garde aussi les libellés complets en dessous sur grands écrans) */}
-<div className="hidden md:grid grid-cols-2 gap-2">
-  <button onClick={() => setIsDetailOpen(true)}
-    className="bg-[#FFF7EA] hover:bg-white text-[#3A2116] text-[10px] font-black py-2 rounded-xl transition-colors"
-    type="button">
-    Détail produit
-  </button>
-  {!readOnlyAnalyse && (
-    <button onClick={addSelectedToDaily}
-      className="bg-amber-500/80 hover:bg-amber-400 text-white text-[10px] font-extrabold py-2 rounded-xl transition-colors"
-      type="button">
-      + Journalier
-    </button>
-  )}
-</div>
+                <div className={`grid gap-2 ${readOnlyAnalyse ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                  <button onClick={() => setIsDetailOpen(true)}
+                    className="bg-[#FFF7EA] hover:bg-white text-[#3A2116] text-[10px] font-black py-2.5 rounded-xl transition-colors"
+                    type="button">
+                    Voir le détail
+                  </button>
+                  {!readOnlyAnalyse && (
+                    <button onClick={addSelectedToDaily}
+                      className="bg-[#F7B24A] hover:bg-[#FFC266] text-[#3A2116] text-[10px] font-black py-2.5 rounded-xl transition-colors"
+                      type="button">
+                      Ajouter au journalier
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {!selectedProduct && (
+              <div className="flex-1 rounded-[22px] border border-[#D8AE77] bg-[#FFF7EA]/90 p-4 shadow-[0_12px_26px_rgba(80,38,18,0.12)] backdrop-blur">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#A85F2A]">Mode terrain</p>
+                <h3 className="mt-1 text-base font-black text-[#2F1D14]">Choisis un écart pour agir</h3>
+                <p className="mt-2 text-xs font-bold leading-5 text-[#8B6B54]">
+                  Commence par les listes Liquides ou Solides. Le produit sélectionné ouvrira son historique, son impact et les actions utiles.
+                </p>
+                <div className="mt-4 grid grid-cols-3 gap-2 text-center text-[10px] font-black text-[#6A432D]">
+                  <div className="rounded-xl border border-[#E2C39B] bg-white/70 px-2 py-2">1. Repérer</div>
+                  <div className="rounded-xl border border-[#E2C39B] bg-white/70 px-2 py-2">2. Analyser</div>
+                  <div className="rounded-xl border border-[#E2C39B] bg-white/70 px-2 py-2">3. Suivre</div>
+                </div>
               </div>
             )}
 
@@ -541,7 +549,7 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
         </div>
 
         {/* ── Mobile : actions + graphique ─────────────────────────────── */}
-        <div className="col-span-12 lg:hidden flex flex-col gap-3">
+        <div className="col-span-12 xl:hidden flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-2">
             <button onClick={() => setIsMobileFocusOpen(true)}
               className="min-h-[46px] rounded-xl bg-[#2F1D14] text-white text-xs font-black shadow-[0_10px_20px_rgba(54,24,12,0.18)]">Focus produit</button>
@@ -560,7 +568,7 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
       {/* ══ BARRE MOBILE BAS ════════════════════════════════════════════ */}
       {/* Mobile Focus Drawer */}
       {isMobileFocusOpen && (
-        <div className="lg:hidden fixed inset-0 z-50">
+        <div className="xl:hidden fixed inset-0 z-50">
           <div className="absolute inset-0 bg-[#2F1D14]/55" onClick={() => setIsMobileFocusOpen(false)} />
           <div className={`absolute inset-x-0 bottom-0 ${isNarrowMobile ? 'top-2' : 'top-8'} bg-[#FFF7EA] rounded-t-3xl shadow-2xl border-t border-[#D8AE77] flex flex-col overflow-hidden`}>
             <div className="p-3 border-b border-[#E2C39B] bg-[#FFF7EA]">
