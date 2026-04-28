@@ -1182,6 +1182,23 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     return result;
   }, [availableImports, rows, searchByRow, pendingImportsByRow]);
 
+  useEffect(() => {
+    if (!didHydrateTakeRateCloud || !selectedMonthKey || availableImports.length === 0 || rows.length === 0) return;
+    if (frozenMonthsRef.current[selectedMonthKey]) return;
+
+    setRows((prev) => {
+      const linked = autoLinkImportsToRows(prev, availableImports);
+      const changed = linked.some((row, index) => {
+        const previous = prev[index];
+        if (!previous) return true;
+        if (row.linkedImports.length !== previous.linkedImports.length) return true;
+        return row.linkedImports.some((item, itemIndex) => item !== previous.linkedImports[itemIndex]);
+      });
+
+      return changed ? linked : prev;
+    });
+  }, [availableImports, didHydrateTakeRateCloud, rows, selectedMonthKey]);
+
   const freezeMonth = (monthKey: string) => {
     if (!monthKey) return;
 
@@ -1298,15 +1315,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     }
   };
 
-  const autoLinkAllImports = () => {
-    setRows((prev) => {
-      const linked = autoLinkImportsToRows(prev, availableImports);
-      const totalLinks = linked.reduce((sum, row) => sum + row.linkedImports.length, 0);
-      setImportMessage(`${totalLinks} liens import actuellement détectés.`);
-      return linked;
-    });
-  };
-
   const visibleRowIds = filteredRows.map((row) => row.id);
   const visibleSelectedCount = visibleRowIds.filter((id) => selectedRowIds.includes(id)).length;
   const allVisibleRowsSelected = visibleRowIds.length > 0 && visibleSelectedCount === visibleRowIds.length;
@@ -1314,9 +1322,10 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const okCount = rows.filter((row) => getRowStatus(row) === 'ok').length;
   const reviewCount = rows.filter((row) => getRowStatus(row) === 'review').length;
   const withoutLinkCount = rows.filter((row) => getRowStatus(row) === 'unlinked').length;
+  const hasMarginImport = marginCatalog.length > 0 || Boolean(marginFileName);
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[linear-gradient(180deg,#FFF1D9_0%,#E9BF8D_58%,#D99B58_100%)] text-[#34271F]">
+    <div className="min-h-screen overflow-hidden bg-[#DDA162] text-[#34271F]">
       <div className="mx-auto flex h-screen max-w-[1920px] flex-col gap-3 p-2 sm:p-3">
       <aside className="hidden">
         <AppNavTile
@@ -1367,7 +1376,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
 
       <main className="flex min-h-0 min-w-0 flex-1">
         <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[28px] border border-[#D8A96E] bg-[#FFF7EA]/96 shadow-[0_18px_38px_rgba(72,35,19,0.18)]">
-          <div className="border-b border-[#7B3A1E] bg-[linear-gradient(90deg,#4A2217_0%,#6F321D_48%,#9D541E_100%)] px-4 py-3 shadow-[0_14px_28px_rgba(72,35,19,0.22)] sm:px-5">
+          <div className="border-b border-[#7B3A1E] bg-[#5A2819] px-4 py-3 shadow-[0_14px_28px_rgba(72,35,19,0.22)] sm:px-5">
             <div className="flex flex-col gap-3">
               <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-3">
                 <AppNavTile onClick={() => setView('home')} eyebrow="Retour" icon="home" size="sm" tone="cream">Accueil</AppNavTile>
@@ -1379,15 +1388,8 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2 rounded-2xl border border-[#B8793F]/65 bg-[#FFF7EA]/10 p-2 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex flex-col gap-2 rounded-2xl border border-[#B8793F]/65 bg-[#6E371F] p-2 xl:flex-row xl:items-center xl:justify-end">
                 <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportMarginFile} />
-                <input
-                  type="text"
-                  value={productSearch}
-                  onChange={(e) => setProductSearch(e.target.value)}
-                  placeholder="Rechercher un produit marge..."
-                  className="min-h-[42px] w-full rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2 text-sm font-bold text-[#2F1D14] outline-none placeholder:text-[#9B7A67] xl:w-[520px] xl:flex-none"
-                />
                 <div className="flex flex-wrap gap-2">
 
                 <div className="hidden min-h-[42px] flex-wrap items-center gap-2 rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2">
@@ -1416,9 +1418,13 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="min-h-[42px] rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] text-[#2F1D14] shadow-sm transition hover:bg-white"
+                  className={`min-h-[42px] rounded-2xl border px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] shadow-sm transition ${
+                    hasMarginImport
+                      ? 'border-[#9ED9B6] bg-[#EAF8EF] text-[#176A43] hover:bg-[#F4FFF8]'
+                      : 'border-[#EBC28A] bg-[#FFF7EA] text-[#2F1D14] hover:bg-white'
+                  }`}
                 >
-                  {isImportingMargin ? 'Import...' : 'Importer fichier marge'}
+                  {isImportingMargin ? 'Import...' : hasMarginImport ? 'Import marge present' : 'Importer fichier marge'}
                 </button>
                 <button
                   type="button"
@@ -1427,19 +1433,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                   className="min-h-[42px] rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] text-[#7A2E1E] shadow-sm transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Supprimer import marge
-                </button>
-                <button
-                  type="button"
-                  onClick={autoLinkAllImports}
-                  className="min-h-[42px] rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] text-[#2F1D14] shadow-sm transition hover:bg-white"
-                >
-                  Auto-lier imports
-                </button>
-                <button
-                  onClick={addRow}
-                  className="min-h-[42px] rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] text-[#2F1D14] shadow-sm transition hover:bg-white"
-                >
-                  Ajouter une ligne
                 </button>
                 </div>
               </div>
@@ -1500,8 +1493,8 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
             </div>
 
             <div className="flex flex-wrap items-end gap-3 border-b border-[#D7B79B] bg-[#FFF8EF] px-4 py-3 sm:px-5">
-              <label className="hidden min-w-[280px] flex-1">
-                <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.10em] text-[#F7C05B]">Recherche produit</span>
+              <label className="min-w-[260px] flex-1">
+                <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.10em] text-[#8A5A2F]">Recherche produit</span>
                 <input
                   type="text"
                   value={productSearch}
@@ -1510,6 +1503,23 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                   className="w-full rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 text-[13px] font-semibold text-[#2F1D14] outline-none transition focus:border-[#D8A640] focus:ring-2 focus:ring-[#E8B59E]"
                 />
               </label>
+
+              <button
+                type="button"
+                onClick={addRow}
+                className="min-h-[42px] rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.10em] text-[#2F1D14] shadow-sm transition hover:bg-white"
+              >
+                Ajouter ligne
+              </button>
+
+              <button
+                type="button"
+                onClick={removeSelectedRows}
+                disabled={selectedRowIds.length === 0}
+                className="min-h-[42px] rounded-xl border border-[#E7B6A4] bg-[#FFF1EA] px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.10em] text-[#8E321F] shadow-sm transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                Supprimer ligne
+              </button>
 
               <label className="min-w-[180px]">
                 <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.10em] text-[#8A5A2F]">Famille</span>
@@ -1540,7 +1550,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 </select>
               </label>
 
-              <div className="pb-1 text-[12px] font-semibold text-[#FFE1B8]">
+              <div className="pb-1 text-[12px] font-semibold text-[#8B6650]">
                 {filteredRows.length} ligne{filteredRows.length > 1 ? 's' : ''} affichée{filteredRows.length > 1 ? 's' : ''}
                 {visibleSelectedCount > 0 ? ` • ${visibleSelectedCount} sélectionnée${visibleSelectedCount > 1 ? 's' : ''}` : ''}
               </div>
