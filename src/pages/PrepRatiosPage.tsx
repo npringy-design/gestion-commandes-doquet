@@ -5,7 +5,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { canEditRatios } from '../lib/permissions';
 import MappingPopover from '../components/MappingPopover';
 import AppNavTile from '../components/AppNavTile';
-import { extractAllNamesFromCsvs, getImportedValueForProduct } from '../utils/csvHelpers';
+import { buildImportedValueLookup, extractAllNamesFromCsvs } from '../utils/csvHelpers';
 
 const CATEGORY_OPTIONS: Array<{ value: PrepCategory; label: string }> = [
   { value: 'poste_chaud', label: 'Poste chaud' },
@@ -105,6 +105,14 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
     () => extractAllNamesFromCsvs(prepImportsByMonth[workMonth] ? { [workMonth]: prepImportsByMonth[workMonth] } : {}),
     [prepImportsByMonth, workMonth]
   );
+  const sortedAvailableImportNames = React.useMemo(
+    () => Array.from(allAvailableImportNames as Set<string>).sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' })),
+    [allAvailableImportNames]
+  );
+  const workMonthImportValues = React.useMemo(
+    () => buildImportedValueLookup(prepImportsByMonth[workMonth], ['Nombre']),
+    [prepImportsByMonth, workMonth]
+  );
 
   const rows = React.useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -183,13 +191,14 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
     const mappingNames = parseMappingNames(item.searchName);
     if (mappingNames.length === 0) return 0;
 
+    if (month === workMonth) {
+      return mappingNames.reduce((sum, mappingName) => (
+        sum + Number(workMonthImportValues.get(normalizeMappingName(mappingName)) || 0)
+      ), 0);
+    }
+
     return mappingNames.reduce((sum, mappingName) => {
-      const imported = getImportedValueForProduct(
-        prepImportsByMonth[month],
-        mappingName,
-        '',
-        ['Nombre']
-      );
+      const imported = buildImportedValueLookup(prepImportsByMonth[month], ['Nombre']).get(normalizeMappingName(mappingName));
       return sum + Number(imported || 0);
     }, 0);
   };
@@ -373,22 +382,18 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                 </div>
               ) : (
                 <div className="flex flex-col gap-3">
-                  {rows.map((item) => {
-                          const idx = rows.findIndex((row) => row.id === item.id);
+                  {rows.map((item, idx) => {
                           const avgRatio = getAverageRatio(item);
                           const currentMappings = parseMappingNames(item.searchName);
                           const selectedOnRow = new Set(currentMappings.map((name) => normalizeMappingName(name)));
-                          const rowOrphanNames = Array.from(allAvailableImportNames as Set<string>)
-                            .filter((name) => {
-                              const normalized = normalizeMappingName(name);
-                              return !selectedOnRow.has(normalized);
-                            })
-                            .sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
-                          const canOpenPicker = rowOrphanNames.length > 0;
                           const unitType = getUnitType(item);
                           const baseUnitType = getBaseUnitType(item);
                           const isSelectedPopoverOpen = activePopover?.id === item.id && activePopover.mode === 'selected';
                           const isPickerPopoverOpen = activePopover?.id === item.id && activePopover.mode === 'picker';
+                          const rowOrphanNames = isPickerPopoverOpen
+                            ? sortedAvailableImportNames.filter((name) => !selectedOnRow.has(normalizeMappingName(name)))
+                            : [];
+                          const canOpenPicker = sortedAvailableImportNames.length > selectedOnRow.size;
 
                           return (
                             <article key={item.id} className={`rounded-[18px] border bg-white px-3 py-3 transition ${selectedIds.has(item.id) ? 'border-[#B45439] shadow-[0_8px_20px_rgba(180,84,57,0.12)]' : 'border-[#E0CCBA]'}`}>

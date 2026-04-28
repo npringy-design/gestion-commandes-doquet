@@ -51,6 +51,33 @@ export const getImportedValueForProduct = (
   return Math.round(v);
 };
 
+export const buildImportedValueLookup = (
+  csvData: string | undefined,
+  valueColumnCandidates: string[] = ['conso thÃ©orique qtÃ©']
+): Map<string, number> => {
+  const lookup = new Map<string, number>();
+  if (!csvData) return lookup;
+
+  const rows = parseCSV(csvData);
+  if (rows.length < 2) return lookup;
+
+  const header = rows[0].map((h) => h.trim());
+  const valueIdx = findHeaderIndex(header, valueColumnCandidates);
+  if (valueIdx === -1) return lookup;
+
+  rows.slice(1).forEach((row) => {
+    const rawVal = parseFloat(String(row[valueIdx] || '').replace(/[^\d,.-]/g, '').replace(',', '.'));
+    const value = Number.isNaN(rawVal) ? 0 : Math.round(rawVal);
+
+    row.forEach((cell) => {
+      const normalized = cell.trim().toLowerCase();
+      if (normalized && !lookup.has(normalized)) lookup.set(normalized, value);
+    });
+  });
+
+  return lookup;
+};
+
 export const extractAllNamesFromCsvs = (
   detailedInventory: Record<string, string>
 ): Set<string> => {
