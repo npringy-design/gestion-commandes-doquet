@@ -1368,7 +1368,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       <main className="flex min-h-0 min-w-0 flex-1">
         <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[28px] border border-[#D8A96E] bg-[#FFF7EA]/96 shadow-[0_18px_38px_rgba(72,35,19,0.18)]">
           <div className="border-b border-[#7B3A1E] bg-[linear-gradient(90deg,#4A2217_0%,#6F321D_48%,#9D541E_100%)] px-4 py-3 shadow-[0_14px_28px_rgba(72,35,19,0.22)] sm:px-5">
-            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex flex-col gap-3">
               <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-3">
                 <AppNavTile onClick={() => setView('home')} eyebrow="Retour" icon="home" size="sm" tone="cream">Accueil</AppNavTile>
                 <AppNavTile onClick={() => setView('stats')} eyebrow="Retour" icon="settings" size="sm" tone="cream">Parametres</AppNavTile>
@@ -1379,8 +1379,16 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-col gap-2 rounded-2xl border border-[#B8793F]/65 bg-[#FFF7EA]/10 p-2 xl:flex-row xl:items-center xl:justify-between">
                 <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportMarginFile} />
+                <input
+                  type="text"
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  placeholder="Rechercher un produit marge..."
+                  className="min-h-[42px] w-full rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2 text-sm font-bold text-[#2F1D14] outline-none placeholder:text-[#9B7A67] xl:w-[520px] xl:flex-none"
+                />
+                <div className="flex flex-wrap gap-2">
 
                 <div className="hidden min-h-[42px] flex-wrap items-center gap-2 rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2">
                   <span className="text-[10px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Mois</span>
@@ -1433,9 +1441,10 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 >
                   Ajouter une ligne
                 </button>
+                </div>
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+            <div className="hidden mt-3 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
               {[
                 ['Produits', rows.length],
                 ['Liens import', linkedCount],
@@ -1450,10 +1459,10 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 </div>
               ))}
             </div>
-            <div className="mt-3 rounded-2xl border border-[#B8793F]/65 bg-[#FFF7EA]/10 p-2">
+            <div className="-mx-4 -mb-3 mt-3 border-t border-[#D7B79B] bg-[#FFF8EF] px-4 py-3 sm:-mx-5 sm:px-5">
               <div className="mb-2 flex items-center justify-between gap-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#F7C05B]">Figer les mois du taux de prise</p>
-                <p className="text-[11px] font-bold text-[#FFE1B8]">{monthOptions.filter((month) => frozenMonths[month.key]).length} mois figes</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8A5A2F]">Figer les mois du taux de prise</p>
+                <p className="text-[11px] font-bold text-[#8B6650]">{monthOptions.filter((month) => frozenMonths[month.key]).length} mois figes</p>
               </div>
               <div className="grid grid-cols-6 gap-1.5 xl:grid-cols-12">
                 {monthOptions.map((month) => {
@@ -1470,7 +1479,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                           ? 'border-emerald-700 bg-emerald-600 text-white shadow-sm'
                           : selected
                             ? 'border-[#D8A640] bg-[#FFE8A8] text-[#5B321E]'
-                            : 'border-[#EBC28A] bg-[#FFF7EA] text-[#2F1D14] hover:bg-white'
+                            : 'border-[#E0CCBA] bg-white text-[#8A5A2F] hover:border-[#B46E58]'
                       }`}
                     >
                       <span className="block text-xs">{month.label}</span>
@@ -1490,8 +1499,8 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
               {importMessage ? <span className="text-[#9A4F33]">• {importMessage}</span> : null}
             </div>
 
-            <div className="mt-3 flex flex-wrap items-end gap-3 rounded-2xl border border-[#B8793F]/65 bg-[#FFF7EA]/10 p-2">
-              <label className="min-w-[280px] flex-1">
+            <div className="flex flex-wrap items-end gap-3 border-b border-[#D7B79B] bg-[#FFF8EF] px-4 py-3 sm:px-5">
+              <label className="hidden min-w-[280px] flex-1">
                 <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.10em] text-[#F7C05B]">Recherche produit</span>
                 <input
                   type="text"
@@ -1503,7 +1512,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
               </label>
 
               <label className="min-w-[180px]">
-                <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.10em] text-[#F7C05B]">Famille</span>
+                <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.10em] text-[#8A5A2F]">Famille</span>
                 <select
                   value={familyFilter}
                   onChange={(e) => setFamilyFilter(e.target.value)}
@@ -1518,7 +1527,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
               </label>
 
               <label className="min-w-[180px]">
-                <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.10em] text-[#F7C05B]">Etat</span>
+                <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.10em] text-[#8A5A2F]">Etat</span>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as 'all' | RowStatus)}
