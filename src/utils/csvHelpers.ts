@@ -21,6 +21,19 @@ const findHeaderIndex = (header: string[], candidates: string[]) => {
   return header.findIndex((cell) => normalizedCandidates.includes(normalizeHeader(cell)));
 };
 
+const PRODUCT_NAME_COLUMN_CANDIDATES = [
+  'libellÃ©',
+  'libelle',
+  'libellÃ© produit',
+  'libelle produit',
+  'libellÃ© article',
+  'libelle article',
+  'designation',
+  'dÃ©signation',
+  'produit',
+  'article',
+];
+
 export const getImportedValueForProduct = (
   csvData: string | undefined,
   searchName: string,
@@ -34,12 +47,15 @@ export const getImportedValueForProduct = (
 
   const header = rows[0].map((h) => h.trim());
   const valueIdx = findHeaderIndex(header, valueColumnCandidates);
+  const nameIdx = findHeaderIndex(header, nameColumnCandidates);
   if (valueIdx === -1) return null;
 
   const normalizedSearch = searchName.trim().toLowerCase();
   let hasMatch = false;
   const total = rows.slice(1).reduce((sum, row) => {
-    const isMatch = row.some((cell) => cell.trim().toLowerCase() === normalizedSearch);
+    const isMatch = nameIdx >= 0
+      ? String(row[nameIdx] || '').trim().toLowerCase() === normalizedSearch
+      : row.some((cell) => cell.trim().toLowerCase() === normalizedSearch);
     if (!isMatch || !row[valueIdx]) return sum;
 
     hasMatch = true;
@@ -57,7 +73,8 @@ export const getImportedValueForProduct = (
 
 export const buildImportedValueLookup = (
   csvData: string | undefined,
-  valueColumnCandidates: string[] = ['conso thÃ©orique qtÃ©']
+  valueColumnCandidates: string[] = ['conso thÃ©orique qtÃ©'],
+  nameColumnCandidates: string[] = PRODUCT_NAME_COLUMN_CANDIDATES
 ): Map<string, number> => {
   const lookup = new Map<string, number>();
   if (!csvData) return lookup;
@@ -67,14 +84,16 @@ export const buildImportedValueLookup = (
 
   const header = rows[0].map((h) => h.trim());
   const valueIdx = findHeaderIndex(header, valueColumnCandidates);
+  const nameIdx = findHeaderIndex(header, nameColumnCandidates);
   if (valueIdx === -1) return lookup;
 
   rows.slice(1).forEach((row) => {
     const rawVal = parseFloat(String(row[valueIdx] || '').replace(/[^\d,.-]/g, '').replace(',', '.'));
     const value = Number.isNaN(rawVal) ? 0 : rawVal;
 
-    row.forEach((cell) => {
-      const normalized = cell.trim().toLowerCase();
+    const nameCells = nameIdx >= 0 ? [row[nameIdx]] : row;
+    nameCells.forEach((cell) => {
+      const normalized = String(cell || '').trim().toLowerCase();
       if (normalized) lookup.set(normalized, (lookup.get(normalized) || 0) + value);
     });
   });
