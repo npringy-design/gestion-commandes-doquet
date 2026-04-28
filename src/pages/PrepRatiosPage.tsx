@@ -377,17 +377,11 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                           const idx = rows.findIndex((row) => row.id === item.id);
                           const avgRatio = getAverageRatio(item);
                           const currentMappings = parseMappingNames(item.searchName);
-                          const usedElsewhere = new Set(
-                            prepItems
-                              .filter((other) => other.id !== item.id)
-                              .flatMap((other) => parseMappingNames(other.searchName))
-                              .map((name) => normalizeMappingName(name))
-                          );
                           const selectedOnRow = new Set(currentMappings.map((name) => normalizeMappingName(name)));
                           const rowOrphanNames = Array.from(allAvailableImportNames as Set<string>)
                             .filter((name) => {
                               const normalized = normalizeMappingName(name);
-                              return !selectedOnRow.has(normalized) && !usedElsewhere.has(normalized);
+                              return !selectedOnRow.has(normalized);
                             })
                             .sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
                           const canOpenPicker = rowOrphanNames.length > 0;
@@ -485,9 +479,14 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                                     >
                                       Ajouter
                                     </button>
-                                    <span className="min-w-0 truncate text-[11px] font-bold text-slate-500">
+                                    <button
+                                      type="button"
+                                      disabled={currentMappings.length === 0}
+                                      onClick={() => setActivePopover(isSelectedPopoverOpen ? null : { id: item.id, mode: 'selected' })}
+                                      className="min-w-0 truncate rounded-lg px-1.5 py-1 text-left text-[11px] font-bold text-slate-500 transition hover:bg-[#F4ECDD] hover:text-[#6C3C2B] disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-slate-500"
+                                    >
                                       {currentMappings.length > 0 ? `${currentMappings.length} produits` : 'Aucun lien'}
-                                    </span>
+                                    </button>
                                   </div>
                                   {(isSelectedPopoverOpen || isPickerPopoverOpen) && (
                                     <div className="absolute right-0 top-[calc(100%+8px)] z-[999]">
