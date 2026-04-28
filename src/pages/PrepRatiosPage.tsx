@@ -20,6 +20,8 @@ const MONTH_LABELS: Record<string, string> = {
 };
 
 const MAPPING_SEPARATOR = ' || ';
+const ROW_ESTIMATED_HEIGHT = 132;
+const ROW_OVERSCAN = 8;
 
 type UnitType = 'piece' | 'kg';
 type MappingPopoverMode = 'selected' | 'picker';
@@ -99,6 +101,10 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   const [showOnlyUnlinked, setShowOnlyUnlinked] = React.useState(false);
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [activePopover, setActivePopover] = React.useState<{ id: string; mode: MappingPopoverMode } | null>(null);
+  const listScrollRef = React.useRef<HTMLDivElement>(null);
+  const scrollFrameRef = React.useRef<number | null>(null);
+  const [listScrollTop, setListScrollTop] = React.useState(0);
+  const [listViewportHeight, setListViewportHeight] = React.useState(720);
   const workMonth = prepImportTargetMonth || MONTHS_ORDER[0];
 
   const allAvailableImportNames = React.useMemo(
@@ -142,6 +148,95 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
     () => rows.filter((item) => selectedIds.has(item.id)).length,
     [rows, selectedIds]
   );
+
+  const rowModels = React.useMemo(() => rows.map((item, idx) => {
+    const currentMappings = parseMappingNames(item.searchName);
+    const selectedOnRow = new Set(currentMappings.map((name) => normalizeMappingName(name)));
+    let totalRatio = 0;
+    let ratioCount = 0;
+
+    const liveWorkMonthValue = currentMappings.reduce((sum, mappingName) => (
+      sum + Number(workMonthImportValues.get(normalizeMappingName(mappingName)) || 0)
+    ), 0);
+
+    const monthStats = MONTHS_ORDER.map((month) => {
+      const coversValue = Number(covers[month] || 0);
+      const isValidated = !!prepValidatedMonths[month];
+      const isWorkMonth = month === workMonth;
+      let value = 0;
+      let ratio = 0;
+
+      if (isValidated) {
+        ratio = Number(item.ratioHistory[month] || 0);
+        value = coversValue > 0 && ratio > 0 ? Math.round(ratio * coversValue) : 0;
+      } else if (isWorkMonth) {
+        value = liveWorkMonthValue;
+        ratio = coversValue > 0 && value > 0 ? value / coversValue : 0;
+      }
+
+      if (ratio > 0) {
+        totalRatio += ratio;
+        ratioCount += 1;
+      }
+
+      return { month, value, ratio, isValidated, isWorkMonth };
+    });
+
+    return {
+      item,
+      idx,
+      currentMappings,
+      selectedOnRow,
+      unitType: getUnitType(item),
+      baseUnitType: getBaseUnitType(item),
+      monthStats,
+      avgRatio: ratioCount > 0 ? totalRatio / ratioCount : 0,
+    };
+  }), [covers, prepValidatedMonths, rows, workMonth, workMonthImportValues]);
+
+  React.useEffect(() => {
+    const node = listScrollRef.current;
+    if (!node) return;
+
+    const updateViewport = () => setListViewportHeight(node.clientHeight || 720);
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    return () => window.removeEventListener('resize', updateViewport);
+  }, []);
+
+  React.useEffect(() => {
+    setListScrollTop(0);
+    if (listScrollRef.current) listScrollRef.current.scrollTop = 0;
+  }, [search, showOnlyUnlinked]);
+
+  React.useEffect(() => () => {
+    if (scrollFrameRef.current !== null) window.cancelAnimationFrame(scrollFrameRef.current);
+  }, []);
+
+  const handleListScroll = React.useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    const nextScrollTop = event.currentTarget.scrollTop;
+    if (scrollFrameRef.current !== null) window.cancelAnimationFrame(scrollFrameRef.current);
+    scrollFrameRef.current = window.requestAnimationFrame(() => {
+      setListScrollTop(nextScrollTop);
+      scrollFrameRef.current = null;
+    });
+  }, []);
+
+  const virtualRange = React.useMemo(() => {
+    const start = Math.max(0, Math.floor(listScrollTop / ROW_ESTIMATED_HEIGHT) - ROW_OVERSCAN);
+    const end = Math.min(
+      rowModels.length,
+      Math.ceil((listScrollTop + listViewportHeight) / ROW_ESTIMATED_HEIGHT) + ROW_OVERSCAN
+    );
+
+    return {
+      start,
+      end,
+      top: start * ROW_ESTIMATED_HEIGHT,
+      bottom: Math.max(0, (rowModels.length - end) * ROW_ESTIMATED_HEIGHT),
+      visibleRows: rowModels.slice(start, end),
+    };
+  }, [listScrollTop, listViewportHeight, rowModels]);
 
   const updateItem = React.useCallback((id: string, patch: Partial<PrepItemExtended>) => {
     setPrepItems((prev) => prev.map((item) => item.id === id ? ({ ...item, ...patch } as PrepItem) : item));
@@ -373,7 +468,11 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
               </div>
             </div>
 
-            <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4">
+            <div
+              ref={listScrollRef}
+              onScroll={handleListScroll}
+              className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4"
+            >
               {rows.length === 0 ? (
                 <div className="flex h-full min-h-[280px] items-center justify-center rounded-[22px] border border-dashed border-[#D7B79B] bg-[#FFF9F1] px-6 text-center">
                   <p className="max-w-xl text-sm font-semibold text-[#8B6650]">
@@ -382,12 +481,8 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                 </div>
               ) : (
                 <div className="flex flex-col gap-3">
-                  {rows.map((item, idx) => {
-                          const avgRatio = getAverageRatio(item);
-                          const currentMappings = parseMappingNames(item.searchName);
-                          const selectedOnRow = new Set(currentMappings.map((name) => normalizeMappingName(name)));
-                          const unitType = getUnitType(item);
-                          const baseUnitType = getBaseUnitType(item);
+                  {virtualRange.top > 0 && <div style={{ height: virtualRange.top }} aria-hidden="true" />}
+                  {virtualRange.visibleRows.map(({ item, idx, avgRatio, currentMappings, selectedOnRow, unitType, baseUnitType, monthStats }) => {
                           const isSelectedPopoverOpen = activePopover?.id === item.id && activePopover.mode === 'selected';
                           const isPickerPopoverOpen = activePopover?.id === item.id && activePopover.mode === 'picker';
                           const rowOrphanNames = isPickerPopoverOpen
@@ -396,7 +491,11 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                           const canOpenPicker = sortedAvailableImportNames.length > selectedOnRow.size;
 
                           return (
-                            <article key={item.id} className={`rounded-[18px] border bg-white px-3 py-3 transition ${selectedIds.has(item.id) ? 'border-[#B45439] shadow-[0_8px_20px_rgba(180,84,57,0.12)]' : 'border-[#E0CCBA]'}`}>
+                            <article
+                              key={item.id}
+                              style={{ contentVisibility: 'auto', containIntrinsicSize: '112px' }}
+                              className={`rounded-[18px] border bg-white px-3 py-3 transition ${selectedIds.has(item.id) ? 'border-[#B45439] shadow-[0_8px_20px_rgba(180,84,57,0.12)]' : 'border-[#E0CCBA]'}`}
+                            >
                               <div className="grid min-w-0 items-end gap-2 xl:grid-cols-[28px_minmax(160px,1.35fr)_minmax(120px,0.95fr)_78px_minmax(120px,0.95fr)_76px_76px_minmax(210px,1.35fr)_82px_70px]">
                                 <label className="flex h-11 items-center justify-center">
                                   <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} disabled={!canEdit} className="h-4 w-4 accent-[#A93E2A]" />
@@ -522,13 +621,11 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                               </div>
 
                               <div className="mt-2 grid grid-cols-6 gap-1.5 xl:grid-cols-12">
-                                {MONTHS_ORDER.map((month) => {
-                                  const monthValue = getMonthValue(item, month);
-                                  const monthRatio = getMonthRatio(item, month);
+                                {monthStats.map(({ month, value: monthValue, ratio: monthRatio, isValidated, isWorkMonth }) => {
                                   return (
-                                    <div key={`${item.id}-${month}`} className={`rounded-lg border px-2 py-1.5 text-center ${prepValidatedMonths[month] ? 'border-indigo-200 bg-indigo-50' : month === workMonth ? 'border-[#D8A640] bg-[#FFF1C9]' : monthValue > 0 ? 'border-emerald-100 bg-emerald-50' : 'border-slate-100 bg-slate-50'}`}>
+                                    <div key={`${item.id}-${month}`} className={`rounded-lg border px-2 py-1.5 text-center ${isValidated ? 'border-indigo-200 bg-indigo-50' : isWorkMonth ? 'border-[#D8A640] bg-[#FFF1C9]' : monthValue > 0 ? 'border-emerald-100 bg-emerald-50' : 'border-slate-100 bg-slate-50'}`}>
                                       <div className="text-[8px] font-black uppercase tracking-[0.08em] text-[#8A5A2F]">{MONTH_LABELS[month]}</div>
-                                      <div className={`mt-0.5 text-xs font-black leading-none ${prepValidatedMonths[month] ? 'text-indigo-800' : monthValue > 0 ? 'text-emerald-700' : 'text-slate-400'}`}>{monthValue || '-'}</div>
+                                      <div className={`mt-0.5 text-xs font-black leading-none ${isValidated ? 'text-indigo-800' : monthValue > 0 ? 'text-emerald-700' : 'text-slate-400'}`}>{monthValue || '-'}</div>
                                       <div className="mt-0.5 text-[8px] font-mono text-slate-500">{monthRatio.toFixed(3)}</div>
                                     </div>
                                   );
@@ -537,6 +634,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                             </article>
                           );
                   })}
+                  {virtualRange.bottom > 0 && <div style={{ height: virtualRange.bottom }} aria-hidden="true" />}
                 </div>
               )}
             </div>          </section>
