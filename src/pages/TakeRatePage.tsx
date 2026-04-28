@@ -1298,8 +1298,9 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const withoutLinkCount = rows.filter((row) => getRowStatus(row) === 'unlinked').length;
 
   return (
-    <div className="flex h-full min-h-screen bg-[#EDE2D6] text-[#4B2D22]">
-      <aside className="hidden w-[250px] shrink-0 border-r border-[#D2B8A1] bg-[linear-gradient(180deg,#F4E8DC_0%,#E9D8C8_100%)] px-4 py-5 xl:flex xl:flex-col xl:gap-4">
+    <div className="min-h-screen overflow-hidden bg-[linear-gradient(180deg,#FFF1D9_0%,#E9BF8D_58%,#D99B58_100%)] text-[#34271F]">
+      <div className="mx-auto flex h-screen max-w-[1920px] flex-col gap-3 p-2 sm:p-3">
+      <aside className="hidden">
         <AppNavTile
           onClick={() => setView('stats')}
           eyebrow="Retour"
@@ -1346,24 +1347,30 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
         </div>
       </aside>
 
-      <main className="flex min-w-0 flex-1 flex-col overflow-hidden p-4 pb-20 xl:p-5 xl:pb-24">
-        <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-[#D8BEA8] bg-[#FFF8F1] shadow-[0_18px_40px_rgba(104,63,39,0.10)]">
-          <div className="border-b border-[#E6D4C4] bg-[linear-gradient(180deg,#FBF4EC_0%,#F5EADD_100%)] px-5 py-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.20em] text-[#8F624B]">Base marge + liaison ventes</p>
-                <h2 className="mt-1 text-[21px] font-black text-[#582F21]">Paramétrage taux de prise</h2>
+      <main className="flex min-h-0 min-w-0 flex-1">
+        <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[28px] border border-[#D8A96E] bg-[#FFF7EA]/96 shadow-[0_18px_38px_rgba(72,35,19,0.18)]">
+          <div className="border-b border-[#7B3A1E] bg-[linear-gradient(90deg,#4A2217_0%,#6F321D_48%,#9D541E_100%)] px-4 py-3 shadow-[0_14px_28px_rgba(72,35,19,0.22)] sm:px-5">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-3">
+                <AppNavTile onClick={() => setView('home')} eyebrow="Retour" icon="home" size="sm" tone="cream">Accueil</AppNavTile>
+                <AppNavTile onClick={() => setView('stats')} eyebrow="Retour" icon="settings" size="sm" tone="cream">Parametres</AppNavTile>
+                <AppNavTile onClick={() => setView('take_rate_sheet')} eyebrow="Ouvrir" icon="sheet" size="sm" tone="cream">Feuille</AppNavTile>
+                <div className="hidden h-12 w-px bg-[#E9B25D]/35 xl:block" />
+                <div className="min-w-0">
+                  <h2 className="text-3xl font-black leading-none text-[#FFF7EA]">Taux de prise</h2>
+                <p className="mt-1 text-[10px] font-black uppercase tracking-[0.22em] text-[#F7C05B]">Parametrage</p>
+                </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2">
                 <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportMarginFile} />
 
-                <div className="flex flex-wrap items-center gap-2 rounded-[18px] border border-[#E0CFC2] bg-[#F8EFE7] px-3 py-2">
-                  <span className="text-[11px] font-black uppercase tracking-[0.08em] text-[#8A604B]">Mois</span>
+                <div className="flex min-h-[42px] flex-wrap items-center gap-2 rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2">
+                  <span className="text-[10px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Mois</span>
                   <select
                     value={selectedMonthKey}
                     onChange={(event) => setSelectedMonthKey(event.target.value)}
-                    className="rounded-[14px] border border-[#D9C2B3] bg-white px-3 py-2 text-[12px] font-black uppercase tracking-[0.08em] text-[#7A4E39]"
+                    className="rounded-xl border border-[#EBC28A] bg-white px-3 py-1.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#2F1D14]"
                   >
                     {monthOptions.map((month) => (
                       <option key={month.key} value={month.key}>
@@ -1375,7 +1382,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                     type="button"
                     onClick={frozenMonths[selectedMonthKey] ? handleUnfreezeMonth : handleFreezeMonth}
                     disabled={!selectedMonthKey || rows.length === 0}
-                    className="rounded-[14px] border border-[#C19A58] bg-[#FFF1D8] px-3 py-2 text-[12px] font-black uppercase tracking-[0.08em] text-[#8C5C1F] transition hover:bg-[#F7E6C6] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-xl border border-[#D8A640] bg-[#FFE8A8] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.08em] text-[#5B321E] transition hover:bg-[#FFF0BC] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {frozenMonths[selectedMonthKey] ? 'Défiger' : 'Figer le mois'}
                   </button>
@@ -1384,7 +1391,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="rounded-[16px] border border-[#B55A3C] bg-[#F7E8DE] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#8D4F35] transition hover:bg-[#F2DDCF]"
+                  className="min-h-[42px] rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] text-[#2F1D14] shadow-sm transition hover:bg-white"
                 >
                   {isImportingMargin ? 'Import...' : 'Importer fichier marge'}
                 </button>
@@ -1392,26 +1399,41 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                   type="button"
                   onClick={handleDeleteMarginImport}
                   disabled={!selectedMonthKey || (marginCatalog.length === 0 && rows.length === 0 && !marginFileName)}
-                  className="rounded-[16px] border border-[#D7BEA9] bg-[#FFF7F1] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#9A6149] transition hover:bg-[#F7EBDD] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="min-h-[42px] rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] text-[#7A2E1E] shadow-sm transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Supprimer import marge
                 </button>
                 <button
                   type="button"
                   onClick={autoLinkAllImports}
-                  className="rounded-[16px] border border-[#D2B39C] bg-[#F8EDE1] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#7F563F] transition hover:bg-[#F2E2D0]"
+                  className="min-h-[42px] rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] text-[#2F1D14] shadow-sm transition hover:bg-white"
                 >
                   Auto-lier imports
                 </button>
                 <button
                   onClick={addRow}
-                  className="rounded-[16px] border border-[#2E8D63] bg-[linear-gradient(180deg,#39B37D_0%,#239062_100%)] px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em] text-white shadow-[0_4px_0_#196A48] transition-all hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#196A48]"
+                  className="min-h-[42px] rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] text-[#2F1D14] shadow-sm transition hover:bg-white"
                 >
                   Ajouter une ligne
                 </button>
               </div>
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] font-semibold text-[#7A5240]">
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+              {[
+                ['Produits', rows.length],
+                ['Liens import', linkedCount],
+                ['OK', okCount],
+                ['A verifier', reviewCount],
+                ['Non lies', withoutLinkCount],
+                ['Refs marge', marginCatalog.length],
+              ].map(([label, value]) => (
+                <div key={String(label)} className="rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2 shadow-sm">
+                  <p className="text-[9px] font-black uppercase tracking-[0.12em] text-[#A85F2A]">{label}</p>
+                  <p className="mt-1 text-sm font-black text-[#2F1D14]">{value}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-[#B8793F]/65 bg-[#FFF7EA]/10 px-3 py-2 text-[12px] font-semibold text-[#FFE1B8]">
               <span>{marginFileName ? `Fichier marge : ${marginFileName}` : 'Aucun fichier marge chargé'}</span>
               {selectedMonthKey ? (
                 <span className={frozenMonths[selectedMonthKey] ? 'text-[#2F6F42]' : 'text-[#8B5E3C]'}>
@@ -1421,24 +1443,24 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
               {importMessage ? <span className="text-[#9A4F33]">• {importMessage}</span> : null}
             </div>
 
-            <div className="mt-4 flex flex-wrap items-end gap-3">
+            <div className="mt-3 flex flex-wrap items-end gap-3 rounded-2xl border border-[#B8793F]/65 bg-[#FFF7EA]/10 p-2">
               <label className="min-w-[280px] flex-1">
-                <span className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.08em] text-[#8A604B]">Recherche produit</span>
+                <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.10em] text-[#F7C05B]">Recherche produit</span>
                 <input
                   type="text"
                   value={productSearch}
                   onChange={(e) => setProductSearch(e.target.value)}
                   placeholder="Rechercher un produit marge..."
-                  className="w-full rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#4F2E22] outline-none transition focus:border-[#B55A3C] focus:ring-2 focus:ring-[#E8B59E]"
+                  className="w-full rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 text-[13px] font-semibold text-[#2F1D14] outline-none transition focus:border-[#D8A640] focus:ring-2 focus:ring-[#E8B59E]"
                 />
               </label>
 
               <label className="min-w-[180px]">
-                <span className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.08em] text-[#8A604B]">Famille</span>
+                <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.10em] text-[#F7C05B]">Famille</span>
                 <select
                   value={familyFilter}
                   onChange={(e) => setFamilyFilter(e.target.value)}
-                  className="w-full rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#4F2E22] outline-none transition focus:border-[#B55A3C] focus:ring-2 focus:ring-[#E8B59E]"
+                  className="w-full rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 text-[13px] font-semibold text-[#2F1D14] outline-none transition focus:border-[#D8A640] focus:ring-2 focus:ring-[#E8B59E]"
                 >
                   <option value="all">Toutes</option>
                   <option value="__none__">Sans famille</option>
@@ -1449,11 +1471,11 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
               </label>
 
               <label className="min-w-[180px]">
-                <span className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.08em] text-[#8A604B]">État</span>
+                <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.10em] text-[#F7C05B]">Etat</span>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as 'all' | RowStatus)}
-                  className="w-full rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#4F2E22] outline-none transition focus:border-[#B55A3C] focus:ring-2 focus:ring-[#E8B59E]"
+                  className="w-full rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 text-[13px] font-semibold text-[#2F1D14] outline-none transition focus:border-[#D8A640] focus:ring-2 focus:ring-[#E8B59E]"
                 >
                   <option value="all">Tous</option>
                   <option value="ok">OK</option>
@@ -1462,14 +1484,14 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 </select>
               </label>
 
-              <div className="pb-1 text-[12px] font-semibold text-[#7A5240]">
+              <div className="pb-1 text-[12px] font-semibold text-[#FFE1B8]">
                 {filteredRows.length} ligne{filteredRows.length > 1 ? 's' : ''} affichée{filteredRows.length > 1 ? 's' : ''}
                 {visibleSelectedCount > 0 ? ` • ${visibleSelectedCount} sélectionnée${visibleSelectedCount > 1 ? 's' : ''}` : ''}
               </div>
             </div>
           </div>
 
-          <div ref={tableScrollRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#F7F0E7]">
+          <div ref={tableScrollRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#FFF8EF]">
             <table className="w-full min-w-[1660px] table-fixed border-separate border-spacing-0">
               <colgroup>
                 <col className="w-[4%]" />
@@ -1485,7 +1507,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 <col className="w-[4%]" />
               </colgroup>
               <thead className="sticky top-0 z-10">
-                <tr className="bg-[#EADACA] text-[#71402D]">
+                <tr className="bg-[#F2DDC0] text-[#71402D]">
                   <th className="border-b border-[#DCC2AB] px-2 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">
                     <input
                       type="checkbox"
@@ -1553,7 +1575,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                               value={row.label}
                               onChange={(e) => updateRow(row.id, { label: e.target.value })}
                               placeholder="Ex. Steak au poivre"
-                              className="w-full rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#4F2E22] outline-none transition focus:border-[#B55A3C] focus:ring-2 focus:ring-[#E8B59E]"
+                              className="w-full rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 text-[13px] font-semibold text-[#2F1D14] outline-none transition focus:border-[#D8A640] focus:ring-2 focus:ring-[#E8B59E]"
                             />
                             {row.matchedMarginLabel ? (
                               <div className="rounded-[12px] border border-[#D7BEA9] bg-[#FAF1E7] px-2.5 py-2 text-[11px] font-semibold text-[#7A5240]">
@@ -1570,7 +1592,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                             value={row.family}
                             onChange={(e) => updateRow(row.id, { family: e.target.value })}
                             placeholder="Ex. Dessert"
-                            className="w-full rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#4F2E22] outline-none transition focus:border-[#B55A3C] focus:ring-2 focus:ring-[#E8B59E]"
+                            className="w-full rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 text-[13px] font-semibold text-[#2F1D14] outline-none transition focus:border-[#D8A640] focus:ring-2 focus:ring-[#E8B59E]"
                           />
                         </td>
 
@@ -1688,7 +1710,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                             value={row.costHt ?? ''}
                             onChange={(e) => updateRow(row.id, { costHt: e.target.value })}
                             placeholder="0,00"
-                            className="w-full rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#4F2E22] outline-none transition focus:border-[#B55A3C] focus:ring-2 focus:ring-[#E8B59E]"
+                            className="w-full rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 text-[13px] font-semibold text-[#2F1D14] outline-none transition focus:border-[#D8A640] focus:ring-2 focus:ring-[#E8B59E]"
                           />
                         </td>
 
@@ -1698,7 +1720,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                             value={row.sellPriceHt ?? ''}
                             onChange={(e) => updateRow(row.id, { sellPriceHt: e.target.value })}
                             placeholder="0,00"
-                            className="w-full rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#4F2E22] outline-none transition focus:border-[#B55A3C] focus:ring-2 focus:ring-[#E8B59E]"
+                            className="w-full rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 text-[13px] font-semibold text-[#2F1D14] outline-none transition focus:border-[#D8A640] focus:ring-2 focus:ring-[#E8B59E]"
                           />
                         </td>
 
@@ -1708,7 +1730,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                             value={row.marginEuro ?? ''}
                             onChange={(e) => updateRow(row.id, { marginEuro: e.target.value })}
                             placeholder="0,00"
-                            className="w-full rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#4F2E22] outline-none transition focus:border-[#B55A3C] focus:ring-2 focus:ring-[#E8B59E]"
+                            className="w-full rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 text-[13px] font-semibold text-[#2F1D14] outline-none transition focus:border-[#D8A640] focus:ring-2 focus:ring-[#E8B59E]"
                           />
                         </td>
 
@@ -1718,7 +1740,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                             value={row.marginPercent ?? ''}
                             onChange={(e) => updateRow(row.id, { marginPercent: e.target.value })}
                             placeholder="0,0"
-                            className="w-full rounded-[14px] border border-[#D7BEA9] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#4F2E22] outline-none transition focus:border-[#B55A3C] focus:ring-2 focus:ring-[#E8B59E]"
+                            className="w-full rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 text-[13px] font-semibold text-[#2F1D14] outline-none transition focus:border-[#D8A640] focus:ring-2 focus:ring-[#E8B59E]"
                           />
                         </td>
 
@@ -1744,7 +1766,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
 
         </section>
 
-        <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-30 px-4 pb-3 xl:left-[19rem] xl:px-5">
+        <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-30 px-4 pb-3 xl:px-5">
           <div className="pointer-events-auto rounded-[16px] border border-[#D8BEA8] bg-[#FFF8F1]/95 shadow-[0_-8px_24px_rgba(104,63,39,0.12)] backdrop-blur">
             <div
               ref={bottomScrollRef}
@@ -1755,8 +1777,12 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
           </div>
         </div>
       </main>
+      </div>
     </div>
   );
 };
 
 export default TakeRatePage;
+
+
+
