@@ -242,17 +242,43 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
     setPrepItems((prev) => prev.map((item) => item.id === id ? ({ ...item, ...patch } as PrepItem) : item));
   }, [setPrepItems]);
 
+  const buildFrozenRatioHistory = React.useCallback((item: PrepItem, nextSearchName: string) => {
+    const mappingNames = parseMappingNames(nextSearchName);
+    const nextHistory = { ...item.ratioHistory };
+
+    MONTHS_ORDER.forEach((month) => {
+      if (!prepValidatedMonths[month]) return;
+
+      const importedValues = buildImportedValueLookup(prepImportsByMonth[month], ['Nombre']);
+      const importedTotal = mappingNames.reduce((sum, mappingName) => (
+        sum + Number(importedValues.get(normalizeMappingName(mappingName)) || 0)
+      ), 0);
+      const monthCovers = Number(covers[month] || 0);
+      nextHistory[month] = monthCovers > 0 ? importedTotal / monthCovers : 0;
+    });
+
+    return nextHistory;
+  }, [covers, prepImportsByMonth, prepValidatedMonths]);
+
   const addMappingNames = React.useCallback((item: PrepItem, names: string[]) => {
     if (names.length === 0) return;
     const current = parseMappingNames(item.searchName);
-    updateItem(item.id, { searchName: joinMappingNames([...current, ...names]) });
-  }, [updateItem]);
+    const nextSearchName = joinMappingNames([...current, ...names]);
+    updateItem(item.id, {
+      searchName: nextSearchName,
+      ratioHistory: buildFrozenRatioHistory(item, nextSearchName),
+    });
+  }, [buildFrozenRatioHistory, updateItem]);
 
   const removeMappingName = React.useCallback((item: PrepItem, name: string) => {
     const normalizedToRemove = normalizeMappingName(name);
     const current = parseMappingNames(item.searchName);
-    updateItem(item.id, { searchName: joinMappingNames(current.filter((value) => normalizeMappingName(value) !== normalizedToRemove)) });
-  }, [updateItem]);
+    const nextSearchName = joinMappingNames(current.filter((value) => normalizeMappingName(value) !== normalizedToRemove));
+    updateItem(item.id, {
+      searchName: nextSearchName,
+      ratioHistory: buildFrozenRatioHistory(item, nextSearchName),
+    });
+  }, [buildFrozenRatioHistory, updateItem]);
 
   const toggleSelected = (id: string) => {
     setSelectedIds((prev) => {
@@ -485,6 +511,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                   {virtualRange.visibleRows.map(({ item, idx, avgRatio, currentMappings, selectedOnRow, unitType, baseUnitType, monthStats }) => {
                           const isSelectedPopoverOpen = activePopover?.id === item.id && activePopover.mode === 'selected';
                           const isPickerPopoverOpen = activePopover?.id === item.id && activePopover.mode === 'picker';
+                          const hasOpenPopover = isSelectedPopoverOpen || isPickerPopoverOpen;
                           const rowOrphanNames = isPickerPopoverOpen
                             ? sortedAvailableImportNames.filter((name) => !selectedOnRow.has(normalizeMappingName(name)))
                             : [];
@@ -493,8 +520,8 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                           return (
                             <article
                               key={item.id}
-                              style={{ contentVisibility: 'auto', containIntrinsicSize: '112px' }}
-                              className={`rounded-[18px] border bg-white px-3 py-3 transition ${selectedIds.has(item.id) ? 'border-[#B45439] shadow-[0_8px_20px_rgba(180,84,57,0.12)]' : 'border-[#E0CCBA]'}`}
+                              style={hasOpenPopover ? undefined : { contentVisibility: 'auto', containIntrinsicSize: '112px' }}
+                              className={`relative rounded-[18px] border bg-white px-3 py-3 transition ${hasOpenPopover ? 'z-[80]' : 'z-0'} ${selectedIds.has(item.id) ? 'border-[#B45439] shadow-[0_8px_20px_rgba(180,84,57,0.12)]' : 'border-[#E0CCBA]'}`}
                             >
                               <div className="grid min-w-0 items-end gap-2 xl:grid-cols-[28px_minmax(160px,1.35fr)_minmax(120px,0.95fr)_78px_minmax(120px,0.95fr)_76px_76px_minmax(210px,1.35fr)_82px_70px]">
                                 <label className="flex h-11 items-center justify-center">

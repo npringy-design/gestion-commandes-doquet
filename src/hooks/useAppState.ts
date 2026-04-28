@@ -94,7 +94,7 @@ export const useAppState = () => {
     useState<Record<string, OrderState>>(() => loadState('orderStates', {}));
 
   const [detailedInventory, setDetailedInventory] =
-    useState<Record<string, string>>(() => loadState('inventory', {}));
+    useState<Record<string, string>>({});
 
   const [salesHtByMonth, setSalesHtByMonth] =
     useState<Record<string, number>>(() => loadState('salesHtByMonth', INITIAL_COVERS));
@@ -153,7 +153,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     useState<PrepItem[]>(() => loadState('prepItems', [] as PrepItem[]));
 
   const [prepImportsByMonth, setPrepImportsByMonth] =
-    useState<PrepImportsByMonth>(() => loadState('prepImportsByMonth', {}));
+    useState<PrepImportsByMonth>({});
 
   const [prepBatches, setPrepBatches] =
     useState<PrepBatch[]>(() => loadState('prepBatches', [] as PrepBatch[]));

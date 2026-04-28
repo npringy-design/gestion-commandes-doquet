@@ -29,6 +29,7 @@ import {
   mergeAndNormalizeProducts,
   mergeSupplierConfigsWithDefaults,
   nowIso,
+  removeState,
   saveState,
 } from './appStateHelpers';
 
@@ -93,6 +94,11 @@ const REALTIME_KEYS = new Set<string>([
   'products',
   'deliveryDateBySupplier',
   'nextDeliveryDateBySupplier',
+]);
+
+const CLOUD_ONLY_KEYS = new Set<string>([
+  'inventory',
+  'prepImportsByMonth',
 ]);
 
 const SAVE_DEBOUNCE_MS_BY_KEY: Record<string, number> = {
@@ -192,6 +198,11 @@ export const useCloudSync = ({
   const lastCloudUpdatedAtByKey = useRef<Record<string, string>>({});
   const localTsByKey = useRef<Record<string, string>>({});
   const lastPersistedSignatureByKey = useRef<Record<string, string>>({});
+  const initialCloudLoadSucceededRef = useRef(false);
+
+  useEffect(() => {
+    CLOUD_ONLY_KEYS.forEach(removeState);
+  }, []);
 
   // File d'attente des updates Realtime reçues pendant une saisie active
   const pendingRealtimeRef = useRef<Map<string, { ts: string; value: unknown }>>(new Map());
@@ -318,6 +329,7 @@ export const useCloudSync = ({
       try {
         const cloud = await loadAllFromSupabase();
         if (cancelled) return;
+        initialCloudLoadSucceededRef.current = cloud !== null;
 
         if (cloud && cloud.length > 0) {
           isHydratingFromCloud.current = true;
@@ -404,10 +416,13 @@ export const useCloudSync = ({
   const persistEverywhere = useCallback((key: string, value: unknown, debounceMs?: number) => {
     const signature = stableStringify(value);
     if (lastPersistedSignatureByKey.current[key] === signature) return;
+    if (CLOUD_ONLY_KEYS.has(key) && !initialCloudLoadSucceededRef.current && signature === '{}') return;
 
-    saveState(key, value, onSaveError);
+    if (!CLOUD_ONLY_KEYS.has(key)) {
+      saveState(key, value, onSaveError);
+    }
     lastPersistedSignatureByKey.current[key] = signature;
-
+  
     if (isHydratingFromCloud.current || !supabaseLoaded || !isSupabaseConfigured()) return;
 
     const ts = nowIso();

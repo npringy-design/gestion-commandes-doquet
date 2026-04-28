@@ -41,6 +41,14 @@ export const saveState = (key: string, value: unknown, onError?: (msg: string) =
   }
 };
 
+export const removeState = (key: string): void => {
+  try {
+    localStorage.removeItem(`${STORAGE_PREFIX}${key}`);
+  } catch {
+    // Ignore local cleanup failures.
+  }
+};
+
 export const DEFAULT_PRODUCTS: ProductWithHistory[] = [
   ...DOQUET_PRODUCTS,
   ...VINS_PRODUCTS,
