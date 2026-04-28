@@ -20,6 +20,7 @@ const STORAGE_KEYS = [
 ];
 const TAKE_RATE_DRAFTS_CLOUD_KEY = 'takeRateMonthDrafts';
 const TAKE_RATE_FROZEN_CLOUD_KEY = 'takeRateFrozenMonths';
+const TAKE_RATE_BASE_ROWS_CLOUD_KEY = 'takeRateBaseRows';
 const TAKE_RATE_MONTH_DRAFTS_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_month_drafts_v1`;
 const TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_frozen_months_v1`;
 
@@ -188,6 +189,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
   const [familyFilter, setFamilyFilter] = useState('all');
   const [sortBy, setSortBy] = useState<SortKey>('takeRate');
   const [expertMode, setExpertMode] = useState(false);
+  const [baseRows, setBaseRows] = useState<TakeRateMappingRow[]>([]);
   const [monthDrafts, setMonthDrafts] = useState<Record<string, TakeRateMonthSnapshot>>({});
   const [frozenMonths, setFrozenMonths] = useState<Record<string, TakeRateMonthSnapshot>>({});
 
@@ -212,6 +214,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
         const rawFrozen = localStorage.getItem(TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY);
         let nextDrafts = rawDrafts ? JSON.parse(rawDrafts) : {};
         let nextFrozen = rawFrozen ? JSON.parse(rawFrozen) : {};
+        let nextBaseRows = loadLegacyRows();
 
         if (isSupabaseConfigured()) {
           const cloud = await loadAllFromSupabase();
@@ -219,11 +222,13 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
             cloud.forEach((entry: any) => {
               if (entry?.key === TAKE_RATE_DRAFTS_CLOUD_KEY && entry.value && typeof entry.value === 'object') nextDrafts = entry.value;
               if (entry?.key === TAKE_RATE_FROZEN_CLOUD_KEY && entry.value && typeof entry.value === 'object') nextFrozen = entry.value;
+              if (entry?.key === TAKE_RATE_BASE_ROWS_CLOUD_KEY && Array.isArray(entry.value)) nextBaseRows = entry.value;
             });
           }
         }
 
         if (cancelled) return;
+        setBaseRows(nextBaseRows.map(normalizeResultRow));
         setMonthDrafts(nextDrafts && typeof nextDrafts === 'object' ? nextDrafts : {});
         setFrozenMonths(nextFrozen && typeof nextFrozen === 'object' ? nextFrozen : {});
       } catch (_error) {
@@ -256,6 +261,11 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
       return;
     }
 
+    if (baseRows.length > 0) {
+      setRows(baseRows.map(normalizeResultRow));
+      return;
+    }
+
     try {
       for (const key of STORAGE_KEYS) {
         const raw = localStorage.getItem(key);
@@ -270,7 +280,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
     } catch (_error) {
       setRows([]);
     }
-  }, [frozenMonths, monthDrafts, selectedMonth]);
+  }, [baseRows, frozenMonths, monthDrafts, selectedMonth]);
 
   const monthSalesMap = useMemo(
     () => {

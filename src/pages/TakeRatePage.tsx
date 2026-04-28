@@ -51,6 +51,9 @@ const LEGACY_ROWS_STORAGE_KEYS = [
 ];
 const MARGIN_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_margin_catalog_v1`;
 const MARGIN_FILE_NAME_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_margin_file_name_v1`;
+const TAKE_RATE_BASE_ROWS_CLOUD_KEY = 'takeRateBaseRows';
+const TAKE_RATE_MARGIN_CATALOG_CLOUD_KEY = 'takeRateMarginCatalog';
+const TAKE_RATE_MARGIN_FILE_NAME_CLOUD_KEY = 'takeRateMarginFileName';
 const TAKE_RATE_DRAFTS_CLOUD_KEY = 'takeRateMonthDrafts';
 const TAKE_RATE_FROZEN_CLOUD_KEY = 'takeRateFrozenMonths';
 const TAKE_RATE_MONTH_DRAFTS_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_month_drafts_v1`;
@@ -236,6 +239,37 @@ const normalizeRow = (row: any): TakeRateMappingRow => ({
   matchedMarginLabel: String(row.matchedMarginLabel ?? ''),
   matchedMarginSheet: String(row.matchedMarginSheet ?? ''),
 });
+
+const readStoredRows = () => {
+  try {
+    const storageKeys = [ROWS_STORAGE_KEY, ...LEGACY_ROWS_STORAGE_KEYS];
+    for (const key of storageKeys) {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map(normalizeRow);
+    }
+  } catch (_error) {}
+  return [];
+};
+
+const readStoredMarginCatalog = () => {
+  try {
+    const raw = localStorage.getItem(MARGIN_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_error) {
+    return [];
+  }
+};
+
+const readStoredMarginFileName = () => {
+  try {
+    return localStorage.getItem(MARGIN_FILE_NAME_STORAGE_KEY) ?? '';
+  } catch (_error) {
+    return '';
+  }
+};
 
 const inferFamilyFromSheet = (sheet: string) => {
   const normalized = normalize(sheet);
@@ -793,19 +827,20 @@ const statusMeta: Record<RowStatus, { label: string; pill: string; rowRing: stri
     rowRing: 'shadow-[inset_4px_0_0_#D79A1E]',
   },
   unlinked: {
-    label: 'Non lié',
-    pill: 'border-[#E5B4A8] bg-[#FCEEE8] text-[#B44E2E]',
-    rowRing: 'shadow-[inset_4px_0_0_#C55D3D]',
+    label: 'À lier',
+    pill: 'border-[#E5C27A] bg-[#FFF6DE] text-[#9A6A13]',
+    rowRing: 'shadow-[inset_4px_0_0_#D79A1E]',
   },
 };
 
 const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth }) => {
-  const [rows, setRows] = useState<TakeRateMappingRow[]>([]);
+  const [baseRows, setBaseRows] = useState<TakeRateMappingRow[]>(readStoredRows);
+  const [rows, setRows] = useState<TakeRateMappingRow[]>(readStoredRows);
   const [searchByRow, setSearchByRow] = useState<Record<string, string>>({});
   const [openSearchRow, setOpenSearchRow] = useState<string | null>(null);
   const [openLinkedRow, setOpenLinkedRow] = useState<string | null>(null);
-  const [marginCatalog, setMarginCatalog] = useState<MarginCatalogItem[]>([]);
-  const [marginFileName, setMarginFileName] = useState('');
+  const [marginCatalog, setMarginCatalog] = useState<MarginCatalogItem[]>(readStoredMarginCatalog);
+  const [marginFileName, setMarginFileName] = useState(readStoredMarginFileName);
   const [importMessage, setImportMessage] = useState('');
   const [isImportingMargin, setIsImportingMargin] = useState(false);
   const [familyFilter, setFamilyFilter] = useState('all');
@@ -821,6 +856,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const [didHydrateTakeRateCloud, setDidHydrateTakeRateCloud] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const skipNextMonthPersistRef = useRef(false);
+  const baseRowsRef = useRef<TakeRateMappingRow[]>(readStoredRows());
   const monthDraftsRef = useRef<Record<string, TakeRateMonthSnapshot>>({});
   const frozenMonthsRef = useRef<Record<string, TakeRateMonthSnapshot>>({});
   const cloudTsRef = useRef<Record<string, string>>({});
@@ -844,12 +880,49 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     );
   };
 
+  const persistBaseRows = (value: TakeRateMappingRow[]) => {
+    const serializedRows = JSON.stringify(value);
+    localStorage.setItem(ROWS_STORAGE_KEY, serializedRows);
+    LEGACY_ROWS_STORAGE_KEYS.forEach((key) => localStorage.setItem(key, serializedRows));
+    baseRowsRef.current = value;
+
+    if (!isSupabaseConfigured()) return;
+    const ts = new Date().toISOString();
+    saveToSupabaseDebounced(
+      TAKE_RATE_BASE_ROWS_CLOUD_KEY,
+      value,
+      ts,
+      (key) => cloudTsRef.current[key],
+      (confirmedKey, confirmedTs) => {
+        cloudTsRef.current[confirmedKey] = confirmedTs;
+      },
+      2500,
+    );
+  };
+
+  const persistMarginBase = (catalog: MarginCatalogItem[], fileName: string) => {
+    localStorage.setItem(MARGIN_STORAGE_KEY, JSON.stringify(catalog));
+    localStorage.setItem(MARGIN_FILE_NAME_STORAGE_KEY, fileName);
+
+    if (!isSupabaseConfigured()) return;
+    const ts = new Date().toISOString();
+    saveToSupabaseDebounced(TAKE_RATE_MARGIN_CATALOG_CLOUD_KEY, catalog, ts, (key) => cloudTsRef.current[key], (confirmedKey, confirmedTs) => {
+      cloudTsRef.current[confirmedKey] = confirmedTs;
+    }, 2500);
+    saveToSupabaseDebounced(TAKE_RATE_MARGIN_FILE_NAME_CLOUD_KEY, fileName, ts, (key) => cloudTsRef.current[key], (confirmedKey, confirmedTs) => {
+      cloudTsRef.current[confirmedKey] = confirmedTs;
+    }, 2500);
+  };
+
   useEffect(() => {
     let cancelled = false;
 
     const run = async () => {
       let localDrafts: Record<string, TakeRateMonthSnapshot> = {};
       let localFrozen: Record<string, TakeRateMonthSnapshot> = {};
+      let localBaseRows = readStoredRows();
+      let localMarginCatalog = readStoredMarginCatalog();
+      let localMarginFileName = readStoredMarginFileName();
 
       try {
         const rawDrafts = localStorage.getItem(TAKE_RATE_MONTH_DRAFTS_STORAGE_KEY);
@@ -867,6 +940,9 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
 
       let nextDrafts = localDrafts;
       let nextFrozen = localFrozen;
+      let nextBaseRows = localBaseRows;
+      let nextMarginCatalog = localMarginCatalog;
+      let nextMarginFileName = localMarginFileName;
 
       if (isSupabaseConfigured()) {
         try {
@@ -881,6 +957,18 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 nextFrozen = row.value as Record<string, TakeRateMonthSnapshot>;
                 cloudTsRef.current[TAKE_RATE_FROZEN_CLOUD_KEY] = row.updated_at;
               }
+              if (row?.key === TAKE_RATE_BASE_ROWS_CLOUD_KEY && Array.isArray(row.value)) {
+                nextBaseRows = row.value.map(normalizeRow);
+                cloudTsRef.current[TAKE_RATE_BASE_ROWS_CLOUD_KEY] = row.updated_at;
+              }
+              if (row?.key === TAKE_RATE_MARGIN_CATALOG_CLOUD_KEY && Array.isArray(row.value)) {
+                nextMarginCatalog = row.value as MarginCatalogItem[];
+                cloudTsRef.current[TAKE_RATE_MARGIN_CATALOG_CLOUD_KEY] = row.updated_at;
+              }
+              if (row?.key === TAKE_RATE_MARGIN_FILE_NAME_CLOUD_KEY && typeof row.value === 'string') {
+                nextMarginFileName = row.value;
+                cloudTsRef.current[TAKE_RATE_MARGIN_FILE_NAME_CLOUD_KEY] = row.updated_at;
+              }
             });
           }
         } catch (error) {
@@ -892,10 +980,17 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
 
       monthDraftsRef.current = nextDrafts;
       frozenMonthsRef.current = nextFrozen;
+      baseRowsRef.current = nextBaseRows;
+      setBaseRows(nextBaseRows);
       setMonthDrafts(nextDrafts);
       setFrozenMonths(nextFrozen);
+      setMarginCatalog(nextMarginCatalog);
+      setMarginFileName(nextMarginFileName);
       localStorage.setItem(TAKE_RATE_MONTH_DRAFTS_STORAGE_KEY, JSON.stringify(nextDrafts));
       localStorage.setItem(TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY, JSON.stringify(nextFrozen));
+      localStorage.setItem(ROWS_STORAGE_KEY, JSON.stringify(nextBaseRows));
+      localStorage.setItem(MARGIN_STORAGE_KEY, JSON.stringify(nextMarginCatalog));
+      localStorage.setItem(MARGIN_FILE_NAME_STORAGE_KEY, nextMarginFileName);
 
       setDidHydrateRows(true);
       setDidHydrateMargin(true);
@@ -908,6 +1003,10 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    baseRowsRef.current = baseRows;
+  }, [baseRows]);
 
   useEffect(() => {
     monthDraftsRef.current = monthDrafts;
@@ -945,9 +1044,8 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       setMarginFileName(snapshot.marginFileName ?? '');
       setImportMessage(frozenMonthsRef.current[selectedMonthKey] ? 'Mois figé chargé.' : '');
     } else {
-      setRows([]);
-      setMarginCatalog([]);
-      setMarginFileName('');
+      const monthImports = Array.from(new Set(extractImportLabels(prepImportsByMonth[selectedMonthKey] ?? '')));
+      setRows(autoLinkImportsToRows(baseRowsRef.current, monthImports));
       setImportMessage('');
     }
 
@@ -957,7 +1055,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     setPendingImportsByRow({});
     setSelectedRowIds([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
-  }, [selectedMonthKey, didHydrateTakeRateCloud]);
+  }, [selectedMonthKey, didHydrateTakeRateCloud, prepImportsByMonth]);
 
   useEffect(() => {
     if (!didHydrateTakeRateCloud || !selectedMonthKey) return;
@@ -966,12 +1064,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       skipNextMonthPersistRef.current = false;
       return;
     }
-
-    const serializedRows = JSON.stringify(rows);
-    localStorage.setItem(ROWS_STORAGE_KEY, serializedRows);
-    LEGACY_ROWS_STORAGE_KEYS.forEach((key) => localStorage.setItem(key, serializedRows));
-    localStorage.setItem(MARGIN_STORAGE_KEY, JSON.stringify(marginCatalog));
-    localStorage.setItem(MARGIN_FILE_NAME_STORAGE_KEY, marginFileName);
 
     if (frozenMonthsRef.current[selectedMonthKey]) return;
 
@@ -1042,7 +1134,15 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     });
   }, [rows]);
 
-  const addRow = () => setRows((prev) => [...prev, createEmptyRow()]);
+  const addRow = () => {
+    const row = createEmptyRow();
+    setBaseRows((prev) => {
+      const next = [...prev, row];
+      persistBaseRows(next);
+      return next;
+    });
+    setRows((prev) => [...prev, row]);
+  };
 
   const toggleRowSelection = (rowId: string) => {
     setSelectedRowIds((prev) => (prev.includes(rowId) ? prev.filter((id) => id !== rowId) : [...prev, rowId]));
@@ -1066,6 +1166,11 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     const selectedSet = new Set<string>(selectedRowIds);
 
     setRows((prev) => prev.filter((row) => !selectedSet.has(row.id)));
+    setBaseRows((prev) => {
+      const next = prev.filter((row) => !selectedSet.has(row.id));
+      persistBaseRows(next);
+      return next;
+    });
     setSelectedRowIds([]);
     setSearchByRow((prev) => {
       const next = { ...prev };
@@ -1129,10 +1234,27 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
         return next;
       })
     );
+    setBaseRows((prev) => {
+      const nextRows = prev.map((row) => {
+        if (row.id !== rowId) return row;
+        const next = normalizeRow({ ...row, ...patch });
+        if ('costHt' in patch || 'sellPriceHt' in patch || 'marginPercent' in patch || 'marginEuro' in patch) {
+          next.marginSource = 'manual';
+        }
+        return next;
+      });
+      persistBaseRows(nextRows);
+      return nextRows;
+    });
   };
 
   const removeRow = (rowId: string) => {
     setRows((prev) => prev.filter((row) => row.id !== rowId));
+    setBaseRows((prev) => {
+      const next = prev.filter((row) => row.id !== rowId);
+      persistBaseRows(next);
+      return next;
+    });
     setSearchByRow((prev) => {
       const next = { ...prev };
       delete next[rowId];
@@ -1247,8 +1369,8 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   };
 
   const handleDeleteMarginImport = () => {
-    if (!selectedMonthKey) return;
-
+    setBaseRows([]);
+    baseRowsRef.current = [];
     setRows([]);
     setMarginCatalog([]);
     setMarginFileName('');
@@ -1258,25 +1380,18 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     setPendingImportsByRow({});
     setSelectedRowIds([]);
 
-    setMonthDrafts((prev) => {
-      const next = { ...prev };
-      delete next[selectedMonthKey];
-      monthDraftsRef.current = next;
-      persistTakeRateCollection(TAKE_RATE_DRAFTS_CLOUD_KEY, TAKE_RATE_MONTH_DRAFTS_STORAGE_KEY, next);
-      return next;
-    });
-
-    setFrozenMonths((prev) => {
-      const next = { ...prev };
-      delete next[selectedMonthKey];
-      frozenMonthsRef.current = next;
-      persistTakeRateCollection(TAKE_RATE_FROZEN_CLOUD_KEY, TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY, next);
-      return next;
-    });
+    setMonthDrafts({});
+    setFrozenMonths({});
+    monthDraftsRef.current = {};
+    frozenMonthsRef.current = {};
+    persistTakeRateCollection(TAKE_RATE_DRAFTS_CLOUD_KEY, TAKE_RATE_MONTH_DRAFTS_STORAGE_KEY, {});
+    persistTakeRateCollection(TAKE_RATE_FROZEN_CLOUD_KEY, TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY, {});
+    persistBaseRows([]);
+    persistMarginBase([], '');
 
     localStorage.removeItem(MARGIN_STORAGE_KEY);
     localStorage.removeItem(MARGIN_FILE_NAME_STORAGE_KEY);
-    setImportMessage('Import marge supprimé pour ce mois.');
+    setImportMessage('Base marge supprimée.');
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -1289,19 +1404,19 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
 
     try {
       const catalog = await buildMarginCatalogFromWorkbook(file);
+      const generatedBase = generateRowsFromMarginCatalog(catalog, []).map((row) => ({ ...row, linkedImports: [] }));
+      const linked = autoLinkImportsToRows(generatedBase, availableImports);
+      const autoLinks = linked.reduce((sum, row) => sum + row.linkedImports.length, 0);
+      const sectionCount = new Set(catalog.map((item) => item.section.trim()).filter(Boolean)).size;
+
+      setBaseRows(generatedBase);
+      baseRowsRef.current = generatedBase;
       setMarginCatalog(catalog);
       setMarginFileName(file.name);
-      localStorage.setItem(MARGIN_STORAGE_KEY, JSON.stringify(catalog));
-      localStorage.setItem(MARGIN_FILE_NAME_STORAGE_KEY, file.name);
-
-      setRows((prev) => {
-        const generated = generateRowsFromMarginCatalog(catalog, prev);
-        const linked = autoLinkImportsToRows(generated, availableImports);
-        const autoLinks = linked.reduce((sum, row) => sum + row.linkedImports.length, 0);
-        const sectionCount = new Set(catalog.map((item) => item.section.trim()).filter(Boolean)).size;
-        setImportMessage(`${catalog.length} produits marge générés • ${sectionCount} sections détectées • ${autoLinks} liens import détectés.`);
-        return linked;
-      });
+      setRows(linked);
+      persistBaseRows(generatedBase);
+      persistMarginBase(catalog, file.name);
+      setImportMessage(`${catalog.length} produits marge générés • ${sectionCount} sections détectées • ${autoLinks} liens import détectés.`);
     } catch (_error) {
       setImportMessage('Import marge impossible. Vérifie le fichier ou la librairie xlsx.');
     } finally {
