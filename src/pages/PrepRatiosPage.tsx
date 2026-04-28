@@ -308,24 +308,6 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                     <div className="text-xs font-black">Supprimer</div>
                   </button>
                 </div>
-                <div className="grid grid-cols-4 gap-2 xl:w-[360px]">
-                  <div className="rounded-xl border border-white/15 bg-white/10 px-2.5 py-1.5">
-                    <div className="text-sm font-black leading-none text-white">{pageStats.visibleItems}</div>
-                    <div className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] text-[#FFE1B8]">Lignes</div>
-                  </div>
-                  <div className="rounded-xl border border-white/15 bg-white/10 px-2.5 py-1.5">
-                    <div className="text-sm font-black leading-none text-white">{pageStats.importLines}</div>
-                    <div className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] text-[#FFE1B8]">Imports</div>
-                  </div>
-                  <div className="rounded-xl border border-white/15 bg-white/10 px-2.5 py-1.5">
-                    <div className="text-sm font-black leading-none text-white">{pageStats.lockedMonths}/12</div>
-                    <div className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] text-[#FFE1B8]">Figes</div>
-                  </div>
-                  <div className="rounded-xl border border-white/15 bg-white/10 px-2.5 py-1.5">
-                    <div className="text-sm font-black leading-none text-white">{selectedVisibleCount}</div>
-                    <div className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] text-[#FFE1B8]">Sel.</div>
-                  </div>
-                </div>
               </div>
 
               <div className="mt-3 flex flex-col gap-2 xl:flex-row xl:items-center">
@@ -334,7 +316,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Rechercher une production, une base ou un import..."
-                  className="min-h-[42px] flex-1 rounded-2xl border border-white/20 bg-white/95 px-4 py-2 text-sm font-bold text-slate-800 outline-none"
+                  className="min-h-[42px] w-full rounded-2xl border border-white/20 bg-white/95 px-4 py-2 text-sm font-bold text-slate-800 outline-none xl:w-[520px] xl:flex-none"
                 />
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -465,7 +447,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                                     </label>
                                   </div>
 
-                                  <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_110px_90px]">
+                                  <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_90px]">
                                     <label className="min-w-0">
                                       <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Base</span>
                                       <input
@@ -476,13 +458,6 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                                         onKeyDown={onEnterBlur}
                                         className="h-11 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 text-sm font-bold outline-none"
                                       />
-                                    </label>
-                                    <label>
-                                      <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Unite base</span>
-                                      <select value={baseUnitType} disabled={!canEdit} onChange={(e) => updateItem(item.id, { baseUnitType: e.target.value as UnitType })} className="h-11 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 font-bold outline-none">
-                                        <option value="kg">Kg</option>
-                                        <option value="piece">Piece</option>
-                                      </select>
                                     </label>
                                     <label>
                                       <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Poids g</span>
@@ -499,7 +474,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                                     </label>
                                   </div>
 
-                                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
                                     <label>
                                       <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Poste</span>
                                       <select value={item.category} disabled={!canEdit} onChange={(e) => updateItem(item.id, { category: e.target.value as PrepCategory })} className="h-11 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 font-bold outline-none">
@@ -514,18 +489,6 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                                         defaultValue={item.secondaryDlcHours}
                                         disabled={!canEdit}
                                         onBlur={(e) => updateItem(item.id, { secondaryDlcHours: e.target.value === '' ? '' : Number(e.target.value) || '' })}
-                                        onKeyDown={onEnterBlur}
-                                        className="h-11 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 text-center font-black outline-none"
-                                      />
-                                    </label>
-                                    <label>
-                                      <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Buffer</span>
-                                      <input
-                                        key={`${item.id}-buffer-${item.targetBuffer}`}
-                                        type="number"
-                                        defaultValue={item.targetBuffer === '' ? '' : String(item.targetBuffer)}
-                                        disabled={!canEdit}
-                                        onBlur={(e) => updateItem(item.id, { targetBuffer: e.target.value === '' ? '' : Number(e.target.value) || '' })}
                                         onKeyDown={onEnterBlur}
                                         className="h-11 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 text-center font-black outline-none"
                                       />
@@ -581,18 +544,6 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                                     )}
                                   </div>
 
-                                  <label className="mt-3 block">
-                                    <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Notes</span>
-                                    <input
-                                      key={`${item.id}-notes-${item.notes || ''}`}
-                                      defaultValue={item.notes || ''}
-                                      disabled={!canEdit}
-                                      onBlur={(e) => updateItem(item.id, { notes: e.target.value })}
-                                      onKeyDown={onEnterBlur}
-                                      placeholder="Optionnel"
-                                      className="h-11 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 font-semibold outline-none"
-                                    />
-                                  </label>
                                 </div>
 
                                 <div className="rounded-2xl border border-[#E8D6C6] bg-white p-3">
