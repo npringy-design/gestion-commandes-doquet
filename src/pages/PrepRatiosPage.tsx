@@ -135,14 +135,6 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
     [rows, selectedIds]
   );
 
-  const rowsByCategory = React.useMemo(
-    () => CATEGORY_OPTIONS.map((category) => ({
-      ...category,
-      items: rows.filter((item) => item.category === category.value),
-    })).filter((category) => category.items.length > 0),
-    [rows]
-  );
-
   const updateItem = React.useCallback((id: string, patch: Partial<PrepItemExtended>) => {
     setPrepItems((prev) => prev.map((item) => item.id === id ? ({ ...item, ...patch } as PrepItem) : item));
   }, [setPrepItems]);
@@ -372,23 +364,15 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
             </div>
 
             <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4">
-              {rowsByCategory.length === 0 ? (
+              {rows.length === 0 ? (
                 <div className="flex h-full min-h-[280px] items-center justify-center rounded-[22px] border border-dashed border-[#D7B79B] bg-[#FFF9F1] px-6 text-center">
                   <p className="max-w-xl text-sm font-semibold text-[#8B6650]">
                     Aucune production. Ajoute d&apos;abord tes lignes ici, puis importe tes fichiers production dans Parametres.
                   </p>
                 </div>
               ) : (
-                <div className="flex flex-col gap-4">
-                  {rowsByCategory.map((section) => (
-                    <section key={section.value} className="overflow-hidden rounded-[22px] border border-[#D7B79B] bg-[#FFFDF8] shadow-[0_8px_18px_rgba(145,105,75,0.08)]">
-                      <div className="flex items-center gap-3 border-b border-[#E8D6C6] bg-[#F7EBDD] px-4 py-3">
-                        <h3 className="text-sm font-black uppercase tracking-[0.12em] text-[#5B321E]">{section.label}</h3>
-                        <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black text-[#8A5A2F]">{section.items.length} ligne{section.items.length > 1 ? 's' : ''}</span>
-                      </div>
-
-                      <div className="flex flex-col gap-3 p-3">
-                        {section.items.map((item) => {
+                <div className="flex flex-col gap-3">
+                  {rows.map((item) => {
                           const idx = rows.findIndex((row) => row.id === item.id);
                           const avgRatio = getAverageRatio(item);
                           const currentMappings = parseMappingNames(item.searchName);
@@ -413,7 +397,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
 
                           return (
                             <article key={item.id} className={`rounded-[18px] border bg-white px-3 py-3 transition ${selectedIds.has(item.id) ? 'border-[#B45439] shadow-[0_8px_20px_rgba(180,84,57,0.12)]' : 'border-[#E0CCBA]'}`}>
-                              <div className="grid min-w-0 items-end gap-2 xl:grid-cols-[28px_minmax(160px,1.35fr)_minmax(120px,0.95fr)_78px_minmax(120px,0.95fr)_76px_76px_minmax(210px,1.35fr)_70px]">
+                              <div className="grid min-w-0 items-end gap-2 xl:grid-cols-[28px_minmax(160px,1.35fr)_minmax(120px,0.95fr)_78px_minmax(120px,0.95fr)_76px_76px_minmax(210px,1.35fr)_82px_70px]">
                                 <label className="flex h-11 items-center justify-center">
                                   <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} disabled={!canEdit} className="h-4 w-4 accent-[#A93E2A]" />
                                 </label>
@@ -494,15 +478,6 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                                   <div className="flex h-10 min-w-0 items-center gap-1.5 rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-1.5">
                                     <button
                                       type="button"
-                                      disabled={currentMappings.length === 0}
-                                      onClick={() => setActivePopover(isSelectedPopoverOpen ? null : { id: item.id, mode: 'selected' })}
-                                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#D0B08D] bg-white text-xs font-black text-[#6C3C2B] disabled:cursor-not-allowed disabled:opacity-35"
-                                      title={currentMappings.length > 0 ? 'Voir les produits lies' : 'Aucun produit lie'}
-                                    >
-                                      ?
-                                    </button>
-                                    <button
-                                      type="button"
                                       disabled={!canOpenPicker}
                                       onClick={() => setActivePopover(isPickerPopoverOpen ? null : { id: item.id, mode: 'picker' })}
                                       className="h-8 rounded-lg border border-[#D0B08D] bg-white px-2 text-[10px] font-black uppercase tracking-[0.10em] text-[#A05A28] disabled:cursor-not-allowed disabled:opacity-35"
@@ -530,6 +505,11 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                                   )}
                                 </div>
 
+                                <div className="rounded-lg bg-[#A93E2A] px-2 py-2 text-center">
+                                  <div className="text-[7px] font-black uppercase tracking-[0.08em] text-[#FFE1B8]">Ratio moy.</div>
+                                  <div className="text-xs font-black leading-none text-white">{avgRatio.toFixed(3)}</div>
+                                </div>
+
                                 <div className="flex items-end justify-end gap-1">
                                   <button onClick={() => moveItem(item.id, 'up')} disabled={!canEdit || idx === 0} className="h-9 w-8 rounded-xl bg-[#2F1D14] text-xs font-black text-[#F6C35B] disabled:opacity-20" title="Monter">↑</button>
                                   <button onClick={() => moveItem(item.id, 'down')} disabled={!canEdit || idx === rows.length - 1} className="h-9 w-8 rounded-xl bg-[#2F1D14] text-xs font-black text-[#F6C35B] disabled:opacity-20" title="Descendre">↓</button>
@@ -549,19 +529,9 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                                   );
                                 })}
                               </div>
-
-                              <div className="mt-2 flex justify-end">
-                                <div className="rounded-lg bg-[#A93E2A] px-3 py-1 text-center">
-                                  <div className="text-[7px] font-black uppercase tracking-[0.10em] text-[#FFE1B8]">Ratio moy.</div>
-                                  <div className="text-xs font-black leading-none text-white">{avgRatio.toFixed(3)}</div>
-                                </div>
-                              </div>
                             </article>
                           );
-                        })}
-                      </div>
-                    </section>
-                  ))}
+                  })}
                 </div>
               )}
             </div>          </section>
