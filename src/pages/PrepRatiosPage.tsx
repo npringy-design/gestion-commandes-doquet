@@ -164,11 +164,11 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
       const isValidated = !!prepValidatedMonths[month];
       const isWorkMonth = month === workMonth;
       let value = 0;
-      let ratio = 0;
+        let ratio = 0;
 
-      if (isValidated) {
-        ratio = Number(item.ratioHistory[month] || 0);
-        value = coversValue > 0 && ratio > 0 ? Math.round(ratio * coversValue) : 0;
+        if (isValidated) {
+          ratio = Number((item.ratioHistory || {})[month] || 0);
+          value = coversValue > 0 && ratio > 0 ? Math.round(ratio * coversValue) : 0;
       } else if (isWorkMonth) {
         value = liveWorkMonthValue;
         ratio = coversValue > 0 && value > 0 ? value / coversValue : 0;

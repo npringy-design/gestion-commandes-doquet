@@ -1,6 +1,6 @@
 // =============================================================
 // utils/csvHelpers.ts
-// Fonctions de lecture/parsing des fichiers CSV importés
+// Fonctions de lecture/parsing des fichiers CSV importes
 // =============================================================
 
 import Papa from 'papaparse';
@@ -14,31 +14,46 @@ const parseCSV = (csvData: string): string[][] => {
   return (result.data as unknown as string[][]) ?? [];
 };
 
-const normalizeHeader = (value: string) => value.trim().toLowerCase();
+const normalizeText = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
 
 const findHeaderIndex = (header: string[], candidates: string[]) => {
-  const normalizedCandidates = candidates.map(normalizeHeader);
-  return header.findIndex((cell) => normalizedCandidates.includes(normalizeHeader(cell)));
+  const normalizedCandidates = candidates.map(normalizeText);
+  return header.findIndex((cell) => normalizedCandidates.includes(normalizeText(cell)));
 };
 
 const PRODUCT_NAME_COLUMN_CANDIDATES = [
-  'libellÃ©',
   'libelle',
-  'libellÃ© produit',
   'libelle produit',
-  'libellÃ© article',
   'libelle article',
   'designation',
-  'dÃ©signation',
   'produit',
   'article',
 ];
+
+const DEFAULT_VALUE_COLUMN_CANDIDATES = [
+  'conso theorique qte',
+  'conso theorique qt',
+  'conso qte',
+  'quantite',
+  'qte',
+];
+
+const parseNumber = (value: unknown) => {
+  const rawValue = parseFloat(String(value || '').replace(/[^\d,.-]/g, '').replace(',', '.'));
+  return Number.isNaN(rawValue) ? 0 : rawValue;
+};
 
 export const getImportedValueForProduct = (
   csvData: string | undefined,
   searchName: string,
   importDivisor?: number | '',
-  valueColumnCandidates: string[] = ['conso théorique qté']
+  valueColumnCandidates: string[] = DEFAULT_VALUE_COLUMN_CANDIDATES,
+  nameColumnCandidates: string[] = PRODUCT_NAME_COLUMN_CANDIDATES
 ): number | null => {
   if (!csvData || !searchName.trim()) return null;
 
@@ -50,30 +65,29 @@ export const getImportedValueForProduct = (
   const nameIdx = findHeaderIndex(header, nameColumnCandidates);
   if (valueIdx === -1) return null;
 
-  const normalizedSearch = searchName.trim().toLowerCase();
+  const normalizedSearch = normalizeText(searchName);
   let hasMatch = false;
   const total = rows.slice(1).reduce((sum, row) => {
     const isMatch = nameIdx >= 0
-      ? String(row[nameIdx] || '').trim().toLowerCase() === normalizedSearch
-      : row.some((cell) => cell.trim().toLowerCase() === normalizedSearch);
+      ? normalizeText(String(row[nameIdx] || '')) === normalizedSearch
+      : row.some((cell) => normalizeText(cell) === normalizedSearch);
+
     if (!isMatch || !row[valueIdx]) return sum;
 
     hasMatch = true;
-    const rawVal = parseFloat(String(row[valueIdx]).replace(/[^\d,.-]/g, '').replace(',', '.'));
-    return sum + (Number.isNaN(rawVal) ? 0 : rawVal);
+    return sum + parseNumber(row[valueIdx]);
   }, 0);
 
   if (!hasMatch) return null;
 
   const div = importDivisor === '' || importDivisor === undefined ? 0 : Number(importDivisor);
-
   if (div && div > 0) return Math.ceil(total / div);
   return Math.round(total);
 };
 
 export const buildImportedValueLookup = (
   csvData: string | undefined,
-  valueColumnCandidates: string[] = ['conso thÃ©orique qtÃ©'],
+  valueColumnCandidates: string[] = DEFAULT_VALUE_COLUMN_CANDIDATES,
   nameColumnCandidates: string[] = PRODUCT_NAME_COLUMN_CANDIDATES
 ): Map<string, number> => {
   const lookup = new Map<string, number>();
@@ -88,12 +102,11 @@ export const buildImportedValueLookup = (
   if (valueIdx === -1) return lookup;
 
   rows.slice(1).forEach((row) => {
-    const rawVal = parseFloat(String(row[valueIdx] || '').replace(/[^\d,.-]/g, '').replace(',', '.'));
-    const value = Number.isNaN(rawVal) ? 0 : rawVal;
-
+    const value = parseNumber(row[valueIdx]);
     const nameCells = nameIdx >= 0 ? [row[nameIdx]] : row;
+
     nameCells.forEach((cell) => {
-      const normalized = String(cell || '').trim().toLowerCase();
+      const normalized = normalizeText(String(cell || ''));
       if (normalized) lookup.set(normalized, (lookup.get(normalized) || 0) + value);
     });
   });
@@ -114,15 +127,18 @@ export const extractAllNamesFromCsvs = (
     if (!csv) return;
 
     const rows = parseCSV(csv);
+    const header = rows[0]?.map((h) => h.trim()) ?? [];
+    const nameIdx = findHeaderIndex(header, PRODUCT_NAME_COLUMN_CANDIDATES);
 
-    rows.slice(1).forEach(row =>
-      row.forEach(cell => {
-        const val = cell.trim();
+    rows.slice(1).forEach(row => {
+      const cells = nameIdx >= 0 ? [row[nameIdx]] : row;
+      cells.forEach(cell => {
+        const val = String(cell || '').trim();
         if (val.length > 3 && isNaN(Number(val))) {
           allNames.add(val);
         }
-      })
-    );
+      });
+    });
   });
 
   return allNames;
