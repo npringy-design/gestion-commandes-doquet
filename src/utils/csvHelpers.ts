@@ -37,18 +37,22 @@ export const getImportedValueForProduct = (
   if (valueIdx === -1) return null;
 
   const normalizedSearch = searchName.trim().toLowerCase();
-  const targetRow = rows.find((row) =>
-    row.some((cell) => cell.trim().toLowerCase() === normalizedSearch)
-  );
+  let hasMatch = false;
+  const total = rows.slice(1).reduce((sum, row) => {
+    const isMatch = row.some((cell) => cell.trim().toLowerCase() === normalizedSearch);
+    if (!isMatch || !row[valueIdx]) return sum;
 
-  if (!targetRow || !targetRow[valueIdx]) return null;
+    hasMatch = true;
+    const rawVal = parseFloat(String(row[valueIdx]).replace(/[^\d,.-]/g, '').replace(',', '.'));
+    return sum + (Number.isNaN(rawVal) ? 0 : rawVal);
+  }, 0);
 
-  const rawVal = parseFloat(String(targetRow[valueIdx]).replace(/[^\d,.-]/g, '').replace(',', '.'));
-  const v = Number.isNaN(rawVal) ? 0 : rawVal;
+  if (!hasMatch) return null;
+
   const div = importDivisor === '' || importDivisor === undefined ? 0 : Number(importDivisor);
 
-  if (div && div > 0) return Math.ceil(v / div);
-  return Math.round(v);
+  if (div && div > 0) return Math.ceil(total / div);
+  return Math.round(total);
 };
 
 export const buildImportedValueLookup = (
@@ -67,12 +71,16 @@ export const buildImportedValueLookup = (
 
   rows.slice(1).forEach((row) => {
     const rawVal = parseFloat(String(row[valueIdx] || '').replace(/[^\d,.-]/g, '').replace(',', '.'));
-    const value = Number.isNaN(rawVal) ? 0 : Math.round(rawVal);
+    const value = Number.isNaN(rawVal) ? 0 : rawVal;
 
     row.forEach((cell) => {
       const normalized = cell.trim().toLowerCase();
-      if (normalized && !lookup.has(normalized)) lookup.set(normalized, value);
+      if (normalized) lookup.set(normalized, (lookup.get(normalized) || 0) + value);
     });
+  });
+
+  lookup.forEach((value, key) => {
+    lookup.set(key, Math.round(value));
   });
 
   return lookup;
