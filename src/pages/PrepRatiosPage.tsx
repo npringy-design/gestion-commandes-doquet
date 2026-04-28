@@ -233,7 +233,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[linear-gradient(180deg,#F6EFE6_0%,#F2E8DD_45%,#EBDDCE_100%)] text-[#34271F]">
+    <div className="min-h-screen overflow-hidden bg-[linear-gradient(180deg,#FFF1D9_0%,#E9BF8D_58%,#D99B58_100%)] text-[#34271F]">
       <div className="mx-auto flex h-screen max-w-[1920px] flex-col gap-3 p-2 sm:p-3">
         <aside className="hidden">
           <div className="flex flex-col gap-3 lg:sticky lg:top-3">
@@ -275,46 +275,47 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
         </aside>
 
         <main className="flex min-h-0 min-w-0 flex-1">
-          <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[28px] border border-[#D7B79B] bg-[#FAF5EE] shadow-[0_16px_32px_rgba(145,105,75,0.10)]">
-            <div className="border-b border-[#D8CAB8] bg-[#FFFBF4]/95 px-4 py-3 shadow-[0_10px_22px_rgba(66,42,24,0.08)] sm:px-5">
+          <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[28px] border border-[#D8A96E] bg-[#FFF7EA]/96 shadow-[0_18px_38px_rgba(72,35,19,0.18)]">
+            <div className="border-b border-[#7B3A1E] bg-[linear-gradient(90deg,#4A2217_0%,#6F321D_48%,#9D541E_100%)] px-4 py-3 shadow-[0_14px_28px_rgba(72,35,19,0.22)] sm:px-5">
               <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                <div className="min-w-0 shrink-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#A85F2A]">Hippopotamus Thillois</p>
-                  <h2 className="mt-1 text-2xl font-black leading-none text-[#2F1D14]">Calcul prod ratio</h2>
+                <div className="min-w-0 shrink-0 xl:flex xl:items-center xl:gap-4">
+                  <h2 className="text-3xl font-black leading-none text-[#FFF7EA]">Calcul prod ratio</h2>
+                  <div className="hidden h-12 w-px bg-[#E9B25D]/35 xl:block" />
+                  <p className="hidden text-[10px] font-black uppercase tracking-[0.22em] text-[#F7C05B] xl:block">Hippopotamus Thillois</p>
                 </div>
-                <div className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-4 xl:max-w-[660px]">
-                  <button type="button" onClick={() => setView('home')} className="min-h-[50px] rounded-2xl border border-[#D8CAB8] bg-[#F8F0E6] px-3 py-2.5 text-left text-[#3A2116] shadow-sm transition hover:bg-white">
+                <div className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-4 xl:max-w-[720px]">
+                  <button type="button" onClick={() => setView('home')} className="min-h-[54px] rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2.5 text-left text-[#2F1D14] shadow-[0_4px_0_rgba(47,29,20,0.16)] transition hover:bg-white">
                     <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Retour</div>
                     <div className="mt-0.5 text-sm font-black">Accueil</div>
                   </button>
-                  <button type="button" onClick={() => setView('stats')} className="min-h-[50px] rounded-2xl border border-[#D9A72B] bg-[linear-gradient(180deg,#F7D66A_0%,#E5AF2F_100%)] px-3 py-2.5 text-left text-[#4D2B18] shadow-sm transition hover:brightness-105">
+                  <button type="button" onClick={() => setView('stats')} className="min-h-[54px] rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2.5 text-left text-[#2F1D14] shadow-[0_4px_0_rgba(47,29,20,0.16)] transition hover:bg-white">
                     <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#8A5A2F]">Retour</div>
                     <div className="mt-0.5 text-sm font-black">Parametres</div>
                   </button>
-                  <button type="button" onClick={addItem} disabled={!canEdit} className="min-h-[50px] rounded-2xl border border-[#D8AE77] bg-[#F7B24A] px-3 py-2.5 text-left text-[#3A2116] shadow-sm transition hover:bg-[#FFC266] disabled:opacity-50">
-                    <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#2F7A42]">Action</div>
+                  <button type="button" onClick={addItem} disabled={!canEdit} className="min-h-[54px] rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2.5 text-left text-[#2F1D14] shadow-[0_4px_0_rgba(47,29,20,0.16)] transition hover:bg-white disabled:opacity-50">
+                    <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Action</div>
                     <div className="mt-0.5 text-sm font-black">Ajouter</div>
                   </button>
-                  <button type="button" onClick={deleteSelected} disabled={!canEdit || selectedIds.size === 0} className="min-h-[50px] rounded-2xl border border-[#D9A08B] bg-[#FFF1EA] px-3 py-2.5 text-left text-[#8A2F20] shadow-sm transition hover:bg-white disabled:opacity-50">
-                    <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#B5412D]">Action</div>
+                  <button type="button" onClick={deleteSelected} disabled={!canEdit || selectedIds.size === 0} className="min-h-[54px] rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2.5 text-left text-[#7A2E1E] shadow-[0_4px_0_rgba(47,29,20,0.16)] transition hover:bg-white disabled:opacity-50">
+                    <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Action</div>
                     <div className="mt-0.5 text-sm font-black">Supprimer</div>
                   </button>
                 </div>
               </div>
 
-              <div className="mt-3 flex flex-col gap-2 rounded-2xl border border-[#D8CAB8] bg-[#F8F0E6]/95 p-2 xl:flex-row xl:items-center xl:justify-between">
+              <div className="mt-3 flex flex-col gap-2 rounded-2xl border border-[#B8793F]/65 bg-[#FFF7EA]/10 p-2 xl:flex-row xl:items-center xl:justify-between">
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Rechercher une production, une base ou un import..."
-                  className="min-h-[42px] w-full rounded-2xl border border-[#D8CAB8] bg-[#FFFDF8] px-4 py-2 text-sm font-bold text-[#3A2116] outline-none xl:w-[520px] xl:flex-none"
+                  className="min-h-[42px] w-full rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2 text-sm font-bold text-[#2F1D14] outline-none placeholder:text-[#9B7A67] xl:w-[520px] xl:flex-none"
                 />
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => setShowOnlyUnlinked((value) => !value)}
-                    className={`min-h-[42px] rounded-2xl border px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] shadow-sm transition ${showOnlyUnlinked ? 'border-[#D4922F] bg-[#FFF1DF] text-[#3A2116]' : 'border-[#D8CAB8] bg-[#FFFCF6] text-[#6A432D] hover:border-[#A85F2A]'}`}
+                    className={`min-h-[42px] rounded-2xl border px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] shadow-sm transition ${showOnlyUnlinked ? 'border-[#F7B24A] bg-[#F7B24A] text-[#2F1D14]' : 'border-[#EBC28A] bg-[#FFF7EA] text-[#2F1D14] hover:bg-white'}`}
                   >
                     {showOnlyUnlinked ? 'Tout afficher' : 'Non liees'}
                   </button>
@@ -326,7 +327,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                         : new Set(rows.map((item) => item.id))
                     )}
                     disabled={!canEdit || rows.length === 0}
-                    className="min-h-[42px] rounded-2xl border border-[#D8CAB8] bg-[#FFFCF6] px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] text-[#6A432D] shadow-sm transition hover:border-[#A85F2A] disabled:opacity-50"
+                    className="min-h-[42px] rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] text-[#2F1D14] shadow-sm transition hover:bg-white disabled:opacity-50"
                   >
                     {selectedVisibleCount === rows.length && rows.length > 0 ? 'Deselectionner' : 'Tout selectionner'}
                   </button>
