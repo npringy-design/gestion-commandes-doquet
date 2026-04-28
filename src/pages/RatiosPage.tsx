@@ -271,48 +271,47 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
   return (
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_12%_0%,rgba(184,91,43,0.18),transparent_30%),radial-gradient(circle_at_88%_8%,rgba(109,143,78,0.12),transparent_28%),linear-gradient(180deg,#F8F1E7_0%,#EFE1D0_52%,#D7AA78_100%)] text-[#2F1D14]">
       <div className="mx-auto flex min-h-[100dvh] max-w-[1760px] flex-col gap-3 p-3 lg:h-[100dvh] lg:min-h-0 lg:overflow-hidden lg:p-4">
-        <header className="flex-none overflow-hidden rounded-[28px] border border-[#D6B58C] bg-[#FFFBF4]/94 shadow-[0_18px_36px_rgba(66,42,24,0.12)] backdrop-blur">
-          <div className="h-2 bg-[linear-gradient(90deg,#2F1D14_0%,#7B3A1E_45%,#D4922F_100%)]" />
+        <header className="flex-none overflow-hidden rounded-[28px] border border-[#7B3A1E] bg-[linear-gradient(90deg,#4A2217_0%,#6F321D_48%,#9D541E_100%)] shadow-[0_18px_36px_rgba(72,35,19,0.22)]">
           <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between lg:p-5">
             <div className="flex min-w-0 items-center gap-3">
               <AppNavTile onClick={() => setView('home')} eyebrow="Retour" icon="home" size="sm" tone="cream">Accueil</AppNavTile>
               <AppNavTile onClick={() => setView('stats')} eyebrow="Retour" icon="settings" size="sm" tone="cream">Paramètres</AppNavTile>
-              <div className="hidden h-12 w-px bg-[#D8CAB8] sm:block" />
+              <div className="hidden h-12 w-px bg-[#E9B25D]/35 sm:block" />
               <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#A85F2A]">Hippopotamus Thillois</p>
-                <h2 className="mt-1 truncate text-2xl font-black leading-none text-[#2F1D14] sm:text-[30px]">Calcul vente ratio</h2>
+                <h2 className="truncate text-3xl font-black leading-none text-[#FFF7EA]">Calcul vente ratio</h2>
+                <p className="mt-1 text-[10px] font-black uppercase tracking-[0.24em] text-[#F7C05B]">Hippopotamus Thillois</p>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 lg:min-w-[700px]">
-              <div className="rounded-2xl border border-[#D8CAB8] bg-[#F8F0E6] px-3 py-2.5 shadow-sm">
+              <div className="rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 shadow-sm">
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Mois</p>
                 <p className="mt-1 truncate text-sm font-black text-[#3A2116]">{state.importTargetMonth?.toUpperCase?.() ?? state.importTargetMonth}</p>
               </div>
-              <div className="rounded-2xl border border-[#D8CAB8] bg-[#F8F0E6] px-3 py-2.5 shadow-sm">
+              <div className="rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 shadow-sm">
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">OK</p>
                 <p className="mt-1 text-sm font-black text-[#2F7A42]">{mappedProductsCount}</p>
               </div>
-              <div className="rounded-2xl border border-[#D8CAB8] bg-[#F8F0E6] px-3 py-2.5 shadow-sm">
+              <div className="rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 shadow-sm">
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">À revoir</p>
                 <p className="mt-1 text-sm font-black text-[#B5412D]">{alertProductsCount}</p>
               </div>
               <button
                 onClick={() => state.toggleValidateMonth(workMonthKey)}
                 disabled={!canEdit}
-                className={`rounded-2xl border px-3 py-2.5 text-left shadow-sm transition disabled:opacity-50 ${isWorkMonthValidated ? 'border-[#6D8F4E] bg-[#F1F5E9]' : 'border-[#D4922F] bg-[#FFF1DF] hover:bg-[#FFE8C2]'}`}
+                className={`rounded-2xl border px-3 py-2.5 text-left shadow-sm transition disabled:opacity-50 ${isWorkMonthValidated ? 'border-[#6D8F4E] bg-[#F1F5E9]' : 'border-[#EBC28A] bg-[#FFF7EA] hover:bg-white'}`}
               >
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">{isWorkMonthValidated ? 'Mois figé' : 'Fin de mois'}</p>
                 <p className="mt-1 text-sm font-black text-[#3A2116]">{isWorkMonthValidated ? 'Défiger' : 'Figer le mois'}</p>
               </button>
-              <div className="rounded-2xl border border-[#D8CAB8] bg-[#F8F0E6] px-3 py-2.5 shadow-sm">
+              <div className="rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 shadow-sm">
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Correction mois</p>
                 <div className="mt-1 flex items-center gap-2">
                   <select
                     value={freezeMonthKey}
                     onChange={(e) => setFreezeMonthKey(e.target.value)}
                     disabled={!canEdit}
-                    className="min-w-0 flex-1 rounded-xl border border-[#D8CAB8] bg-[#FFFDF8] px-2 py-1 text-xs font-black text-[#3A2116] outline-none disabled:opacity-50"
+                    className="min-w-0 flex-1 rounded-xl border border-[#EBC28A] bg-[#FFFDF8] px-2 py-1 text-xs font-black text-[#3A2116] outline-none disabled:opacity-50"
                   >
                     {MONTHS_ORDER.map(m => (
                       <option key={m} value={m}>{MONTH_LABELS[m]}</option>
