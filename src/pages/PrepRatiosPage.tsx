@@ -242,8 +242,8 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
 
   return (
     <div className="min-h-screen overflow-hidden bg-[linear-gradient(180deg,#F6EFE6_0%,#F2E8DD_45%,#EBDDCE_100%)] text-[#34271F]">
-      <div className="mx-auto flex h-screen max-w-[1920px] flex-col gap-3 p-2 sm:p-3 lg:flex-row lg:gap-4 lg:p-3">
-        <aside className="w-full shrink-0 lg:w-[258px]">
+      <div className="mx-auto flex h-screen max-w-[1920px] flex-col gap-3 p-2 sm:p-3">
+        <aside className="hidden">
           <div className="flex flex-col gap-3 lg:sticky lg:top-3">
             <AppNavTile onClick={() => setView('home')} eyebrow="Retour" icon="home" size="lg" className="w-full">Accueil</AppNavTile>
             <AppNavTile onClick={() => setView('stats')} eyebrow="Retour" icon="settings" size="lg" tone="gold" className="w-full">Paramètres</AppNavTile>
@@ -285,27 +285,45 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
         <main className="flex min-h-0 min-w-0 flex-1">
           <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[28px] border border-[#D7B79B] bg-[#FAF5EE] shadow-[0_16px_32px_rgba(145,105,75,0.10)]">
             <div className="border-b border-[#B45439] bg-[linear-gradient(180deg,#A93E2A_0%,#912F20_55%,#782219_100%)] px-4 py-3 sm:px-5">
-              <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
-                <div className="min-w-0">
+              <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                <div className="min-w-0 shrink-0">
                   <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#FFE1B8]">Poste de pilotage</p>
                   <h2 className="mt-1 text-xl font-black leading-none text-[#FFF8F1]">Productions & ratios</h2>
                 </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 2xl:w-[560px]">
-                  <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2">
-                    <div className="text-lg font-black leading-none text-white">{pageStats.visibleItems}</div>
-                    <div className="mt-1 text-[9px] font-black uppercase tracking-[0.10em] text-[#FFE1B8]">Affichees</div>
+                <div className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-4 xl:max-w-[620px]">
+                  <button type="button" onClick={() => setView('home')} className="min-h-[44px] rounded-xl border border-white/20 bg-white/95 px-3 py-2 text-left text-[#3A2116] shadow-sm transition hover:bg-white">
+                    <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Retour</div>
+                    <div className="text-xs font-black">Accueil</div>
+                  </button>
+                  <button type="button" onClick={() => setView('stats')} className="min-h-[44px] rounded-xl border border-[#F7D66A] bg-[#F7D66A] px-3 py-2 text-left text-[#4D2B18] shadow-sm transition hover:brightness-105">
+                    <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#8A5A2F]">Retour</div>
+                    <div className="text-xs font-black">Parametres</div>
+                  </button>
+                  <button type="button" onClick={addItem} disabled={!canEdit} className="min-h-[44px] rounded-xl border border-white/20 bg-white/95 px-3 py-2 text-left text-[#17324D] shadow-sm transition hover:bg-white disabled:opacity-45">
+                    <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#2F7A42]">Action</div>
+                    <div className="text-xs font-black">Ajouter</div>
+                  </button>
+                  <button type="button" onClick={deleteSelected} disabled={!canEdit || selectedIds.size === 0} className="min-h-[44px] rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-left text-red-700 shadow-sm transition hover:bg-red-100 disabled:opacity-45">
+                    <div className="text-[9px] font-black uppercase tracking-[0.14em] text-red-400">Action</div>
+                    <div className="text-xs font-black">Supprimer</div>
+                  </button>
+                </div>
+                <div className="grid grid-cols-4 gap-2 xl:w-[360px]">
+                  <div className="rounded-xl border border-white/15 bg-white/10 px-2.5 py-1.5">
+                    <div className="text-sm font-black leading-none text-white">{pageStats.visibleItems}</div>
+                    <div className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] text-[#FFE1B8]">Lignes</div>
                   </div>
-                  <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2">
-                    <div className="text-lg font-black leading-none text-white">{pageStats.importLines}</div>
-                    <div className="mt-1 text-[9px] font-black uppercase tracking-[0.10em] text-[#FFE1B8]">Imports</div>
+                  <div className="rounded-xl border border-white/15 bg-white/10 px-2.5 py-1.5">
+                    <div className="text-sm font-black leading-none text-white">{pageStats.importLines}</div>
+                    <div className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] text-[#FFE1B8]">Imports</div>
                   </div>
-                  <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2">
-                    <div className="text-lg font-black leading-none text-white">{pageStats.lockedMonths}/12</div>
-                    <div className="mt-1 text-[9px] font-black uppercase tracking-[0.10em] text-[#FFE1B8]">Figes</div>
+                  <div className="rounded-xl border border-white/15 bg-white/10 px-2.5 py-1.5">
+                    <div className="text-sm font-black leading-none text-white">{pageStats.lockedMonths}/12</div>
+                    <div className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] text-[#FFE1B8]">Figes</div>
                   </div>
-                  <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2">
-                    <div className="text-lg font-black leading-none text-white">{selectedVisibleCount}</div>
-                    <div className="mt-1 text-[9px] font-black uppercase tracking-[0.10em] text-[#FFE1B8]">Selection</div>
+                  <div className="rounded-xl border border-white/15 bg-white/10 px-2.5 py-1.5">
+                    <div className="text-sm font-black leading-none text-white">{selectedVisibleCount}</div>
+                    <div className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] text-[#FFE1B8]">Sel.</div>
                   </div>
                 </div>
               </div>
@@ -371,7 +389,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
               </div>
             </div>
 
-            <div className="custom-scrollbar min-h-0 flex-1 overflow-auto px-4 py-4">
+            <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4">
               {rowsByCategory.length === 0 ? (
                 <div className="flex h-full min-h-[280px] items-center justify-center rounded-[22px] border border-dashed border-[#D7B79B] bg-[#FFF9F1] px-6 text-center">
                   <p className="max-w-xl text-sm font-semibold text-[#8B6650]">
@@ -381,10 +399,10 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
               ) : (
                 <div className="flex flex-col gap-4">
                   {rowsByCategory.map((section) => (
-                    <section key={section.value} className="overflow-visible rounded-[22px] border border-[#D7B79B] bg-[#FFFDF8] shadow-[0_8px_18px_rgba(145,105,75,0.08)]">
-                      <div className="flex items-center justify-between gap-3 border-b border-[#E8D6C6] bg-[#F7EBDD] px-4 py-3">
+                    <section key={section.value} className="overflow-hidden rounded-[22px] border border-[#D7B79B] bg-[#FFFDF8] shadow-[0_8px_18px_rgba(145,105,75,0.08)]">
+                      <div className="flex items-center gap-3 border-b border-[#E8D6C6] bg-[#F7EBDD] px-4 py-3">
                         <h3 className="text-sm font-black uppercase tracking-[0.12em] text-[#5B321E]">{section.label}</h3>
-                        <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-[#8A5A2F]">{section.items.length} ligne{section.items.length > 1 ? 's' : ''}</span>
+                        <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black text-[#8A5A2F]">{section.items.length} ligne{section.items.length > 1 ? 's' : ''}</span>
                       </div>
 
                       <div className="flex flex-col gap-3 p-3">
@@ -399,7 +417,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                               .map((name) => normalizeMappingName(name))
                           );
                           const selectedOnRow = new Set(currentMappings.map((name) => normalizeMappingName(name)));
-                          const rowOrphanNames = Array.from(allAvailableImportNames)
+                          const rowOrphanNames = Array.from(allAvailableImportNames as Set<string>)
                             .filter((name) => {
                               const normalized = normalizeMappingName(name);
                               return !selectedOnRow.has(normalized) && !usedElsewhere.has(normalized);
@@ -413,7 +431,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
 
                           return (
                             <article key={item.id} className={`rounded-[20px] border p-3 transition ${selectedIds.has(item.id) ? 'border-[#B45439] bg-[#FFF1E3] shadow-[0_8px_20px_rgba(180,84,57,0.12)]' : 'border-[#E0CCBA] bg-[#FFFCF7]'}`}>
-                              <div className="grid gap-3 2xl:grid-cols-[minmax(420px,1.05fr)_minmax(360px,0.9fr)_minmax(520px,1.3fr)]">
+                              <div className="grid min-w-0 gap-3 2xl:grid-cols-[1.05fr_0.9fr_1.2fr]">
                                 <div className="min-w-0 rounded-2xl border border-[#E8D6C6] bg-white p-3">
                                   <div className="mb-2 flex items-center justify-between gap-2">
                                     <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.12em] text-[#8A5A2F]">
