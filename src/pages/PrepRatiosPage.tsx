@@ -276,45 +276,45 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
 
         <main className="flex min-h-0 min-w-0 flex-1">
           <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[28px] border border-[#D7B79B] bg-[#FAF5EE] shadow-[0_16px_32px_rgba(145,105,75,0.10)]">
-            <div className="border-b border-[#B45439] bg-[linear-gradient(180deg,#A93E2A_0%,#912F20_55%,#782219_100%)] px-4 py-3 sm:px-5">
-              <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+            <div className="border-b border-[#D8CAB8] bg-[#FFFBF4]/95 px-4 py-3 shadow-[0_10px_22px_rgba(66,42,24,0.08)] sm:px-5">
+              <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <div className="min-w-0 shrink-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#FFE1B8]">Poste de pilotage</p>
-                  <h2 className="mt-1 text-xl font-black leading-none text-[#FFF8F1]">Productions & ratios</h2>
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#A85F2A]">Hippopotamus Thillois</p>
+                  <h2 className="mt-1 text-2xl font-black leading-none text-[#2F1D14]">Calcul prod ratio</h2>
                 </div>
-                <div className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-4 xl:max-w-[620px]">
-                  <button type="button" onClick={() => setView('home')} className="min-h-[44px] rounded-xl border border-white/20 bg-white/95 px-3 py-2 text-left text-[#3A2116] shadow-sm transition hover:bg-white">
+                <div className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-4 xl:max-w-[660px]">
+                  <button type="button" onClick={() => setView('home')} className="min-h-[50px] rounded-2xl border border-[#D8CAB8] bg-[#F8F0E6] px-3 py-2.5 text-left text-[#3A2116] shadow-sm transition hover:bg-white">
                     <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Retour</div>
-                    <div className="text-xs font-black">Accueil</div>
+                    <div className="mt-0.5 text-sm font-black">Accueil</div>
                   </button>
-                  <button type="button" onClick={() => setView('stats')} className="min-h-[44px] rounded-xl border border-[#F7D66A] bg-[#F7D66A] px-3 py-2 text-left text-[#4D2B18] shadow-sm transition hover:brightness-105">
+                  <button type="button" onClick={() => setView('stats')} className="min-h-[50px] rounded-2xl border border-[#D9A72B] bg-[linear-gradient(180deg,#F7D66A_0%,#E5AF2F_100%)] px-3 py-2.5 text-left text-[#4D2B18] shadow-sm transition hover:brightness-105">
                     <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#8A5A2F]">Retour</div>
-                    <div className="text-xs font-black">Parametres</div>
+                    <div className="mt-0.5 text-sm font-black">Parametres</div>
                   </button>
-                  <button type="button" onClick={addItem} disabled={!canEdit} className="min-h-[44px] rounded-xl border border-white/20 bg-white/95 px-3 py-2 text-left text-[#17324D] shadow-sm transition hover:bg-white disabled:opacity-45">
+                  <button type="button" onClick={addItem} disabled={!canEdit} className="min-h-[50px] rounded-2xl border border-[#D8AE77] bg-[#F7B24A] px-3 py-2.5 text-left text-[#3A2116] shadow-sm transition hover:bg-[#FFC266] disabled:opacity-50">
                     <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#2F7A42]">Action</div>
-                    <div className="text-xs font-black">Ajouter</div>
+                    <div className="mt-0.5 text-sm font-black">Ajouter</div>
                   </button>
-                  <button type="button" onClick={deleteSelected} disabled={!canEdit || selectedIds.size === 0} className="min-h-[44px] rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-left text-red-700 shadow-sm transition hover:bg-red-100 disabled:opacity-45">
-                    <div className="text-[9px] font-black uppercase tracking-[0.14em] text-red-400">Action</div>
-                    <div className="text-xs font-black">Supprimer</div>
+                  <button type="button" onClick={deleteSelected} disabled={!canEdit || selectedIds.size === 0} className="min-h-[50px] rounded-2xl border border-[#D9A08B] bg-[#FFF1EA] px-3 py-2.5 text-left text-[#8A2F20] shadow-sm transition hover:bg-white disabled:opacity-50">
+                    <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#B5412D]">Action</div>
+                    <div className="mt-0.5 text-sm font-black">Supprimer</div>
                   </button>
                 </div>
               </div>
 
-              <div className="mt-3 flex flex-col gap-2 xl:flex-row xl:items-center">
+              <div className="mt-3 flex flex-col gap-2 rounded-2xl border border-[#D8CAB8] bg-[#F8F0E6]/95 p-2 xl:flex-row xl:items-center xl:justify-between">
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Rechercher une production, une base ou un import..."
-                  className="min-h-[42px] w-full rounded-2xl border border-white/20 bg-white/95 px-4 py-2 text-sm font-bold text-slate-800 outline-none xl:w-[520px] xl:flex-none"
+                  className="min-h-[42px] w-full rounded-2xl border border-[#D8CAB8] bg-[#FFFDF8] px-4 py-2 text-sm font-bold text-[#3A2116] outline-none xl:w-[520px] xl:flex-none"
                 />
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => setShowOnlyUnlinked((value) => !value)}
-                    className={`min-h-[42px] rounded-2xl border px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] transition ${showOnlyUnlinked ? 'border-[#F6C35B] bg-[#F6C35B] text-[#4D2B18]' : 'border-white/25 bg-white/10 text-white hover:bg-white/20'}`}
+                    className={`min-h-[42px] rounded-2xl border px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] shadow-sm transition ${showOnlyUnlinked ? 'border-[#D4922F] bg-[#FFF1DF] text-[#3A2116]' : 'border-[#D8CAB8] bg-[#FFFCF6] text-[#6A432D] hover:border-[#A85F2A]'}`}
                   >
                     {showOnlyUnlinked ? 'Tout afficher' : 'Non liees'}
                   </button>
@@ -326,7 +326,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                         : new Set(rows.map((item) => item.id))
                     )}
                     disabled={!canEdit || rows.length === 0}
-                    className="min-h-[42px] rounded-2xl border border-white/25 bg-white/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] text-white transition hover:bg-white/20 disabled:opacity-40"
+                    className="min-h-[42px] rounded-2xl border border-[#D8CAB8] bg-[#FFFCF6] px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] text-[#6A432D] shadow-sm transition hover:border-[#A85F2A] disabled:opacity-50"
                   >
                     {selectedVisibleCount === rows.length && rows.length > 0 ? 'Deselectionner' : 'Tout selectionner'}
                   </button>
