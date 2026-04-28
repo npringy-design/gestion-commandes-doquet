@@ -1182,8 +1182,8 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     return result;
   }, [availableImports, rows, searchByRow, pendingImportsByRow]);
 
-  const handleFreezeMonth = () => {
-    if (!selectedMonthKey) return;
+  const freezeMonth = (monthKey: string) => {
+    if (!monthKey) return;
 
     const snapshot: TakeRateMonthSnapshot = {
       rows,
@@ -1193,7 +1193,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     };
 
     setFrozenMonths((prev) => {
-      const next = { ...prev, [selectedMonthKey]: snapshot };
+      const next = { ...prev, [monthKey]: snapshot };
       frozenMonthsRef.current = next;
       persistTakeRateCollection(TAKE_RATE_FROZEN_CLOUD_KEY, TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY, next);
       return next;
@@ -1202,18 +1202,36 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     setImportMessage('Mois figé.');
   };
 
-  const handleUnfreezeMonth = () => {
-    if (!selectedMonthKey) return;
+  const unfreezeMonth = (monthKey: string) => {
+    if (!monthKey) return;
 
     setFrozenMonths((prev) => {
       const next = { ...prev };
-      delete next[selectedMonthKey];
+      delete next[monthKey];
       frozenMonthsRef.current = next;
       persistTakeRateCollection(TAKE_RATE_FROZEN_CLOUD_KEY, TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY, next);
       return next;
     });
 
     setImportMessage('Mois défigé.');
+  };
+
+  const handleFreezeMonth = () => freezeMonth(selectedMonthKey);
+
+  const handleUnfreezeMonth = () => unfreezeMonth(selectedMonthKey);
+
+  const toggleMonthFreeze = (monthKey: string) => {
+    if (selectedMonthKey !== monthKey) {
+      setSelectedMonthKey(monthKey);
+      return;
+    }
+
+    setSelectedMonthKey(monthKey);
+    if (frozenMonthsRef.current[monthKey]) {
+      unfreezeMonth(monthKey);
+    } else {
+      freezeMonth(monthKey);
+    }
   };
 
   const handleDeleteMarginImport = () => {
@@ -1354,7 +1372,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
               <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-3">
                 <AppNavTile onClick={() => setView('home')} eyebrow="Retour" icon="home" size="sm" tone="cream">Accueil</AppNavTile>
                 <AppNavTile onClick={() => setView('stats')} eyebrow="Retour" icon="settings" size="sm" tone="cream">Parametres</AppNavTile>
-                <AppNavTile onClick={() => setView('take_rate_sheet')} eyebrow="Ouvrir" icon="sheet" size="sm" tone="cream">Feuille</AppNavTile>
                 <div className="hidden h-12 w-px bg-[#E9B25D]/35 xl:block" />
                 <div className="min-w-0">
                   <h2 className="text-3xl font-black leading-none text-[#FFF7EA]">Taux de prise</h2>
@@ -1365,7 +1382,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
               <div className="flex flex-wrap items-center gap-2">
                 <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportMarginFile} />
 
-                <div className="flex min-h-[42px] flex-wrap items-center gap-2 rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2">
+                <div className="hidden min-h-[42px] flex-wrap items-center gap-2 rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2">
                   <span className="text-[10px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Mois</span>
                   <select
                     value={selectedMonthKey}
@@ -1433,7 +1450,37 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 </div>
               ))}
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-[#B8793F]/65 bg-[#FFF7EA]/10 px-3 py-2 text-[12px] font-semibold text-[#FFE1B8]">
+            <div className="mt-3 rounded-2xl border border-[#B8793F]/65 bg-[#FFF7EA]/10 p-2">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#F7C05B]">Figer les mois du taux de prise</p>
+                <p className="text-[11px] font-bold text-[#FFE1B8]">{monthOptions.filter((month) => frozenMonths[month.key]).length} mois figes</p>
+              </div>
+              <div className="grid grid-cols-6 gap-1.5 xl:grid-cols-12">
+                {monthOptions.map((month) => {
+                  const locked = !!frozenMonths[month.key];
+                  const selected = selectedMonthKey === month.key;
+                  return (
+                    <button
+                      key={`take-rate-freeze-${month.key}`}
+                      type="button"
+                      onClick={() => toggleMonthFreeze(month.key)}
+                      disabled={!month.key || rows.length === 0}
+                      className={`min-h-[42px] rounded-xl border px-2 py-1 text-[10px] font-black uppercase tracking-[0.07em] transition disabled:opacity-50 ${
+                        locked
+                          ? 'border-emerald-700 bg-emerald-600 text-white shadow-sm'
+                          : selected
+                            ? 'border-[#D8A640] bg-[#FFE8A8] text-[#5B321E]'
+                            : 'border-[#EBC28A] bg-[#FFF7EA] text-[#2F1D14] hover:bg-white'
+                      }`}
+                    >
+                      <span className="block text-xs">{month.label}</span>
+                      <span className="block text-[8px]">{locked ? 'Fige' : 'Ouvert'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="hidden mt-3 flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-[#B8793F]/65 bg-[#FFF7EA]/10 px-3 py-2 text-[12px] font-semibold text-[#FFE1B8]">
               <span>{marginFileName ? `Fichier marge : ${marginFileName}` : 'Aucun fichier marge chargé'}</span>
               {selectedMonthKey ? (
                 <span className={frozenMonths[selectedMonthKey] ? 'text-[#2F6F42]' : 'text-[#8B5E3C]'}>
