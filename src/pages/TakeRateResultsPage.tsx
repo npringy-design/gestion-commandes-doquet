@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { MONTHS_DISPLAY_CONFIG, MONTH_KEY_TO_NAME, STORAGE_PREFIX, View } from '../constants';
 import AppNavTile from '../components/AppNavTile';
 import type { TakeRateMappingRow } from './TakeRatePage';
+import { isSupabaseConfigured } from '../lib/supabaseClient';
+import { loadAllFromSupabase } from '../utils/supabase';
 
 interface TakeRateResultsPageProps {
   setView: (view: View) => void;
@@ -16,6 +18,15 @@ const STORAGE_KEYS = [
   `${STORAGE_PREFIX}take_rate_rows_v2`,
   `${STORAGE_PREFIX}take_rate_rows_v1`,
 ];
+const TAKE_RATE_DRAFTS_CLOUD_KEY = 'takeRateMonthDrafts';
+const TAKE_RATE_FROZEN_CLOUD_KEY = 'takeRateFrozenMonths';
+const TAKE_RATE_MONTH_DRAFTS_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_month_drafts_v1`;
+const TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_frozen_months_v1`;
+
+interface TakeRateMonthSnapshot {
+  rows?: TakeRateMappingRow[];
+  salesByImport?: Record<string, number>;
+}
 
 const normalize = (value: string) =>
   value
@@ -177,35 +188,99 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
   const [familyFilter, setFamilyFilter] = useState('all');
   const [sortBy, setSortBy] = useState<SortKey>('takeRate');
   const [expertMode, setExpertMode] = useState(false);
+  const [monthDrafts, setMonthDrafts] = useState<Record<string, TakeRateMonthSnapshot>>({});
+  const [frozenMonths, setFrozenMonths] = useState<Record<string, TakeRateMonthSnapshot>>({});
 
   useEffect(() => {
+    let cancelled = false;
+
+    const loadLegacyRows = () => {
+      for (const key of STORAGE_KEYS) {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
+      return [];
+    };
+
+    const run = async () => {
+      try {
+        const rawDrafts = localStorage.getItem(TAKE_RATE_MONTH_DRAFTS_STORAGE_KEY);
+        const rawFrozen = localStorage.getItem(TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY);
+        let nextDrafts = rawDrafts ? JSON.parse(rawDrafts) : {};
+        let nextFrozen = rawFrozen ? JSON.parse(rawFrozen) : {};
+
+        if (isSupabaseConfigured()) {
+          const cloud = await loadAllFromSupabase();
+          if (Array.isArray(cloud)) {
+            cloud.forEach((entry: any) => {
+              if (entry?.key === TAKE_RATE_DRAFTS_CLOUD_KEY && entry.value && typeof entry.value === 'object') nextDrafts = entry.value;
+              if (entry?.key === TAKE_RATE_FROZEN_CLOUD_KEY && entry.value && typeof entry.value === 'object') nextFrozen = entry.value;
+            });
+          }
+        }
+
+        if (cancelled) return;
+        setMonthDrafts(nextDrafts && typeof nextDrafts === 'object' ? nextDrafts : {});
+        setFrozenMonths(nextFrozen && typeof nextFrozen === 'object' ? nextFrozen : {});
+      } catch (_error) {
+        if (!cancelled) setRows(loadLegacyRows().map(normalizeResultRow));
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const normalizeResultRow = (row: any) => ({
+    id: String(row.id ?? ''),
+    label: String(row.label ?? ''),
+    family: String(row.family ?? ''),
+    linkedImports: Array.isArray(row.linkedImports) ? row.linkedImports.map(String) : [],
+    costHt: parseNumber((row as any).costHt),
+    sellPriceHt: parseNumber((row as any).sellPriceHt),
+    marginEuro: parseNumber((row as any).marginEuro),
+    marginPercent: parseNumber((row as any).marginPercent),
+  });
+
+  useEffect(() => {
+    const snapshot = frozenMonths[selectedMonth] ?? monthDrafts[selectedMonth];
+    if (snapshot?.rows) {
+      setRows(snapshot.rows.map(normalizeResultRow));
+      return;
+    }
+
     try {
       for (const key of STORAGE_KEYS) {
         const raw = localStorage.getItem(key);
         if (!raw) continue;
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          setRows(
-            parsed.map((row) => ({
-              id: String(row.id ?? ''),
-              label: String(row.label ?? ''),
-              family: String(row.family ?? ''),
-              linkedImports: Array.isArray(row.linkedImports) ? row.linkedImports.map(String) : [],
-              costHt: parseNumber((row as any).costHt),
-              sellPriceHt: parseNumber((row as any).sellPriceHt),
-              marginEuro: parseNumber((row as any).marginEuro),
-              marginPercent: parseNumber((row as any).marginPercent),
-            }))
-          );
-          break;
+          setRows(parsed.map(normalizeResultRow));
+          return;
         }
       }
-    } catch (_error) {}
-  }, []);
+      setRows([]);
+    } catch (_error) {
+      setRows([]);
+    }
+  }, [frozenMonths, monthDrafts, selectedMonth]);
 
   const monthSalesMap = useMemo(
-    () => buildMonthSalesMap(prepImportsByMonth[selectedMonth] ?? ''),
-    [prepImportsByMonth, selectedMonth]
+    () => {
+      const frozenSales = frozenMonths[selectedMonth]?.salesByImport;
+      if (frozenSales && Object.keys(frozenSales).length > 0) {
+        return new Map(Object.entries(frozenSales));
+      }
+      return buildMonthSalesMap(prepImportsByMonth[selectedMonth] ?? '');
+    },
+    [frozenMonths, prepImportsByMonth, selectedMonth]
   );
   const monthCovers = Number(covers[selectedMonth] ?? 0);
 

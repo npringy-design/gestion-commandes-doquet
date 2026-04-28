@@ -38,6 +38,7 @@ interface TakeRateMonthSnapshot {
   rows: TakeRateMappingRow[];
   marginCatalog: MarginCatalogItem[];
   marginFileName: string;
+  salesByImport?: Record<string, number>;
   frozenAt?: string;
 }
 
@@ -164,6 +165,46 @@ const extractImportLabels = (content: string): string[] => {
   }
 
   return labels;
+};
+
+const buildImportSalesMap = (content: string) => {
+  const result: Record<string, number> = {};
+  if (!content?.trim()) return result;
+
+  const lines = content.split(/\r?\n/).filter((line) => line.trim().length > 0);
+  if (lines.length === 0) return result;
+
+  const delimiter = detectDelimiter(content);
+  const headers = parseCsvLine(lines[0], delimiter).map(normalize);
+  const preferredNameHeaders = ['libelle', 'libelle', 'designation', 'designation', 'produit', 'article', 'nom'];
+  const preferredQtyHeaders = ['nombre', 'nb', 'ventes', 'vente', 'quantite', 'quantite', 'qte', 'qte', 'qty'];
+
+  const findPreferredIndex = (preferred: string[]) => {
+    for (const name of preferred) {
+      const exactIndex = headers.findIndex((cell) => cell === normalize(name));
+      if (exactIndex !== -1) return exactIndex;
+    }
+    for (const name of preferred) {
+      const includesIndex = headers.findIndex((cell) => cell.includes(normalize(name)));
+      if (includesIndex !== -1) return includesIndex;
+    }
+    return -1;
+  };
+
+  const nameIndex = findPreferredIndex(preferredNameHeaders);
+  const qtyIndex = findPreferredIndex(preferredQtyHeaders);
+  if (nameIndex === -1 || qtyIndex === -1) return result;
+
+  for (let i = 1; i < lines.length; i += 1) {
+    const cols = parseCsvLine(lines[i], delimiter);
+    const label = String(cols[nameIndex] ?? '').trim();
+    const key = normalize(label);
+    const qty = toNumber(cols[qtyIndex] ?? '0') ?? 0;
+    if (!key) continue;
+    result[key] = (result[key] ?? 0) + qty;
+  }
+
+  return result;
 };
 
 const toNumber = (value: unknown): number | null => {
@@ -784,8 +825,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const frozenMonthsRef = useRef<Record<string, TakeRateMonthSnapshot>>({});
   const cloudTsRef = useRef<Record<string, string>>({});
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
-  const bottomScrollRef = useRef<HTMLDivElement | null>(null);
-  const bottomScrollInnerRef = useRef<HTMLDivElement | null>(null);
 
   const persistTakeRateCollection = (cloudKey: string, storageKey: string, value: Record<string, TakeRateMonthSnapshot>) => {
     localStorage.setItem(storageKey, JSON.stringify(value));
@@ -1003,51 +1042,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     });
   }, [rows]);
 
-  useEffect(() => {
-    const tableEl = tableScrollRef.current;
-    const bottomEl = bottomScrollRef.current;
-    const innerEl = bottomScrollInnerRef.current;
-    if (!tableEl || !bottomEl || !innerEl) return;
-
-    const syncInnerWidth = () => {
-      innerEl.style.width = `${tableEl.scrollWidth}px`;
-      bottomEl.scrollLeft = tableEl.scrollLeft;
-    };
-
-    syncInnerWidth();
-
-    let syncingFromTable = false;
-    let syncingFromBottom = false;
-
-    const handleTableScroll = () => {
-      if (syncingFromBottom) {
-        syncingFromBottom = false;
-        return;
-      }
-      syncingFromTable = true;
-      bottomEl.scrollLeft = tableEl.scrollLeft;
-    };
-
-    const handleBottomScroll = () => {
-      if (syncingFromTable) {
-        syncingFromTable = false;
-        return;
-      }
-      syncingFromBottom = true;
-      tableEl.scrollLeft = bottomEl.scrollLeft;
-    };
-
-    tableEl.addEventListener('scroll', handleTableScroll);
-    bottomEl.addEventListener('scroll', handleBottomScroll);
-    window.addEventListener('resize', syncInnerWidth);
-
-    return () => {
-      tableEl.removeEventListener('scroll', handleTableScroll);
-      bottomEl.removeEventListener('scroll', handleBottomScroll);
-      window.removeEventListener('resize', syncInnerWidth);
-    };
-  }, [filteredRows.length, rows.length]);
-
   const addRow = () => setRows((prev) => [...prev, createEmptyRow()]);
 
   const toggleRowSelection = (rowId: string) => {
@@ -1206,6 +1200,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       rows,
       marginCatalog,
       marginFileName,
+      salesByImport: buildImportSalesMap(prepImportsByMonth[monthKey] ?? ''),
       frozenAt: new Date().toISOString(),
     };
 
@@ -1377,7 +1372,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       <main className="flex min-h-0 min-w-0 flex-1">
         <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[28px] border border-[#D8A96E] bg-[#FFF7EA]/96 shadow-[0_18px_38px_rgba(72,35,19,0.18)]">
           <div className="border-b border-[#7B3A1E] bg-[#5A2819] px-4 py-3 shadow-[0_14px_28px_rgba(72,35,19,0.22)] sm:px-5">
-            <div className="flex flex-col gap-3">
               <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-3">
                 <AppNavTile onClick={() => setView('home')} eyebrow="Retour" icon="home" size="sm" tone="cream">Accueil</AppNavTile>
                 <AppNavTile onClick={() => setView('stats')} eyebrow="Retour" icon="settings" size="sm" tone="cream">Parametres</AppNavTile>
@@ -1386,11 +1380,8 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                   <h2 className="text-3xl font-black leading-none text-[#FFF7EA]">Taux de prise</h2>
                 <p className="mt-1 text-[10px] font-black uppercase tracking-[0.22em] text-[#F7C05B]">Parametrage</p>
                 </div>
-              </div>
-
-              <div className="flex flex-col gap-2 rounded-2xl border border-[#B8793F]/65 bg-[#6E371F] p-2 xl:flex-row xl:items-center xl:justify-end">
                 <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportMarginFile} />
-                <div className="flex flex-wrap gap-2">
+                <div className="ml-auto flex flex-wrap gap-2">
 
                 <div className="hidden min-h-[42px] flex-wrap items-center gap-2 rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2">
                   <span className="text-[10px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Mois</span>
@@ -1434,9 +1425,9 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 >
                   Supprimer import marge
                 </button>
-                </div>
-              </div>
             </div>
+          </div>
+          </div>
             <div className="hidden mt-3 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
               {[
                 ['Produits', rows.length],
@@ -1452,7 +1443,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 </div>
               ))}
             </div>
-            <div className="-mx-4 -mb-3 mt-3 border-t border-[#D7B79B] bg-[#FFF8EF] px-4 py-3 sm:-mx-5 sm:px-5">
+            <div className="border-b border-[#D7B79B] bg-[#FFF8EF] px-4 py-3 sm:px-5">
               <div className="mb-2 flex items-center justify-between gap-3">
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8A5A2F]">Figer les mois du taux de prise</p>
                 <p className="text-[11px] font-bold text-[#8B6650]">{monthOptions.filter((month) => frozenMonths[month.key]).length} mois figes</p>
@@ -1555,22 +1546,21 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 {visibleSelectedCount > 0 ? ` • ${visibleSelectedCount} sélectionnée${visibleSelectedCount > 1 ? 's' : ''}` : ''}
               </div>
             </div>
-          </div>
 
           <div ref={tableScrollRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#FFF8EF]">
-            <table className="w-full min-w-[1660px] table-fixed border-separate border-spacing-0">
+            <table className="w-full table-fixed border-separate border-spacing-0">
               <colgroup>
-                <col className="w-[4%]" />
-                <col className="w-[8%]" />
+                <col className="w-[3%]" />
+                <col className="w-[6%]" />
+                <col className="w-[17%]" />
+                <col className="w-[10%]" />
                 <col className="w-[18%]" />
-                <col className="w-[11%]" />
-                <col className="w-[23%]" />
-                <col className="w-[22%]" />
+                <col className="w-[16%]" />
                 <col className="w-[8%]" />
                 <col className="w-[8%]" />
                 <col className="w-[6%]" />
-                <col className="w-[6%]" />
-                <col className="w-[4%]" />
+                <col className="w-[5%]" />
+                <col className="w-[3%]" />
               </colgroup>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[#F2DDC0] text-[#71402D]">
@@ -1832,16 +1822,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
 
         </section>
 
-        <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-30 px-4 pb-3 xl:px-5">
-          <div className="pointer-events-auto rounded-[16px] border border-[#D8BEA8] bg-[#FFF8F1]/95 shadow-[0_-8px_24px_rgba(104,63,39,0.12)] backdrop-blur">
-            <div
-              ref={bottomScrollRef}
-              className="overflow-x-auto overflow-y-hidden rounded-[16px]"
-            >
-              <div ref={bottomScrollInnerRef} className="h-4" />
-            </div>
-          </div>
-        </div>
       </main>
       </div>
     </div>
