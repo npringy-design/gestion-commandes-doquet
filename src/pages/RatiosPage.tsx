@@ -272,8 +272,9 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_12%_0%,rgba(184,91,43,0.18),transparent_30%),radial-gradient(circle_at_88%_8%,rgba(109,143,78,0.12),transparent_28%),linear-gradient(180deg,#F8F1E7_0%,#EFE1D0_52%,#D7AA78_100%)] text-[#2F1D14]">
       <div className="mx-auto flex min-h-[100dvh] max-w-[1760px] flex-col gap-3 p-3 lg:h-[100dvh] lg:min-h-0 lg:overflow-hidden lg:p-4">
         <header className="flex-none overflow-hidden rounded-[28px] border border-[#7B3A1E] bg-[linear-gradient(90deg,#4A2217_0%,#6F321D_48%,#9D541E_100%)] shadow-[0_18px_36px_rgba(72,35,19,0.22)]">
-          <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between lg:p-5">
-            <div className="flex min-w-0 items-center gap-3">
+          <div className="flex flex-col gap-3 px-4 py-3 lg:px-5">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex min-w-0 items-center gap-3">
               <AppNavTile onClick={() => setView('home')} eyebrow="Retour" icon="home" size="sm" tone="cream">Accueil</AppNavTile>
               <AppNavTile onClick={() => setView('stats')} eyebrow="Retour" icon="settings" size="sm" tone="cream">Paramètres</AppNavTile>
               <div className="hidden h-12 w-px bg-[#E9B25D]/35 sm:block" />
@@ -283,7 +284,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 lg:min-w-[700px]">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:min-w-[260px] [&>*:nth-child(1)]:hidden [&>*:nth-child(4)]:hidden [&>*:nth-child(5)]:hidden">
               <div className="rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 shadow-sm">
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Mois</p>
                 <p className="mt-1 truncate text-sm font-black text-[#3A2116]">{state.importTargetMonth?.toUpperCase?.() ?? state.importTargetMonth}</p>
@@ -326,6 +327,39 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                     {isSelectedFreezeMonthValidated ? 'Défiger' : 'Figer'}
                   </button>
                 </div>
+              </div>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-[#B8793F]/65 bg-[#FFF7EA]/10 p-2">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#F7C05B]">Figer les mois de vente</p>
+                <p className="text-[11px] font-bold text-[#FFE1B8]">{MONTHS_ORDER.filter((month) => monthFreezeMap[month]).length} mois figes</p>
+              </div>
+              <div className="grid grid-cols-6 gap-1.5 xl:grid-cols-12">
+                {MONTHS_ORDER.map((month) => {
+                  const locked = !!monthFreezeMap[month];
+                  return (
+                    <button
+                      key={`sales-freeze-${month}`}
+                      type="button"
+                      onClick={() => {
+                        setFreezeMonthKey(month);
+                        state.toggleValidateMonth(month);
+                      }}
+                      disabled={!canEdit}
+                      className={`min-h-[42px] rounded-xl border px-2 py-1 text-[10px] font-black uppercase tracking-[0.07em] transition disabled:opacity-50 ${
+                        locked
+                          ? 'border-emerald-700 bg-emerald-600 text-white shadow-sm'
+                          : month === workMonthKey
+                            ? 'border-[#D8A640] bg-[#FFE8A8] text-[#5B321E]'
+                            : 'border-[#EBC28A] bg-[#FFF7EA] text-[#2F1D14] hover:bg-white'
+                      }`}
+                    >
+                      <span className="block text-xs">{MONTH_LABELS[month]}</span>
+                      <span className="block text-[8px]">{locked ? 'Fige' : 'Ouvert'}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
