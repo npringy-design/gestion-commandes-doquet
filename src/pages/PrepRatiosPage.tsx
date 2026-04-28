@@ -278,28 +278,12 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
           <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[28px] border border-[#D8A96E] bg-[#FFF7EA]/96 shadow-[0_18px_38px_rgba(72,35,19,0.18)]">
             <div className="border-b border-[#7B3A1E] bg-[linear-gradient(90deg,#4A2217_0%,#6F321D_48%,#9D541E_100%)] px-4 py-3 shadow-[0_14px_28px_rgba(72,35,19,0.22)] sm:px-5">
               <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                <div className="min-w-0 shrink-0 xl:flex xl:items-center xl:gap-4">
-                  <h2 className="text-3xl font-black leading-none text-[#FFF7EA]">Calcul prod ratio</h2>
+                <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-3">
+                  <AppNavTile onClick={() => setView('home')} eyebrow="Retour" icon="home" size="sm" tone="cream">Accueil</AppNavTile>
+                  <AppNavTile onClick={() => setView('stats')} eyebrow="Retour" icon="settings" size="sm" tone="cream">Parametres</AppNavTile>
                   <div className="hidden h-12 w-px bg-[#E9B25D]/35 xl:block" />
+                  <h2 className="text-3xl font-black leading-none text-[#FFF7EA]">Calcul prod ratio</h2>
                   <p className="hidden text-[10px] font-black uppercase tracking-[0.22em] text-[#F7C05B] xl:block">Hippopotamus Thillois</p>
-                </div>
-                <div className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-4 xl:max-w-[720px]">
-                  <button type="button" onClick={() => setView('home')} className="min-h-[54px] rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2.5 text-left text-[#2F1D14] shadow-[0_4px_0_rgba(47,29,20,0.16)] transition hover:bg-white">
-                    <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Retour</div>
-                    <div className="mt-0.5 text-sm font-black">Accueil</div>
-                  </button>
-                  <button type="button" onClick={() => setView('stats')} className="min-h-[54px] rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2.5 text-left text-[#2F1D14] shadow-[0_4px_0_rgba(47,29,20,0.16)] transition hover:bg-white">
-                    <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#8A5A2F]">Retour</div>
-                    <div className="mt-0.5 text-sm font-black">Parametres</div>
-                  </button>
-                  <button type="button" onClick={addItem} disabled={!canEdit} className="min-h-[54px] rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2.5 text-left text-[#2F1D14] shadow-[0_4px_0_rgba(47,29,20,0.16)] transition hover:bg-white disabled:opacity-50">
-                    <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Action</div>
-                    <div className="mt-0.5 text-sm font-black">Ajouter</div>
-                  </button>
-                  <button type="button" onClick={deleteSelected} disabled={!canEdit || selectedIds.size === 0} className="min-h-[54px] rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2.5 text-left text-[#7A2E1E] shadow-[0_4px_0_rgba(47,29,20,0.16)] transition hover:bg-white disabled:opacity-50">
-                    <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Action</div>
-                    <div className="mt-0.5 text-sm font-black">Supprimer</div>
-                  </button>
                 </div>
               </div>
 
@@ -318,6 +302,22 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                     className={`min-h-[42px] rounded-2xl border px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] shadow-sm transition ${showOnlyUnlinked ? 'border-[#F7B24A] bg-[#F7B24A] text-[#2F1D14]' : 'border-[#EBC28A] bg-[#FFF7EA] text-[#2F1D14] hover:bg-white'}`}
                   >
                     {showOnlyUnlinked ? 'Tout afficher' : 'Non liees'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={addItem}
+                    disabled={!canEdit}
+                    className="min-h-[42px] rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] text-[#2F1D14] shadow-sm transition hover:bg-white disabled:opacity-50"
+                  >
+                    Ajouter
+                  </button>
+                  <button
+                    type="button"
+                    onClick={deleteSelected}
+                    disabled={!canEdit || selectedIds.size === 0}
+                    className="min-h-[42px] rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] text-[#7A2E1E] shadow-sm transition hover:bg-white disabled:opacity-50"
+                  >
+                    Supprimer
                   </button>
                   <button
                     type="button"

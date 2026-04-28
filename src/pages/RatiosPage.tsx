@@ -275,6 +275,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
           <div className="h-2 bg-[linear-gradient(90deg,#2F1D14_0%,#7B3A1E_45%,#D4922F_100%)]" />
           <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between lg:p-5">
             <div className="flex min-w-0 items-center gap-3">
+              <AppNavTile onClick={() => setView('home')} eyebrow="Retour" icon="home" size="sm" tone="cream">Accueil</AppNavTile>
               <AppNavTile onClick={() => setView('stats')} eyebrow="Retour" icon="settings" size="sm" tone="cream">Paramètres</AppNavTile>
               <div className="hidden h-12 w-px bg-[#D8CAB8] sm:block" />
               <div className="min-w-0">
@@ -361,6 +362,12 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <button
+                  onClick={() => setShowOnlyUnlinked(v => !v)}
+                  className={`rounded-[16px] border px-4 py-3 text-xs font-black uppercase tracking-[0.12em] shadow-sm transition ${showOnlyUnlinked ? 'border-[#2F1D14] bg-[#2F1D14] text-[#FFF7EA]' : 'border-[#D8AE77] bg-[#FFFDF8] text-[#6A432D] hover:bg-white'}`}
+                >
+                  {showOnlyUnlinked ? 'Tous les produits' : 'Produits non liés'}
+                </button>
+                <button
                   onClick={addNewProduct}
                   disabled={!canEdit}
                   className="rounded-[16px] border border-[#D8AE77] bg-[#F7B24A] px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-[#3A2116] shadow-sm transition hover:bg-[#FFC266] disabled:opacity-50"
@@ -373,12 +380,6 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                   className="rounded-[16px] border border-[#D9A08B] bg-[#FFF1EA] px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-[#8A2F20] shadow-sm transition hover:bg-white disabled:opacity-50"
                 >
                   Supprimer produit
-                </button>
-                <button
-                  onClick={() => setShowOnlyUnlinked(v => !v)}
-                  className={`rounded-[16px] border px-4 py-3 text-xs font-black uppercase tracking-[0.12em] shadow-sm transition ${showOnlyUnlinked ? 'border-[#2F1D14] bg-[#2F1D14] text-[#FFF7EA]' : 'border-[#D8AE77] bg-[#FFFDF8] text-[#6A432D] hover:bg-white'}`}
-                >
-                  {showOnlyUnlinked ? 'Tous les produits' : 'Produits non liés'}
                 </button>
                 <button
                   onClick={() => setSelectedProductIds(
