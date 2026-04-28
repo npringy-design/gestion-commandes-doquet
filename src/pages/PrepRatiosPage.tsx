@@ -412,161 +412,148 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                           const isPickerPopoverOpen = activePopover?.id === item.id && activePopover.mode === 'picker';
 
                           return (
-                            <article key={item.id} className={`rounded-[20px] border p-3 transition ${selectedIds.has(item.id) ? 'border-[#B45439] bg-[#FFF1E3] shadow-[0_8px_20px_rgba(180,84,57,0.12)]' : 'border-[#E0CCBA] bg-[#FFFCF7]'}`}>
-                              <div className="grid min-w-0 gap-3 2xl:grid-cols-[1.05fr_0.9fr_1.2fr]">
-                                <div className="min-w-0 rounded-2xl border border-[#E8D6C6] bg-white p-3">
-                                  <div className="mb-2 flex items-center justify-between gap-2">
-                                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.12em] text-[#8A5A2F]">
-                                      <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} disabled={!canEdit} className="h-4 w-4 accent-[#A93E2A]" />
-                                      Selection
-                                    </label>
-                                    <div className="flex items-center gap-1.5">
-                                      <button onClick={() => moveItem(item.id, 'up')} disabled={!canEdit || idx === 0} className="h-8 w-8 rounded-xl bg-[#2F1D14] text-xs font-black text-[#F6C35B] disabled:opacity-20" title="Monter">?</button>
-                                      <button onClick={() => moveItem(item.id, 'down')} disabled={!canEdit || idx === rows.length - 1} className="h-8 w-8 rounded-xl bg-[#2F1D14] text-xs font-black text-[#F6C35B] disabled:opacity-20" title="Descendre">?</button>
-                                    </div>
-                                  </div>
+                            <article key={item.id} className={`rounded-[18px] border bg-white px-3 py-3 transition ${selectedIds.has(item.id) ? 'border-[#B45439] shadow-[0_8px_20px_rgba(180,84,57,0.12)]' : 'border-[#E0CCBA]'}`}>
+                              <div className="grid min-w-0 items-end gap-2 xl:grid-cols-[28px_minmax(160px,1.35fr)_minmax(120px,0.95fr)_78px_minmax(120px,0.95fr)_76px_76px_minmax(210px,1.35fr)_70px]">
+                                <label className="flex h-11 items-center justify-center">
+                                  <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} disabled={!canEdit} className="h-4 w-4 accent-[#A93E2A]" />
+                                </label>
 
-                                  <div className="grid gap-2 sm:grid-cols-[1fr_110px]">
-                                    <label className="min-w-0">
-                                      <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Production</span>
-                                      <input
-                                        key={`${item.id}-name-${item.name}`}
-                                        defaultValue={item.name}
-                                        disabled={!canEdit}
-                                        onBlur={(e) => updateItem(item.id, { name: e.target.value })}
-                                        onKeyDown={onEnterBlur}
-                                        className="h-11 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 text-sm font-black outline-none"
-                                      />
-                                    </label>
-                                    <label>
-                                      <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Unite</span>
-                                      <select value={unitType} disabled={!canEdit} onChange={(e) => updateItem(item.id, { unitType: e.target.value as UnitType })} className="h-11 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 font-bold outline-none">
-                                        <option value="piece">Piece</option>
-                                        <option value="kg">Kg</option>
-                                      </select>
-                                    </label>
-                                  </div>
+                                <label className="min-w-0">
+                                  <span className="mb-1 block text-[9px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Produit</span>
+                                  <input
+                                    key={`${item.id}-name-${item.name}`}
+                                    defaultValue={item.name}
+                                    disabled={!canEdit}
+                                    onBlur={(e) => updateItem(item.id, { name: e.target.value })}
+                                    onKeyDown={onEnterBlur}
+                                    className="h-10 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 text-sm font-black outline-none"
+                                  />
+                                </label>
 
-                                  <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_90px]">
-                                    <label className="min-w-0">
-                                      <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Base</span>
-                                      <input
-                                        key={`${item.id}-base-${getBaseProduction(item)}`}
-                                        defaultValue={getBaseProduction(item)}
-                                        disabled={!canEdit}
-                                        onBlur={(e) => updateItem(item.id, { baseProduction: e.target.value })}
-                                        onKeyDown={onEnterBlur}
-                                        className="h-11 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 text-sm font-bold outline-none"
-                                      />
-                                    </label>
-                                    <label>
-                                      <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Poids g</span>
-                                      <input
-                                        key={`${item.id}-weight-${getUnitWeight(item)}`}
-                                        type="number"
-                                        defaultValue={getUnitWeight(item) === '' ? '' : String(getUnitWeight(item))}
-                                        disabled={!canEdit}
-                                        onBlur={(e) => updateItem(item.id, { unitWeightGrams: e.target.value === '' ? '' : Number(e.target.value) || '' })}
-                                        onKeyDown={onEnterBlur}
-                                        placeholder="100"
-                                        className="h-11 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 text-center font-black outline-none"
-                                      />
-                                    </label>
-                                  </div>
+                                <label className="min-w-0">
+                                  <span className="mb-1 block text-[9px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Base</span>
+                                  <input
+                                    key={`${item.id}-base-${getBaseProduction(item)}`}
+                                    defaultValue={getBaseProduction(item)}
+                                    disabled={!canEdit}
+                                    onBlur={(e) => updateItem(item.id, { baseProduction: e.target.value })}
+                                    onKeyDown={onEnterBlur}
+                                    className="h-10 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 text-sm font-bold outline-none"
+                                  />
+                                </label>
 
-                                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                                    <label>
-                                      <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Poste</span>
-                                      <select value={item.category} disabled={!canEdit} onChange={(e) => updateItem(item.id, { category: e.target.value as PrepCategory })} className="h-11 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 font-bold outline-none">
-                                        {CATEGORY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                                      </select>
-                                    </label>
-                                    <label>
-                                      <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">DLC h</span>
-                                      <input
-                                        key={`${item.id}-dlc-${item.secondaryDlcHours}`}
-                                        type="number"
-                                        defaultValue={item.secondaryDlcHours}
-                                        disabled={!canEdit}
-                                        onBlur={(e) => updateItem(item.id, { secondaryDlcHours: e.target.value === '' ? '' : Number(e.target.value) || '' })}
-                                        onKeyDown={onEnterBlur}
-                                        className="h-11 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 text-center font-black outline-none"
-                                      />
-                                    </label>
-                                  </div>
-                                </div>
+                                <label>
+                                  <span className="mb-1 block text-[9px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Unite</span>
+                                  <select value={unitType} disabled={!canEdit} onChange={(e) => updateItem(item.id, { unitType: e.target.value as UnitType })} className="h-10 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 text-sm font-bold outline-none">
+                                    <option value="piece">Piece</option>
+                                    <option value="kg">Kg</option>
+                                  </select>
+                                </label>
 
-                                <div className="min-w-0 rounded-2xl border border-[#E8D6C6] bg-white p-3">
-                                  <div className="mb-2 flex items-center justify-between gap-2">
-                                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#8A5A2F]">Imports lies</p>
-                                    <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${currentMappings.length > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                                      {currentMappings.length > 0 ? `${currentMappings.length} lien${currentMappings.length > 1 ? 's' : ''}` : 'Aucun lien'}
+                                <label className="min-w-0">
+                                  <span className="mb-1 block text-[9px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Poste</span>
+                                  <select value={item.category} disabled={!canEdit} onChange={(e) => updateItem(item.id, { category: e.target.value as PrepCategory })} className="h-10 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 text-sm font-bold outline-none">
+                                    {CATEGORY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                  </select>
+                                </label>
+
+                                <label>
+                                  <span className="mb-1 block text-[9px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Poids</span>
+                                  <input
+                                    key={`${item.id}-weight-${getUnitWeight(item)}`}
+                                    type="number"
+                                    defaultValue={getUnitWeight(item) === '' ? '' : String(getUnitWeight(item))}
+                                    disabled={!canEdit}
+                                    onBlur={(e) => updateItem(item.id, { unitWeightGrams: e.target.value === '' ? '' : Number(e.target.value) || '' })}
+                                    onKeyDown={onEnterBlur}
+                                    placeholder="100"
+                                    className="h-10 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 text-center text-sm font-black outline-none"
+                                  />
+                                </label>
+
+                                <label>
+                                  <span className="mb-1 block text-[9px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">DLC</span>
+                                  <input
+                                    key={`${item.id}-dlc-${item.secondaryDlcHours}`}
+                                    type="number"
+                                    defaultValue={item.secondaryDlcHours}
+                                    disabled={!canEdit}
+                                    onBlur={(e) => updateItem(item.id, { secondaryDlcHours: e.target.value === '' ? '' : Number(e.target.value) || '' })}
+                                    onKeyDown={onEnterBlur}
+                                    className="h-10 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 text-center text-sm font-black outline-none"
+                                  />
+                                </label>
+
+                                <div className="relative min-w-0">
+                                  <div className="mb-1 flex items-center justify-between gap-2">
+                                    <span className="block text-[9px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Recherche produit</span>
+                                    <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${currentMappings.length > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                                      {currentMappings.length}
                                     </span>
                                   </div>
-
-                                  <div className="relative rounded-2xl border border-[#D0B08D] bg-[#FFFDF9] px-3 py-3 shadow-sm">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <button
-                                        type="button"
-                                        disabled={currentMappings.length === 0}
-                                        onClick={() => setActivePopover(isSelectedPopoverOpen ? null : { id: item.id, mode: 'selected' })}
-                                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#D0B08D] bg-white text-[#6C3C2B] disabled:cursor-not-allowed disabled:opacity-35"
-                                        title={currentMappings.length > 0 ? 'Voir les produits lies' : 'Aucun produit lie'}
-                                      >
-                                        ?
-                                      </button>
-                                      <button
-                                        type="button"
-                                        disabled={!canOpenPicker}
-                                        onClick={() => setActivePopover(isPickerPopoverOpen ? null : { id: item.id, mode: 'picker' })}
-                                        className="h-10 min-w-[110px] rounded-xl border border-[#D0B08D] bg-white px-3 text-[11px] font-black uppercase tracking-[0.12em] text-[#A05A28] disabled:cursor-not-allowed disabled:opacity-35"
-                                      >
-                                        Ajouter
-                                      </button>
-                                      <div className="min-w-0 text-xs font-bold text-slate-500">
-                                        {currentMappings.length > 0 ? `${currentMappings.length} produit${currentMappings.length > 1 ? 's' : ''}` : 'Aucun produit lie'}
-                                      </div>
-                                    </div>
-                                    {(isSelectedPopoverOpen || isPickerPopoverOpen) && (
-                                      <div className="absolute left-0 top-[calc(100%+8px)] z-[999]">
-                                        <MappingPopover
-                                          mode={isSelectedPopoverOpen ? 'selected' : 'picker'}
-                                          orphanNames={rowOrphanNames}
-                                          selectedNames={currentMappings}
-                                          onSelectMany={(names) => {
-                                            addMappingNames(item, names);
-                                            setActivePopover(null);
-                                          }}
-                                          onRemove={(name) => removeMappingName(item, name)}
-                                          onClose={() => setActivePopover(null)}
-                                        />
-                                      </div>
-                                    )}
+                                  <div className="flex h-10 min-w-0 items-center gap-1.5 rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-1.5">
+                                    <button
+                                      type="button"
+                                      disabled={currentMappings.length === 0}
+                                      onClick={() => setActivePopover(isSelectedPopoverOpen ? null : { id: item.id, mode: 'selected' })}
+                                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#D0B08D] bg-white text-xs font-black text-[#6C3C2B] disabled:cursor-not-allowed disabled:opacity-35"
+                                      title={currentMappings.length > 0 ? 'Voir les produits lies' : 'Aucun produit lie'}
+                                    >
+                                      ?
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={!canOpenPicker}
+                                      onClick={() => setActivePopover(isPickerPopoverOpen ? null : { id: item.id, mode: 'picker' })}
+                                      className="h-8 rounded-lg border border-[#D0B08D] bg-white px-2 text-[10px] font-black uppercase tracking-[0.10em] text-[#A05A28] disabled:cursor-not-allowed disabled:opacity-35"
+                                    >
+                                      Ajouter
+                                    </button>
+                                    <span className="min-w-0 truncate text-[11px] font-bold text-slate-500">
+                                      {currentMappings.length > 0 ? `${currentMappings.length} produits` : 'Aucun lien'}
+                                    </span>
                                   </div>
-
+                                  {(isSelectedPopoverOpen || isPickerPopoverOpen) && (
+                                    <div className="absolute right-0 top-[calc(100%+8px)] z-[999]">
+                                      <MappingPopover
+                                        mode={isSelectedPopoverOpen ? 'selected' : 'picker'}
+                                        orphanNames={rowOrphanNames}
+                                        selectedNames={currentMappings}
+                                        onSelectMany={(names) => {
+                                          addMappingNames(item, names);
+                                          setActivePopover(null);
+                                        }}
+                                        onRemove={(name) => removeMappingName(item, name)}
+                                        onClose={() => setActivePopover(null)}
+                                      />
+                                    </div>
+                                  )}
                                 </div>
 
-                                <div className="rounded-2xl border border-[#E8D6C6] bg-white p-3">
-                                  <div className="mb-2 flex items-center justify-between gap-2">
-                                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#8A5A2F]">Lecture mensuelle</p>
-                                    <div className="rounded-xl bg-[#A93E2A] px-3 py-1.5 text-center">
-                                      <div className="text-[8px] font-black uppercase tracking-[0.10em] text-[#FFE1B8]">Ratio moy.</div>
-                                      <div className="text-sm font-black leading-none text-white">{avgRatio.toFixed(3)}</div>
+                                <div className="flex items-end justify-end gap-1">
+                                  <button onClick={() => moveItem(item.id, 'up')} disabled={!canEdit || idx === 0} className="h-9 w-8 rounded-xl bg-[#2F1D14] text-xs font-black text-[#F6C35B] disabled:opacity-20" title="Monter">↑</button>
+                                  <button onClick={() => moveItem(item.id, 'down')} disabled={!canEdit || idx === rows.length - 1} className="h-9 w-8 rounded-xl bg-[#2F1D14] text-xs font-black text-[#F6C35B] disabled:opacity-20" title="Descendre">↓</button>
+                                </div>
+                              </div>
+
+                              <div className="mt-2 grid grid-cols-6 gap-1.5 xl:grid-cols-12">
+                                {MONTHS_ORDER.map((month) => {
+                                  const monthValue = getMonthValue(item, month);
+                                  const monthRatio = getMonthRatio(item, month);
+                                  return (
+                                    <div key={`${item.id}-${month}`} className={`rounded-lg border px-2 py-1.5 text-center ${prepValidatedMonths[month] ? 'border-indigo-200 bg-indigo-50' : month === workMonth ? 'border-[#D8A640] bg-[#FFF1C9]' : monthValue > 0 ? 'border-emerald-100 bg-emerald-50' : 'border-slate-100 bg-slate-50'}`}>
+                                      <div className="text-[8px] font-black uppercase tracking-[0.08em] text-[#8A5A2F]">{MONTH_LABELS[month]}</div>
+                                      <div className={`mt-0.5 text-xs font-black leading-none ${prepValidatedMonths[month] ? 'text-indigo-800' : monthValue > 0 ? 'text-emerald-700' : 'text-slate-400'}`}>{monthValue || '-'}</div>
+                                      <div className="mt-0.5 text-[8px] font-mono text-slate-500">{monthRatio.toFixed(3)}</div>
                                     </div>
-                                  </div>
-                                  <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 xl:grid-cols-6">
-                                    {MONTHS_ORDER.map((month) => {
-                                      const monthValue = getMonthValue(item, month);
-                                      const monthRatio = getMonthRatio(item, month);
-                                      return (
-                                        <div key={`${item.id}-${month}`} className={`rounded-xl border px-2 py-2 text-center ${prepValidatedMonths[month] ? 'border-indigo-200 bg-indigo-50' : month === workMonth ? 'border-[#D8A640] bg-[#FFF1C9]' : monthValue > 0 ? 'border-emerald-100 bg-emerald-50' : 'border-slate-100 bg-slate-50'}`}>
-                                          <div className="text-[9px] font-black uppercase tracking-[0.08em] text-[#8A5A2F]">{MONTH_LABELS[month]}</div>
-                                          <div className={`mt-1 text-sm font-black leading-none ${prepValidatedMonths[month] ? 'text-indigo-800' : monthValue > 0 ? 'text-emerald-700' : 'text-slate-400'}`}>{monthValue || '-'}</div>
-                                          <div className="mt-1 text-[9px] font-mono text-slate-500">{monthRatio.toFixed(3)}</div>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
+                                  );
+                                })}
+                              </div>
+
+                              <div className="mt-2 flex justify-end">
+                                <div className="rounded-lg bg-[#A93E2A] px-3 py-1 text-center">
+                                  <div className="text-[7px] font-black uppercase tracking-[0.10em] text-[#FFE1B8]">Ratio moy.</div>
+                                  <div className="text-xs font-black leading-none text-white">{avgRatio.toFixed(3)}</div>
                                 </div>
                               </div>
                             </article>
