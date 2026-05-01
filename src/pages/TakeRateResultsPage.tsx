@@ -18,6 +18,7 @@ const STORAGE_KEYS = [
   `${STORAGE_PREFIX}take_rate_rows_v2`,
   `${STORAGE_PREFIX}take_rate_rows_v1`,
 ];
+const TAKE_RATE_BASE_ROWS_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_base_rows_v1`;
 const TAKE_RATE_DRAFTS_CLOUD_KEY = 'takeRateMonthDrafts';
 const TAKE_RATE_FROZEN_CLOUD_KEY = 'takeRateFrozenMonths';
 const TAKE_RATE_BASE_ROWS_CLOUD_KEY = 'takeRateBaseRows';
@@ -28,6 +29,17 @@ interface TakeRateMonthSnapshot {
   rows?: TakeRateMappingRow[];
   salesByImport?: Record<string, number>;
 }
+
+const isMarginBaseRow = (row: TakeRateMappingRow) =>
+  Boolean(
+    (row as any).matchedMarginLabel ||
+      (row as any).matchedMarginSheet ||
+      (row as any).marginSource ||
+      (row as any).costHt ||
+      (row as any).sellPriceHt ||
+      (row as any).marginEuro ||
+      (row as any).marginPercent
+  );
 
 const normalize = (value: string) =>
   value
@@ -197,6 +209,11 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
     let cancelled = false;
 
     const loadLegacyRows = () => {
+      const rawBase = localStorage.getItem(TAKE_RATE_BASE_ROWS_STORAGE_KEY);
+      if (rawBase) {
+        const parsedBase = JSON.parse(rawBase);
+        if (Array.isArray(parsedBase)) return parsedBase;
+      }
       for (const key of STORAGE_KEYS) {
         const raw = localStorage.getItem(key);
         if (!raw) continue;
@@ -222,7 +239,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
             cloud.forEach((entry: any) => {
               if (entry?.key === TAKE_RATE_DRAFTS_CLOUD_KEY && entry.value && typeof entry.value === 'object') nextDrafts = entry.value;
               if (entry?.key === TAKE_RATE_FROZEN_CLOUD_KEY && entry.value && typeof entry.value === 'object') nextFrozen = entry.value;
-              if (entry?.key === TAKE_RATE_BASE_ROWS_CLOUD_KEY && Array.isArray(entry.value)) nextBaseRows = entry.value;
+              if (entry?.key === TAKE_RATE_BASE_ROWS_CLOUD_KEY && Array.isArray(entry.value)) nextBaseRows = entry.value.filter(isMarginBaseRow);
             });
           }
         }

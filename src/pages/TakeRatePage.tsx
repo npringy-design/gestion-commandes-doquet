@@ -49,6 +49,7 @@ const LEGACY_ROWS_STORAGE_KEYS = [
   `${STORAGE_PREFIX}take_rate_rows_v2`,
   `${STORAGE_PREFIX}take_rate_rows_v1`,
 ];
+const TAKE_RATE_BASE_ROWS_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_base_rows_v1`;
 const MARGIN_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_margin_catalog_v1`;
 const MARGIN_FILE_NAME_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_margin_file_name_v1`;
 const TAKE_RATE_BASE_ROWS_CLOUD_KEY = 'takeRateBaseRows';
@@ -240,18 +241,25 @@ const normalizeRow = (row: any): TakeRateMappingRow => ({
   matchedMarginSheet: String(row.matchedMarginSheet ?? ''),
 });
 
-const readStoredRows = () => {
+const readStoredBaseRows = () => {
   try {
-    const storageKeys = [ROWS_STORAGE_KEY, ...LEGACY_ROWS_STORAGE_KEYS];
-    for (const key of storageKeys) {
-      const raw = localStorage.getItem(key);
-      if (!raw) continue;
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed.map(normalizeRow);
-    }
+    const raw = localStorage.getItem(TAKE_RATE_BASE_ROWS_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(parsed)) return parsed.map(normalizeRow).filter(isMarginBaseRow);
   } catch (_error) {}
   return [];
 };
+
+const isMarginBaseRow = (row: TakeRateMappingRow) =>
+  Boolean(
+    row.matchedMarginLabel ||
+      row.matchedMarginSheet ||
+      row.marginSource ||
+      row.costHt ||
+      row.sellPriceHt ||
+      row.marginEuro ||
+      row.marginPercent
+  );
 
 const readStoredMarginCatalog = () => {
   try {
@@ -834,8 +842,8 @@ const statusMeta: Record<RowStatus, { label: string; pill: string; rowRing: stri
 };
 
 const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth }) => {
-  const [baseRows, setBaseRows] = useState<TakeRateMappingRow[]>(readStoredRows);
-  const [rows, setRows] = useState<TakeRateMappingRow[]>(readStoredRows);
+  const [baseRows, setBaseRows] = useState<TakeRateMappingRow[]>(readStoredBaseRows);
+  const [rows, setRows] = useState<TakeRateMappingRow[]>(readStoredBaseRows);
   const [searchByRow, setSearchByRow] = useState<Record<string, string>>({});
   const [openSearchRow, setOpenSearchRow] = useState<string | null>(null);
   const [openLinkedRow, setOpenLinkedRow] = useState<string | null>(null);
@@ -856,7 +864,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const [didHydrateTakeRateCloud, setDidHydrateTakeRateCloud] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const skipNextMonthPersistRef = useRef(false);
-  const baseRowsRef = useRef<TakeRateMappingRow[]>(readStoredRows());
+  const baseRowsRef = useRef<TakeRateMappingRow[]>(readStoredBaseRows());
   const monthDraftsRef = useRef<Record<string, TakeRateMonthSnapshot>>({});
   const frozenMonthsRef = useRef<Record<string, TakeRateMonthSnapshot>>({});
   const cloudTsRef = useRef<Record<string, string>>({});
@@ -882,8 +890,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
 
   const persistBaseRows = (value: TakeRateMappingRow[]) => {
     const serializedRows = JSON.stringify(value);
-    localStorage.setItem(ROWS_STORAGE_KEY, serializedRows);
-    LEGACY_ROWS_STORAGE_KEYS.forEach((key) => localStorage.setItem(key, serializedRows));
+    localStorage.setItem(TAKE_RATE_BASE_ROWS_STORAGE_KEY, serializedRows);
     baseRowsRef.current = value;
 
     if (!isSupabaseConfigured()) return;
@@ -920,7 +927,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     const run = async () => {
       let localDrafts: Record<string, TakeRateMonthSnapshot> = {};
       let localFrozen: Record<string, TakeRateMonthSnapshot> = {};
-      let localBaseRows = readStoredRows();
+      let localBaseRows = readStoredBaseRows();
       let localMarginCatalog = readStoredMarginCatalog();
       let localMarginFileName = readStoredMarginFileName();
 
@@ -958,7 +965,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 cloudTsRef.current[TAKE_RATE_FROZEN_CLOUD_KEY] = row.updated_at;
               }
               if (row?.key === TAKE_RATE_BASE_ROWS_CLOUD_KEY && Array.isArray(row.value)) {
-                nextBaseRows = row.value.map(normalizeRow);
+                nextBaseRows = row.value.map(normalizeRow).filter(isMarginBaseRow);
                 cloudTsRef.current[TAKE_RATE_BASE_ROWS_CLOUD_KEY] = row.updated_at;
               }
               if (row?.key === TAKE_RATE_MARGIN_CATALOG_CLOUD_KEY && Array.isArray(row.value)) {
@@ -976,6 +983,10 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
         }
       }
 
+      if (nextBaseRows.length === 0 && Array.isArray(nextMarginCatalog) && nextMarginCatalog.length > 0) {
+        nextBaseRows = generateRowsFromMarginCatalog(nextMarginCatalog, []).map((row) => ({ ...row, linkedImports: [] }));
+      }
+
       if (cancelled) return;
 
       monthDraftsRef.current = nextDrafts;
@@ -988,7 +999,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       setMarginFileName(nextMarginFileName);
       localStorage.setItem(TAKE_RATE_MONTH_DRAFTS_STORAGE_KEY, JSON.stringify(nextDrafts));
       localStorage.setItem(TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY, JSON.stringify(nextFrozen));
-      localStorage.setItem(ROWS_STORAGE_KEY, JSON.stringify(nextBaseRows));
+      localStorage.setItem(TAKE_RATE_BASE_ROWS_STORAGE_KEY, JSON.stringify(nextBaseRows));
       localStorage.setItem(MARGIN_STORAGE_KEY, JSON.stringify(nextMarginCatalog));
       localStorage.setItem(MARGIN_FILE_NAME_STORAGE_KEY, nextMarginFileName);
 
