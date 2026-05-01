@@ -1046,17 +1046,19 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   useEffect(() => {
     if (!didHydrateTakeRateCloud || !selectedMonthKey) return;
 
-    const snapshot = frozenMonthsRef.current[selectedMonthKey] ?? monthDraftsRef.current[selectedMonthKey];
+    const frozenSnapshot = frozenMonthsRef.current[selectedMonthKey];
+    const draftSnapshot = monthDraftsRef.current[selectedMonthKey];
+    const snapshot = frozenSnapshot ?? ((draftSnapshot?.rows?.length ?? 0) > 0 ? draftSnapshot : undefined);
     skipNextMonthPersistRef.current = true;
 
     if (snapshot) {
       setRows((snapshot.rows ?? []).map(normalizeRow));
-      setMarginCatalog(snapshot.marginCatalog ?? []);
-      setMarginFileName(snapshot.marginFileName ?? '');
-      setImportMessage(frozenMonthsRef.current[selectedMonthKey] ? 'Mois figé chargé.' : '');
+      setMarginCatalog(snapshot.marginCatalog?.length ? snapshot.marginCatalog : marginCatalog);
+      setMarginFileName(snapshot.marginFileName || marginFileName);
+      setImportMessage(frozenSnapshot ? 'Mois figé chargé.' : '');
     } else {
       const monthImports = Array.from(new Set(extractImportLabels(prepImportsByMonth[selectedMonthKey] ?? '')));
-      setRows(autoLinkImportsToRows(baseRowsRef.current, monthImports));
+      setRows(autoLinkImportsToRows(baseRows, monthImports));
       setImportMessage('');
     }
 
@@ -1066,7 +1068,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     setPendingImportsByRow({});
     setSelectedRowIds([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
-  }, [selectedMonthKey, didHydrateTakeRateCloud, prepImportsByMonth]);
+  }, [baseRows, selectedMonthKey, didHydrateTakeRateCloud, prepImportsByMonth]);
 
   useEffect(() => {
     if (!didHydrateTakeRateCloud || !selectedMonthKey) return;
@@ -1077,6 +1079,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     }
 
     if (frozenMonthsRef.current[selectedMonthKey]) return;
+    if (rows.length === 0 && baseRowsRef.current.length > 0) return;
 
     const snapshot = { rows, marginCatalog, marginFileName };
     setMonthDrafts((prev) => {
