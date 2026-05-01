@@ -34,14 +34,6 @@ interface TakeRatePageProps {
   prepImportsByMonth: Record<string, string>;
 }
 
-interface TakeRateMonthSnapshot {
-  rows: TakeRateMappingRow[];
-  marginCatalog: MarginCatalogItem[];
-  marginFileName: string;
-  salesByImport?: Record<string, number>;
-  frozenAt?: string;
-}
-
 type RowStatus = 'ok' | 'review' | 'unlinked';
 
 const ROWS_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_rows_v3`;
@@ -55,10 +47,6 @@ const MARGIN_FILE_NAME_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_margin_file_nam
 const TAKE_RATE_BASE_ROWS_CLOUD_KEY = 'takeRateBaseRows';
 const TAKE_RATE_MARGIN_CATALOG_CLOUD_KEY = 'takeRateMarginCatalog';
 const TAKE_RATE_MARGIN_FILE_NAME_CLOUD_KEY = 'takeRateMarginFileName';
-const TAKE_RATE_DRAFTS_CLOUD_KEY = 'takeRateMonthDrafts';
-const TAKE_RATE_FROZEN_CLOUD_KEY = 'takeRateFrozenMonths';
-const TAKE_RATE_MONTH_DRAFTS_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_month_drafts_v1`;
-const TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_frozen_months_v1`;
 
 const createEmptyRow = (): TakeRateMappingRow => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
@@ -84,53 +72,6 @@ const normalize = (value: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-const tokenize = (value: string) => normalize(value).split(' ').filter(Boolean);
-
-const parseCsvLine = (line: string, delimiter: string) => {
-  const cells: string[] = [];
-  let current = '';
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-    const next = line[i + 1];
-
-    if (char === '"') {
-      if (inQuotes && next === '"') {
-        current += '"';
-        i += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (char === delimiter && !inQuotes) {
-      cells.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-
-  cells.push(current.trim());
-  return cells;
-};
-
-const detectDelimiter = (input: string) => {
-  const firstLine = input.split(/\r?\n/).find((line) => line.trim().length > 0) ?? '';
-  const candidates = [';', '\t', ','];
-  let best = ';';
-  let bestScore = -1;
-
-  candidates.forEach((candidate) => {
-    const score = firstLine.split(candidate).length;
-    if (score > bestScore) {
-      best = candidate;
-      bestScore = score;
-    }
-  });
-
-  return best;
-};
-
 const pickPreferredLabelColumn = (header: string[]) => {
   const exactPriority = ['libelle', 'libellé', 'label', 'designation', 'désignation', 'article', 'nom', 'item'].map(normalize);
   for (const preferred of exactPriority) {
@@ -145,70 +86,6 @@ const pickPreferredLabelColumn = (header: string[]) => {
   }
 
   return 0;
-};
-
-const extractImportLabels = (content: string): string[] => {
-  if (!content?.trim()) return [];
-
-  const lines = content.split(/\r?\n/).filter((line) => line.trim().length > 0);
-  if (lines.length === 0) return [];
-
-  const delimiter = detectDelimiter(content);
-  const header = parseCsvLine(lines[0], delimiter).map(normalize);
-  const nameIndex = pickPreferredLabelColumn(header);
-
-  const labels: string[] = [];
-  const seen = new Set<string>();
-  for (let i = 1; i < lines.length; i += 1) {
-    const cols = parseCsvLine(lines[i], delimiter);
-    const label = String(cols[nameIndex] ?? '').trim();
-    const normalized = normalize(label);
-    if (!label || !normalized || seen.has(normalized)) continue;
-    seen.add(normalized);
-    labels.push(label);
-  }
-
-  return labels;
-};
-
-const buildImportSalesMap = (content: string) => {
-  const result: Record<string, number> = {};
-  if (!content?.trim()) return result;
-
-  const lines = content.split(/\r?\n/).filter((line) => line.trim().length > 0);
-  if (lines.length === 0) return result;
-
-  const delimiter = detectDelimiter(content);
-  const headers = parseCsvLine(lines[0], delimiter).map(normalize);
-  const preferredNameHeaders = ['libelle', 'libelle', 'designation', 'designation', 'produit', 'article', 'nom'];
-  const preferredQtyHeaders = ['nombre', 'nb', 'ventes', 'vente', 'quantite', 'quantite', 'qte', 'qte', 'qty'];
-
-  const findPreferredIndex = (preferred: string[]) => {
-    for (const name of preferred) {
-      const exactIndex = headers.findIndex((cell) => cell === normalize(name));
-      if (exactIndex !== -1) return exactIndex;
-    }
-    for (const name of preferred) {
-      const includesIndex = headers.findIndex((cell) => cell.includes(normalize(name)));
-      if (includesIndex !== -1) return includesIndex;
-    }
-    return -1;
-  };
-
-  const nameIndex = findPreferredIndex(preferredNameHeaders);
-  const qtyIndex = findPreferredIndex(preferredQtyHeaders);
-  if (nameIndex === -1 || qtyIndex === -1) return result;
-
-  for (let i = 1; i < lines.length; i += 1) {
-    const cols = parseCsvLine(lines[i], delimiter);
-    const label = String(cols[nameIndex] ?? '').trim();
-    const key = normalize(label);
-    const qty = toNumber(cols[qtyIndex] ?? '0') ?? 0;
-    if (!key) continue;
-    result[key] = (result[key] ?? 0) + qty;
-  }
-
-  return result;
 };
 
 const toNumber = (value: unknown): number | null => {
@@ -671,36 +548,6 @@ const buildMarginItemsFromRows = (
 
   return buildSimpleMarginItems(rows, source, actualSheetName);
 };
-const IMPORT_GENERIC_TOKENS = new Set([
-  'menu', 'menus', 'carte', 'formule', 'formules', 'supp', 'sup', 'supplement', 'supplements', 'a', 'au', 'aux', 'de', 'des', 'du', 'la', 'le', 'les', 'hors', 'emporter', 'take', 'away', 'avec', 'sans', 'sur', 'place', 'mid', 'soir', 'midi', 'plat', 'plats', 'portion', 'portions', 'petit', 'petite', 'grand', 'grande'
-]);
-
-const getStrongTokens = (value: string) => {
-  const tokens = tokenize(value);
-  const strong = tokens.filter((token) => !IMPORT_GENERIC_TOKENS.has(token));
-  return strong.length > 0 ? strong : tokens;
-};
-
-const scoreImportMatch = (rowLabel: string, importLabel: string) => {
-  const normalizedRow = normalize(rowLabel);
-  const normalizedImport = normalize(importLabel);
-  if (!normalizedRow || !normalizedImport) return -1;
-  if (normalizedRow === normalizedImport) return 1000;
-
-  const rowTokens = getStrongTokens(rowLabel);
-  const importTokens = getStrongTokens(importLabel);
-  const intersection = rowTokens.filter((token) => importTokens.includes(token));
-  if (intersection.length === 0) return -1;
-
-  const rowCovered = intersection.length / Math.max(rowTokens.length, 1);
-  const allRowInsideImport = intersection.length === rowTokens.length;
-  const substringBonus = normalizedImport.includes(normalizedRow) || normalizedRow.includes(normalizedImport) ? 70 : 0;
-  const exactStrongBonus = rowTokens.join(' ') === importTokens.join(' ') ? 120 : 0;
-  const extraPenalty = importTokens.length > rowTokens.length + 3 ? 20 : 0;
-
-  return rowCovered * 140 + intersection.length * 25 + (allRowInsideImport ? 90 : 0) + substringBonus + exactStrongBonus - extraPenalty;
-};
-
 const buildMarginCatalogFromWorkbook = async (file: File): Promise<MarginCatalogItem[]> => {
   const XLSX = await import('xlsx');
   const buffer = await file.arrayBuffer();
@@ -786,37 +633,6 @@ const generateRowsFromMarginCatalog = (catalog: MarginCatalogItem[], existingRow
   });
 };
 
-const autoLinkImportsToRows = (rows: TakeRateMappingRow[], availableImports: string[]) => {
-  const ownership = new Map<string, string>();
-  rows.forEach((row) => {
-    row.linkedImports.forEach((item) => ownership.set(item, row.id));
-  });
-
-  const nextRows = rows.map((row) => ({ ...row, linkedImports: [...row.linkedImports] }));
-  const byId = new Map(nextRows.map((row) => [row.id, row]));
-
-  availableImports.forEach((importLabel) => {
-    if (ownership.has(importLabel)) return;
-
-    let bestRow: TakeRateMappingRow | null = null;
-    let bestScore = -1;
-    nextRows.forEach((row) => {
-      const score = scoreImportMatch(row.label || row.matchedMarginLabel || '', importLabel);
-      if (score > bestScore) {
-        bestScore = score;
-        bestRow = row;
-      }
-    });
-
-    if (!bestRow || bestScore < 135) return;
-    const target = byId.get(bestRow.id);
-    if (!target || target.linkedImports.includes(importLabel)) return;
-    target.linkedImports.push(importLabel);
-  });
-
-  return nextRows;
-};
-
 const getRowStatus = (row: TakeRateMappingRow): RowStatus => {
   if (!row.label.trim() || !row.family.trim()) return 'review';
   return 'ok';
@@ -843,9 +659,6 @@ const statusMeta: Record<RowStatus, { label: string; pill: string; rowRing: stri
 const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
   const [baseRows, setBaseRows] = useState<TakeRateMappingRow[]>(readStoredBaseRows);
   const [rows, setRows] = useState<TakeRateMappingRow[]>(readStoredBaseRows);
-  const [searchByRow, setSearchByRow] = useState<Record<string, string>>({});
-  const [openSearchRow, setOpenSearchRow] = useState<string | null>(null);
-  const [openLinkedRow, setOpenLinkedRow] = useState<string | null>(null);
   const [marginCatalog, setMarginCatalog] = useState<MarginCatalogItem[]>(readStoredMarginCatalog);
   const [marginFileName, setMarginFileName] = useState(readStoredMarginFileName);
   const [importMessage, setImportMessage] = useState('');
@@ -854,29 +667,10 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
   const [statusFilter, setStatusFilter] = useState<'all' | RowStatus>('all');
   const [productSearch, setProductSearch] = useState('');
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
-  const [pendingImportsByRow, setPendingImportsByRow] = useState<Record<string, string[]>>({});
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const baseRowsRef = useRef<TakeRateMappingRow[]>(readStoredBaseRows());
   const cloudTsRef = useRef<Record<string, string>>({});
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
-
-  const persistTakeRateCollection = (cloudKey: string, storageKey: string, value: Record<string, TakeRateMonthSnapshot>) => {
-    localStorage.setItem(storageKey, JSON.stringify(value));
-
-    if (!isSupabaseConfigured()) return;
-
-    const ts = new Date().toISOString();
-    saveToSupabaseDebounced(
-      cloudKey,
-      value,
-      ts,
-      (key) => cloudTsRef.current[key],
-      (confirmedKey, confirmedTs) => {
-        cloudTsRef.current[confirmedKey] = confirmedTs;
-      },
-      2500,
-    );
-  };
 
   const persistBaseRows = (value: TakeRateMappingRow[]) => {
     const serializedRows = JSON.stringify(value);
@@ -970,8 +764,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
     baseRowsRef.current = baseRows;
   }, [baseRows]);
 
-  const availableImports: string[] = [];
-
   const familyOptions = useMemo(() => {
     const unique = new Set<string>();
     rows.forEach((row) => {
@@ -1007,20 +799,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
 
   useEffect(() => {
     setSelectedRowIds((prev) => prev.filter((id) => rows.some((row) => row.id === id)));
-  }, [rows]);
-
-  useEffect(() => {
-    setPendingImportsByRow((prev) => {
-      const validIds = new Set(rows.map((row) => row.id));
-      const next: Record<string, string[]> = {};
-      Object.entries(prev).forEach(([rowId, items]) => {
-        if (!validIds.has(rowId)) return;
-        const row = rows.find((entry) => entry.id === rowId);
-        const deduped = Array.from(new Set((items as string[]).filter((item) => item && !row?.linkedImports.includes(item))));
-        if (deduped.length > 0) next[rowId] = deduped;
-      });
-      return next;
-    });
   }, [rows]);
 
   const addRow = () => {
@@ -1061,55 +839,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
       return next;
     });
     setSelectedRowIds([]);
-    setSearchByRow((prev) => {
-      const next = { ...prev };
-      selectedSet.forEach((id) => delete next[id]);
-      return next;
-    });
-    setPendingImportsByRow((prev) => {
-      const next = { ...prev };
-      selectedSet.forEach((id) => delete next[id]);
-      return next;
-    });
-
-    if (openSearchRow && selectedSet.has(openSearchRow)) setOpenSearchRow(null);
-    if (openLinkedRow && selectedSet.has(openLinkedRow)) setOpenLinkedRow(null);
-  };
-
-  const queueImportForRow = (rowId: string, importLabel: string) => {
-    setPendingImportsByRow((prev) => {
-      const current = prev[rowId] ?? [];
-      if (current.includes(importLabel)) return prev;
-      return { ...prev, [rowId]: [...current, importLabel] };
-    });
-    setOpenSearchRow(rowId);
-  };
-
-  const removePendingImportFromRow = (rowId: string, importLabel: string) => {
-    setPendingImportsByRow((prev) => {
-      const current = (prev[rowId] ?? []).filter((item) => item !== importLabel);
-      if (current.length === 0) {
-        const next = { ...prev };
-        delete next[rowId];
-        return next;
-      }
-      return { ...prev, [rowId]: current };
-    });
-  };
-
-  const validatePendingImportsForRow = (rowId: string) => {
-    const pending = pendingImportsByRow[rowId] ?? [];
-    if (pending.length === 0) return;
-
-    setRows((prev) =>
-      prev.map((row) => (row.id === rowId ? { ...row, linkedImports: Array.from(new Set([...row.linkedImports, ...pending])) } : row))
-    );
-    setPendingImportsByRow((prev) => {
-      const next = { ...prev };
-      delete next[rowId];
-      return next;
-    });
-    setOpenLinkedRow(rowId);
   };
 
   const updateRow = (rowId: string, patch: Partial<TakeRateMappingRow>) => {
@@ -1144,48 +873,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
       persistBaseRows(next);
       return next;
     });
-    setSearchByRow((prev) => {
-      const next = { ...prev };
-      delete next[rowId];
-      return next;
-    });
-    setPendingImportsByRow((prev) => {
-      const next = { ...prev };
-      delete next[rowId];
-      return next;
-    });
-    if (openSearchRow === rowId) setOpenSearchRow(null);
-    if (openLinkedRow === rowId) setOpenLinkedRow(null);
   };
-
-  const addImportToRow = (rowId: string, importLabel: string) => {
-    setRows((prev) =>
-      prev.map((row) => {
-        if (row.id !== rowId) {
-          return row.linkedImports.includes(importLabel)
-            ? { ...row, linkedImports: row.linkedImports.filter((item) => item !== importLabel) }
-            : row;
-        }
-        if (row.linkedImports.includes(importLabel)) return row;
-        return { ...row, linkedImports: [...row.linkedImports, importLabel] };
-      })
-    );
-  };
-
-  const removeImportFromRow = (rowId: string, importLabel: string) => {
-    setRows((prev) => prev.map((row) => (row.id === rowId ? { ...row, linkedImports: row.linkedImports.filter((item) => item !== importLabel) } : row)));
-  };
-
-  const filteredImportsByRow = useMemo(() => {
-    const result: Record<string, string[]> = {};
-    rows.forEach((row) => {
-      const query = normalize(searchByRow[row.id] ?? '');
-      const pending = pendingImportsByRow[row.id] ?? [];
-      const base = availableImports.filter((item) => !row.linkedImports.includes(item) && !pending.includes(item));
-      result[row.id] = query ? base.filter((item) => normalize(item).includes(query)).slice(0, 60) : base.slice(0, 30);
-    });
-    return result;
-  }, [availableImports, rows, searchByRow, pendingImportsByRow]);
 
   const handleDeleteMarginImport = () => {
     setBaseRows([]);
@@ -1193,10 +881,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
     setRows([]);
     setMarginCatalog([]);
     setMarginFileName('');
-    setSearchByRow({});
-    setOpenSearchRow(null);
-    setOpenLinkedRow(null);
-    setPendingImportsByRow({});
     setSelectedRowIds([]);
 
     persistBaseRows([]);
@@ -1241,7 +925,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
   const allVisibleRowsSelected = visibleRowIds.length > 0 && visibleSelectedCount === visibleRowIds.length;
   const okCount = rows.filter((row) => getRowStatus(row) === 'ok').length;
   const reviewCount = rows.filter((row) => getRowStatus(row) === 'review').length;
-  const withoutLinkCount = rows.filter((row) => getRowStatus(row) === 'unlinked').length;
+  const withoutLinkCount = 0;
   const hasMarginImport = marginCatalog.length > 0 || Boolean(marginFileName);
 
   return (
@@ -1334,7 +1018,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
                 ['Produits', rows.length],
                 ['OK', okCount],
                 ['A verifier', reviewCount],
-                ['Non lies', withoutLinkCount],
                 ['Refs marge', marginCatalog.length],
               ].map(([label, value]) => (
                 <div key={String(label)} className="rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2 shadow-sm">
