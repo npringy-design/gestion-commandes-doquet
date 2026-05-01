@@ -818,8 +818,7 @@ const autoLinkImportsToRows = (rows: TakeRateMappingRow[], availableImports: str
 };
 
 const getRowStatus = (row: TakeRateMappingRow): RowStatus => {
-  if (row.linkedImports.length === 0) return 'unlinked';
-  if (!row.family.trim()) return 'review';
+  if (!row.label.trim() || !row.family.trim()) return 'review';
   return 'ok';
 };
 
@@ -841,7 +840,7 @@ const statusMeta: Record<RowStatus, { label: string; pill: string; rowRing: stri
   },
 };
 
-const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth }) => {
+const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
   const [baseRows, setBaseRows] = useState<TakeRateMappingRow[]>(readStoredBaseRows);
   const [rows, setRows] = useState<TakeRateMappingRow[]>(readStoredBaseRows);
   const [searchByRow, setSearchByRow] = useState<Record<string, string>>({});
@@ -856,17 +855,8 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const [productSearch, setProductSearch] = useState('');
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
   const [pendingImportsByRow, setPendingImportsByRow] = useState<Record<string, string[]>>({});
-  const [selectedMonthKey, setSelectedMonthKey] = useState('');
-  const [monthDrafts, setMonthDrafts] = useState<Record<string, TakeRateMonthSnapshot>>({});
-  const [frozenMonths, setFrozenMonths] = useState<Record<string, TakeRateMonthSnapshot>>({});
-  const [didHydrateRows, setDidHydrateRows] = useState(false);
-  const [didHydrateMargin, setDidHydrateMargin] = useState(false);
-  const [didHydrateTakeRateCloud, setDidHydrateTakeRateCloud] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const skipNextMonthPersistRef = useRef(false);
   const baseRowsRef = useRef<TakeRateMappingRow[]>(readStoredBaseRows());
-  const monthDraftsRef = useRef<Record<string, TakeRateMonthSnapshot>>({});
-  const frozenMonthsRef = useRef<Record<string, TakeRateMonthSnapshot>>({});
   const cloudTsRef = useRef<Record<string, string>>({});
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -925,45 +915,15 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     let cancelled = false;
 
     const run = async () => {
-      let localDrafts: Record<string, TakeRateMonthSnapshot> = {};
-      let localFrozen: Record<string, TakeRateMonthSnapshot> = {};
-      let localBaseRows = readStoredBaseRows();
-      let localMarginCatalog = readStoredMarginCatalog();
-      let localMarginFileName = readStoredMarginFileName();
-
-      try {
-        const rawDrafts = localStorage.getItem(TAKE_RATE_MONTH_DRAFTS_STORAGE_KEY);
-        if (rawDrafts) {
-          const parsed = JSON.parse(rawDrafts);
-          if (parsed && typeof parsed === 'object') localDrafts = parsed;
-        }
-
-        const rawFrozen = localStorage.getItem(TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY);
-        if (rawFrozen) {
-          const parsed = JSON.parse(rawFrozen);
-          if (parsed && typeof parsed === 'object') localFrozen = parsed;
-        }
-      } catch (_error) {}
-
-      let nextDrafts = localDrafts;
-      let nextFrozen = localFrozen;
-      let nextBaseRows = localBaseRows;
-      let nextMarginCatalog = localMarginCatalog;
-      let nextMarginFileName = localMarginFileName;
+      let nextBaseRows = readStoredBaseRows();
+      let nextMarginCatalog = readStoredMarginCatalog();
+      let nextMarginFileName = readStoredMarginFileName();
 
       if (isSupabaseConfigured()) {
         try {
           const cloud = await loadAllFromSupabase();
           if (!cancelled && Array.isArray(cloud)) {
             cloud.forEach((row: any) => {
-              if (row?.key === TAKE_RATE_DRAFTS_CLOUD_KEY && row.value && typeof row.value === 'object') {
-                nextDrafts = row.value as Record<string, TakeRateMonthSnapshot>;
-                cloudTsRef.current[TAKE_RATE_DRAFTS_CLOUD_KEY] = row.updated_at;
-              }
-              if (row?.key === TAKE_RATE_FROZEN_CLOUD_KEY && row.value && typeof row.value === 'object') {
-                nextFrozen = row.value as Record<string, TakeRateMonthSnapshot>;
-                cloudTsRef.current[TAKE_RATE_FROZEN_CLOUD_KEY] = row.updated_at;
-              }
               if (row?.key === TAKE_RATE_BASE_ROWS_CLOUD_KEY && Array.isArray(row.value)) {
                 nextBaseRows = row.value.map(normalizeRow).filter(isMarginBaseRow);
                 cloudTsRef.current[TAKE_RATE_BASE_ROWS_CLOUD_KEY] = row.updated_at;
@@ -989,23 +949,14 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
 
       if (cancelled) return;
 
-      monthDraftsRef.current = nextDrafts;
-      frozenMonthsRef.current = nextFrozen;
       baseRowsRef.current = nextBaseRows;
       setBaseRows(nextBaseRows);
-      setMonthDrafts(nextDrafts);
-      setFrozenMonths(nextFrozen);
+      setRows(nextBaseRows);
       setMarginCatalog(nextMarginCatalog);
       setMarginFileName(nextMarginFileName);
-      localStorage.setItem(TAKE_RATE_MONTH_DRAFTS_STORAGE_KEY, JSON.stringify(nextDrafts));
-      localStorage.setItem(TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY, JSON.stringify(nextFrozen));
       localStorage.setItem(TAKE_RATE_BASE_ROWS_STORAGE_KEY, JSON.stringify(nextBaseRows));
       localStorage.setItem(MARGIN_STORAGE_KEY, JSON.stringify(nextMarginCatalog));
       localStorage.setItem(MARGIN_FILE_NAME_STORAGE_KEY, nextMarginFileName);
-
-      setDidHydrateRows(true);
-      setDidHydrateMargin(true);
-      setDidHydrateTakeRateCloud(true);
     };
 
     void run();
@@ -1019,83 +970,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     baseRowsRef.current = baseRows;
   }, [baseRows]);
 
-  useEffect(() => {
-    monthDraftsRef.current = monthDrafts;
-  }, [monthDrafts]);
-
-  useEffect(() => {
-    frozenMonthsRef.current = frozenMonths;
-  }, [frozenMonths]);
-
-  const monthOptions = useMemo(
-    () =>
-      MONTHS_DISPLAY_CONFIG.map((entry: any) => ({
-        key: entry.key,
-        label: entry.label ?? entry.name ?? entry.key,
-        hasImport: Boolean(prepImportsByMonth[entry.key] ?? ''),
-      })),
-    [prepImportsByMonth],
-  );
-
-  useEffect(() => {
-    if (!didHydrateTakeRateCloud || selectedMonthKey) return;
-    const monthWithImport = [...monthOptions].reverse().find((month) => month.hasImport);
-    setSelectedMonthKey((monthWithImport ?? monthOptions[0])?.key ?? '');
-  }, [didHydrateTakeRateCloud, monthOptions, selectedMonthKey]);
-
-  useEffect(() => {
-    if (!didHydrateTakeRateCloud || !selectedMonthKey) return;
-
-    const frozenSnapshot = frozenMonthsRef.current[selectedMonthKey];
-    const draftSnapshot = monthDraftsRef.current[selectedMonthKey];
-    const snapshot = frozenSnapshot ?? ((draftSnapshot?.rows?.length ?? 0) > 0 ? draftSnapshot : undefined);
-    skipNextMonthPersistRef.current = true;
-
-    if (snapshot) {
-      setRows((snapshot.rows ?? []).map(normalizeRow));
-      setMarginCatalog(snapshot.marginCatalog?.length ? snapshot.marginCatalog : marginCatalog);
-      setMarginFileName(snapshot.marginFileName || marginFileName);
-      setImportMessage(frozenSnapshot ? 'Mois figé chargé.' : '');
-    } else {
-      const monthImports = Array.from(new Set(extractImportLabels(prepImportsByMonth[selectedMonthKey] ?? '')));
-      setRows(autoLinkImportsToRows(baseRows, monthImports));
-      setImportMessage('');
-    }
-
-    setSearchByRow({});
-    setOpenSearchRow(null);
-    setOpenLinkedRow(null);
-    setPendingImportsByRow({});
-    setSelectedRowIds([]);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  }, [baseRows, selectedMonthKey, didHydrateTakeRateCloud, prepImportsByMonth]);
-
-  useEffect(() => {
-    if (!didHydrateTakeRateCloud || !selectedMonthKey) return;
-
-    if (skipNextMonthPersistRef.current) {
-      skipNextMonthPersistRef.current = false;
-      return;
-    }
-
-    if (frozenMonthsRef.current[selectedMonthKey]) return;
-    if (rows.length === 0 && baseRowsRef.current.length > 0) return;
-
-    const snapshot = { rows, marginCatalog, marginFileName };
-    setMonthDrafts((prev) => {
-      const next = { ...prev, [selectedMonthKey]: snapshot };
-      monthDraftsRef.current = next;
-      persistTakeRateCollection(TAKE_RATE_DRAFTS_CLOUD_KEY, TAKE_RATE_MONTH_DRAFTS_STORAGE_KEY, next);
-      return next;
-    });
-  }, [rows, marginCatalog, marginFileName, selectedMonthKey, didHydrateTakeRateCloud]);
-
-  const availableImports = useMemo(() => {
-    if (!selectedMonthKey) return [];
-    return Array.from(new Set(extractImportLabels(prepImportsByMonth[selectedMonthKey] ?? ''))).sort((a, b) =>
-      a.localeCompare(b, 'fr')
-    );
-  }, [prepImportsByMonth, selectedMonthKey]);
+  const availableImports: string[] = [];
 
   const familyOptions = useMemo(() => {
     const unique = new Set<string>();
@@ -1312,76 +1187,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     return result;
   }, [availableImports, rows, searchByRow, pendingImportsByRow]);
 
-  useEffect(() => {
-    if (!didHydrateTakeRateCloud || !selectedMonthKey || availableImports.length === 0 || rows.length === 0) return;
-    if (frozenMonthsRef.current[selectedMonthKey]) return;
-
-    setRows((prev) => {
-      const linked = autoLinkImportsToRows(prev, availableImports);
-      const changed = linked.some((row, index) => {
-        const previous = prev[index];
-        if (!previous) return true;
-        if (row.linkedImports.length !== previous.linkedImports.length) return true;
-        return row.linkedImports.some((item, itemIndex) => item !== previous.linkedImports[itemIndex]);
-      });
-
-      return changed ? linked : prev;
-    });
-  }, [availableImports, didHydrateTakeRateCloud, rows, selectedMonthKey]);
-
-  const freezeMonth = (monthKey: string) => {
-    if (!monthKey) return;
-
-    const snapshot: TakeRateMonthSnapshot = {
-      rows,
-      marginCatalog,
-      marginFileName,
-      salesByImport: buildImportSalesMap(prepImportsByMonth[monthKey] ?? ''),
-      frozenAt: new Date().toISOString(),
-    };
-
-    setFrozenMonths((prev) => {
-      const next = { ...prev, [monthKey]: snapshot };
-      frozenMonthsRef.current = next;
-      persistTakeRateCollection(TAKE_RATE_FROZEN_CLOUD_KEY, TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY, next);
-      return next;
-    });
-
-    setImportMessage('Mois figé.');
-  };
-
-  const unfreezeMonth = (monthKey: string) => {
-    if (!monthKey) return;
-
-    setFrozenMonths((prev) => {
-      const next = { ...prev };
-      delete next[monthKey];
-      frozenMonthsRef.current = next;
-      persistTakeRateCollection(TAKE_RATE_FROZEN_CLOUD_KEY, TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY, next);
-      return next;
-    });
-
-    setImportMessage('Mois défigé.');
-  };
-
-  const handleFreezeMonth = () => freezeMonth(selectedMonthKey);
-
-  const handleUnfreezeMonth = () => unfreezeMonth(selectedMonthKey);
-
-  const toggleMonthFreeze = (monthKey: string) => {
-    if (selectedMonthKey !== monthKey) {
-      setSelectedMonthKey(monthKey);
-      return;
-    }
-
-    setSelectedMonthKey(monthKey);
-    if (frozenMonthsRef.current[monthKey]) {
-      unfreezeMonth(monthKey);
-    } else {
-      freezeMonth(monthKey);
-    }
-  };
-
   const handleDeleteMarginImport = () => {
     setBaseRows([]);
     baseRowsRef.current = [];
@@ -1394,12 +1199,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     setPendingImportsByRow({});
     setSelectedRowIds([]);
 
-    setMonthDrafts({});
-    setFrozenMonths({});
-    monthDraftsRef.current = {};
-    frozenMonthsRef.current = {};
-    persistTakeRateCollection(TAKE_RATE_DRAFTS_CLOUD_KEY, TAKE_RATE_MONTH_DRAFTS_STORAGE_KEY, {});
-    persistTakeRateCollection(TAKE_RATE_FROZEN_CLOUD_KEY, TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY, {});
     persistBaseRows([]);
     persistMarginBase([], '');
 
@@ -1419,18 +1218,16 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     try {
       const catalog = await buildMarginCatalogFromWorkbook(file);
       const generatedBase = generateRowsFromMarginCatalog(catalog, []).map((row) => ({ ...row, linkedImports: [] }));
-      const linked = autoLinkImportsToRows(generatedBase, availableImports);
-      const autoLinks = linked.reduce((sum, row) => sum + row.linkedImports.length, 0);
       const sectionCount = new Set(catalog.map((item) => item.section.trim()).filter(Boolean)).size;
 
       setBaseRows(generatedBase);
       baseRowsRef.current = generatedBase;
       setMarginCatalog(catalog);
       setMarginFileName(file.name);
-      setRows(linked);
+      setRows(generatedBase);
       persistBaseRows(generatedBase);
       persistMarginBase(catalog, file.name);
-      setImportMessage(`${catalog.length} produits marge générés • ${sectionCount} sections détectées • ${autoLinks} liens import détectés.`);
+      setImportMessage(`${catalog.length} produits marge générés • ${sectionCount} sections détectées.`);
     } catch (_error) {
       setImportMessage('Import marge impossible. Vérifie le fichier ou la librairie xlsx.');
     } finally {
@@ -1442,7 +1239,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const visibleRowIds = filteredRows.map((row) => row.id);
   const visibleSelectedCount = visibleRowIds.filter((id) => selectedRowIds.includes(id)).length;
   const allVisibleRowsSelected = visibleRowIds.length > 0 && visibleSelectedCount === visibleRowIds.length;
-  const linkedCount = rows.reduce((sum, row) => sum + row.linkedImports.length, 0);
   const okCount = rows.filter((row) => getRowStatus(row) === 'ok').length;
   const reviewCount = rows.filter((row) => getRowStatus(row) === 'review').length;
   const withoutLinkCount = rows.filter((row) => getRowStatus(row) === 'unlinked').length;
@@ -1489,7 +1285,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#93644D]">Résumé</p>
           <div className="mt-3 space-y-2 text-[13px] font-semibold text-[#6E4736]">
             <div className="flex items-center justify-between gap-3"><span>Produits</span><span>{rows.length}</span></div>
-            <div className="flex items-center justify-between gap-3"><span>Liens import</span><span>{linkedCount}</span></div>
             <div className="flex items-center justify-between gap-3"><span>OK</span><span>{okCount}</span></div>
             <div className="flex items-center justify-between gap-3"><span>À vérifier</span><span>{reviewCount}</span></div>
             <div className="flex items-center justify-between gap-3"><span>Non liés</span><span>{withoutLinkCount}</span></div>
@@ -1512,29 +1307,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportMarginFile} />
                 <div className="ml-auto flex flex-wrap gap-2">
 
-                <div className="hidden min-h-[42px] flex-wrap items-center gap-2 rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2">
-                  <span className="text-[10px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Mois</span>
-                  <select
-                    value={selectedMonthKey}
-                    onChange={(event) => setSelectedMonthKey(event.target.value)}
-                    className="rounded-xl border border-[#EBC28A] bg-white px-3 py-1.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#2F1D14]"
-                  >
-                    {monthOptions.map((month) => (
-                      <option key={month.key} value={month.key}>
-                        {month.label}{month.hasImport ? '' : ' — sans import'}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={frozenMonths[selectedMonthKey] ? handleUnfreezeMonth : handleFreezeMonth}
-                    disabled={!selectedMonthKey || rows.length === 0}
-                    className="rounded-xl border border-[#D8A640] bg-[#FFE8A8] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.08em] text-[#5B321E] transition hover:bg-[#FFF0BC] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {frozenMonths[selectedMonthKey] ? 'Défiger' : 'Figer le mois'}
-                  </button>
-                </div>
-
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
@@ -1549,7 +1321,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 <button
                   type="button"
                   onClick={handleDeleteMarginImport}
-                  disabled={!selectedMonthKey || (marginCatalog.length === 0 && rows.length === 0 && !marginFileName)}
+                  disabled={marginCatalog.length === 0 && rows.length === 0 && !marginFileName}
                   className="min-h-[42px] rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] text-[#7A2E1E] shadow-sm transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Supprimer import marge
@@ -1560,7 +1332,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
             <div className="hidden mt-3 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
               {[
                 ['Produits', rows.length],
-                ['Liens import', linkedCount],
                 ['OK', okCount],
                 ['A verifier', reviewCount],
                 ['Non lies', withoutLinkCount],
@@ -1572,46 +1343,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 </div>
               ))}
             </div>
-            <div className="border-b border-[#D7B79B] bg-[#FFF8EF] px-4 py-3 sm:px-5">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8A5A2F]">Figer les mois du taux de prise</p>
-                <p className="text-[11px] font-bold text-[#8B6650]">{monthOptions.filter((month) => frozenMonths[month.key]).length} mois figes</p>
-              </div>
-              <div className="grid grid-cols-6 gap-1.5 xl:grid-cols-12">
-                {monthOptions.map((month) => {
-                  const locked = !!frozenMonths[month.key];
-                  const selected = selectedMonthKey === month.key;
-                  return (
-                    <button
-                      key={`take-rate-freeze-${month.key}`}
-                      type="button"
-                      onClick={() => toggleMonthFreeze(month.key)}
-                      disabled={!month.key || rows.length === 0}
-                      className={`min-h-[42px] rounded-xl border px-2 py-1 text-[10px] font-black uppercase tracking-[0.07em] transition disabled:opacity-50 ${
-                        locked
-                          ? 'border-emerald-700 bg-emerald-600 text-white shadow-sm'
-                          : selected
-                            ? 'border-[#D8A640] bg-[#FFE8A8] text-[#5B321E]'
-                            : 'border-[#E0CCBA] bg-white text-[#8A5A2F] hover:border-[#B46E58]'
-                      }`}
-                    >
-                      <span className="block text-xs">{month.label}</span>
-                      <span className="block text-[8px]">{locked ? 'Fige' : 'Ouvert'}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="hidden mt-3 flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-[#B8793F]/65 bg-[#FFF7EA]/10 px-3 py-2 text-[12px] font-semibold text-[#FFE1B8]">
-              <span>{marginFileName ? `Fichier marge : ${marginFileName}` : 'Aucun fichier marge chargé'}</span>
-              {selectedMonthKey ? (
-                <span className={frozenMonths[selectedMonthKey] ? 'text-[#2F6F42]' : 'text-[#8B5E3C]'}>
-                  • {frozenMonths[selectedMonthKey] ? 'Mois figé' : 'Mois en cours'}
-                </span>
-              ) : null}
-              {importMessage ? <span className="text-[#9A4F33]">• {importMessage}</span> : null}
-            </div>
-
             <div className="flex flex-wrap items-end gap-3 border-b border-[#D7B79B] bg-[#FFF8EF] px-4 py-3 sm:px-5">
               <label className="min-w-[260px] flex-1">
                 <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.10em] text-[#8A5A2F]">Recherche produit</span>
@@ -1680,16 +1411,14 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
             <table className="w-full table-fixed border-separate border-spacing-0">
               <colgroup>
                 <col className="w-[3%]" />
-                <col className="w-[6%]" />
-                <col className="w-[17%]" />
+                <col className="w-[7%]" />
+                <col className="w-[25%]" />
+                <col className="w-[15%]" />
+                <col className="w-[12%]" />
+                <col className="w-[12%]" />
                 <col className="w-[10%]" />
-                <col className="w-[18%]" />
-                <col className="w-[16%]" />
-                <col className="w-[8%]" />
-                <col className="w-[8%]" />
+                <col className="w-[10%]" />
                 <col className="w-[6%]" />
-                <col className="w-[5%]" />
-                <col className="w-[3%]" />
               </colgroup>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[#F2DDC0] text-[#71402D]">
@@ -1705,8 +1434,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">État</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Produit marge</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Famille</th>
-                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Recherche import</th>
-                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Produits liés</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">CM HT</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">PV HT</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Marge €</th>
@@ -1717,17 +1444,12 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
               <tbody>
                 {filteredRows.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-6 py-10 text-center text-[14px] font-semibold text-[#8B6650]">
+                    <td colSpan={9} className="px-6 py-10 text-center text-[14px] font-semibold text-[#8B6650]">
                       Aucune ligne pour ce filtre.
                     </td>
                   </tr>
                 ) : (
                   filteredRows.map((row, rowIndex) => {
-                    const searchValue = searchByRow[row.id] ?? '';
-                    const suggestions = filteredImportsByRow[row.id] ?? [];
-                    const pendingImports = pendingImportsByRow[row.id] ?? [];
-                    const isSearchOpen = openSearchRow === row.id;
-                    const isLinkedOpen = openLinkedRow === row.id;
                     const status = getRowStatus(row);
                     const meta = statusMeta[status];
 
@@ -1747,9 +1469,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                             <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${meta.pill}`}>
                               {meta.label}
                             </span>
-                            <div className="text-[11px] font-semibold text-[#8A604B]">
-                              {row.linkedImports.length} lien{row.linkedImports.length > 1 ? 's' : ''}
-                            </div>
                           </div>
                         </td>
 
@@ -1779,114 +1498,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                             placeholder="Ex. Dessert"
                             className="w-full rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 text-[13px] font-semibold text-[#2F1D14] outline-none transition focus:border-[#D8A640] focus:ring-2 focus:ring-[#E8B59E]"
                           />
-                        </td>
-
-                        <td className="border-b border-[#E8D8C8] px-3 py-3 align-top">
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => setOpenSearchRow((prev) => (prev === row.id ? null : row.id))}
-                                className="rounded-[12px] border border-[#B55A3C] bg-[#F7E8DE] px-3 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-[#8D4F35] transition hover:bg-[#F2DDCF]"
-                              >
-                                Rechercher
-                              </button>
-                              <input
-                                type="text"
-                                value={searchValue}
-                                onChange={(e) => {
-                                  setSearchByRow((prev) => ({ ...prev, [row.id]: e.target.value }));
-                                  setOpenSearchRow(row.id);
-                                }}
-                                placeholder="Nom import..."
-                                className="min-w-0 flex-1 rounded-[12px] border border-[#D7BEA9] bg-white px-3 py-2 text-[12px] font-medium text-[#4F2E22] outline-none transition focus:border-[#B55A3C] focus:ring-2 focus:ring-[#E8B59E]"
-                              />
-                            </div>
-
-                            {pendingImports.length > 0 && (
-                              <div className="space-y-2 rounded-[16px] border border-[#E1CDBD] bg-[#FFF6EE] p-2">
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="text-[11px] font-black uppercase tracking-[0.07em] text-[#8D4F35]">Sélection en attente</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => validatePendingImportsForRow(row.id)}
-                                    className="rounded-[10px] border border-[#2E8D63] bg-[linear-gradient(180deg,#39B37D_0%,#239062_100%)] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.06em] text-white"
-                                  >
-                                    Valider les liens
-                                  </button>
-                                </div>
-                                <div className="space-y-1.5">
-                                  {pendingImports.map((item) => (
-                                    <div key={item} className="flex items-center justify-between gap-2 rounded-[12px] border border-[#E8D8C8] bg-white px-3 py-2">
-                                      <span className="text-[12px] font-semibold text-[#5B3728]">{item}</span>
-                                      <button
-                                        type="button"
-                                        onClick={() => removePendingImportFromRow(row.id, item)}
-                                        className="rounded-[10px] border border-[#E6B9A5] bg-[#FCEEE7] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.05em] text-[#A24E30] transition hover:bg-[#F9E2D6]"
-                                      >
-                                        Retirer
-                                      </button>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {isSearchOpen && (
-                              <div className="max-h-44 overflow-auto rounded-[16px] border border-[#DCC5B1] bg-[#FFFDF9] p-2 shadow-[0_12px_24px_rgba(87,52,33,0.10)]">
-                                {suggestions.length > 0 ? (
-                                  <div className="space-y-1.5">
-                                    {suggestions.map((item) => (
-                                      <button
-                                        key={item}
-                                        type="button"
-                                        onClick={() => queueImportForRow(row.id, item)}
-                                        className="flex w-full items-center justify-between rounded-[12px] border border-[#E8D8C8] bg-white px-3 py-2 text-left text-[12px] font-semibold text-[#5B3728] transition hover:border-[#B55A3C] hover:bg-[#FFF4EC]"
-                                      >
-                                        <span className="pr-3">{item}</span>
-                                        <span className="text-[10px] font-black uppercase tracking-[0.06em] text-[#A15839]">Ajouter</span>
-                                      </button>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <div className="px-2 py-3 text-[12px] font-medium text-[#8B6650]">Aucun résultat.</div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-
-                        <td className="border-b border-[#E8D8C8] px-3 py-3 align-top">
-                          <div className="space-y-2">
-                            <button
-                              type="button"
-                              onClick={() => setOpenLinkedRow((prev) => (prev === row.id ? null : row.id))}
-                              className="rounded-[12px] border border-[#D2B39C] bg-[#F8EDE1] px-3 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-[#7F563F] transition hover:bg-[#F2E2D0]"
-                            >
-                              {row.linkedImports.length} lié{row.linkedImports.length > 1 ? 's' : ''}
-                            </button>
-
-                            {isLinkedOpen && (
-                              <div className="space-y-1.5 rounded-[16px] border border-[#DCC5B1] bg-[#FFFDF9] p-2 shadow-[0_12px_24px_rgba(87,52,33,0.10)]">
-                                {row.linkedImports.length > 0 ? (
-                                  row.linkedImports.map((item) => (
-                                    <div key={item} className="flex items-center justify-between gap-2 rounded-[12px] border border-[#E8D8C8] bg-white px-3 py-2">
-                                      <span className="text-[12px] font-semibold text-[#5B3728]">{item}</span>
-                                      <button
-                                        type="button"
-                                        onClick={() => removeImportFromRow(row.id, item)}
-                                        className="rounded-[10px] border border-[#E6B9A5] bg-[#FCEEE7] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.05em] text-[#A24E30] transition hover:bg-[#F9E2D6]"
-                                      >
-                                        Retirer
-                                      </button>
-                                    </div>
-                                  ))
-                                ) : (
-                                  <div className="px-2 py-3 text-[12px] font-medium text-[#8B6650]">Aucun produit lié.</div>
-                                )}
-                              </div>
-                            )}
-                          </div>
                         </td>
 
                         <td className="border-b border-[#E8D8C8] px-3 py-3 align-top">
