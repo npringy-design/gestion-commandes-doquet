@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MONTHS_DISPLAY_CONFIG, STORAGE_PREFIX, View } from '../constants';
 import AppNavTile from '../components/AppNavTile';
+import AiAssistantDrawer from '../components/AiAssistantDrawer';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { loadAllFromSupabase, saveToSupabaseDebounced } from '../utils/supabase';
 
@@ -855,6 +856,24 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const getRowSales = (row: TakeRateMappingRow) =>
     row.linkedImports.reduce((sum, label) => sum + (importSalesByName[normalize(label)] ?? 0), 0);
   const availableImportRows = importRows;
+  const getAiContext = React.useCallback(() => {
+    const monthLabel = MONTHS_DISPLAY_CONFIG.find((month) => month.key === selectedMonth)?.label ?? selectedMonth;
+    const sampleRows = rows.slice(0, 80).map((row) => {
+      const sales = getRowSales(row);
+      const takeRate = monthCovers > 0 ? (sales / monthCovers) * 100 : 0;
+      return `${row.label || 'Produit sans nom'}: famille=${row.family || 'n/a'}, liens=${row.linkedImports.length}, ventes=${sales}, taux=${takeRate.toFixed(2)}%, statut=${getRowStatus(row, isMonthFrozen)}`;
+    });
+
+    return [
+      'Page: Paramétrage Taux de prise.',
+      'Source utilisée: base marge importée + import production du mois ouvert; snapshot pour mois figés.',
+      `Mois de travail: ${monthLabel}; figé=${isMonthFrozen ? 'oui' : 'non'}; couverts=${monthCovers}.`,
+      `Lignes=${rows.length}; affichées=${filteredRows.length}; liées=${okCount}; à vérifier=${reviewCount}; sans lien=${withoutLinkCount}.`,
+      `Import marge=${hasMarginImport ? 'présent' : 'absent'}; refs marge=${marginCatalog.length}; produits import prod disponibles=${availableImportRows.length}.`,
+      'Extrait lignes:',
+      ...sampleRows,
+    ].join('\n');
+  }, [availableImportRows.length, filteredRows.length, hasMarginImport, isMonthFrozen, marginCatalog.length, monthCovers, okCount, reviewCount, rows, selectedMonth, withoutLinkCount]);
 
   return (
     <div className="min-h-screen overflow-hidden bg-[#DDA162] text-[#34271F]">
@@ -1316,6 +1335,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
         </section>
 
       </main>
+      <AiAssistantDrawer title="Assistant IA - Paramétrage taux de prise" getContext={getAiContext} />
       </div>
     </div>
   );

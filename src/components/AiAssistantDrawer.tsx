@@ -47,13 +47,13 @@ const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({ title = 'Assistan
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-[900] rounded-full border border-[#D8AE77] bg-[#FFF7EA] px-4 py-2 text-xs font-black uppercase tracking-[0.08em] text-[#4A2217] shadow-[0_10px_24px_rgba(54,24,12,0.18)] transition hover:bg-white"
+        className="fixed bottom-5 left-5 z-[99999] rounded-full border border-[#D8AE77] bg-[#FFF7EA] px-4 py-2 text-xs font-black uppercase tracking-[0.08em] text-[#4A2217] shadow-[0_10px_24px_rgba(54,24,12,0.18)] transition hover:bg-white"
       >
         Assistant IA
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[950] flex justify-end bg-black/20" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 z-[100000] flex justify-end bg-black/20" onClick={() => setOpen(false)}>
           <aside
             className="flex h-full w-full max-w-[420px] flex-col border-l border-[#D8AE77] bg-[#FFF8EF] text-[#2F1D14] shadow-[-18px_0_38px_rgba(54,24,12,0.24)]"
             onClick={(event) => event.stopPropagation()}
