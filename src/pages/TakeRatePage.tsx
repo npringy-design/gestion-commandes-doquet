@@ -138,7 +138,20 @@ const buildImportRows = (content: string) => {
   const delimiter = detectDelimiter(content);
   const headers = parseCsvLine(lines[0], delimiter).map(normalize);
   const nameIndex = pickImportColumn(headers, ['libelle', 'libellé', 'designation', 'désignation', 'produit', 'article', 'nom']);
-  const qtyIndex = pickImportColumn(headers, ['nombre', 'nb', 'ventes', 'vente', 'quantite', 'quantité', 'qte', 'qté', 'qty']);
+  const qtyIndex = pickImportColumn(headers, [
+    'conso theorique qte',
+    'conso theorique qt',
+    'conso qte',
+    'quantite',
+    'quantité',
+    'qte',
+    'qté',
+    'qty',
+    'ventes',
+    'vente',
+    'nombre',
+    'nb',
+  ]);
   if (nameIndex === -1 || qtyIndex === -1) return [];
 
   const byLabel = new Map<string, { label: string; normalized: string; quantity: number }>();

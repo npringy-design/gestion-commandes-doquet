@@ -109,7 +109,18 @@ const buildMonthSalesMap = (content: string) => {
   const headers = parseCsvLine(lines[0], delimiter).map(normalize);
 
   const preferredNameHeaders = ['libelle', 'libellé', 'designation', 'désignation', 'produit', 'article', 'nom'];
-  const preferredQtyHeaders = ['nombre', 'nb', 'ventes', 'vente', 'quantite', 'quantité', 'qte', 'qté', 'qty'];
+  const preferredQtyHeaders = [
+    'conso theorique qte',
+    'conso theorique qt',
+    'conso qte',
+    'quantite',
+    'qte',
+    'qty',
+    'ventes',
+    'vente',
+    'nombre',
+    'nb',
+  ];
 
   const findPreferredIndex = (preferred: string[]) => {
     for (const name of preferred) {
