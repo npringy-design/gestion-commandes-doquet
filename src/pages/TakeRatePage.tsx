@@ -416,8 +416,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const [rows, setRows] = useState<TakeRateMappingRow[]>(readStoredBaseRows);
   const [marginCatalog, setMarginCatalog] = useState<MarginCatalogItem[]>(readStoredMarginCatalog);
   const [marginFileName, setMarginFileName] = useState(readStoredMarginFileName);
-  const [selectedMonth, setSelectedMonth] = useState(MONTHS_DISPLAY_CONFIG[new Date().getMonth()]?.key ?? 'jan');
-  const [monthDrafts, setMonthDrafts] = useState<Record<string, TakeRateMonthSnapshot>>({});
   const [frozenMonths, setFrozenMonths] = useState<Record<string, TakeRateMonthSnapshot>>({});
   const [showOnlyUnlinked, setShowOnlyUnlinked] = useState(false);
   const [activePopover, setActivePopover] = useState<{ rowId: string; mode: 'picker' | 'selected' } | null>(null);
@@ -545,7 +543,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       setRows(nextBaseRows);
       setMarginCatalog(nextMarginCatalog);
       setMarginFileName(nextMarginFileName);
-      setMonthDrafts(nextDrafts && typeof nextDrafts === 'object' ? nextDrafts : {});
       setFrozenMonths(nextFrozen && typeof nextFrozen === 'object' ? nextFrozen : {});
       localStorage.setItem(TAKE_RATE_BASE_ROWS_STORAGE_KEY, JSON.stringify(nextBaseRows));
       localStorage.setItem(MARGIN_STORAGE_KEY, JSON.stringify(nextMarginCatalog));
@@ -565,6 +562,10 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     baseRowsRef.current = baseRows;
   }, [baseRows]);
 
+  const selectedMonth = useMemo(
+    () => MONTHS_DISPLAY_CONFIG.find((month) => !frozenMonths[month.key])?.key ?? MONTHS_DISPLAY_CONFIG[0].key,
+    [frozenMonths]
+  );
   const importRows = useMemo(() => buildImportRows(prepImportsByMonth[selectedMonth] ?? ''), [prepImportsByMonth, selectedMonth]);
   const importSalesByName = useMemo(() => {
     const frozenSales = frozenMonths[selectedMonth]?.salesByImport;
@@ -575,13 +576,9 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const monthCovers = Number(covers[selectedMonth] ?? 0);
 
   useEffect(() => {
-    const snapshot = frozenMonths[selectedMonth] ?? monthDrafts[selectedMonth];
-    if (snapshot?.rows) {
-      setRows(snapshot.rows.map(normalizeRow));
-      return;
-    }
-    setRows(baseRows);
-  }, [baseRows, frozenMonths, monthDrafts, selectedMonth]);
+    const snapshot = frozenMonths[selectedMonth];
+    setRows(snapshot?.rows ? snapshot.rows.map(normalizeRow) : baseRows);
+  }, [baseRows, frozenMonths, selectedMonth]);
 
   useEffect(() => {
     if (isMonthFrozen || importRows.length === 0 || rows.length === 0) return;
@@ -604,21 +601,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     setBaseRows(nextRows);
     persistBaseRows(nextRows);
   }, [importRows, isMonthFrozen, rows, selectedMonth]);
-
-  useEffect(() => {
-    if (isMonthFrozen) return;
-    const snapshot = {
-      rows,
-      marginCatalog,
-      marginFileName,
-      salesByImport: buildSalesObject(importRows),
-    };
-    setMonthDrafts((prev) => {
-      const next = { ...prev, [selectedMonth]: snapshot };
-      persistTakeRateCollection(TAKE_RATE_DRAFTS_CLOUD_KEY, TAKE_RATE_MONTH_DRAFTS_STORAGE_KEY, next);
-      return next;
-    });
-  }, [importRows, isMonthFrozen, marginCatalog, marginFileName, rows, selectedMonth]);
 
   const familyOptions = useMemo(() => {
     const unique = new Set<string>();
@@ -949,7 +931,32 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                     <button
                       key={`take-rate-month-${month.key}`}
                       type="button"
-                      onClick={() => setSelectedMonth(month.key)}
+                      onClick={() => {
+                        const snapshot = frozenMonths[month.key];
+                        if (snapshot) {
+                          setFrozenMonths((prev) => {
+                            const next = { ...prev };
+                            delete next[month.key];
+                            persistTakeRateCollection(TAKE_RATE_FROZEN_CLOUD_KEY, TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY, next);
+                            return next;
+                          });
+                          return;
+                        }
+                        const rowsToFreeze = month.key === selectedMonth ? rows : baseRows;
+                        const monthImportRows = buildImportRows(prepImportsByMonth[month.key] ?? '');
+                        const nextSnapshot: TakeRateMonthSnapshot = {
+                          rows: rowsToFreeze,
+                          marginCatalog,
+                          marginFileName,
+                          salesByImport: buildSalesObject(monthImportRows),
+                          frozenAt: new Date().toISOString(),
+                        };
+                        setFrozenMonths((prev) => {
+                          const next = { ...prev, [month.key]: nextSnapshot };
+                          persistTakeRateCollection(TAKE_RATE_FROZEN_CLOUD_KEY, TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY, next);
+                          return next;
+                        });
+                      }}
                       className={`min-h-[42px] rounded-xl border px-2 py-1 text-[10px] font-black uppercase tracking-[0.07em] transition ${
                         locked
                           ? 'border-emerald-700 bg-emerald-600 text-white shadow-sm'
@@ -959,26 +966,15 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                       }`}
                     >
                       <span className="block text-xs">{month.label.slice(0, 3)}</span>
-                      <span className="block text-[8px]">{locked ? 'Figé' : active ? 'Actif' : 'Ouvert'}</span>
+                      <span className="block text-[8px]">{locked ? 'Figé' : 'Ouvert'}</span>
                     </button>
                   );
                 })}
               </div>
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-[11px] font-semibold text-[#8B6650]">
-                  {isMonthFrozen ? 'Mois figé : lecture du snapshot.' : `Mois ouvert : ${availableImportRows.length} produits dans l'import.`}
+                  Mois de travail : {MONTHS_DISPLAY_CONFIG.find((month) => month.key === selectedMonth)?.label ?? selectedMonth} • {availableImportRows.length} produits dans l'import.
                 </p>
-                <button
-                  type="button"
-                  onClick={toggleFreezeSelectedMonth}
-                  className={`rounded-xl border px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] shadow-sm transition ${
-                    isMonthFrozen
-                      ? 'border-[#EBC28A] bg-[#FFF7EA] text-[#7A2E1E] hover:bg-white'
-                      : 'border-emerald-700 bg-emerald-600 text-white hover:bg-emerald-500'
-                  }`}
-                >
-                  {isMonthFrozen ? 'Défiger le mois' : 'Figer le mois'}
-                </button>
               </div>
             </div>
             <div className="hidden mt-3 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
