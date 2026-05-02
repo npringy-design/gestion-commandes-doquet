@@ -10,6 +10,7 @@ import { useToast } from '../components/Toast';
 import { View, MONTHS_DISPLAY_CONFIG } from '../constants';
 import { ImportModal } from '../components/Modals';
 import AppNavTile from '../components/AppNavTile';
+import AiAssistantDrawer from '../components/AiAssistantDrawer';
 import { useAuth } from '../auth/AuthProvider';
 import {
   canAccessRatiosPage,
@@ -282,6 +283,21 @@ const StatsPage: React.FC<StatsPageProps> = ({
   const selectedHasImport = !!detailedInventory[selectedMonth.key];
   const selectedProductionImported = !!prepImportsByMonth[selectedMonth.key];
   const monthsToDisplay = showAllMonths ? MONTHS_DISPLAY_CONFIG : MONTHS_DISPLAY_CONFIG.slice(0, 6);
+  const getAiContext = React.useCallback(() => {
+    const monthRows = MONTHS_DISPLAY_CONFIG.map((month) => {
+      const inventoryImported = !!detailedInventory[month.key];
+      const productionImported = !!prepImportsByMonth[month.key];
+      return `${month.label}: inventaire=${inventoryImported ? 'importé' : 'absent'}, prod=${productionImported ? 'importé' : 'absent'}, CA_HT=${salesHtByMonth[month.key] || 0}, cout_matiere=${costMatterByMonth[month.key] || 0}%, couverts=${covers[month.key] || 0}, prod_fige=${prepValidatedMonths[month.key] ? 'oui' : 'non'}`;
+    });
+
+    return [
+      'Page: Paramètres imports.',
+      `Mois sélectionné: ${selectedMonth.label}.`,
+      'Rappel logique: import inventaire pour calcul vente ratio; import production pour mise en place, calcul prod ratio et taux de prise.',
+      `Droits: import=${canImport ? 'oui' : 'non'}, suppression import=${canRemoveImport ? 'oui' : 'non'}, édition chiffres=${canEditFields ? 'oui' : 'non'}.`,
+      ...monthRows,
+    ].join('\n');
+  }, [canEditFields, canImport, canRemoveImport, costMatterByMonth, covers, detailedInventory, prepImportsByMonth, prepValidatedMonths, salesHtByMonth, selectedMonth.label]);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_20%_0%,rgba(245,166,58,0.28),transparent_30%),linear-gradient(180deg,#FFF7EA_0%,#F3DDC0_46%,#C97933_100%)] text-[#2F1D14]">
@@ -676,6 +692,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
           </div>
         </main>
       </div>
+      <AiAssistantDrawer title="Assistant IA - Imports" getContext={getAiContext} />
     </div>
   );
 };

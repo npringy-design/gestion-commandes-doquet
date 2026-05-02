@@ -5,10 +5,11 @@
 // Extraite de App.tsx
 // =============================================================
 
-import React, { Suspense, lazy, useMemo } from 'react';
+import React, { Suspense, lazy, useCallback, useMemo } from 'react';
 import { View, MONTH_KEY_TO_NAME } from '../constants';
 import { useAuth } from '../auth/AuthProvider';
 import { isReadOnlyAnalyse } from '../lib/permissions';
+import AiAssistantDrawer from '../components/AiAssistantDrawer';
 
 const DashboardApp = lazy(() => import('../../dashboard_cm/DashboardApp'));
 
@@ -76,6 +77,21 @@ const CostAnalysisPage: React.FC<CostAnalysisPageProps> = ({
     [salesHtByMonth]
   );
 
+  const getAiContext = useCallback(() => {
+    const months = Object.keys(MONTH_KEY_TO_NAME).map((key) => {
+      const label = MONTH_KEY_TO_NAME[key];
+      return `${label}: importInventaire=${detailedInventory[key] ? 'oui' : 'non'}, couverts=${covers[key] || 0}, coutMatiere=${costMatterByMonth[key] || 0}%, caHt=${salesHtByMonth[key] || 0}`;
+    });
+
+    return [
+      'Page: Analyse Coût Matière.',
+      'Mode: lecture seule, tableau de bord coût matière.',
+      `Role lecture seule analyse: ${readOnlyAnalyse ? 'oui' : 'non'}.`,
+      'Mois et données chargées:',
+      ...months,
+    ].join('\n');
+  }, [costMatterByMonth, covers, detailedInventory, readOnlyAnalyse, salesHtByMonth]);
+
   return (
     <Suspense fallback={<CostAnalysisFallback />}>
       <div className="min-h-screen bg-[linear-gradient(180deg,#FFF7EA_0%,#F3DDC0_55%,#C97933_100%)]">
@@ -88,6 +104,7 @@ const CostAnalysisPage: React.FC<CostAnalysisPageProps> = ({
           onOpenParams={() => setView('stats')}
           readOnlyAnalyse={readOnlyAnalyse}
         />
+        <AiAssistantDrawer title="Assistant IA - Coût matière" getContext={getAiContext} />
       </div>
     </Suspense>
   );

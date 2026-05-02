@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { MONTHS_DISPLAY_CONFIG, MONTH_KEY_TO_NAME, STORAGE_PREFIX, View } from '../constants';
 import AppNavTile from '../components/AppNavTile';
+import AiAssistantDrawer from '../components/AiAssistantDrawer';
 import type { TakeRateMappingRow } from './TakeRatePage';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { loadAllFromSupabase } from '../utils/supabase';
@@ -351,13 +352,31 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
   }, [rows, monthSalesMap, monthCovers, familyFilter, search, sortBy]);
 
   const families = useMemo(() => {
-    const values = Array.from(new Set(rows.map((row) => row.family.trim()).filter(Boolean)));
+    const values = Array.from(new Set<string>(rows.map((row) => row.family.trim()).filter(Boolean)));
     return values.sort((a, b) => a.localeCompare(b, 'fr'));
   }, [rows]);
 
   const totalSales = computedRows.reduce((sum, row) => sum + row.sales, 0);
   const totalMargin = computedRows.reduce((sum, row) => sum + row.marginTotal, 0);
   const maxTakeRate = computedRows.length > 0 ? computedRows[0].takeRate : 1;
+  const getAiContext = React.useCallback(() => {
+    const selectedMonthLabel = MONTH_KEY_TO_NAME[selectedMonth] ?? selectedMonth;
+    const frozenCount = Object.keys(frozenMonths).length;
+    const topRows = computedRows.slice(0, 80).map((row) =>
+      `${row.rank}. ${row.label}: famille=${row.family || 'n/a'}, ventes=${row.sales}, taux=${row.takeRate.toFixed(2)}%, marge=${Math.round(row.marginTotal)}, liens=${row.linkedImports.length}`
+    );
+
+    return [
+      'Page: Feuille Taux de prise.',
+      'Source utilisée: base marge paramétrée + import production du mois ouvert; snapshot pour mois figés.',
+      `Mois sélectionné: ${selectedMonthLabel}; figé=${frozenMonths[selectedMonth] ? 'oui' : 'non'}.`,
+      `Couverts mois: ${monthCovers}; ventes suivies=${totalSales}; marge générée=${Math.round(totalMargin)}.`,
+      `Produits affichés=${computedRows.length}; familles=${families.length}; mois figés=${frozenCount}.`,
+      `Filtre famille=${familyFilter}; tri=${sortBy}; recherche=${search || 'aucune'}.`,
+      'Produits calculés:',
+      ...topRows,
+    ].join('\n');
+  }, [computedRows, families.length, familyFilter, frozenMonths, monthCovers, search, selectedMonth, sortBy, totalMargin, totalSales]);
 
   return (
     <div className="min-h-screen bg-[#F8DEA3] text-[#2E1B12]" style={pageBackgroundStyle}>
@@ -591,6 +610,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
           )}
         </div>
       </main>
+      <AiAssistantDrawer title="Assistant IA - Taux de prise" getContext={getAiContext} />
     </div>
   );
 };

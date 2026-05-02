@@ -9,6 +9,7 @@ import { MONTHS_ORDER, SupplierId } from '../constants';
 import { SupplierConfig } from '../types';
 import RatiosMappingPopover from '../components/RatiosMappingPopover';
 import AppNavTile from '../components/AppNavTile';
+import AiAssistantDrawer from '../components/AiAssistantDrawer';
 import { useAppState } from '../hooks/useAppState';
 import { useAuth } from '../auth/AuthProvider';
 import { canEditRatios } from '../lib/permissions';
@@ -267,6 +268,25 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
   const mappedProductsCount = supplierRatioProducts.filter(isLinkedProduct).length;
   const alertProductsCount = supplierRatioProducts.length - mappedProductsCount;
   const selectedVisibleCount = displayedRatioProducts.filter(p => selectedProductIds.has(p.id)).length;
+  const getAiContext = React.useCallback(() => {
+    const topProducts = supplierRatioProducts.slice(0, 80).map((p: any) => {
+      const stats = state.getProductStats(p);
+      const monthSales = stats.mS[displayMonthKey]?.value ?? 0;
+      const monthRatio = stats.mR[displayMonthKey] ?? 0;
+      return `${p.name || p.searchName || 'Produit sans nom'}: fournisseur=${activeSupplierLabel}, rechercheImport=${p.searchName || ''}, lié=${isLinkedProduct(p) ? 'oui' : 'non'}, ventesMois=${monthSales}, ratioMois=${monthRatio.toFixed(3)}`;
+    });
+
+    return [
+      'Page: Calcul vente ratio.',
+      'Source utilisée: import inventaire. La colonne quantité attendue est Conso Théorique Qté.',
+      `Fournisseur actif: ${activeSupplierLabel}.`,
+      `Mois de travail: ${workMonthKey}; mois affiché: ${displayMonthKey}; figé=${monthFreezeMap[displayMonthKey] ? 'oui' : 'non'}.`,
+      `Produits fournisseur: ${supplierRatioProducts.length}; liés=${mappedProductsCount}; à revoir=${alertProductsCount}.`,
+      `Imports disponibles sur mois de travail: ${availableImportNames.length}.`,
+      'Produits visibles/extraits:',
+      ...topProducts,
+    ].join('\n');
+  }, [activeSupplierLabel, alertProductsCount, availableImportNames.length, displayMonthKey, isLinkedProduct, mappedProductsCount, monthFreezeMap, state, supplierRatioProducts, workMonthKey]);
 
   return (
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_12%_0%,rgba(184,91,43,0.18),transparent_30%),radial-gradient(circle_at_88%_8%,rgba(109,143,78,0.12),transparent_28%),linear-gradient(180deg,#F8F1E7_0%,#EFE1D0_52%,#D7AA78_100%)] text-[#2F1D14]">
@@ -455,6 +475,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
           </section>
         </main>
       </div>
+      <AiAssistantDrawer title="Assistant IA - Vente ratio" getContext={getAiContext} />
     </div>
   );
 };
