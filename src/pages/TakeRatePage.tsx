@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { MONTHS_DISPLAY_CONFIG, STORAGE_PREFIX, View } from '../constants';
+import { STORAGE_PREFIX, View } from '../constants';
 import AppNavTile from '../components/AppNavTile';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { loadAllFromSupabase, saveToSupabaseDebounced } from '../utils/supabase';
@@ -34,13 +34,8 @@ interface TakeRatePageProps {
   prepImportsByMonth: Record<string, string>;
 }
 
-type RowStatus = 'ok' | 'review' | 'unlinked';
+type RowStatus = 'ok' | 'review';
 
-const ROWS_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_rows_v3`;
-const LEGACY_ROWS_STORAGE_KEYS = [
-  `${STORAGE_PREFIX}take_rate_rows_v2`,
-  `${STORAGE_PREFIX}take_rate_rows_v1`,
-];
 const TAKE_RATE_BASE_ROWS_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_base_rows_v1`;
 const MARGIN_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_margin_catalog_v1`;
 const MARGIN_FILE_NAME_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_margin_file_name_v1`;
@@ -71,22 +66,6 @@ const normalize = (value: string) =>
     .replace(/[^a-z0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-
-const pickPreferredLabelColumn = (header: string[]) => {
-  const exactPriority = ['libelle', 'libellé', 'label', 'designation', 'désignation', 'article', 'nom', 'item'].map(normalize);
-  for (const preferred of exactPriority) {
-    const exactIndex = header.findIndex((cell) => cell === preferred);
-    if (exactIndex !== -1) return exactIndex;
-  }
-
-  const containsPriority = ['libelle', 'libellé', 'designation', 'désignation', 'article', 'nom', 'item', 'produit'].map(normalize);
-  for (const preferred of containsPriority) {
-    const containsIndex = header.findIndex((cell) => cell.includes(preferred));
-    if (containsIndex !== -1) return containsIndex;
-  }
-
-  return 0;
-};
 
 const toNumber = (value: unknown): number | null => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
@@ -156,481 +135,142 @@ const readStoredMarginFileName = () => {
   }
 };
 
-const inferFamilyFromSheet = (sheet: string) => {
-  const normalized = normalize(sheet);
-  if (normalized.includes('boeuf')) return 'Boeuf';
-  if (normalized.includes('boisson')) return 'Boissons';
-  if (normalized.includes('vin')) return 'Vins';
-  if (normalized.includes('formule')) return 'Menus';
-  if (normalized.includes('food')) return 'Food';
-  return '';
-};
-
-const cleanSectionLabel = (value: string) =>
-  String(value ?? '')
-    .replace(/[:\-–—]+$/g, '')
-    .replace(/^[:\-–—]+/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-const cleanProductLabel = (value: string) => {
-  const raw = String(value ?? '').trim();
-  if (!raw) return '';
-  const lines = raw
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  if (lines.length === 0) return '';
-  return cleanSectionLabel(lines[0]);
-};
-
-const FORMULA_LIKE_RE = /^=|^<openpyxl\./i;
-
-const SECTION_BLOCKED_NORMALIZED = new Set([
-  'sites',
-  'site',
-  'natio',
-  'shf',
-  'natio shf',
-  'natio et shf',
-  'fond de carte',
-  'saisonniere',
-  'saisonniere ah25',
-  'prog caisse',
-  'hors carte',
-  'offre',
-  'offre food automne hiver 2025',
-  'offre boeuf 2025 2026',
-  'offre boisson ah25',
-  'offre vins 2025 2026',
-  'offre food',
-  'offre boeuf',
-  'offre boisson',
-  'offre vins',
-  'produits',
-  'produit',
-  'recettes',
-  'recette',
-  'etat',
-  'cr',
-  'pvc',
-  'marge',
-  'format',
-  'picto',
-  'composition',
-  'compositions',
-  'provenance',
-  'prix kg',
-  'inflation',
-  'vin au verre',
-  'mae photo',
-  'commentaires brief liquides ah25',
-  'les descriptions et intitules sont encore en cours de travail',
-  'les descriptions et intitulés sont encore en cours de travail',
-  'conserver',
-  'conserve',
-  'modifier',
-  'ajouter',
-  'ajout',
-  'supprimer',
-  'supprime'
-]);
-
-const SIMPLE_STATUS_NORMALIZED = new Set(['conserver', 'conserve', 'modifier', 'ajouter', 'ajout', 'supprimer', 'supprime']);
-const SIMPLE_RECIPE_NORMALIZED = new Set(['fond de carte', 'saisonniere', 'prog caisse', 'hors carte']);
-const SIMPLE_SITE_NORMALIZED = new Set(['natio', 'shf', 'natio shf', 'natio et shf', 'shf zone1', 'shf zone 1', 'shf zone2', 'shf zone 2']);
-
-const looksLikeFormatValue = (value: string) => {
-  const normalized = normalize(value);
-  if (!normalized) return false;
-  return /(verre|bouteille|carafe|cl|magnum)/.test(normalized);
-};
-
-const isLikelySectionLabel = (value: string) => {
-  const label = cleanSectionLabel(value);
-  const normalized = normalize(label);
-  if (!label || !normalized) return false;
-  if (FORMULA_LIKE_RE.test(label)) return false;
-  if (/\d/.test(normalized)) return false;
-  if (normalized.length < 3 || normalized.length > 55) return false;
-  if (SECTION_BLOCKED_NORMALIZED.has(normalized)) return false;
-  if (looksLikeFormatValue(label)) return false;
-
-  const blockedTokens = ['cm', 'pv', 'pvc', 'marge', 'libelle', 'libellé', 'designation', 'désignation', 'article', 'nom', 'produit', 'total', 'sous total'];
-  if (blockedTokens.some((token) => normalized === token || normalized.includes(token))) return false;
-
-  const tokens = normalized.split(' ').filter(Boolean);
-  return tokens.length <= 6;
-};
-
-const isLikelyProductLabel = (value: string) => {
-  const label = cleanSectionLabel(value);
-  const normalized = normalize(label);
-  if (!label || !normalized) return false;
-  if (FORMULA_LIKE_RE.test(label)) return false;
-  if (!/[a-z]/.test(normalized)) return false;
-
-  const blockedPatterns = [
-    /^total$/,
-    /^sous total$/,
-    /^total general$/,
-    /^total général$/,
-    /^marge$/,
-    /^cm$/,
-    /^pv$/,
-    /^pvc$/,
-    /^food$/,
-    /^boeuf$/,
-    /^boissons$/,
-    /^vins?$/,
-    /^formules?$/,
-    /^offre$/,
-  ];
-
-  if (blockedPatterns.some((pattern) => pattern.test(normalized))) return false;
-  if (SECTION_BLOCKED_NORMALIZED.has(normalized)) return false;
-  if (normalized.includes('marge') && normalized.split(' ').length <= 3) return false;
-  if (normalized.includes('total')) return false;
-
-  return true;
-};
-
 const findWorkbookSheetName = (sheetNames: string[], expectedName: string) => {
   const expectedNormalized = normalize(expectedName);
-  const exact = sheetNames.find((name) => normalize(name) === expectedNormalized);
-  if (exact) return exact;
-
   return (
+    sheetNames.find((name) => normalize(name) === expectedNormalized) ??
     sheetNames.find((name) => {
       const candidate = normalize(name);
       return candidate.includes(expectedNormalized) || expectedNormalized.includes(candidate);
-    }) ?? null
+    }) ??
+    null
   );
 };
 
-type MarginSourceConfig = {
-  name: string;
-  productCol: number;
-  costCol: number;
-  sellCol: number;
-  marginCol: number;
-  startRow: number;
-  sectionCol?: number;
-  formatCol?: number;
-  stateCol?: number;
-  familyFallback?: string;
-  sectionMode?: 'simple' | 'hierarchical' | 'menu';
-};
-
-const getSimpleCellString = (row: Array<string | number | null>, index: number) => cleanSectionLabel(String(row[index] ?? '').trim());
-
-const getSectionCandidate = (value: string) => {
-  const label = cleanSectionLabel(value);
-  return isLikelySectionLabel(label) ? label : '';
-};
-
-const isSimpleStatusValue = (value: string) => SIMPLE_STATUS_NORMALIZED.has(normalize(value));
-const isSimpleRecipeValue = (value: string) => SIMPLE_RECIPE_NORMALIZED.has(normalize(value));
-const isSimpleSiteValue = (value: string) => SIMPLE_SITE_NORMALIZED.has(normalize(value));
-
-const buildWineLabel = (baseLabel: string, formatLabel: string) => {
-  const base = cleanProductLabel(baseLabel);
-  const format = cleanSectionLabel(formatLabel);
-  if (!base) return '';
-  if (!format) return base;
-  const normalizedBase = normalize(base);
-  const normalizedFormat = normalize(format);
-  if (normalizedBase.includes(normalizedFormat)) return base;
-  return `${base} - ${format}`;
-};
-
-const isLikelyWineDescriptor = (value: string) => {
-  const label = cleanProductLabel(value);
-  const normalized = normalize(label);
-  if (!label || !normalized) return false;
-  if (FORMULA_LIKE_RE.test(label)) return false;
-
-  const wineNameHints = [' aop ', ' aoc ', ' igp ', ' domaine ', ' chateau ', ' château ', ' cuvee ', ' cuvée ', ' maison ', ' peyrassol', ' guigal', ' millebuis', ' gerard bertrand', ' bertrand', ' belleruche', ' vin des hippopotes'];
-  const padded = ` ${normalized} `;
-  if (wineNameHints.some((hint) => padded.includes(hint))) return false;
-  if (normalized.includes(' - ')) return false;
-  if ((label.match(/,/g) ?? []).length >= 2) return true;
-  if (normalized.split(' ').length >= 4) return true;
-  return false;
-};
-
-const buildSimpleMarginItems = (
-  rows: Array<Array<string | number | null>>,
-  source: MarginSourceConfig,
-  actualSheetName: string
-): MarginCatalogItem[] => {
-  const items: MarginCatalogItem[] = [];
-  let currentSection = source.familyFallback || inferFamilyFromSheet(actualSheetName);
-
-  for (let i = source.startRow; i < rows.length; i += 1) {
-    const row = rows[i] ?? [];
-    const sectionCell = source.sectionCol !== undefined ? getSimpleCellString(row, source.sectionCol) : '';
-    const rawProduct = getSimpleCellString(row, source.productCol);
-    const label = cleanProductLabel(rawProduct);
-    const costHt = toNumber(row[source.costCol]);
-    const sellPriceHt = toNumber(row[source.sellCol]);
-    const marginPercent = toNumber(row[source.marginCol]);
-    const numericCount = [costHt, sellPriceHt, marginPercent].filter((value) => value !== null).length;
-
-    if (sectionCell && !isSimpleSiteValue(sectionCell) && !isSimpleRecipeValue(sectionCell) && !isSimpleStatusValue(sectionCell) && !looksLikeFormatValue(sectionCell)) {
-      const sectionCandidate = getSectionCandidate(sectionCell);
-      if (sectionCandidate) currentSection = sectionCandidate;
-    }
-
-    if (!label) continue;
-    if (!isLikelyProductLabel(label)) continue;
-
-    const normalized = normalize(label);
-    if (!normalized) continue;
-
-    const marginEuro = sellPriceHt !== null && costHt !== null ? sellPriceHt - costHt : null;
-    if (costHt === null && sellPriceHt === null && marginPercent === null && marginEuro === null) continue;
-
-    items.push({
-      label,
-      normalized,
-      costHt,
-      sellPriceHt,
-      marginPercent,
-      marginEuro,
-      sourceSheet: actualSheetName.trim(),
-      section: currentSection || source.familyFallback || inferFamilyFromSheet(actualSheetName),
-    });
-  }
-
-  return items;
-};
-
-const buildWineMarginItems = (
-  rows: Array<Array<string | number | null>>,
-  source: MarginSourceConfig,
-  actualSheetName: string
-): MarginCatalogItem[] => {
-  const items: MarginCatalogItem[] = [];
-  let majorSection = source.familyFallback || inferFamilyFromSheet(actualSheetName);
-  let subSection = '';
-  let lastWineBaseLabel = '';
-
-  for (let i = source.startRow; i < rows.length; i += 1) {
-    const row = rows[i] ?? [];
-    const leftCell = source.sectionCol !== undefined ? getSimpleCellString(row, source.sectionCol) : '';
-    const formatLabel = source.formatCol !== undefined ? getSimpleCellString(row, source.formatCol) : '';
-    const rawProduct = getSimpleCellString(row, source.productCol);
-    const productLabel = cleanProductLabel(rawProduct);
-
-    const costHt = toNumber(row[source.costCol]);
-    const sellPriceHt = toNumber(row[source.sellCol]);
-    const marginPercent = toNumber(row[source.marginCol]);
-    const numericCount = [costHt, sellPriceHt, marginPercent].filter((value) => value !== null).length;
-
-    if (leftCell && !isSimpleStatusValue(leftCell) && !looksLikeFormatValue(leftCell) && !productLabel && numericCount === 0) {
-      const sectionCandidate = getSectionCandidate(leftCell);
-      if (sectionCandidate) {
-        const normalizedSection = normalize(sectionCandidate);
-        if (normalizedSection.startsWith('vins ') || normalizedSection === 'carafes') {
-          majorSection = sectionCandidate;
-          subSection = '';
-        } else {
-          subSection = sectionCandidate;
-        }
-      }
-      continue;
-    }
-
-    if (!formatLabel && !productLabel) continue;
-
-    let baseLabel = '';
-    if (productLabel && !isLikelyWineDescriptor(productLabel) && isLikelyProductLabel(productLabel)) {
-      baseLabel = productLabel;
-      lastWineBaseLabel = productLabel;
-    } else if (lastWineBaseLabel) {
-      baseLabel = lastWineBaseLabel;
-    }
-
-    const label = buildWineLabel(baseLabel, formatLabel);
-    if (!label) continue;
-
-    const normalized = normalize(label);
-    if (!normalized) continue;
-
-    const marginEuro = sellPriceHt !== null && costHt !== null ? sellPriceHt - costHt : null;
-    if (costHt === null && sellPriceHt === null && marginPercent === null && marginEuro === null) continue;
-
-    const section = subSection ? `${majorSection} • ${subSection}` : majorSection || source.familyFallback || inferFamilyFromSheet(actualSheetName);
-
-    items.push({
-      label,
-      normalized,
-      costHt,
-      sellPriceHt,
-      marginPercent,
-      marginEuro,
-      sourceSheet: actualSheetName.trim(),
-      section,
-    });
-  }
-
-  return items;
-};
-
-const buildMenuMarginItems = (
-  rows: Array<Array<string | number | null>>,
-  source: MarginSourceConfig,
-  actualSheetName: string
-): MarginCatalogItem[] => {
-  const items: MarginCatalogItem[] = [];
-  let currentMenu = source.familyFallback || inferFamilyFromSheet(actualSheetName);
-  let currentSubSection = '';
-
-  for (let i = source.startRow; i < rows.length; i += 1) {
-    const row = rows[i] ?? [];
-    const sectionCell = source.sectionCol !== undefined ? getSimpleCellString(row, source.sectionCol) : '';
-    const rawProduct = getSimpleCellString(row, source.productCol);
-    const label = cleanProductLabel(rawProduct);
-    const costHt = toNumber(row[source.costCol]);
-    const sellPriceHt = toNumber(row[source.sellCol]);
-    const marginPercent = toNumber(row[source.marginCol]);
-
-    if (sectionCell && !isSimpleRecipeValue(sectionCell) && !isSimpleStatusValue(sectionCell) && !looksLikeFormatValue(sectionCell)) {
-      const normalizedSection = normalize(sectionCell);
-      if (normalizedSection.startsWith('menu ')) {
-        currentMenu = sectionCell;
-        currentSubSection = '';
-      } else {
-        const sectionCandidate = getSectionCandidate(sectionCell);
-        if (sectionCandidate) currentSubSection = sectionCandidate;
-      }
-    }
-
-    if (!label || !isLikelyProductLabel(label)) continue;
-
-    const normalized = normalize(label);
-    if (!normalized) continue;
-
-    const marginEuro = sellPriceHt !== null && costHt !== null ? sellPriceHt - costHt : null;
-    if (costHt === null && sellPriceHt === null && marginPercent === null && marginEuro === null) continue;
-
-    const section = currentSubSection ? `${currentMenu} • ${currentSubSection}` : currentMenu || source.familyFallback || inferFamilyFromSheet(actualSheetName);
-
-    items.push({
-      label,
-      normalized,
-      costHt,
-      sellPriceHt,
-      marginPercent,
-      marginEuro,
-      sourceSheet: actualSheetName.trim(),
-      section,
-    });
-  }
-
-  return items;
-};
-
-const buildMarginItemsFromRows = (
-  rows: Array<Array<string | number | null>>,
-  source: MarginSourceConfig,
-  actualSheetName: string
-) => {
-  if (source.sectionMode === 'hierarchical') {
-    return buildWineMarginItems(rows, source, actualSheetName);
-  }
-
-  if (source.sectionMode === 'menu') {
-    return buildMenuMarginItems(rows, source, actualSheetName);
-  }
-
-  return buildSimpleMarginItems(rows, source, actualSheetName);
-};
 const buildMarginCatalogFromWorkbook = async (file: File): Promise<MarginCatalogItem[]> => {
   const XLSX = await import('xlsx');
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer, { type: 'array', cellFormula: true, cellText: true, cellNF: false });
 
-  const sources: MarginSourceConfig[] = [
-    { name: 'FOOD', productCol: 2, costCol: 6, sellCol: 8, marginCol: 13, startRow: 9, sectionCol: 0, familyFallback: 'Food' },
-    { name: 'BOEUF ', productCol: 2, costCol: 9, sellCol: 11, marginCol: 16, startRow: 9, sectionCol: 0, familyFallback: 'Boeuf' },
-    { name: 'BOISSONS', productCol: 2, costCol: 5, sellCol: 8, marginCol: 13, startRow: 8, sectionCol: 0, familyFallback: 'Boissons' },
-    { name: 'VINS_2025_-_2026', productCol: 2, costCol: 10, sellCol: 11, marginCol: 12, startRow: 8, sectionCol: 0, formatCol: 1, stateCol: 0, familyFallback: 'Vins', sectionMode: 'hierarchical' },
-    { name: 'FORMULES', productCol: 3, costCol: 6, sellCol: 8, marginCol: 11, startRow: 4, sectionCol: 1, familyFallback: 'Menus', sectionMode: 'menu' },
-  ];
+  const actualSheetName = findWorkbookSheetName(workbook.SheetNames, 'Produits');
+  if (!actualSheetName) {
+    throw new Error('Onglet Produits introuvable');
+  }
 
-  const map = new Map<string, MarginCatalogItem>();
+  const sheet = workbook.Sheets[actualSheetName];
+  if (!sheet) {
+    throw new Error('Onglet Produits vide');
+  }
 
-  sources.forEach((source) => {
-    const actualSheetName = findWorkbookSheetName(workbook.SheetNames, source.name);
-    if (!actualSheetName) return;
+  const rows = XLSX.utils.sheet_to_json(sheet, {
+    header: 1,
+    raw: false,
+    defval: '',
+    blankrows: false,
+  }) as Array<Array<string | number | null>>;
 
-    const sheet = workbook.Sheets[actualSheetName];
-    if (!sheet) return;
+  const cellText = (value: unknown) => String(value ?? '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+  const headerScore = (cells: string[]) => {
+    const normalized = cells.map(normalize);
+    const hasProduct = normalized.some((cell) => cell === 'produit' || cell.includes('libelle') || cell.includes('designation'));
+    const hasFamily = normalized.some((cell) => cell.includes('famille'));
+    const hasCost = normalized.some((cell) => cell === 'cr' || cell.includes('cout') || cell.includes('revient') || cell.includes('cm ht'));
+    const hasPrice = normalized.some((cell) => cell.includes('pv') || cell.includes('prix'));
+    const hasMargin = normalized.some((cell) => cell.includes('marge'));
+    return Number(hasProduct) * 4 + Number(hasFamily) * 2 + Number(hasCost) + Number(hasPrice) + Number(hasMargin);
+  };
 
-    const rows = XLSX.utils.sheet_to_json(sheet, {
-      header: 1,
-      raw: false,
-      defval: '',
-      blankrows: false,
-    });
+  let headerIndex = rows.findIndex((row, index) => index < 60 && headerScore(row.map(cellText)) >= 5);
+  if (headerIndex === -1) {
+    headerIndex = rows.findIndex((row, index) => index < 60 && row.map(cellText).some((cell) => normalize(cell) === 'produit'));
+  }
+  if (headerIndex === -1) {
+    throw new Error('Ligne d en-tete Produits introuvable');
+  }
 
-    const items = buildMarginItemsFromRows(rows as (string | number | null)[][], source, actualSheetName);
+  const headers = rows[headerIndex].map((cell) => normalize(cellText(cell)));
+  const findColumn = (...matchers: Array<(header: string) => boolean>) => {
+    for (const matcher of matchers) {
+      const index = headers.findIndex(matcher);
+      if (index !== -1) return index;
+    }
+    return -1;
+  };
 
-    items.forEach((candidate) => {
-      const existing = map.get(candidate.normalized);
-      const existingScore = existing
-        ? Number(existing.sellPriceHt !== null) +
-          Number(existing.costHt !== null) +
-          Number(existing.marginPercent !== null) +
-          Number(existing.marginEuro !== null) +
-          Number(Boolean(existing.section))
-        : -1;
-      const candidateScore =
-        Number(candidate.sellPriceHt !== null) +
-        Number(candidate.costHt !== null) +
-        Number(candidate.marginPercent !== null) +
-        Number(candidate.marginEuro !== null) +
-        Number(Boolean(candidate.section));
+  const productCol = findColumn(
+    (header) => header === 'produit',
+    (header) => header.includes('libelle') || header.includes('designation'),
+    (header) => header.includes('produit')
+  );
+  const familyCol = findColumn((header) => header.includes('famille'));
+  const costCol = findColumn(
+    (header) => header === 'cr',
+    (header) => header.includes('cout') && header.includes('revient'),
+    (header) => header.includes('cr ht'),
+    (header) => header.includes('cm ht')
+  );
+  const priceCol = findColumn(
+    (header) => header.includes('pv ht'),
+    (header) => header.includes('prix') && header.includes('ht'),
+    (header) => header.includes('prix') && header.includes('ttc'),
+    (header) => header.includes('pv'),
+    (header) => header.includes('prix')
+  );
+  const marginEuroCol = findColumn(
+    (header) => header.includes('marge') && (header.includes('ht') || header.includes('eur') || header.includes('euro')),
+    (header) => header === 'marge'
+  );
+  const marginPercentCol = findColumn((header) => header.includes('marge') && header.includes('%'));
 
-      if (!existing || candidateScore >= existingScore) {
-        map.set(candidate.normalized, candidate);
-      }
-    });
-  });
+  if (productCol === -1) {
+    throw new Error('Colonne Produit introuvable');
+  }
 
-  return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+  return rows
+    .slice(headerIndex + 1)
+    .map((row, index): MarginCatalogItem | null => {
+      const label = cellText(row[productCol]);
+      if (!label) return null;
+
+      const family = familyCol === -1 ? '' : cellText(row[familyCol]);
+      const costHt = costCol === -1 ? null : toNumber(row[costCol]);
+      const sellPriceHt = priceCol === -1 ? null : toNumber(row[priceCol]);
+      const marginEuro = marginEuroCol === -1 ? null : toNumber(row[marginEuroCol]);
+      const marginPercent = marginPercentCol === -1 ? null : toNumber(row[marginPercentCol]);
+      const rowNumber = headerIndex + index + 2;
+
+      return {
+        label,
+        normalized: `${rowNumber}-${normalize(label)}`,
+        costHt,
+        sellPriceHt,
+        marginPercent,
+        marginEuro,
+        sourceSheet: actualSheetName,
+        section: family,
+      };
+    })
+    .filter((item): item is MarginCatalogItem => Boolean(item));
 };
 
 const generateRowsFromMarginCatalog = (catalog: MarginCatalogItem[], existingRows: TakeRateMappingRow[]) => {
-  const byMarginLabel = new Map<string, TakeRateMappingRow>();
-  existingRows.forEach((row) => {
-    const keys = [normalize(row.matchedMarginLabel || ''), normalize(row.label || '')].filter(Boolean);
-    keys.forEach((key) => {
-      if (!byMarginLabel.has(key)) byMarginLabel.set(key, row);
-    });
-  });
+  void existingRows;
 
-  return catalog.map((item) => {
-    const existing = byMarginLabel.get(item.normalized);
-    const manualMargin = existing?.marginSource === 'manual';
-
-    return normalizeRow({
-      id: existing?.id ?? `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      label: existing?.label?.trim() ? existing.label : item.label,
-      family: existing?.family?.trim() ? existing.family : item.section || inferFamilyFromSheet(item.sourceSheet),
-      linkedImports: existing?.linkedImports ?? [],
-      costHt: manualMargin ? existing?.costHt : formatDecimal(item.costHt),
-      sellPriceHt: manualMargin ? existing?.sellPriceHt : formatDecimal(item.sellPriceHt),
-      marginPercent: manualMargin ? existing?.marginPercent : formatPercent(item.marginPercent),
-      marginEuro: manualMargin ? existing?.marginEuro : formatDecimal(item.marginEuro),
-      marginSource: manualMargin ? 'manual' : 'auto',
+  return catalog.map((item, index) =>
+    normalizeRow({
+      id: `margin-${index + 1}-${item.normalized}`,
+      label: item.label,
+      family: item.section,
+      linkedImports: [],
+      costHt: formatDecimal(item.costHt),
+      sellPriceHt: formatDecimal(item.sellPriceHt),
+      marginPercent: formatPercent(item.marginPercent),
+      marginEuro: formatDecimal(item.marginEuro),
+      marginSource: 'auto',
       matchedMarginLabel: item.label,
       matchedMarginSheet: item.sourceSheet,
-    });
-  });
+    })
+  );
 };
 
 const getRowStatus = (row: TakeRateMappingRow): RowStatus => {
@@ -646,11 +286,6 @@ const statusMeta: Record<RowStatus, { label: string; pill: string; rowRing: stri
   },
   review: {
     label: 'À vérifier',
-    pill: 'border-[#E5C27A] bg-[#FFF6DE] text-[#9A6A13]',
-    rowRing: 'shadow-[inset_4px_0_0_#D79A1E]',
-  },
-  unlinked: {
-    label: 'À lier',
     pill: 'border-[#E5C27A] bg-[#FFF6DE] text-[#9A6A13]',
     rowRing: 'shadow-[inset_4px_0_0_#D79A1E]',
   },
@@ -1080,7 +715,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
                   <option value="all">Tous</option>
                   <option value="ok">OK</option>
                   <option value="review">À vérifier</option>
-                  <option value="unlinked">Non liés</option>
                 </select>
               </label>
 
@@ -1252,6 +886,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
 };
 
 export default TakeRatePage;
+
 
 
 
