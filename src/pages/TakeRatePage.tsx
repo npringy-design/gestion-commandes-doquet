@@ -417,7 +417,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const [marginCatalog, setMarginCatalog] = useState<MarginCatalogItem[]>(readStoredMarginCatalog);
   const [marginFileName, setMarginFileName] = useState(readStoredMarginFileName);
   const [frozenMonths, setFrozenMonths] = useState<Record<string, TakeRateMonthSnapshot>>({});
-  const [showOnlyUnlinked, setShowOnlyUnlinked] = useState(false);
   const [activePopover, setActivePopover] = useState<{ rowId: string; mode: 'picker' | 'selected' } | null>(null);
   const [importSearchByRow, setImportSearchByRow] = useState<Record<string, string>>({});
   const [pendingImportsByRow, setPendingImportsByRow] = useState<Record<string, string[]>>({});
@@ -627,15 +626,14 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
             : familyValue === familyFilter;
 
       const statusMatches = statusFilter === 'all' ? true : rowStatus === statusFilter;
-      const linkMatches = showOnlyUnlinked ? row.linkedImports.length === 0 : true;
       const productMatches =
         !normalizedProductSearch ||
         normalize(row.label).includes(normalizedProductSearch) ||
         normalize(row.matchedMarginLabel ?? '').includes(normalizedProductSearch);
 
-      return familyMatches && statusMatches && linkMatches && productMatches;
+      return familyMatches && statusMatches && productMatches;
     });
-  }, [rows, familyFilter, statusFilter, showOnlyUnlinked, productSearch]);
+  }, [rows, familyFilter, statusFilter, productSearch]);
 
   useEffect(() => {
     setSelectedRowIds((prev) => prev.filter((id) => rows.some((row) => row.id === id)));
@@ -850,7 +848,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const reviewCount = rows.filter((row) => getRowStatus(row, isMonthFrozen) === 'review').length;
   const withoutLinkCount = rows.filter((row) => row.linkedImports.length === 0).length;
   const hasMarginImport = marginCatalog.length > 0 || Boolean(marginFileName);
-  const frozenCount = Object.keys(frozenMonths).length;
   const getRowSales = (row: TakeRateMappingRow) =>
     row.linkedImports.reduce((sum, label) => sum + (importSalesByName[normalize(label)] ?? 0), 0);
   const availableImportRows = importRows;
@@ -931,17 +928,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowOnlyUnlinked((value) => !value)}
-                  className={`min-h-[42px] rounded-2xl border px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] shadow-sm transition ${
-                    showOnlyUnlinked
-                      ? 'border-[#E5C27A] bg-[#FFF6DE] text-[#9A6A13]'
-                      : 'border-[#EBC28A] bg-[#FFF7EA] text-[#2F1D14] hover:bg-white'
-                  }`}
-                >
-                  Non liés {withoutLinkCount}
-                </button>
-                <button
-                  type="button"
                   onClick={handleDeleteMarginImport}
                   disabled={marginCatalog.length === 0 && rows.length === 0 && !marginFileName}
                   className="min-h-[42px] rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] text-[#7A2E1E] shadow-sm transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
@@ -952,10 +938,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
           </div>
           </div>
             <div className="border-b border-[#D7B79B] bg-[#FFF8EF] px-4 py-3 sm:px-5">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8A5A2F]">Figer les mois du taux de prise</p>
-                <p className="text-[11px] font-bold text-[#8B6650]">{frozenCount} mois figés</p>
-              </div>
               <div className="grid grid-cols-6 gap-1.5 xl:grid-cols-12">
                 {MONTHS_DISPLAY_CONFIG.map((month) => {
                   const locked = Boolean(frozenMonths[month.key]);
@@ -1004,11 +986,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                   );
                 })}
               </div>
-              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-[11px] font-semibold text-[#8B6650]">
-                  Mois de travail : {MONTHS_DISPLAY_CONFIG.find((month) => month.key === selectedMonth)?.label ?? selectedMonth} • {availableImportRows.length} produits dans l'import.
-                </p>
-              </div>
             </div>
             <div className="hidden mt-3 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
               {[
@@ -1030,7 +1007,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                   type="text"
                   value={productSearch}
                   onChange={(e) => setProductSearch(e.target.value)}
-                  placeholder="Rechercher un produit marge..."
+                  placeholder="Rechercher un produit..."
                   className="w-full rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 text-[13px] font-semibold text-[#2F1D14] outline-none transition focus:border-[#D8A640] focus:ring-2 focus:ring-[#E8B59E]"
                 />
               </label>
@@ -1080,10 +1057,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 </select>
               </label>
 
-              <div className="pb-1 text-[12px] font-semibold text-[#8B6650]">
-                {filteredRows.length} ligne{filteredRows.length > 1 ? 's' : ''} affichée{filteredRows.length > 1 ? 's' : ''}
-                {visibleSelectedCount > 0 ? ` • ${visibleSelectedCount} sélectionnée${visibleSelectedCount > 1 ? 's' : ''}` : ''}
-              </div>
             </div>
 
           <div ref={tableScrollRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#FFF8EF]">
@@ -1176,12 +1149,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                               placeholder="Ex. Steak au poivre"
                               className="w-full rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 text-[13px] font-semibold text-[#2F1D14] outline-none transition focus:border-[#D8A640] focus:ring-2 focus:ring-[#E8B59E]"
                             />
-                            {row.matchedMarginLabel ? (
-                              <div className="rounded-[12px] border border-[#D7BEA9] bg-[#FAF1E7] px-2.5 py-2 text-[11px] font-semibold text-[#7A5240]">
-                                Base marge : {row.matchedMarginLabel}
-                                {row.matchedMarginSheet ? ` • ${row.matchedMarginSheet}` : ''}
-                              </div>
-                            ) : null}
                           </div>
                         </td>
 
