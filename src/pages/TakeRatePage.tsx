@@ -420,6 +420,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const [showOnlyUnlinked, setShowOnlyUnlinked] = useState(false);
   const [activePopover, setActivePopover] = useState<{ rowId: string; mode: 'picker' | 'selected' } | null>(null);
   const [importSearchByRow, setImportSearchByRow] = useState<Record<string, string>>({});
+  const [pendingImportsByRow, setPendingImportsByRow] = useState<Record<string, string[]>>({});
   const [importMessage, setImportMessage] = useState('');
   const [isImportingMargin, setIsImportingMargin] = useState(false);
   const [familyFilter, setFamilyFilter] = useState('all');
@@ -732,6 +733,38 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       })
     );
     setActivePopover(null);
+  };
+
+  const togglePendingImport = (rowId: string, importLabel: string) => {
+    setPendingImportsByRow((prev) => {
+      const current = prev[rowId] ?? [];
+      const nextForRow = current.includes(importLabel)
+        ? current.filter((item) => item !== importLabel)
+        : [...current, importLabel];
+      if (nextForRow.length === 0) {
+        const next = { ...prev };
+        delete next[rowId];
+        return next;
+      }
+      return { ...prev, [rowId]: nextForRow };
+    });
+  };
+
+  const validatePendingImports = (rowId: string) => {
+    const pending = pendingImportsByRow[rowId] ?? [];
+    if (pending.length === 0) return;
+    updateRowsAndBase((prev) =>
+      prev.map((row) => {
+        if (row.id !== rowId) return row;
+        return { ...row, linkedImports: Array.from(new Set([...row.linkedImports, ...pending])) };
+      })
+    );
+    setPendingImportsByRow((prev) => {
+      const next = { ...prev };
+      delete next[rowId];
+      return next;
+    });
+    setActivePopover({ rowId, mode: 'selected' });
   };
 
   const removeImportFromRow = (rowId: string, importLabel: string) => {
@@ -1108,6 +1141,8 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                     const takeRate = monthCovers > 0 ? (rowSales / monthCovers) * 100 : 0;
                     const popoverQuery = normalize(importSearchByRow[row.id] ?? '');
                     const selectedImportSet = new Set(row.linkedImports.map(normalize));
+                    const pendingImports = pendingImportsByRow[row.id] ?? [];
+                    const pendingImportSet = new Set(pendingImports);
                     const suggestedImports = availableImportRows
                       .filter((item) => !selectedImportSet.has(item.normalized))
                       .filter((item) => !popoverQuery || normalize(item.label).includes(popoverQuery))
@@ -1233,19 +1268,35 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                                     {suggestedImports.length === 0 ? (
                                       <p className="px-2 py-3 text-sm font-semibold text-[#8B6650]">Aucun produit trouvé.</p>
                                     ) : (
-                                      suggestedImports.map((item) => (
-                                        <button
+                                      suggestedImports.map((item) => {
+                                        const checked = pendingImportSet.has(item.label);
+                                        return (
+                                        <label
                                           key={`${row.id}-${item.normalized}`}
-                                          type="button"
-                                          onClick={() => addImportToRow(row.id, item.label)}
-                                          className="flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold text-[#2F1D14] hover:bg-[#F4ECDD]"
+                                          className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold text-[#2F1D14] hover:bg-[#F4ECDD] ${checked ? 'bg-emerald-50 ring-1 ring-emerald-200' : ''}`}
                                         >
-                                          <span className="min-w-0 truncate">{item.label}</span>
+                                          <span className="flex min-w-0 items-center gap-2">
+                                            <input
+                                              type="checkbox"
+                                              checked={checked}
+                                              onChange={() => togglePendingImport(row.id, item.label)}
+                                              className="h-4 w-4 shrink-0 accent-emerald-600"
+                                            />
+                                            <span className="min-w-0 truncate">{item.label}</span>
+                                          </span>
                                           <span className="shrink-0 text-xs font-black text-emerald-700">{item.quantity}</span>
-                                        </button>
-                                      ))
+                                        </label>
+                                      )})
                                     )}
                                   </div>
+                                  <button
+                                    type="button"
+                                    disabled={pendingImports.length === 0}
+                                    onClick={() => validatePendingImports(row.id)}
+                                    className="mt-3 w-full rounded-xl border border-emerald-700 bg-emerald-600 px-3 py-2 text-[11px] font-black uppercase tracking-[0.10em] text-white disabled:cursor-not-allowed disabled:opacity-40"
+                                  >
+                                    Ajouter la sélection{pendingImports.length > 0 ? ` (${pendingImports.length})` : ''}
+                                  </button>
                                 </>
                               ) : (
                                 <div className="space-y-2">
