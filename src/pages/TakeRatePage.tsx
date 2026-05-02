@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { STORAGE_PREFIX, View } from '../constants';
+import { MONTHS_DISPLAY_CONFIG, STORAGE_PREFIX, View } from '../constants';
 import AppNavTile from '../components/AppNavTile';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { loadAllFromSupabase, saveToSupabaseDebounced } from '../utils/supabase';
@@ -32,9 +32,18 @@ export interface TakeRateMappingRow {
 interface TakeRatePageProps {
   setView: (view: View) => void;
   prepImportsByMonth: Record<string, string>;
+  covers: Record<string, number>;
 }
 
 type RowStatus = 'ok' | 'review';
+
+interface TakeRateMonthSnapshot {
+  rows: TakeRateMappingRow[];
+  marginCatalog: MarginCatalogItem[];
+  marginFileName: string;
+  salesByImport?: Record<string, number>;
+  frozenAt?: string;
+}
 
 const TAKE_RATE_BASE_ROWS_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_base_rows_v1`;
 const MARGIN_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_margin_catalog_v1`;
@@ -42,6 +51,10 @@ const MARGIN_FILE_NAME_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_margin_file_nam
 const TAKE_RATE_BASE_ROWS_CLOUD_KEY = 'takeRateBaseRows';
 const TAKE_RATE_MARGIN_CATALOG_CLOUD_KEY = 'takeRateMarginCatalog';
 const TAKE_RATE_MARGIN_FILE_NAME_CLOUD_KEY = 'takeRateMarginFileName';
+const TAKE_RATE_DRAFTS_CLOUD_KEY = 'takeRateMonthDrafts';
+const TAKE_RATE_FROZEN_CLOUD_KEY = 'takeRateFrozenMonths';
+const TAKE_RATE_MONTH_DRAFTS_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_month_drafts_v1`;
+const TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_frozen_months_v1`;
 
 const createEmptyRow = (): TakeRateMappingRow => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
@@ -66,6 +79,108 @@ const normalize = (value: string) =>
     .replace(/[^a-z0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+
+const parseCsvLine = (line: string, delimiter: string) => {
+  const cells: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    const next = line[i + 1];
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === delimiter && !inQuotes) {
+      cells.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  cells.push(current.trim());
+  return cells;
+};
+
+const detectDelimiter = (input: string) => {
+  const firstLine = input.split(/\r?\n/).find((line) => line.trim().length > 0) ?? '';
+  return [';', '\t', ','].sort((a, b) => firstLine.split(b).length - firstLine.split(a).length)[0] ?? ';';
+};
+
+const parseNumber = (value: string | number | null | undefined) => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  const cleaned = String(value ?? '').replace(/\s/g, '').replace(',', '.');
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const pickImportColumn = (headers: string[], preferred: string[]) => {
+  for (const name of preferred) {
+    const exactIndex = headers.findIndex((cell) => cell === normalize(name));
+    if (exactIndex !== -1) return exactIndex;
+  }
+  for (const name of preferred) {
+    const includesIndex = headers.findIndex((cell) => cell.includes(normalize(name)));
+    if (includesIndex !== -1) return includesIndex;
+  }
+  return -1;
+};
+
+const buildImportRows = (content: string) => {
+  if (!content?.trim()) return [] as { label: string; normalized: string; quantity: number }[];
+  const lines = content.split(/\r?\n/).filter((line) => line.trim().length > 0);
+  if (lines.length === 0) return [];
+  const delimiter = detectDelimiter(content);
+  const headers = parseCsvLine(lines[0], delimiter).map(normalize);
+  const nameIndex = pickImportColumn(headers, ['libelle', 'libellé', 'designation', 'désignation', 'produit', 'article', 'nom']);
+  const qtyIndex = pickImportColumn(headers, ['nombre', 'nb', 'ventes', 'vente', 'quantite', 'quantité', 'qte', 'qté', 'qty']);
+  if (nameIndex === -1 || qtyIndex === -1) return [];
+
+  const byLabel = new Map<string, { label: string; normalized: string; quantity: number }>();
+  for (let i = 1; i < lines.length; i += 1) {
+    const cols = parseCsvLine(lines[i], delimiter);
+    const label = String(cols[nameIndex] ?? '').trim();
+    const normalized = normalize(label);
+    if (!label || !normalized) continue;
+    const quantity = parseNumber(cols[qtyIndex] ?? '0');
+    const existing = byLabel.get(normalized);
+    if (existing) {
+      existing.quantity += quantity;
+    } else {
+      byLabel.set(normalized, { label, normalized, quantity });
+    }
+  }
+  return Array.from(byLabel.values()).sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+};
+
+const buildSalesObject = (items: { normalized: string; quantity: number }[]) =>
+  Object.fromEntries(items.map((item) => [item.normalized, item.quantity]));
+
+const GENERIC_MATCH_TOKENS = new Set(['le', 'la', 'les', 'de', 'des', 'du', 'a', 'au', 'aux', 'avec', 'sans', 'menu', 'formule']);
+const strongTokens = (value: string) => {
+  const tokens = normalize(value).split(' ').filter(Boolean);
+  const strong = tokens.filter((token) => !GENERIC_MATCH_TOKENS.has(token));
+  return strong.length > 0 ? strong : tokens;
+};
+
+const scoreImportMatch = (productLabel: string, importLabel: string) => {
+  const product = normalize(productLabel);
+  const imported = normalize(importLabel);
+  if (!product || !imported) return -1;
+  if (product === imported) return 1000;
+  const productTokens = strongTokens(productLabel);
+  const importTokens = strongTokens(importLabel);
+  const intersection = productTokens.filter((token) => importTokens.includes(token));
+  if (intersection.length === 0) return -1;
+  const coverage = intersection.length / Math.max(productTokens.length, 1);
+  const substringBonus = product.includes(imported) || imported.includes(product) ? 70 : 0;
+  return coverage * 160 + intersection.length * 25 + substringBonus - Math.max(importTokens.length - productTokens.length - 3, 0) * 8;
+};
 
 const toNumber = (value: unknown): number | null => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
@@ -277,8 +392,9 @@ const generateRowsFromMarginCatalog = (catalog: MarginCatalogItem[], existingRow
   );
 };
 
-const getRowStatus = (row: TakeRateMappingRow): RowStatus => {
+const getRowStatus = (row: TakeRateMappingRow, isFrozen = false): RowStatus => {
   if (!row.label.trim() || !row.family.trim()) return 'review';
+  if (!isFrozen && row.linkedImports.length === 0) return 'review';
   return 'ok';
 };
 
@@ -295,11 +411,17 @@ const statusMeta: Record<RowStatus, { label: string; pill: string; rowRing: stri
   },
 };
 
-const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
+const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth, covers }) => {
   const [baseRows, setBaseRows] = useState<TakeRateMappingRow[]>(readStoredBaseRows);
   const [rows, setRows] = useState<TakeRateMappingRow[]>(readStoredBaseRows);
   const [marginCatalog, setMarginCatalog] = useState<MarginCatalogItem[]>(readStoredMarginCatalog);
   const [marginFileName, setMarginFileName] = useState(readStoredMarginFileName);
+  const [selectedMonth, setSelectedMonth] = useState(MONTHS_DISPLAY_CONFIG[new Date().getMonth()]?.key ?? 'jan');
+  const [monthDrafts, setMonthDrafts] = useState<Record<string, TakeRateMonthSnapshot>>({});
+  const [frozenMonths, setFrozenMonths] = useState<Record<string, TakeRateMonthSnapshot>>({});
+  const [showOnlyUnlinked, setShowOnlyUnlinked] = useState(false);
+  const [activePopover, setActivePopover] = useState<{ rowId: string; mode: 'picker' | 'selected' } | null>(null);
+  const [importSearchByRow, setImportSearchByRow] = useState<Record<string, string>>({});
   const [importMessage, setImportMessage] = useState('');
   const [isImportingMargin, setIsImportingMargin] = useState(false);
   const [familyFilter, setFamilyFilter] = useState('all');
@@ -344,6 +466,22 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
     }, 2500);
   };
 
+  const persistTakeRateCollection = (cloudKey: string, storageKey: string, value: Record<string, TakeRateMonthSnapshot>) => {
+    localStorage.setItem(storageKey, JSON.stringify(value));
+    if (!isSupabaseConfigured()) return;
+    const ts = new Date().toISOString();
+    saveToSupabaseDebounced(
+      cloudKey,
+      value,
+      ts,
+      (key) => cloudTsRef.current[key],
+      (confirmedKey, confirmedTs) => {
+        cloudTsRef.current[confirmedKey] = confirmedTs;
+      },
+      2500,
+    );
+  };
+
   useEffect(() => {
     let cancelled = false;
 
@@ -351,6 +489,18 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
       let nextBaseRows = readStoredBaseRows();
       let nextMarginCatalog = readStoredMarginCatalog();
       let nextMarginFileName = readStoredMarginFileName();
+      let nextDrafts: Record<string, TakeRateMonthSnapshot> = {};
+      let nextFrozen: Record<string, TakeRateMonthSnapshot> = {};
+
+      try {
+        const rawDrafts = localStorage.getItem(TAKE_RATE_MONTH_DRAFTS_STORAGE_KEY);
+        const rawFrozen = localStorage.getItem(TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY);
+        nextDrafts = rawDrafts ? JSON.parse(rawDrafts) : {};
+        nextFrozen = rawFrozen ? JSON.parse(rawFrozen) : {};
+      } catch (_error) {
+        nextDrafts = {};
+        nextFrozen = {};
+      }
 
       if (isSupabaseConfigured()) {
         try {
@@ -368,6 +518,14 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
               if (row?.key === TAKE_RATE_MARGIN_FILE_NAME_CLOUD_KEY && typeof row.value === 'string') {
                 nextMarginFileName = row.value;
                 cloudTsRef.current[TAKE_RATE_MARGIN_FILE_NAME_CLOUD_KEY] = row.updated_at;
+              }
+              if (row?.key === TAKE_RATE_DRAFTS_CLOUD_KEY && row.value && typeof row.value === 'object') {
+                nextDrafts = row.value as Record<string, TakeRateMonthSnapshot>;
+                cloudTsRef.current[TAKE_RATE_DRAFTS_CLOUD_KEY] = row.updated_at;
+              }
+              if (row?.key === TAKE_RATE_FROZEN_CLOUD_KEY && row.value && typeof row.value === 'object') {
+                nextFrozen = row.value as Record<string, TakeRateMonthSnapshot>;
+                cloudTsRef.current[TAKE_RATE_FROZEN_CLOUD_KEY] = row.updated_at;
               }
             });
           }
@@ -387,9 +545,13 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
       setRows(nextBaseRows);
       setMarginCatalog(nextMarginCatalog);
       setMarginFileName(nextMarginFileName);
+      setMonthDrafts(nextDrafts && typeof nextDrafts === 'object' ? nextDrafts : {});
+      setFrozenMonths(nextFrozen && typeof nextFrozen === 'object' ? nextFrozen : {});
       localStorage.setItem(TAKE_RATE_BASE_ROWS_STORAGE_KEY, JSON.stringify(nextBaseRows));
       localStorage.setItem(MARGIN_STORAGE_KEY, JSON.stringify(nextMarginCatalog));
       localStorage.setItem(MARGIN_FILE_NAME_STORAGE_KEY, nextMarginFileName);
+      localStorage.setItem(TAKE_RATE_MONTH_DRAFTS_STORAGE_KEY, JSON.stringify(nextDrafts));
+      localStorage.setItem(TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY, JSON.stringify(nextFrozen));
     };
 
     void run();
@@ -402,6 +564,61 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
   useEffect(() => {
     baseRowsRef.current = baseRows;
   }, [baseRows]);
+
+  const importRows = useMemo(() => buildImportRows(prepImportsByMonth[selectedMonth] ?? ''), [prepImportsByMonth, selectedMonth]);
+  const importSalesByName = useMemo(() => {
+    const frozenSales = frozenMonths[selectedMonth]?.salesByImport;
+    if (frozenSales && Object.keys(frozenSales).length > 0) return frozenSales;
+    return buildSalesObject(importRows);
+  }, [frozenMonths, importRows, selectedMonth]);
+  const isMonthFrozen = Boolean(frozenMonths[selectedMonth]);
+  const monthCovers = Number(covers[selectedMonth] ?? 0);
+
+  useEffect(() => {
+    const snapshot = frozenMonths[selectedMonth] ?? monthDrafts[selectedMonth];
+    if (snapshot?.rows) {
+      setRows(snapshot.rows.map(normalizeRow));
+      return;
+    }
+    setRows(baseRows);
+  }, [baseRows, frozenMonths, monthDrafts, selectedMonth]);
+
+  useEffect(() => {
+    if (isMonthFrozen || importRows.length === 0 || rows.length === 0) return;
+
+    let changed = false;
+    const nextRows = rows.map((row) => {
+      if (row.linkedImports.length > 0 || !row.label.trim()) return row;
+      let best: { label: string; score: number } | null = null;
+      importRows.forEach((item) => {
+        const score = scoreImportMatch(row.label, item.label);
+        if (!best || score > best.score) best = { label: item.label, score };
+      });
+      if (!best || best.score < 155) return row;
+      changed = true;
+      return { ...row, linkedImports: [best.label] };
+    });
+
+    if (!changed) return;
+    setRows(nextRows);
+    setBaseRows(nextRows);
+    persistBaseRows(nextRows);
+  }, [importRows, isMonthFrozen, rows, selectedMonth]);
+
+  useEffect(() => {
+    if (isMonthFrozen) return;
+    const snapshot = {
+      rows,
+      marginCatalog,
+      marginFileName,
+      salesByImport: buildSalesObject(importRows),
+    };
+    setMonthDrafts((prev) => {
+      const next = { ...prev, [selectedMonth]: snapshot };
+      persistTakeRateCollection(TAKE_RATE_DRAFTS_CLOUD_KEY, TAKE_RATE_MONTH_DRAFTS_STORAGE_KEY, next);
+      return next;
+    });
+  }, [importRows, isMonthFrozen, marginCatalog, marginFileName, rows, selectedMonth]);
 
   const familyOptions = useMemo(() => {
     const unique = new Set<string>();
@@ -427,14 +644,15 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
             : familyValue === familyFilter;
 
       const statusMatches = statusFilter === 'all' ? true : rowStatus === statusFilter;
+      const linkMatches = showOnlyUnlinked ? row.linkedImports.length === 0 : true;
       const productMatches =
         !normalizedProductSearch ||
         normalize(row.label).includes(normalizedProductSearch) ||
         normalize(row.matchedMarginLabel ?? '').includes(normalizedProductSearch);
 
-      return familyMatches && statusMatches && productMatches;
+      return familyMatches && statusMatches && linkMatches && productMatches;
     });
-  }, [rows, familyFilter, statusFilter, productSearch]);
+  }, [rows, familyFilter, statusFilter, showOnlyUnlinked, productSearch]);
 
   useEffect(() => {
     setSelectedRowIds((prev) => prev.filter((id) => rows.some((row) => row.id === id)));
@@ -514,6 +732,57 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
     });
   };
 
+  const updateRowsAndBase = (updater: (prev: TakeRateMappingRow[]) => TakeRateMappingRow[]) => {
+    setRows((prev) => {
+      const next = updater(prev);
+      setBaseRows(next);
+      persistBaseRows(next);
+      return next;
+    });
+  };
+
+  const addImportToRow = (rowId: string, importLabel: string) => {
+    updateRowsAndBase((prev) =>
+      prev.map((row) => {
+        if (row.id !== rowId) return row;
+        if (row.linkedImports.includes(importLabel)) return row;
+        return { ...row, linkedImports: [...row.linkedImports, importLabel] };
+      })
+    );
+    setActivePopover(null);
+  };
+
+  const removeImportFromRow = (rowId: string, importLabel: string) => {
+    updateRowsAndBase((prev) =>
+      prev.map((row) => (row.id === rowId ? { ...row, linkedImports: row.linkedImports.filter((item) => item !== importLabel) } : row))
+    );
+  };
+
+  const toggleFreezeSelectedMonth = () => {
+    if (isMonthFrozen) {
+      setFrozenMonths((prev) => {
+        const next = { ...prev };
+        delete next[selectedMonth];
+        persistTakeRateCollection(TAKE_RATE_FROZEN_CLOUD_KEY, TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY, next);
+        return next;
+      });
+      return;
+    }
+
+    const snapshot: TakeRateMonthSnapshot = {
+      rows,
+      marginCatalog,
+      marginFileName,
+      salesByImport: buildSalesObject(importRows),
+      frozenAt: new Date().toISOString(),
+    };
+    setFrozenMonths((prev) => {
+      const next = { ...prev, [selectedMonth]: snapshot };
+      persistTakeRateCollection(TAKE_RATE_FROZEN_CLOUD_KEY, TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY, next);
+      return next;
+    });
+  };
+
   const handleDeleteMarginImport = () => {
     setBaseRows([]);
     baseRowsRef.current = [];
@@ -562,10 +831,14 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
   const visibleRowIds = filteredRows.map((row) => row.id);
   const visibleSelectedCount = visibleRowIds.filter((id) => selectedRowIds.includes(id)).length;
   const allVisibleRowsSelected = visibleRowIds.length > 0 && visibleSelectedCount === visibleRowIds.length;
-  const okCount = rows.filter((row) => getRowStatus(row) === 'ok').length;
-  const reviewCount = rows.filter((row) => getRowStatus(row) === 'review').length;
-  const withoutLinkCount = 0;
+  const okCount = rows.filter((row) => row.linkedImports.length > 0).length;
+  const reviewCount = rows.filter((row) => getRowStatus(row, isMonthFrozen) === 'review').length;
+  const withoutLinkCount = rows.filter((row) => row.linkedImports.length === 0).length;
   const hasMarginImport = marginCatalog.length > 0 || Boolean(marginFileName);
+  const frozenCount = Object.keys(frozenMonths).length;
+  const getRowSales = (row: TakeRateMappingRow) =>
+    row.linkedImports.reduce((sum, label) => sum + (importSalesByName[normalize(label)] ?? 0), 0);
+  const availableImportRows = importRows;
 
   return (
     <div className="min-h-screen overflow-hidden bg-[#DDA162] text-[#34271F]">
@@ -643,6 +916,17 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setShowOnlyUnlinked((value) => !value)}
+                  className={`min-h-[42px] rounded-2xl border px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] shadow-sm transition ${
+                    showOnlyUnlinked
+                      ? 'border-[#E5C27A] bg-[#FFF6DE] text-[#9A6A13]'
+                      : 'border-[#EBC28A] bg-[#FFF7EA] text-[#2F1D14] hover:bg-white'
+                  }`}
+                >
+                  Non liés {withoutLinkCount}
+                </button>
+                <button
+                  type="button"
                   onClick={handleDeleteMarginImport}
                   disabled={marginCatalog.length === 0 && rows.length === 0 && !marginFileName}
                   className="min-h-[42px] rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] text-[#7A2E1E] shadow-sm transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
@@ -652,6 +936,51 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
             </div>
           </div>
           </div>
+            <div className="border-b border-[#D7B79B] bg-[#FFF8EF] px-4 py-3 sm:px-5">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8A5A2F]">Figer les mois du taux de prise</p>
+                <p className="text-[11px] font-bold text-[#8B6650]">{frozenCount} mois figés</p>
+              </div>
+              <div className="grid grid-cols-6 gap-1.5 xl:grid-cols-12">
+                {MONTHS_DISPLAY_CONFIG.map((month) => {
+                  const locked = Boolean(frozenMonths[month.key]);
+                  const active = selectedMonth === month.key;
+                  return (
+                    <button
+                      key={`take-rate-month-${month.key}`}
+                      type="button"
+                      onClick={() => setSelectedMonth(month.key)}
+                      className={`min-h-[42px] rounded-xl border px-2 py-1 text-[10px] font-black uppercase tracking-[0.07em] transition ${
+                        locked
+                          ? 'border-emerald-700 bg-emerald-600 text-white shadow-sm'
+                          : active
+                            ? 'border-[#D8A640] bg-[#FFE8A8] text-[#5B321E]'
+                            : 'border-[#EBC28A] bg-[#FFF7EA] text-[#2F1D14] hover:bg-white'
+                      }`}
+                    >
+                      <span className="block text-xs">{month.label.slice(0, 3)}</span>
+                      <span className="block text-[8px]">{locked ? 'Figé' : active ? 'Actif' : 'Ouvert'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[11px] font-semibold text-[#8B6650]">
+                  {isMonthFrozen ? 'Mois figé : lecture du snapshot.' : `Mois ouvert : ${availableImportRows.length} produits dans l'import.`}
+                </p>
+                <button
+                  type="button"
+                  onClick={toggleFreezeSelectedMonth}
+                  className={`rounded-xl border px-4 py-2 text-[11px] font-black uppercase tracking-[0.10em] shadow-sm transition ${
+                    isMonthFrozen
+                      ? 'border-[#EBC28A] bg-[#FFF7EA] text-[#7A2E1E] hover:bg-white'
+                      : 'border-emerald-700 bg-emerald-600 text-white hover:bg-emerald-500'
+                  }`}
+                >
+                  {isMonthFrozen ? 'Défiger le mois' : 'Figer le mois'}
+                </button>
+              </div>
+            </div>
             <div className="hidden mt-3 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
               {[
                 ['Produits', rows.length],
@@ -732,14 +1061,17 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
             <table className="w-full table-fixed border-separate border-spacing-0">
               <colgroup>
                 <col className="w-[3%]" />
-                <col className="w-[7%]" />
-                <col className="w-[25%]" />
-                <col className="w-[15%]" />
-                <col className="w-[12%]" />
-                <col className="w-[12%]" />
-                <col className="w-[10%]" />
-                <col className="w-[10%]" />
                 <col className="w-[6%]" />
+                <col className="w-[20%]" />
+                <col className="w-[12%]" />
+                <col className="w-[8%]" />
+                <col className="w-[8%]" />
+                <col className="w-[8%]" />
+                <col className="w-[8%]" />
+                <col className="w-[16%]" />
+                <col className="w-[5%]" />
+                <col className="w-[5%]" />
+                <col className="w-[4%]" />
               </colgroup>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[#F2DDC0] text-[#71402D]">
@@ -759,20 +1091,31 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Prix TTC €</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Marge €</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Marge %</th>
+                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Recherche import</th>
+                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Ventes</th>
+                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Taux</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">Suppr.</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredRows.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-6 py-10 text-center text-[14px] font-semibold text-[#8B6650]">
+                    <td colSpan={12} className="px-6 py-10 text-center text-[14px] font-semibold text-[#8B6650]">
                       Aucune ligne pour ce filtre.
                     </td>
                   </tr>
                 ) : (
                   filteredRows.map((row, rowIndex) => {
-                    const status = getRowStatus(row);
+                    const status = getRowStatus(row, isMonthFrozen);
                     const meta = statusMeta[status];
+                    const rowSales = getRowSales(row);
+                    const takeRate = monthCovers > 0 ? (rowSales / monthCovers) * 100 : 0;
+                    const popoverQuery = normalize(importSearchByRow[row.id] ?? '');
+                    const selectedImportSet = new Set(row.linkedImports.map(normalize));
+                    const suggestedImports = availableImportRows
+                      .filter((item) => !selectedImportSet.has(item.normalized))
+                      .filter((item) => !popoverQuery || normalize(item.label).includes(popoverQuery))
+                      .slice(0, 60);
 
                     return (
                       <tr key={row.id} className={`${rowIndex % 2 === 0 ? 'bg-[#FFF9F2]' : 'bg-[#FCF4EB]'} ${meta.rowRing}`}>
@@ -859,6 +1202,77 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
                             placeholder="0,0"
                             className="w-full rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 text-[13px] font-semibold text-[#2F1D14] outline-none transition focus:border-[#D8A640] focus:ring-2 focus:ring-[#E8B59E]"
                           />
+                        </td>
+
+                        <td className="relative border-b border-[#E8D8C8] px-3 py-3 align-top">
+                          <div className={`flex h-10 min-w-0 items-center gap-1.5 rounded-xl border px-1.5 ${row.linkedImports.length > 0 ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+                            <button
+                              type="button"
+                              disabled={isMonthFrozen || availableImportRows.length === 0}
+                              onClick={() => setActivePopover(activePopover?.rowId === row.id && activePopover.mode === 'picker' ? null : { rowId: row.id, mode: 'picker' })}
+                              className="h-8 rounded-lg border border-[#D0B08D] bg-white px-2 text-[10px] font-black uppercase tracking-[0.10em] text-[#A05A28] disabled:cursor-not-allowed disabled:opacity-35"
+                            >
+                              Ajouter
+                            </button>
+                            <button
+                              type="button"
+                              disabled={row.linkedImports.length === 0}
+                              onClick={() => setActivePopover(activePopover?.rowId === row.id && activePopover.mode === 'selected' ? null : { rowId: row.id, mode: 'selected' })}
+                              className="min-w-0 truncate rounded-lg px-1.5 py-1 text-left text-[11px] font-bold text-slate-600 transition hover:bg-white disabled:cursor-default disabled:hover:bg-transparent"
+                            >
+                              {row.linkedImports.length > 0 ? `${row.linkedImports.length} produit${row.linkedImports.length > 1 ? 's' : ''}` : 'Aucun lien'}
+                            </button>
+                          </div>
+                          {activePopover?.rowId === row.id && (
+                            <div className="absolute right-3 top-[calc(100%+8px)] z-[999] w-[320px] rounded-2xl border border-[#D0B08D] bg-[#FFF8EF] p-3 shadow-[0_18px_36px_rgba(72,35,19,0.22)]">
+                              {activePopover.mode === 'picker' ? (
+                                <>
+                                  <input
+                                    value={importSearchByRow[row.id] ?? ''}
+                                    onChange={(e) => setImportSearchByRow((prev) => ({ ...prev, [row.id]: e.target.value }))}
+                                    placeholder="Filtrer les produits import..."
+                                    className="mb-2 w-full rounded-xl border border-[#EBC28A] bg-white px-3 py-2 text-sm font-semibold outline-none"
+                                  />
+                                  <div className="max-h-[240px] space-y-1 overflow-y-auto">
+                                    {suggestedImports.length === 0 ? (
+                                      <p className="px-2 py-3 text-sm font-semibold text-[#8B6650]">Aucun produit trouvé.</p>
+                                    ) : (
+                                      suggestedImports.map((item) => (
+                                        <button
+                                          key={`${row.id}-${item.normalized}`}
+                                          type="button"
+                                          onClick={() => addImportToRow(row.id, item.label)}
+                                          className="flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold text-[#2F1D14] hover:bg-[#F4ECDD]"
+                                        >
+                                          <span className="min-w-0 truncate">{item.label}</span>
+                                          <span className="shrink-0 text-xs font-black text-emerald-700">{item.quantity}</span>
+                                        </button>
+                                      ))
+                                    )}
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="space-y-2">
+                                  <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#8A5A2F]">Produits liés</p>
+                                  {row.linkedImports.map((label) => (
+                                    <div key={`${row.id}-${label}`} className="flex items-center justify-between gap-2 rounded-xl bg-[#F4ECDD] px-3 py-2 text-sm font-semibold">
+                                      <span className="min-w-0 truncate">{label}</span>
+                                      <button type="button" disabled={isMonthFrozen} onClick={() => removeImportFromRow(row.id, label)} className="h-7 w-7 rounded-lg bg-white text-[#A5502F] disabled:opacity-40">×</button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              <button type="button" onClick={() => setActivePopover(null)} className="mt-3 w-full rounded-xl border border-[#D0B08D] bg-white px-3 py-2 text-[11px] font-black uppercase tracking-[0.10em] text-[#2F1D14]">Fermer</button>
+                            </div>
+                          )}
+                        </td>
+
+                        <td className="border-b border-[#E8D8C8] px-3 py-3 align-top">
+                          <div className="rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 text-sm font-black text-[#2F1D14]">{rowSales}</div>
+                        </td>
+
+                        <td className="border-b border-[#E8D8C8] px-3 py-3 align-top">
+                          <div className="rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 text-sm font-black text-[#2F1D14]">{takeRate.toFixed(2)}</div>
                         </td>
 
                         <td className="border-b border-[#E8D8C8] px-2 py-3 align-top">

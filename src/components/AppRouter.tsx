@@ -218,6 +218,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
       <TakeRatePage
         setView={setView}
         prepImportsByMonth={state.prepImportsByMonth}
+        covers={state.covers}
       />,
       'Chargement du paramétrage taux de prise…'
     );
