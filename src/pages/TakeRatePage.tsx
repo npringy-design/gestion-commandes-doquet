@@ -188,10 +188,11 @@ const buildMarginCatalogFromWorkbook = async (file: File): Promise<MarginCatalog
     throw new Error('Ligne d en-tete Produits introuvable');
   }
 
-  const headers = rows[headerIndex].map((cell) => normalize(cellText(cell)));
-  const findColumn = (...matchers: Array<(header: string) => boolean>) => {
+  const rawHeaders = rows[headerIndex].map(cellText);
+  const headers = rawHeaders.map(normalize);
+  const findColumn = (...matchers: Array<(header: string, rawHeader: string) => boolean>) => {
     for (const matcher of matchers) {
-      const index = headers.findIndex(matcher);
+      const index = headers.findIndex((header, columnIndex) => matcher(header, rawHeaders[columnIndex] ?? ''));
       if (index !== -1) return index;
     }
     return -1;
@@ -217,10 +218,13 @@ const buildMarginCatalogFromWorkbook = async (file: File): Promise<MarginCatalog
     (header) => header.includes('prix')
   );
   const marginEuroCol = findColumn(
-    (header) => header.includes('marge') && (header.includes('ht') || header.includes('eur') || header.includes('euro')),
-    (header) => header === 'marge'
+    (header, rawHeader) => header.includes('marge') && !rawHeader.includes('%') && (header.includes('eur') || header.includes('euro') || header.includes('montant')),
+    (header, rawHeader) => header === 'marge' && !rawHeader.includes('%')
   );
-  const marginPercentCol = findColumn((header) => header.includes('marge') && header.includes('%'));
+  const marginPercentCol = findColumn(
+    (header, rawHeader) => header.includes('marge') && rawHeader.includes('%'),
+    (header) => header.includes('marge') && (header.includes('percent') || header.includes('pourcentage'))
+  );
 
   if (productCol === -1) {
     throw new Error('Colonne Produit introuvable');
@@ -751,8 +755,8 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView }) => {
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">État</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Produit marge</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Famille</th>
-                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">CM HT</th>
-                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">PV HT</th>
+                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">CR €</th>
+                  <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Prix TTC €</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Marge €</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Marge %</th>
                   <th className="border-b border-[#DCC2AB] px-3 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">Suppr.</th>
