@@ -38,9 +38,6 @@ const PRODUCT_NAME_COLUMN_CANDIDATES = [
 const DEFAULT_VALUE_COLUMN_CANDIDATES = [
   'conso theorique qte',
   'conso theorique qt',
-  'conso qte',
-  'quantite',
-  'qte',
 ];
 
 const parseNumber = (value: unknown) => {

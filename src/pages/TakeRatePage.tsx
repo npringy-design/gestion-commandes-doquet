@@ -139,16 +139,6 @@ const buildImportRows = (content: string) => {
   const headers = parseCsvLine(lines[0], delimiter).map(normalize);
   const nameIndex = pickImportColumn(headers, ['libelle', 'libellé', 'designation', 'désignation', 'produit', 'article', 'nom']);
   const qtyIndex = pickImportColumn(headers, [
-    'conso theorique qte',
-    'conso theorique qt',
-    'conso qte',
-    'quantite',
-    'quantité',
-    'qte',
-    'qté',
-    'qty',
-    'ventes',
-    'vente',
     'nombre',
     'nb',
   ]);

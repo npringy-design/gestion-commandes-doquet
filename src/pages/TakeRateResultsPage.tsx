@@ -110,14 +110,6 @@ const buildMonthSalesMap = (content: string) => {
 
   const preferredNameHeaders = ['libelle', 'libellé', 'designation', 'désignation', 'produit', 'article', 'nom'];
   const preferredQtyHeaders = [
-    'conso theorique qte',
-    'conso theorique qt',
-    'conso qte',
-    'quantite',
-    'qte',
-    'qty',
-    'ventes',
-    'vente',
     'nombre',
     'nb',
   ];
