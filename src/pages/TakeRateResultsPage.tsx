@@ -19,10 +19,8 @@ const STORAGE_KEYS = [
   `${STORAGE_PREFIX}take_rate_rows_v1`,
 ];
 const TAKE_RATE_BASE_ROWS_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_base_rows_v1`;
-const TAKE_RATE_DRAFTS_CLOUD_KEY = 'takeRateMonthDrafts';
 const TAKE_RATE_FROZEN_CLOUD_KEY = 'takeRateFrozenMonths';
 const TAKE_RATE_BASE_ROWS_CLOUD_KEY = 'takeRateBaseRows';
-const TAKE_RATE_MONTH_DRAFTS_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_month_drafts_v1`;
 const TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_frozen_months_v1`;
 
 interface TakeRateMonthSnapshot {
@@ -42,10 +40,13 @@ const isMarginBaseRow = (row: TakeRateMappingRow) =>
   );
 
 const normalize = (value: string) =>
-  value
+  String(value ?? '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 
 const parseCsvLine = (line: string, delimiter: string) => {
@@ -202,7 +203,6 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
   const [sortBy, setSortBy] = useState<SortKey>('takeRate');
   const [expertMode, setExpertMode] = useState(false);
   const [baseRows, setBaseRows] = useState<TakeRateMappingRow[]>([]);
-  const [monthDrafts, setMonthDrafts] = useState<Record<string, TakeRateMonthSnapshot>>({});
   const [frozenMonths, setFrozenMonths] = useState<Record<string, TakeRateMonthSnapshot>>({});
 
   useEffect(() => {
@@ -227,9 +227,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
 
     const run = async () => {
       try {
-        const rawDrafts = localStorage.getItem(TAKE_RATE_MONTH_DRAFTS_STORAGE_KEY);
         const rawFrozen = localStorage.getItem(TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY);
-        let nextDrafts = rawDrafts ? JSON.parse(rawDrafts) : {};
         let nextFrozen = rawFrozen ? JSON.parse(rawFrozen) : {};
         let nextBaseRows = loadLegacyRows();
 
@@ -237,7 +235,6 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
           const cloud = await loadAllFromSupabase();
           if (Array.isArray(cloud)) {
             cloud.forEach((entry: any) => {
-              if (entry?.key === TAKE_RATE_DRAFTS_CLOUD_KEY && entry.value && typeof entry.value === 'object') nextDrafts = entry.value;
               if (entry?.key === TAKE_RATE_FROZEN_CLOUD_KEY && entry.value && typeof entry.value === 'object') nextFrozen = entry.value;
               if (entry?.key === TAKE_RATE_BASE_ROWS_CLOUD_KEY && Array.isArray(entry.value)) nextBaseRows = entry.value.filter(isMarginBaseRow);
             });
@@ -246,7 +243,6 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
 
         if (cancelled) return;
         setBaseRows(nextBaseRows.map(normalizeResultRow));
-        setMonthDrafts(nextDrafts && typeof nextDrafts === 'object' ? nextDrafts : {});
         setFrozenMonths(nextFrozen && typeof nextFrozen === 'object' ? nextFrozen : {});
       } catch (_error) {
         if (!cancelled) setRows(loadLegacyRows().map(normalizeResultRow));
@@ -272,7 +268,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
   });
 
   useEffect(() => {
-    const snapshot = frozenMonths[selectedMonth] ?? monthDrafts[selectedMonth];
+    const snapshot = frozenMonths[selectedMonth];
     if (snapshot?.rows) {
       setRows(snapshot.rows.map(normalizeResultRow));
       return;
@@ -297,7 +293,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
     } catch (_error) {
       setRows([]);
     }
-  }, [baseRows, frozenMonths, monthDrafts, selectedMonth]);
+  }, [baseRows, frozenMonths, selectedMonth]);
 
   const monthSalesMap = useMemo(
     () => {
@@ -320,8 +316,9 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
         const takeRate = monthCovers > 0 ? (sales / monthCovers) * 100 : 0;
         const costHt = parseNumber((row as any).costHt);
         const sellPriceHt = parseNumber((row as any).sellPriceHt);
-        const marginEuro = parseNumber((row as any).marginEuro);
+        const storedMarginEuro = parseNumber((row as any).marginEuro);
         const marginPercent = parseNumber((row as any).marginPercent);
+        const marginEuro = storedMarginEuro > 0 ? storedMarginEuro : sellPriceHt * (marginPercent / 100);
         const marginTotal = sales * marginEuro;
         const caTheo = sales * sellPriceHt;
 
