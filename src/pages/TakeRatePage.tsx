@@ -177,9 +177,10 @@ const scoreImportMatch = (productLabel: string, importLabel: string) => {
   const importTokens = strongTokens(importLabel);
   const intersection = productTokens.filter((token) => importTokens.includes(token));
   if (intersection.length === 0) return -1;
+  if (!productTokens.every((token) => importTokens.includes(token))) return -1;
   const coverage = intersection.length / Math.max(productTokens.length, 1);
-  const substringBonus = product.includes(imported) || imported.includes(product) ? 70 : 0;
-  return coverage * 160 + intersection.length * 25 + substringBonus - Math.max(importTokens.length - productTokens.length - 3, 0) * 8;
+  const substringBonus = imported.includes(product) ? 70 : 0;
+  return coverage * 160 + intersection.length * 25 + substringBonus - Math.max(importTokens.length - productTokens.length, 0) * 12;
 };
 
 const toNumber = (value: unknown): number | null => {
