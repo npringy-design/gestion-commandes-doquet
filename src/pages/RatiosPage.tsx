@@ -34,6 +34,9 @@ const MONTH_LABELS: Record<string, string> = {
 const hasFrozenLinkedValue = (snapshot: any) =>
   !!snapshot?.isLinked && Number(snapshot?.salesValue || 0) > 0;
 
+const hasFrozenMonthData = (product: any, month: string) =>
+  !!product.ratioSnapshots?.[month] || Number(product.salesHistory?.[month] || 0) > 0;
+
 const ProductCard: React.FC<{
   p: any;
   idx: number;
@@ -272,16 +275,21 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
     return importedValue !== null && importedValue > 0;
   }, [displayMonthKey, monthFreezeMap, state.detailedInventory]);
 
-  const displayedRatioProducts = React.useMemo(() => {
-    if (!showOnlyUnlinked) return supplierRatioProducts;
-    return supplierRatioProducts.filter(p => !isLinkedProduct(p));
-  }, [supplierRatioProducts, showOnlyUnlinked, isLinkedProduct]);
+  const displaySourceProducts = React.useMemo(() => {
+    if (!monthFreezeMap[displayMonthKey]) return supplierRatioProducts;
+    return supplierRatioProducts.filter((product) => hasFrozenMonthData(product, displayMonthKey));
+  }, [displayMonthKey, monthFreezeMap, supplierRatioProducts]);
 
-  const mappedProductsCount = supplierRatioProducts.filter(isLinkedProduct).length;
-  const alertProductsCount = supplierRatioProducts.length - mappedProductsCount;
+  const displayedRatioProducts = React.useMemo(() => {
+    if (!showOnlyUnlinked) return displaySourceProducts;
+    return displaySourceProducts.filter(p => !isLinkedProduct(p));
+  }, [displaySourceProducts, showOnlyUnlinked, isLinkedProduct]);
+
+  const mappedProductsCount = displaySourceProducts.filter(isLinkedProduct).length;
+  const alertProductsCount = displaySourceProducts.length - mappedProductsCount;
   const selectedVisibleCount = displayedRatioProducts.filter(p => selectedProductIds.has(p.id)).length;
   const getAiContext = React.useCallback(() => {
-    const topProducts = supplierRatioProducts.slice(0, 80).map((p: any) => {
+    const topProducts = displaySourceProducts.slice(0, 80).map((p: any) => {
       const stats = state.getProductStats(p);
       const monthSales = stats.mS[displayMonthKey]?.value ?? 0;
       const monthRatio = stats.mR[displayMonthKey] ?? 0;
@@ -293,12 +301,12 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
       'Source utilisée: import inventaire. La colonne quantité attendue est Conso Théorique Qté.',
       `Fournisseur actif: ${activeSupplierLabel}.`,
       `Mois de travail: ${workMonthKey}; mois affiché: ${displayMonthKey}; figé=${monthFreezeMap[displayMonthKey] ? 'oui' : 'non'}.`,
-      `Produits fournisseur: ${supplierRatioProducts.length}; liés=${mappedProductsCount}; à revoir=${alertProductsCount}.`,
+      `Produits fournisseur affichés: ${displaySourceProducts.length}; liés=${mappedProductsCount}; à revoir=${alertProductsCount}.`,
       `Imports disponibles sur mois de travail: ${availableImportNames.length}.`,
       'Produits visibles/extraits:',
       ...topProducts,
     ].join('\n');
-  }, [activeSupplierLabel, alertProductsCount, availableImportNames.length, displayMonthKey, isLinkedProduct, mappedProductsCount, monthFreezeMap, state, supplierRatioProducts, workMonthKey]);
+  }, [activeSupplierLabel, alertProductsCount, availableImportNames.length, displayMonthKey, displaySourceProducts, isLinkedProduct, mappedProductsCount, monthFreezeMap, state, workMonthKey]);
 
   return (
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_12%_0%,rgba(184,91,43,0.18),transparent_30%),radial-gradient(circle_at_88%_8%,rgba(109,143,78,0.12),transparent_28%),linear-gradient(180deg,#F8F1E7_0%,#EFE1D0_52%,#D7AA78_100%)] text-[#2F1D14]">
