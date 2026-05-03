@@ -13,7 +13,7 @@ import AiAssistantDrawer from '../components/AiAssistantDrawer';
 import { useAppState } from '../hooks/useAppState';
 import { useAuth } from '../auth/AuthProvider';
 import { canEditRatios } from '../lib/permissions';
-import { getImportedValueForProduct } from '../utils/csvHelpers';
+import { getImportedValueForProduct, hasImportedProductMatch } from '../utils/csvHelpers';
 
 type AppState = ReturnType<typeof useAppState>;
 
@@ -32,7 +32,7 @@ const MONTH_LABELS: Record<string, string> = {
 };
 
 const hasFrozenLinkedValue = (snapshot: any) =>
-  !!snapshot?.isLinked && Number(snapshot?.salesValue || 0) > 0;
+  !!snapshot?.isLinked;
 
 const hasFrozenMonthData = (product: any, month: string) =>
   !!product.ratioSnapshots?.[month] || Number(product.salesHistory?.[month] || 0) > 0;
@@ -66,9 +66,10 @@ const ProductCard: React.FC<{
   const liveImportedValue = isFrozenDisplay
     ? null
     : getImportedValueForProduct(detailedInventory[displayMonthKey], p.searchName, p.importDivisor);
+  const liveHasMatch = !isFrozenDisplay && hasImportedProductMatch(detailedInventory[displayMonthKey], p.searchName);
   const isMapped = frozenSnapshot
     ? hasFrozenLinkedValue(frozenSnapshot)
-    : hasLegacyFrozenValue || (liveImportedValue !== null && liveImportedValue > 0);
+    : hasLegacyFrozenValue || (liveHasMatch && liveImportedValue !== null);
   const alert    = !isMapped;
   const selected = selectedProductIds.has(p.id);
 
@@ -255,6 +256,11 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
   const [displayMonthKey, setDisplayMonthKey] = React.useState<string>(workMonthKey);
 
   React.useEffect(() => {
+    setFreezeMonthKey(workMonthKey);
+    setDisplayMonthKey(workMonthKey);
+  }, [workMonthKey]);
+
+  React.useEffect(() => {
     if (!MONTHS_ORDER.includes(freezeMonthKey)) setFreezeMonthKey(workMonthKey);
   }, [freezeMonthKey, workMonthKey]);
 
@@ -272,7 +278,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
     if (hasLegacyFrozenValue) return true;
 
     const importedValue = getImportedValueForProduct(state.detailedInventory[displayMonthKey], p.searchName, p.importDivisor);
-    return importedValue !== null && importedValue > 0;
+    return hasImportedProductMatch(state.detailedInventory[displayMonthKey], p.searchName) && importedValue !== null;
   }, [displayMonthKey, monthFreezeMap, state.detailedInventory]);
 
   const displaySourceProducts = React.useMemo(() => {

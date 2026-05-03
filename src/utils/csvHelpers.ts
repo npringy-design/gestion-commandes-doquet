@@ -19,11 +19,21 @@ const normalizeText = (value: string) =>
     .trim()
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 const findHeaderIndex = (header: string[], candidates: string[]) => {
   const normalizedCandidates = candidates.map(normalizeText);
-  return header.findIndex((cell) => normalizedCandidates.includes(normalizeText(cell)));
+  const normalizedHeader = header.map(normalizeText);
+  const exactIndex = normalizedHeader.findIndex((cell) => normalizedCandidates.includes(cell));
+  if (exactIndex !== -1) return exactIndex;
+
+  return normalizedHeader.findIndex((cell) => (
+    normalizedCandidates.some((candidate) => cell.includes(candidate))
+  ));
 };
 
 const PRODUCT_NAME_COLUMN_CANDIDATES = [
@@ -38,6 +48,12 @@ const PRODUCT_NAME_COLUMN_CANDIDATES = [
 const DEFAULT_VALUE_COLUMN_CANDIDATES = [
   'conso theorique qte',
   'conso theorique qt',
+  'conso theorique quantite',
+  'consommation theorique qte',
+  'consommation theorique qt',
+  'consommation theorique quantite',
+  'conso qte',
+  'conso qt',
 ];
 
 const parseNumber = (value: unknown) => {
@@ -80,6 +96,27 @@ export const getImportedValueForProduct = (
   const div = importDivisor === '' || importDivisor === undefined ? 0 : Number(importDivisor);
   if (div && div > 0) return Math.ceil(total / div);
   return Math.round(total);
+};
+
+export const hasImportedProductMatch = (
+  csvData: string | undefined,
+  searchName: string,
+  nameColumnCandidates: string[] = PRODUCT_NAME_COLUMN_CANDIDATES
+): boolean => {
+  if (!csvData || !searchName.trim()) return false;
+
+  const rows = parseCSV(csvData);
+  if (rows.length < 2) return false;
+
+  const header = rows[0].map((h) => h.trim());
+  const nameIdx = findHeaderIndex(header, nameColumnCandidates);
+  const normalizedSearch = normalizeText(searchName);
+
+  return rows.slice(1).some((row) => (
+    nameIdx >= 0
+      ? normalizeText(String(row[nameIdx] || '')) === normalizedSearch
+      : row.some((cell) => normalizeText(cell) === normalizedSearch)
+  ));
 };
 
 export const buildImportedValueLookup = (
