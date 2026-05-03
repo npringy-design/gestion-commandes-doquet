@@ -42,6 +42,17 @@ type ProductWithRatioSnapshots = ProductWithHistory & {
   ratioSnapshots?: Record<string, RatioProductMonthSnapshot>;
 };
 
+type PrepItemWithSnapshots = PrepItem & {
+  ratioSnapshots?: Record<string, {
+    value: number;
+    ratio: number;
+    itemName: string;
+    searchName: string;
+    mappings: string[];
+    isLinked: boolean;
+  }>;
+};
+
 const normalizeRatioMappingId = (value?: string) => String(value || '').trim().toLowerCase();
 
 const getRatioSnapshot = (product: ProductWithHistory, month: string) =>
@@ -382,10 +393,22 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
 
         const monthCovers = Number(covers[m] || 0);
         const ratio = monthCovers > 0 ? importedVal / monthCovers : 0;
+        const previousSnapshots = (item as PrepItemWithSnapshots).ratioSnapshots || {};
 
         return {
           ...item,
           ratioHistory: { ...item.ratioHistory, [m]: ratio },
+          ratioSnapshots: {
+            ...previousSnapshots,
+            [m]: {
+              value: importedVal,
+              ratio,
+              itemName: item.name,
+              searchName: item.searchName,
+              mappings: mappingNames,
+              isLinked: mappingNames.length > 0 && importedVal > 0,
+            },
+          },
         };
       }));
     }

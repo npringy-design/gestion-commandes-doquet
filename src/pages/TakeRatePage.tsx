@@ -397,9 +397,13 @@ const generateRowsFromMarginCatalog = (catalog: MarginCatalogItem[], existingRow
   );
 };
 
-const getRowStatus = (row: TakeRateMappingRow, isFrozen = false): RowStatus => {
+const getLinkedSales = (row: TakeRateMappingRow, salesByImport: Record<string, number>) =>
+  row.linkedImports.reduce((sum, label) => sum + (salesByImport[normalize(label)] ?? 0), 0);
+
+const getRowStatus = (row: TakeRateMappingRow, salesByImport: Record<string, number>): RowStatus => {
   if (!row.label.trim() || !row.family.trim()) return 'review';
-  if (!isFrozen && row.linkedImports.length === 0) return 'review';
+  if (row.linkedImports.length === 0) return 'review';
+  if (getLinkedSales(row, salesByImport) <= 0) return 'review';
   return 'ok';
 };
 
@@ -626,7 +630,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     const normalizedProductSearch = normalize(productSearch);
 
     return rows.filter((row) => {
-      const rowStatus = getRowStatus(row);
+      const rowStatus = getRowStatus(row, importSalesByName);
       const familyValue = row.family.trim();
 
       const familyMatches =
@@ -644,7 +648,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
 
       return familyMatches && statusMatches && productMatches;
     });
-  }, [rows, familyFilter, statusFilter, productSearch]);
+  }, [rows, familyFilter, statusFilter, productSearch, importSalesByName]);
 
   useEffect(() => {
     setSelectedRowIds((prev) => prev.filter((id) => rows.some((row) => row.id === id)));
@@ -855,19 +859,18 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const visibleRowIds = filteredRows.map((row) => row.id);
   const visibleSelectedCount = visibleRowIds.filter((id) => selectedRowIds.includes(id)).length;
   const allVisibleRowsSelected = visibleRowIds.length > 0 && visibleSelectedCount === visibleRowIds.length;
-  const okCount = rows.filter((row) => row.linkedImports.length > 0).length;
-  const reviewCount = rows.filter((row) => getRowStatus(row, isMonthFrozen) === 'review').length;
+  const okCount = rows.filter((row) => getRowStatus(row, importSalesByName) === 'ok').length;
+  const reviewCount = rows.filter((row) => getRowStatus(row, importSalesByName) === 'review').length;
   const withoutLinkCount = rows.filter((row) => row.linkedImports.length === 0).length;
   const hasMarginImport = marginCatalog.length > 0 || Boolean(marginFileName);
-  const getRowSales = (row: TakeRateMappingRow) =>
-    row.linkedImports.reduce((sum, label) => sum + (importSalesByName[normalize(label)] ?? 0), 0);
+  const getRowSales = (row: TakeRateMappingRow) => getLinkedSales(row, importSalesByName);
   const availableImportRows = importRows;
   const getAiContext = React.useCallback(() => {
     const monthLabel = MONTHS_DISPLAY_CONFIG.find((month) => month.key === selectedMonth)?.label ?? selectedMonth;
     const sampleRows = rows.slice(0, 80).map((row) => {
       const sales = getRowSales(row);
       const takeRate = monthCovers > 0 ? (sales / monthCovers) * 100 : 0;
-      return `${row.label || 'Produit sans nom'}: famille=${row.family || 'n/a'}, liens=${row.linkedImports.length}, ventes=${sales}, taux=${takeRate.toFixed(2)}%, statut=${getRowStatus(row, isMonthFrozen)}`;
+      return `${row.label || 'Produit sans nom'}: famille=${row.family || 'n/a'}, liens=${row.linkedImports.length}, ventes=${sales}, taux=${takeRate.toFixed(2)}%, statut=${getRowStatus(row, importSalesByName)}`;
     });
 
     return [
@@ -879,7 +882,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       'Extrait lignes:',
       ...sampleRows,
     ].join('\n');
-  }, [availableImportRows.length, filteredRows.length, hasMarginImport, isMonthFrozen, marginCatalog.length, monthCovers, okCount, reviewCount, rows, selectedMonth, withoutLinkCount]);
+  }, [availableImportRows.length, filteredRows.length, hasMarginImport, importSalesByName, marginCatalog.length, monthCovers, okCount, reviewCount, rows, selectedMonth, withoutLinkCount]);
 
   return (
     <div className="min-h-screen overflow-hidden bg-[#DDA162] text-[#34271F]">
@@ -1060,7 +1063,8 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
               <button
                 type="button"
                 onClick={addRow}
-                className="min-h-[42px] rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.10em] text-[#2F1D14] shadow-sm transition hover:bg-white"
+                disabled={isMonthFrozen}
+                className="min-h-[42px] rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.10em] text-[#2F1D14] shadow-sm transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-45"
               >
                 Ajouter ligne
               </button>
@@ -1068,7 +1072,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
               <button
                 type="button"
                 onClick={removeSelectedRows}
-                disabled={selectedRowIds.length === 0}
+                disabled={isMonthFrozen || selectedRowIds.length === 0}
                 className="min-h-[42px] rounded-xl border border-[#E7B6A4] bg-[#FFF1EA] px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.10em] text-[#8E321F] shadow-sm transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-45"
               >
                 Supprimer ligne
@@ -1127,6 +1131,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                       type="checkbox"
                       checked={allVisibleRowsSelected}
                       onChange={toggleSelectAllVisibleRows}
+                      disabled={isMonthFrozen}
                       aria-label="Sélectionner toutes les lignes visibles"
                       className="h-4 w-4 rounded border-[#B98D76] text-[#A24E30] focus:ring-[#D9A58F]"
                     />
@@ -1153,7 +1158,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                   </tr>
                 ) : (
                   filteredRows.map((row, rowIndex) => {
-                    const status = getRowStatus(row, isMonthFrozen);
+                    const status = getRowStatus(row, importSalesByName);
                     const meta = statusMeta[status];
                     const rowSales = getRowSales(row);
                     const takeRate = monthCovers > 0 ? (rowSales / monthCovers) * 100 : 0;
@@ -1173,6 +1178,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                             type="checkbox"
                             checked={selectedRowIds.includes(row.id)}
                             onChange={() => toggleRowSelection(row.id)}
+                            disabled={isMonthFrozen}
                             aria-label={`Sélectionner ${row.label || 'la ligne'}`}
                             className="mt-1 h-4 w-4 rounded border-[#B98D76] text-[#A24E30] focus:ring-[#D9A58F]"
                           />
@@ -1191,6 +1197,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                               type="text"
                               value={row.label}
                               onChange={(e) => updateRow(row.id, { label: e.target.value })}
+                              disabled={isMonthFrozen}
                               placeholder="Ex. Steak au poivre"
                               className="w-full rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 text-[13px] font-semibold text-[#2F1D14] outline-none transition focus:border-[#D8A640] focus:ring-2 focus:ring-[#E8B59E]"
                             />
@@ -1202,6 +1209,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                             type="text"
                             value={row.family}
                             onChange={(e) => updateRow(row.id, { family: e.target.value })}
+                            disabled={isMonthFrozen}
                             placeholder="Ex. Dessert"
                             className="w-full rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 text-[13px] font-semibold text-[#2F1D14] outline-none transition focus:border-[#D8A640] focus:ring-2 focus:ring-[#E8B59E]"
                           />
@@ -1212,6 +1220,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                             type="text"
                             value={row.costHt ?? ''}
                             onChange={(e) => updateRow(row.id, { costHt: e.target.value })}
+                            disabled={isMonthFrozen}
                             placeholder="0,00"
                             className="w-full rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 text-[13px] font-semibold text-[#2F1D14] outline-none transition focus:border-[#D8A640] focus:ring-2 focus:ring-[#E8B59E]"
                           />
@@ -1222,6 +1231,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                             type="text"
                             value={row.sellPriceHt ?? ''}
                             onChange={(e) => updateRow(row.id, { sellPriceHt: e.target.value })}
+                            disabled={isMonthFrozen}
                             placeholder="0,00"
                             className="w-full rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 text-[13px] font-semibold text-[#2F1D14] outline-none transition focus:border-[#D8A640] focus:ring-2 focus:ring-[#E8B59E]"
                           />
@@ -1232,6 +1242,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                             type="text"
                             value={row.marginEuro ?? ''}
                             onChange={(e) => updateRow(row.id, { marginEuro: e.target.value })}
+                            disabled={isMonthFrozen}
                             placeholder="0,00"
                             className="w-full rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 text-[13px] font-semibold text-[#2F1D14] outline-none transition focus:border-[#D8A640] focus:ring-2 focus:ring-[#E8B59E]"
                           />
@@ -1242,6 +1253,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                             type="text"
                             value={row.marginPercent ?? ''}
                             onChange={(e) => updateRow(row.id, { marginPercent: e.target.value })}
+                            disabled={isMonthFrozen}
                             placeholder="0,0"
                             className="w-full rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 text-[13px] font-semibold text-[#2F1D14] outline-none transition focus:border-[#D8A640] focus:ring-2 focus:ring-[#E8B59E]"
                           />
@@ -1292,6 +1304,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                                               type="checkbox"
                                               checked={checked}
                                               onChange={() => togglePendingImport(row.id, item.label)}
+                                              disabled={isMonthFrozen}
                                               className="h-4 w-4 shrink-0 accent-emerald-600"
                                             />
                                             <span className="min-w-0 truncate">{item.label}</span>
@@ -1303,7 +1316,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                                   </div>
                                   <button
                                     type="button"
-                                    disabled={pendingImports.length === 0}
+                                    disabled={isMonthFrozen || pendingImports.length === 0}
                                     onClick={() => validatePendingImports(row.id)}
                                     className="mt-3 w-full rounded-xl border border-emerald-700 bg-emerald-600 px-3 py-2 text-[11px] font-black uppercase tracking-[0.10em] text-white disabled:cursor-not-allowed disabled:opacity-40"
                                   >
@@ -1338,7 +1351,8 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                           <button
                             type="button"
                             onClick={() => removeRow(row.id)}
-                            className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-[#D8B39E] bg-[#F6E7DA] text-[#A5502F] transition hover:bg-[#EFDCC8]"
+                            disabled={isMonthFrozen}
+                            className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-[#D8B39E] bg-[#F6E7DA] text-[#A5502F] transition hover:bg-[#EFDCC8] disabled:cursor-not-allowed disabled:opacity-40"
                             title="Supprimer la ligne"
                           >
                             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

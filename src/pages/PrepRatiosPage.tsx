@@ -43,6 +43,14 @@ type PrepItemExtended = PrepItem & {
   unitWeightGrams?: number | '';
   unitType?: UnitType;
   baseUnitType?: UnitType;
+  ratioSnapshots?: Record<string, {
+    value: number;
+    ratio: number;
+    itemName: string;
+    searchName: string;
+    mappings: string[];
+    isLinked: boolean;
+  }>;
 };
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -78,6 +86,12 @@ const parseMappingNames = (value?: string) =>
 
 const joinMappingNames = (names: string[]) =>
   Array.from(new Map(names.map((name) => [normalizeMappingName(name), name.trim()])).values()).join(MAPPING_SEPARATOR);
+
+const getPrepSnapshot = (item: PrepItem, month: string) =>
+  (item as PrepItemExtended).ratioSnapshots?.[month];
+
+const hasFrozenPrepData = (item: PrepItem, month: string) =>
+  !!getPrepSnapshot(item, month) || Number(item.ratioHistory?.[month] || 0) > 0;
 
 const onEnterBlur: React.KeyboardEventHandler<HTMLInputElement | HTMLTextAreaElement> = (event) => {
   if (event.key === 'Enter') {
@@ -126,29 +140,50 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
     [displayMonth, prepImportsByMonth]
   );
 
+  const isDisplayMonthFrozen = !!prepValidatedMonths[displayMonth];
+
+  const getLiveItemValue = React.useCallback((item: PrepItem) => {
+    const mappingNames = parseMappingNames(item.searchName);
+    return mappingNames.reduce((sum, mappingName) => (
+      sum + Number(workMonthImportValues.get(normalizeMappingName(mappingName)) || 0)
+    ), 0);
+  }, [workMonthImportValues]);
+
+  const isLinkedForDisplayMonth = React.useCallback((item: PrepItem) => {
+    const snapshot = getPrepSnapshot(item, displayMonth);
+    if (snapshot) return !!snapshot.isLinked && Number(snapshot.value || 0) > 0;
+    if (isDisplayMonthFrozen) return Number(item.ratioHistory?.[displayMonth] || 0) > 0;
+    return getLiveItemValue(item) > 0;
+  }, [displayMonth, getLiveItemValue, isDisplayMonthFrozen]);
+
+  const displaySourceItems = React.useMemo(() => {
+    if (!isDisplayMonthFrozen) return prepItems;
+    return prepItems.filter((item) => hasFrozenPrepData(item, displayMonth));
+  }, [displayMonth, isDisplayMonthFrozen, prepItems]);
+
   const rows = React.useMemo(() => {
     const q = search.trim().toLowerCase();
-    return prepItems.filter((item) => {
-      if (showOnlyUnlinked && parseMappingNames(item.searchName).length > 0) return false;
+    return displaySourceItems.filter((item) => {
+      if (showOnlyUnlinked && isLinkedForDisplayMonth(item)) return false;
       if (!q) return true;
       return [item.name, item.searchName, getBaseProduction(item)]
         .join(' ')
         .toLowerCase()
         .includes(q);
     });
-  }, [prepItems, search, showOnlyUnlinked]);
+  }, [displaySourceItems, isLinkedForDisplayMonth, search, showOnlyUnlinked]);
 
   const pageStats = React.useMemo(() => {
-    const linkedItems = prepItems.filter((item) => parseMappingNames(item.searchName).length > 0).length;
+    const linkedItems = displaySourceItems.filter(isLinkedForDisplayMonth).length;
     const lockedMonths = MONTHS_ORDER.filter((month) => prepValidatedMonths[month]).length;
     return {
       linkedItems,
-      unlinkedItems: prepItems.length - linkedItems,
+      unlinkedItems: displaySourceItems.length - linkedItems,
       visibleItems: rows.length,
       importLines: allAvailableImportNames.size,
       lockedMonths,
     };
-  }, [allAvailableImportNames.size, prepItems, prepValidatedMonths, rows.length]);
+  }, [allAvailableImportNames.size, displaySourceItems, isLinkedForDisplayMonth, prepValidatedMonths, rows.length]);
 
   const selectedVisibleCount = React.useMemo(
     () => rows.filter((item) => selectedIds.has(item.id)).length,
@@ -156,7 +191,8 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   );
 
   const rowModels = React.useMemo(() => rows.map((item, idx) => {
-    const currentMappings = parseMappingNames(item.searchName);
+    const displaySnapshot = getPrepSnapshot(item, displayMonth);
+    const currentMappings = displaySnapshot?.mappings ?? parseMappingNames(item.searchName);
     const selectedOnRow = new Set(currentMappings.map((name) => normalizeMappingName(name)));
     let totalRatio = 0;
     let ratioCount = 0;
@@ -171,10 +207,11 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
       const isWorkMonth = month === displayMonth;
       let value = 0;
         let ratio = 0;
+      const snapshot = getPrepSnapshot(item, month);
 
         if (isValidated) {
-          ratio = Number((item.ratioHistory || {})[month] || 0);
-          value = coversValue > 0 && ratio > 0 ? Math.round(ratio * coversValue) : 0;
+          ratio = Number(snapshot?.ratio ?? (item.ratioHistory || {})[month] ?? 0);
+          value = snapshot ? Number(snapshot.value || 0) : (coversValue > 0 && ratio > 0 ? Math.round(ratio * coversValue) : 0);
       } else if (isWorkMonth) {
         value = liveDisplayMonthValue;
         ratio = coversValue > 0 && value > 0 ? value / coversValue : 0;
@@ -192,6 +229,8 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
       item,
       idx,
       currentMappings,
+      displayName: displaySnapshot?.itemName ?? item.name,
+      displaySearchName: displaySnapshot?.searchName ?? item.searchName,
       selectedOnRow,
       unitType: getUnitType(item),
       baseUnitType: getBaseUnitType(item),
@@ -208,11 +247,11 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
     return [
       'Page: Calcul production ratio.',
       `Mois de travail: ${workMonth}; mois affiché: ${displayMonth}; figé=${prepValidatedMonths[displayMonth] ? 'oui' : 'non'}.`,
-      `Productions=${prepItems.length}; affichées=${rows.length}; liées=${pageStats.linkedItems}; non liées=${pageStats.unlinkedItems}; imports disponibles=${pageStats.importLines}.`,
+      `Productions affichées=${displaySourceItems.length}; lignes visibles=${rows.length}; liées=${pageStats.linkedItems}; non liées=${pageStats.unlinkedItems}; imports disponibles=${pageStats.importLines}.`,
       'Extrait productions:',
       ...sampleRows,
     ].join('\n');
-  }, [displayMonth, pageStats.importLines, pageStats.linkedItems, pageStats.unlinkedItems, prepItems.length, prepValidatedMonths, rowModels, rows.length, workMonth]);
+  }, [displayMonth, displaySourceItems.length, pageStats.importLines, pageStats.linkedItems, pageStats.unlinkedItems, prepValidatedMonths, rowModels, rows.length, workMonth]);
 
   React.useEffect(() => {
     const node = listScrollRef.current;
@@ -262,33 +301,14 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
     setPrepItems((prev) => prev.map((item) => item.id === id ? ({ ...item, ...patch } as PrepItem) : item));
   }, [setPrepItems]);
 
-  const buildFrozenRatioHistory = React.useCallback((item: PrepItem, nextSearchName: string) => {
-    const mappingNames = parseMappingNames(nextSearchName);
-    const nextHistory = { ...item.ratioHistory };
-
-    MONTHS_ORDER.forEach((month) => {
-      if (!prepValidatedMonths[month]) return;
-
-      const importedValues = buildImportedValueLookup(prepImportsByMonth[month], ['Nombre']);
-      const importedTotal = mappingNames.reduce((sum, mappingName) => (
-        sum + Number(importedValues.get(normalizeMappingName(mappingName)) || 0)
-      ), 0);
-      const monthCovers = Number(covers[month] || 0);
-      nextHistory[month] = monthCovers > 0 ? importedTotal / monthCovers : 0;
-    });
-
-    return nextHistory;
-  }, [covers, prepImportsByMonth, prepValidatedMonths]);
-
   const addMappingNames = React.useCallback((item: PrepItem, names: string[]) => {
     if (names.length === 0) return;
     const current = parseMappingNames(item.searchName);
     const nextSearchName = joinMappingNames([...current, ...names]);
     updateItem(item.id, {
       searchName: nextSearchName,
-      ratioHistory: buildFrozenRatioHistory(item, nextSearchName),
     });
-  }, [buildFrozenRatioHistory, updateItem]);
+  }, [updateItem]);
 
   const removeMappingName = React.useCallback((item: PrepItem, name: string) => {
     const normalizedToRemove = normalizeMappingName(name);
@@ -296,9 +316,8 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
     const nextSearchName = joinMappingNames(current.filter((value) => normalizeMappingName(value) !== normalizedToRemove));
     updateItem(item.id, {
       searchName: nextSearchName,
-      ratioHistory: buildFrozenRatioHistory(item, nextSearchName),
     });
-  }, [buildFrozenRatioHistory, updateItem]);
+  }, [updateItem]);
 
   const toggleSelected = (id: string) => {
     setSelectedIds((prev) => {
@@ -539,32 +558,34 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
               ) : (
                 <div className="flex flex-col gap-3">
                   {virtualRange.top > 0 && <div style={{ height: virtualRange.top }} aria-hidden="true" />}
-                  {virtualRange.visibleRows.map(({ item, idx, avgRatio, currentMappings, selectedOnRow, unitType, baseUnitType, monthStats }) => {
+                  {virtualRange.visibleRows.map(({ item, idx, avgRatio, currentMappings, displayName, selectedOnRow, unitType, baseUnitType, monthStats }) => {
                           const isSelectedPopoverOpen = activePopover?.id === item.id && activePopover.mode === 'selected';
                           const isPickerPopoverOpen = activePopover?.id === item.id && activePopover.mode === 'picker';
                           const hasOpenPopover = isSelectedPopoverOpen || isPickerPopoverOpen;
+                          const rowLinked = isLinkedForDisplayMonth(item);
+                          const canEditRow = canEdit && !isDisplayMonthFrozen;
                           const rowOrphanNames = isPickerPopoverOpen
                             ? sortedAvailableImportNames.filter((name) => !selectedOnRow.has(normalizeMappingName(name)))
                             : [];
-                          const canOpenPicker = sortedAvailableImportNames.length > selectedOnRow.size;
+                          const canOpenPicker = canEditRow && sortedAvailableImportNames.length > selectedOnRow.size;
 
                           return (
                             <article
                               key={item.id}
                               style={hasOpenPopover ? undefined : { contentVisibility: 'auto', containIntrinsicSize: '112px' }}
-                              className={`relative rounded-[18px] border bg-white px-3 py-3 transition ${hasOpenPopover ? 'z-[80]' : 'z-0'} ${selectedIds.has(item.id) ? 'border-[#B45439] shadow-[0_8px_20px_rgba(180,84,57,0.12)]' : 'border-[#E0CCBA]'}`}
+                              className={`relative rounded-[18px] border border-l-[6px] bg-white px-3 py-3 transition ${hasOpenPopover ? 'z-[80]' : 'z-0'} ${selectedIds.has(item.id) ? 'border-[#B45439] shadow-[0_8px_20px_rgba(180,84,57,0.12)]' : rowLinked ? 'border-y-[#E0CCBA] border-r-[#E0CCBA] border-l-[#2E8D63]' : 'border-y-[#E0CCBA] border-r-[#E0CCBA] border-l-[#D4922F]'}`}
                             >
                               <div className="grid min-w-0 items-end gap-2 xl:grid-cols-[28px_minmax(160px,1.35fr)_minmax(120px,0.95fr)_78px_minmax(120px,0.95fr)_76px_76px_minmax(210px,1.35fr)_82px_70px]">
                                 <label className="flex h-11 items-center justify-center">
-                                  <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} disabled={!canEdit} className="h-4 w-4 accent-[#A93E2A]" />
+                                  <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} disabled={!canEditRow} className="h-4 w-4 accent-[#A93E2A]" />
                                 </label>
 
                                 <label className="min-w-0">
                                   <span className="mb-1 block text-[9px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Produit</span>
                                   <input
-                                    key={`${item.id}-name-${item.name}`}
-                                    defaultValue={item.name}
-                                    disabled={!canEdit}
+                                    key={`${item.id}-name-${displayName}`}
+                                    defaultValue={displayName}
+                                    disabled={!canEditRow}
                                     onBlur={(e) => updateItem(item.id, { name: e.target.value })}
                                     onKeyDown={onEnterBlur}
                                     className="h-10 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 text-sm font-black outline-none"
@@ -576,7 +597,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                                   <input
                                     key={`${item.id}-base-${getBaseProduction(item)}`}
                                     defaultValue={getBaseProduction(item)}
-                                    disabled={!canEdit}
+                                    disabled={!canEditRow}
                                     onBlur={(e) => updateItem(item.id, { baseProduction: e.target.value })}
                                     onKeyDown={onEnterBlur}
                                     className="h-10 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-3 text-sm font-bold outline-none"
@@ -585,7 +606,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
 
                                 <label>
                                   <span className="mb-1 block text-[9px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Unite</span>
-                                  <select value={unitType} disabled={!canEdit} onChange={(e) => updateItem(item.id, { unitType: e.target.value as UnitType })} className="h-10 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 text-sm font-bold outline-none">
+                                  <select value={unitType} disabled={!canEditRow} onChange={(e) => updateItem(item.id, { unitType: e.target.value as UnitType })} className="h-10 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 text-sm font-bold outline-none">
                                     <option value="piece">Piece</option>
                                     <option value="kg">Kg</option>
                                   </select>
@@ -593,7 +614,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
 
                                 <label className="min-w-0">
                                   <span className="mb-1 block text-[9px] font-black uppercase tracking-[0.10em] text-[#A85F2A]">Poste</span>
-                                  <select value={item.category} disabled={!canEdit} onChange={(e) => updateItem(item.id, { category: e.target.value as PrepCategory })} className="h-10 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 text-sm font-bold outline-none">
+                                  <select value={item.category} disabled={!canEditRow} onChange={(e) => updateItem(item.id, { category: e.target.value as PrepCategory })} className="h-10 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 text-sm font-bold outline-none">
                                     {CATEGORY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                                   </select>
                                 </label>
@@ -604,7 +625,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                                     key={`${item.id}-weight-${getUnitWeight(item)}`}
                                     type="number"
                                     defaultValue={getUnitWeight(item) === '' ? '' : String(getUnitWeight(item))}
-                                    disabled={!canEdit}
+                                    disabled={!canEditRow}
                                     onBlur={(e) => updateItem(item.id, { unitWeightGrams: e.target.value === '' ? '' : Number(e.target.value) || '' })}
                                     onKeyDown={onEnterBlur}
                                     placeholder="100"
@@ -618,7 +639,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                                     key={`${item.id}-dlc-${item.secondaryDlcHours}`}
                                     type="number"
                                     defaultValue={item.secondaryDlcHours}
-                                    disabled={!canEdit}
+                                    disabled={!canEditRow}
                                     onBlur={(e) => updateItem(item.id, { secondaryDlcHours: e.target.value === '' ? '' : Number(e.target.value) || '' })}
                                     onKeyDown={onEnterBlur}
                                     className="h-10 w-full rounded-xl border border-[#D0B08D] bg-[#FFFDF9] px-2 text-center text-sm font-black outline-none"
@@ -657,10 +678,11 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                                         orphanNames={rowOrphanNames}
                                         selectedNames={currentMappings}
                                         onSelectMany={(names) => {
+                                          if (!canEditRow) return;
                                           addMappingNames(item, names);
                                           setActivePopover(null);
                                         }}
-                                        onRemove={(name) => removeMappingName(item, name)}
+                                        onRemove={(name) => { if (canEditRow) removeMappingName(item, name); }}
                                         onClose={() => setActivePopover(null)}
                                       />
                                     </div>
@@ -673,8 +695,8 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                                 </div>
 
                                 <div className="flex items-end justify-end gap-1">
-                                  <button onClick={() => moveItem(item.id, 'up')} disabled={!canEdit || idx === 0} className="h-9 w-8 rounded-xl bg-[#2F1D14] text-xs font-black text-[#F6C35B] disabled:opacity-20" title="Monter">↑</button>
-                                  <button onClick={() => moveItem(item.id, 'down')} disabled={!canEdit || idx === rows.length - 1} className="h-9 w-8 rounded-xl bg-[#2F1D14] text-xs font-black text-[#F6C35B] disabled:opacity-20" title="Descendre">↓</button>
+                                  <button onClick={() => moveItem(item.id, 'up')} disabled={!canEditRow || idx === 0} className="h-9 w-8 rounded-xl bg-[#2F1D14] text-xs font-black text-[#F6C35B] disabled:opacity-20" title="Monter">↑</button>
+                                  <button onClick={() => moveItem(item.id, 'down')} disabled={!canEditRow || idx === rows.length - 1} className="h-9 w-8 rounded-xl bg-[#2F1D14] text-xs font-black text-[#F6C35B] disabled:opacity-20" title="Descendre">↓</button>
                                 </div>
                               </div>
 
