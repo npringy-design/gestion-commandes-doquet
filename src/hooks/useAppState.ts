@@ -315,7 +315,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
       const snapshot = getRatioSnapshot(p, m);
 
       if (isValidated) {
-        val = Math.round(snapshot?.salesValue ?? p.salesHistory[m] ?? 0);
+        val = snapshot?.salesValue ?? p.salesHistory[m] ?? 0;
       } else if (isWorkMonth) {
         importedVal = getImportedValueForProduct(detailedInventory[m], p.searchName, p.importDivisor);
         val = importedVal ?? 0;
@@ -348,12 +348,12 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
 
       setProducts(prev => prev.map(p => {
         const importedValue = getImportedValueForProduct(detailedInventory[m], p.searchName, p.importDivisor);
-        const salesValue = Math.round(importedValue ?? getProductStats(p).mS[m].value);
+        const salesValue = importedValue ?? getProductStats(p).mS[m].value;
         const monthCovers = covers[m] || 1;
         const ratio = salesValue / monthCovers;
         const searchName = String(p.searchName || '');
         const mappingId = normalizeRatioMappingId(searchName);
-        const isLinked = mappingId.length > 0 && normalizedImportNamesForMonth.has(mappingId);
+        const isLinked = mappingId.length > 0 && normalizedImportNamesForMonth.has(mappingId) && salesValue > 0;
         const previousSnapshots = (p as ProductWithRatioSnapshots).ratioSnapshots || {};
 
         return {

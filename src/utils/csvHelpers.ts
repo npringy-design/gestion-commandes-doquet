@@ -61,6 +61,9 @@ const parseNumber = (value: unknown) => {
   return Number.isNaN(rawValue) ? 0 : rawValue;
 };
 
+const roundImportedValue = (value: number) =>
+  Math.round(value * 1000) / 1000;
+
 export const getImportedValueForProduct = (
   csvData: string | undefined,
   searchName: string,
@@ -95,7 +98,7 @@ export const getImportedValueForProduct = (
 
   const div = importDivisor === '' || importDivisor === undefined ? 0 : Number(importDivisor);
   if (div && div > 0) return Math.ceil(total / div);
-  return Math.round(total);
+  return roundImportedValue(total);
 };
 
 export const hasImportedProductMatch = (
@@ -146,7 +149,7 @@ export const buildImportedValueLookup = (
   });
 
   lookup.forEach((value, key) => {
-    lookup.set(key, Math.round(value));
+    lookup.set(key, roundImportedValue(value));
   });
 
   return lookup;

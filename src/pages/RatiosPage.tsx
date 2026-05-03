@@ -13,7 +13,7 @@ import AiAssistantDrawer from '../components/AiAssistantDrawer';
 import { useAppState } from '../hooks/useAppState';
 import { useAuth } from '../auth/AuthProvider';
 import { canEditRatios } from '../lib/permissions';
-import { getImportedValueForProduct, hasImportedProductMatch } from '../utils/csvHelpers';
+import { getImportedValueForProduct } from '../utils/csvHelpers';
 
 type AppState = ReturnType<typeof useAppState>;
 
@@ -31,8 +31,11 @@ const MONTH_LABELS: Record<string, string> = {
   sep: 'Sep', oct: 'Oct', nov: 'Nov', dec: 'Déc',
 };
 
+const hasUsableAmount = (value: unknown) =>
+  Number(value || 0) > 0;
+
 const hasFrozenLinkedValue = (snapshot: any) =>
-  !!snapshot?.isLinked;
+  !!snapshot?.isLinked && hasUsableAmount(snapshot?.salesValue);
 
 const hasFrozenMonthData = (product: any, month: string) =>
   !!product.ratioSnapshots?.[month] || Number(product.salesHistory?.[month] || 0) > 0;
@@ -66,10 +69,9 @@ const ProductCard: React.FC<{
   const liveImportedValue = isFrozenDisplay
     ? null
     : getImportedValueForProduct(detailedInventory[displayMonthKey], p.searchName, p.importDivisor);
-  const liveHasMatch = !isFrozenDisplay && hasImportedProductMatch(detailedInventory[displayMonthKey], p.searchName);
   const isMapped = frozenSnapshot
     ? hasFrozenLinkedValue(frozenSnapshot)
-    : hasLegacyFrozenValue || (liveHasMatch && liveImportedValue !== null);
+    : hasLegacyFrozenValue || hasUsableAmount(liveImportedValue);
   const alert    = !isMapped;
   const selected = selectedProductIds.has(p.id);
 
@@ -278,7 +280,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
     if (hasLegacyFrozenValue) return true;
 
     const importedValue = getImportedValueForProduct(state.detailedInventory[displayMonthKey], p.searchName, p.importDivisor);
-    return hasImportedProductMatch(state.detailedInventory[displayMonthKey], p.searchName) && importedValue !== null;
+    return hasUsableAmount(importedValue);
   }, [displayMonthKey, monthFreezeMap, state.detailedInventory]);
 
   const displaySourceProducts = React.useMemo(() => {
