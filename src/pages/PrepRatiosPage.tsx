@@ -106,18 +106,23 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   const [listScrollTop, setListScrollTop] = React.useState(0);
   const [listViewportHeight, setListViewportHeight] = React.useState(720);
   const workMonth = prepImportTargetMonth || MONTHS_ORDER[0];
+  const [displayMonth, setDisplayMonth] = React.useState(workMonth);
+
+  React.useEffect(() => {
+    if (!MONTHS_ORDER.includes(displayMonth)) setDisplayMonth(workMonth);
+  }, [displayMonth, workMonth]);
 
   const allAvailableImportNames = React.useMemo(
-    () => extractAllNamesFromCsvs(prepImportsByMonth[workMonth] ? { [workMonth]: prepImportsByMonth[workMonth] } : {}),
-    [prepImportsByMonth, workMonth]
+    () => extractAllNamesFromCsvs(prepImportsByMonth[displayMonth] ? { [displayMonth]: prepImportsByMonth[displayMonth] } : {}),
+    [displayMonth, prepImportsByMonth]
   );
   const sortedAvailableImportNames = React.useMemo(
     () => Array.from(allAvailableImportNames as Set<string>).sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' })),
     [allAvailableImportNames]
   );
   const workMonthImportValues = React.useMemo(
-    () => buildImportedValueLookup(prepImportsByMonth[workMonth], ['Nombre']),
-    [prepImportsByMonth, workMonth]
+    () => buildImportedValueLookup(prepImportsByMonth[displayMonth], ['Nombre']),
+    [displayMonth, prepImportsByMonth]
   );
 
   const rows = React.useMemo(() => {
@@ -155,14 +160,14 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
     let totalRatio = 0;
     let ratioCount = 0;
 
-    const liveWorkMonthValue = currentMappings.reduce((sum, mappingName) => (
+    const liveDisplayMonthValue = currentMappings.reduce((sum, mappingName) => (
       sum + Number(workMonthImportValues.get(normalizeMappingName(mappingName)) || 0)
     ), 0);
 
     const monthStats = MONTHS_ORDER.map((month) => {
       const coversValue = Number(covers[month] || 0);
       const isValidated = !!prepValidatedMonths[month];
-      const isWorkMonth = month === workMonth;
+      const isWorkMonth = month === displayMonth;
       let value = 0;
         let ratio = 0;
 
@@ -170,7 +175,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
           ratio = Number((item.ratioHistory || {})[month] || 0);
           value = coversValue > 0 && ratio > 0 ? Math.round(ratio * coversValue) : 0;
       } else if (isWorkMonth) {
-        value = liveWorkMonthValue;
+        value = liveDisplayMonthValue;
         ratio = coversValue > 0 && value > 0 ? value / coversValue : 0;
       }
 
@@ -192,7 +197,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
       monthStats,
       avgRatio: ratioCount > 0 ? totalRatio / ratioCount : 0,
     };
-  }), [covers, prepValidatedMonths, rows, workMonth, workMonthImportValues]);
+  }), [covers, displayMonth, prepValidatedMonths, rows, workMonthImportValues]);
 
   React.useEffect(() => {
     const node = listScrollRef.current;
@@ -312,7 +317,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
     const mappingNames = parseMappingNames(item.searchName);
     if (mappingNames.length === 0) return 0;
 
-    if (month === workMonth) {
+    if (month === displayMonth) {
       return mappingNames.reduce((sum, mappingName) => (
         sum + Number(workMonthImportValues.get(normalizeMappingName(mappingName)) || 0)
       ), 0);
@@ -327,7 +332,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
   const getMonthValue = (item: PrepItem, month: string) => {
     const coversValue = Number(covers[month] || 0);
     const isValidated = !!prepValidatedMonths[month];
-    const isWorkMonth = month === workMonth;
+    const isWorkMonth = month === displayMonth;
 
     if (isValidated) {
       const frozenRatio = Number(item.ratioHistory[month] || 0);
@@ -344,7 +349,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
     const coversValue = Number(covers[month] || 0);
     if (!coversValue) return 0;
     if (prepValidatedMonths[month]) return Number(item.ratioHistory[month] || 0);
-    if (month !== workMonth) return 0;
+    if (month !== displayMonth) return 0;
     const imported = getImportedMonthValue(item, month);
     return imported > 0 ? imported / coversValue : 0;
   };
@@ -466,9 +471,21 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
             </div>
 
             <div className="border-b border-[#D7B79B] bg-[#FFF8EF] px-4 py-3">
-              <div className="mb-2 flex items-center justify-between gap-3">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8A5A2F]">Figer les mois de production</p>
-                <p className="text-[11px] font-bold text-[#8B6650]">{pageStats.lockedMonths} mois figes</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-[0.12em] text-[#8A5A2F]">Mois affiché</span>
+                  <select
+                    value={displayMonth}
+                    onChange={(e) => setDisplayMonth(e.target.value)}
+                    className="rounded-xl border border-[#EBC28A] bg-white px-3 py-1.5 text-xs font-black text-[#2F1D14] outline-none"
+                  >
+                    {MONTHS_ORDER.map((month) => (
+                      <option key={`prep-display-${month}`} value={month}>{MONTH_LABELS[month]}</option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] font-bold text-[#8B6650]">{pageStats.lockedMonths} mois figes</p>
+                </div>
               </div>
               <div className="grid grid-cols-6 gap-1.5 xl:grid-cols-12">
                 {MONTHS_ORDER.map((month) => {
@@ -481,7 +498,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                       className={`min-h-[42px] rounded-xl border px-2 py-1 text-[10px] font-black uppercase tracking-[0.07em] transition ${
                         locked
                           ? 'border-emerald-700 bg-emerald-600 text-white shadow-sm'
-                          : month === workMonth
+                          : month === displayMonth
                             ? 'border-[#D8A640] bg-[#FFE8A8] text-[#5B321E]'
                             : 'border-[#E0CCBA] bg-white text-[#8A5A2F] hover:border-[#B46E58]'
                       }`}

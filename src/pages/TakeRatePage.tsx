@@ -567,10 +567,16 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     baseRowsRef.current = baseRows;
   }, [baseRows]);
 
-  const selectedMonth = useMemo(
+  const defaultDisplayMonth = useMemo(
     () => MONTHS_DISPLAY_CONFIG.find((month) => !frozenMonths[month.key])?.key ?? MONTHS_DISPLAY_CONFIG[0].key,
     [frozenMonths]
   );
+  const [selectedMonth, setSelectedMonth] = useState(defaultDisplayMonth);
+
+  useEffect(() => {
+    if (!MONTHS_DISPLAY_CONFIG.some((month) => month.key === selectedMonth)) setSelectedMonth(defaultDisplayMonth);
+  }, [defaultDisplayMonth, selectedMonth]);
+
   const importRows = useMemo(() => buildImportRows(prepImportsByMonth[selectedMonth] ?? ''), [prepImportsByMonth, selectedMonth]);
   const importSalesByName = useMemo(() => {
     const frozenSales = frozenMonths[selectedMonth]?.salesByImport;
@@ -961,6 +967,21 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
           </div>
           </div>
             <div className="border-b border-[#D7B79B] bg-[#FFF8EF] px-4 py-3 sm:px-5">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8A5A2F]">Figer les mois du taux de prise</p>
+                <label className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-[0.12em] text-[#8A5A2F]">Mois affiché</span>
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="rounded-xl border border-[#EBC28A] bg-white px-3 py-1.5 text-xs font-black text-[#2F1D14] outline-none"
+                  >
+                    {MONTHS_DISPLAY_CONFIG.map((month) => (
+                      <option key={`take-rate-display-${month.key}`} value={month.key}>{month.label}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
               <div className="grid grid-cols-6 gap-1.5 xl:grid-cols-12">
                 {MONTHS_DISPLAY_CONFIG.map((month) => {
                   const locked = Boolean(frozenMonths[month.key]);

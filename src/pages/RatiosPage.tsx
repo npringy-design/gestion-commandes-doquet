@@ -242,13 +242,17 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
   const monthFreezeMap = ratioValidatedMonths ?? validatedMonths;
   const isWorkMonthValidated = !!monthFreezeMap[workMonthKey];
   const [freezeMonthKey, setFreezeMonthKey] = React.useState<string>(workMonthKey);
+  const [displayMonthKey, setDisplayMonthKey] = React.useState<string>(workMonthKey);
 
   React.useEffect(() => {
     if (!MONTHS_ORDER.includes(freezeMonthKey)) setFreezeMonthKey(workMonthKey);
   }, [freezeMonthKey, workMonthKey]);
 
+  React.useEffect(() => {
+    if (!MONTHS_ORDER.includes(displayMonthKey)) setDisplayMonthKey(workMonthKey);
+  }, [displayMonthKey, workMonthKey]);
+
   const isSelectedFreezeMonthValidated = !!monthFreezeMap[freezeMonthKey];
-  const displayMonthKey = isSelectedFreezeMonthValidated ? freezeMonthKey : workMonthKey;
 
   const isLinkedProduct = React.useCallback((p: any) => {
     const frozenSnapshot = monthFreezeMap[displayMonthKey] ? p.ratioSnapshots?.[displayMonthKey] : undefined;
@@ -351,9 +355,21 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
               </div>
             </div>
             <div className="rounded-2xl border border-[#B8793F]/65 bg-[#FFF7EA]/10 p-2">
-              <div className="mb-2 flex items-center justify-between gap-3">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#F7C05B]">Figer les mois de vente</p>
-                <p className="text-[11px] font-bold text-[#FFE1B8]">{MONTHS_ORDER.filter((month) => monthFreezeMap[month]).length} mois figes</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-[0.12em] text-[#FFE1B8]">Mois affiché</span>
+                  <select
+                    value={displayMonthKey}
+                    onChange={(e) => setDisplayMonthKey(e.target.value)}
+                    className="rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-1.5 text-xs font-black text-[#3A2116] outline-none"
+                  >
+                    {MONTHS_ORDER.map(month => (
+                      <option key={`display-sales-${month}`} value={month}>{MONTH_LABELS[month]}</option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] font-bold text-[#FFE1B8]">{MONTHS_ORDER.filter((month) => monthFreezeMap[month]).length} mois figes</p>
+                </div>
               </div>
               <div className="grid grid-cols-6 gap-1.5 xl:grid-cols-12">
                 {MONTHS_ORDER.map((month) => {
@@ -370,7 +386,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                       className={`min-h-[42px] rounded-xl border px-2 py-1 text-[10px] font-black uppercase tracking-[0.07em] transition disabled:opacity-50 ${
                         locked
                           ? 'border-emerald-700 bg-emerald-600 text-white shadow-sm'
-                          : month === workMonthKey
+                          : month === displayMonthKey
                             ? 'border-[#D8A640] bg-[#FFE8A8] text-[#5B321E]'
                             : 'border-[#EBC28A] bg-[#FFF7EA] text-[#2F1D14] hover:bg-white'
                       }`}
