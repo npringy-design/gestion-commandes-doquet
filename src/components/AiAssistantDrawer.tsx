@@ -47,13 +47,14 @@ const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({ title = 'Assistan
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed left-0 top-[46%] z-[99999] flex -translate-y-1/2 items-center gap-2 rounded-r-[20px] border-y border-r border-[#D8AE77] bg-[#3A2116] px-3 py-3 text-[#FFF7EA] shadow-[0_12px_28px_rgba(54,24,12,0.26)] transition hover:bg-[#4A2819] focus:outline-none focus:ring-2 focus:ring-[#F7C05B]"
+        className="fixed top-5 z-[99999] flex items-center gap-2 rounded-[18px] border border-[#D8AE77] bg-[#3A2116] px-3 py-2 text-[#FFF7EA] shadow-[0_10px_24px_rgba(54,24,12,0.22)] transition hover:bg-[#4A2819] focus:outline-none focus:ring-2 focus:ring-[#F7C05B]"
+        style={{ right: 'clamp(1rem, 14vw, 15rem)' }}
         title="Ouvrir l'assistant IA"
       >
-        <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[#F7C05B]/70 bg-[#FFF7EA] text-[13px] font-black text-[#3A2116]">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[#F7C05B]/70 bg-[#FFF7EA] text-[12px] font-black text-[#3A2116]">
           IA
         </span>
-        <span className="hidden pr-1 text-left text-[10px] font-black uppercase leading-tight tracking-[0.12em] sm:block">
+        <span className="hidden pr-1 text-left text-[10px] font-black uppercase leading-tight tracking-[0.12em] md:block">
           Assistant
           <br />
           IA
