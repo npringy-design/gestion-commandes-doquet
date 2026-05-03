@@ -13,6 +13,7 @@ import AiAssistantDrawer from '../components/AiAssistantDrawer';
 import { useAppState } from '../hooks/useAppState';
 import { useAuth } from '../auth/AuthProvider';
 import { canEditRatios } from '../lib/permissions';
+import { getImportedValueForProduct } from '../utils/csvHelpers';
 
 type AppState = ReturnType<typeof useAppState>;
 
@@ -30,6 +31,9 @@ const MONTH_LABELS: Record<string, string> = {
   sep: 'Sep', oct: 'Oct', nov: 'Nov', dec: 'Déc',
 };
 
+const hasFrozenLinkedValue = (snapshot: any) =>
+  !!snapshot?.isLinked && Number(snapshot?.salesValue || 0) > 0;
+
 const ProductCard: React.FC<{
   p: any;
   idx: number;
@@ -44,7 +48,7 @@ const ProductCard: React.FC<{
     moveProduct, handleNameChange,
     updateSearchName, updateImportDivisor,
     activeMappingId, setActiveMappingId,
-    allAvailableImportNames, products,
+    allAvailableImportNames, products, detailedInventory,
     validatedMonths, ratioValidatedMonths, toggleValidateMonth,
     getProductStats,
   } = state;
@@ -56,10 +60,13 @@ const ProductCard: React.FC<{
   const hasLegacyFrozenValue = isFrozenDisplay && !frozenSnapshot && Number(p.salesHistory?.[displayMonthKey] || 0) > 0;
   const displaySearchName = frozenSnapshot?.searchName ?? p.searchName;
   const displayProductName = frozenSnapshot?.productName ?? p.name;
+  const liveImportedValue = isFrozenDisplay
+    ? null
+    : getImportedValueForProduct(detailedInventory[displayMonthKey], p.searchName, p.importDivisor);
   const isMapped = frozenSnapshot
-    ? !!frozenSnapshot.isLinked
-    : hasLegacyFrozenValue || Array.from(allAvailableImportNames).includes(p.searchName);
-  const alert    = !isMapped && displaySearchName.trim().length > 0;
+    ? hasFrozenLinkedValue(frozenSnapshot)
+    : hasLegacyFrozenValue || (liveImportedValue !== null && liveImportedValue > 0);
+  const alert    = !isMapped;
   const selected = selectedProductIds.has(p.id);
 
   return (
@@ -256,13 +263,14 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
 
   const isLinkedProduct = React.useCallback((p: any) => {
     const frozenSnapshot = monthFreezeMap[displayMonthKey] ? p.ratioSnapshots?.[displayMonthKey] : undefined;
-    if (frozenSnapshot) return !!frozenSnapshot.isLinked;
+    if (frozenSnapshot) return hasFrozenLinkedValue(frozenSnapshot);
 
     const hasLegacyFrozenValue = monthFreezeMap[displayMonthKey] && Number(p.salesHistory?.[displayMonthKey] || 0) > 0;
     if (hasLegacyFrozenValue) return true;
 
-    return p.searchName.trim().length > 0 && availableImportNames.includes(p.searchName);
-  }, [availableImportNames, displayMonthKey, monthFreezeMap]);
+    const importedValue = getImportedValueForProduct(state.detailedInventory[displayMonthKey], p.searchName, p.importDivisor);
+    return importedValue !== null && importedValue > 0;
+  }, [displayMonthKey, monthFreezeMap, state.detailedInventory]);
 
   const displayedRatioProducts = React.useMemo(() => {
     if (!showOnlyUnlinked) return supplierRatioProducts;

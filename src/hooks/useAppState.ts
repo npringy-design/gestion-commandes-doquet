@@ -342,7 +342,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
         const ratio = salesValue / monthCovers;
         const searchName = String(p.searchName || '');
         const mappingId = normalizeRatioMappingId(searchName);
-        const isLinked = mappingId.length > 0 && normalizedImportNamesForMonth.has(mappingId);
+        const isLinked = mappingId.length > 0 && normalizedImportNamesForMonth.has(mappingId) && salesValue > 0;
         const previousSnapshots = (p as ProductWithRatioSnapshots).ratioSnapshots || {};
 
         return {
