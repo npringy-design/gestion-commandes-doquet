@@ -941,6 +941,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                   <h2 className="text-3xl font-black leading-none text-[#FFF7EA]">Taux de prise</h2>
                 <p className="mt-1 text-[10px] font-black uppercase tracking-[0.22em] text-[#F7C05B]">Parametrage</p>
                 </div>
+                <AiAssistantDrawer placement="inline" title="Assistant IA - Paramétrage taux de prise" getContext={getAiContext} />
                 <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportMarginFile} />
                 <div className="ml-auto flex flex-wrap gap-2">
 
@@ -1356,7 +1357,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
         </section>
 
       </main>
-      <AiAssistantDrawer title="Assistant IA - Paramétrage taux de prise" getContext={getAiContext} />
       </div>
     </div>
   );

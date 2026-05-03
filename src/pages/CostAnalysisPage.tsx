@@ -103,8 +103,8 @@ const CostAnalysisPage: React.FC<CostAnalysisPageProps> = ({
           onBackHome={() => setView('home')}
           onOpenParams={() => setView('stats')}
           readOnlyAnalyse={readOnlyAnalyse}
+          assistantSlot={<AiAssistantDrawer placement="inline" title="Assistant IA - Coût matière" getContext={getAiContext} />}
         />
-        <AiAssistantDrawer title="Assistant IA - Coût matière" getContext={getAiContext} />
       </div>
     </Suspense>
   );

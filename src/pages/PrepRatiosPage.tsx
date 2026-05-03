@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { canEditRatios } from '../lib/permissions';
 import MappingPopover from '../components/MappingPopover';
 import AppNavTile from '../components/AppNavTile';
+import AiAssistantDrawer from '../components/AiAssistantDrawer';
 import { buildImportedValueLookup, extractAllNamesFromCsvs } from '../utils/csvHelpers';
 
 const CATEGORY_OPTIONS: Array<{ value: PrepCategory; label: string }> = [
@@ -199,6 +200,20 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
     };
   }), [covers, displayMonth, prepValidatedMonths, rows, workMonthImportValues]);
 
+  const getAiContext = React.useCallback(() => {
+    const sampleRows = rowModels.slice(0, 80).map(({ item, currentMappings, avgRatio }) => (
+      `${item.name || 'Production sans nom'}: base=${getBaseProduction(item) || 'n/a'}, poste=${item.category}, liens=${currentMappings.length}, ratioMoyen=${avgRatio.toFixed(3)}`
+    ));
+
+    return [
+      'Page: Calcul production ratio.',
+      `Mois de travail: ${workMonth}; mois affiché: ${displayMonth}; figé=${prepValidatedMonths[displayMonth] ? 'oui' : 'non'}.`,
+      `Productions=${prepItems.length}; affichées=${rows.length}; liées=${pageStats.linkedItems}; non liées=${pageStats.unlinkedItems}; imports disponibles=${pageStats.importLines}.`,
+      'Extrait productions:',
+      ...sampleRows,
+    ].join('\n');
+  }, [displayMonth, pageStats.importLines, pageStats.linkedItems, pageStats.unlinkedItems, prepItems.length, prepValidatedMonths, rowModels, rows.length, workMonth]);
+
   React.useEffect(() => {
     const node = listScrollRef.current;
     if (!node) return;
@@ -379,7 +394,6 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
             <div className="overflow-hidden rounded-[24px] border border-[#B46E58] bg-[linear-gradient(135deg,#A93E2A_0%,#922F20_48%,#7A231A_100%)] shadow-[0_10px_20px_rgba(122,35,26,0.14)]">
               <div className="h-1.5 bg-gradient-to-r from-[#F1C15A] via-[#D86A2C] to-[#A93E2A]" />
               <div className="p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#FFE1B8]">Hippopotamus Thillois</p>
                 <h1 className="mt-2 text-2xl font-black leading-none text-[#FFF9F3] xl:text-[28px]">Calcul prod ratio</h1>
               </div>
             </div>
@@ -418,7 +432,7 @@ const PrepRatiosPage: React.FC<PrepRatiosPageProps> = ({
                   <AppNavTile onClick={() => setView('stats')} eyebrow="Retour" icon="settings" size="sm" tone="cream">Parametres</AppNavTile>
                   <div className="hidden h-12 w-px bg-[#E9B25D]/35 xl:block" />
                   <h2 className="text-3xl font-black leading-none text-[#FFF7EA]">Calcul prod ratio</h2>
-                  <p className="hidden text-[10px] font-black uppercase tracking-[0.22em] text-[#F7C05B] xl:block">Hippopotamus Thillois</p>
+                  <AiAssistantDrawer placement="inline" title="Assistant IA - Production ratio" getContext={getAiContext} />
                 </div>
               </div>
 

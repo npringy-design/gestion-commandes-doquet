@@ -304,8 +304,8 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
               <div className="hidden h-12 w-px bg-[#E9B25D]/35 sm:block" />
               <div className="min-w-0">
                 <h2 className="truncate text-3xl font-black leading-none text-[#FFF7EA]">Calcul vente ratio</h2>
-                <p className="mt-1 text-[10px] font-black uppercase tracking-[0.24em] text-[#F7C05B]">Hippopotamus Thillois</p>
               </div>
+              <AiAssistantDrawer placement="inline" title="Assistant IA - Vente ratio" getContext={getAiContext} />
             </div>
 
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:min-w-[260px] [&>*:nth-child(1)]:hidden [&>*:nth-child(4)]:hidden [&>*:nth-child(5)]:hidden">
@@ -491,7 +491,6 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
           </section>
         </main>
       </div>
-      <AiAssistantDrawer title="Assistant IA - Vente ratio" getContext={getAiContext} />
     </div>
   );
 };

@@ -27,7 +27,7 @@ import {
   withResolvedType,
 } from './utils/dashboardHelpers';
 
-const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromParams?: Record<string, number | null>; costByMonthFromParams?: Record<string, number | null>; salesByMonthFromParams?: Record<string, number | null>; onBackHome?: () => void; onOpenParams?: () => void; readOnlyAnalyse?: boolean; }> = ({ csvByMonth, coversByMonthFromParams, costByMonthFromParams, salesByMonthFromParams, onBackHome, onOpenParams, readOnlyAnalyse = false }) => {
+const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromParams?: Record<string, number | null>; costByMonthFromParams?: Record<string, number | null>; salesByMonthFromParams?: Record<string, number | null>; onBackHome?: () => void; onOpenParams?: () => void; readOnlyAnalyse?: boolean; assistantSlot?: React.ReactNode; }> = ({ csvByMonth, coversByMonthFromParams, costByMonthFromParams, salesByMonthFromParams, onBackHome, onOpenParams, readOnlyAnalyse = false, assistantSlot }) => {
   const [selectedMonth, setSelectedMonth] = useState<PeriodKey>('Janvier');
   const [mobileTopTab, setMobileTopTab] = useState<'liquides' | 'solides'>('liquides');
   const [mobileTerrainMode, setMobileTerrainMode] = useState(true);
@@ -311,6 +311,7 @@ const App: React.FC<{ csvByMonth?: Record<string, string>; coversByMonthFromPara
               <h1 className="text-sm font-extrabold text-slate-900 leading-none">Coût matière</h1>
               <p className="text-[10px] text-slate-500 mt-0.5">{importedMonthsCount}/12 mois importés</p>
             </div>
+            {assistantSlot}
           </div>
 
           {/* Centre : sélecteur de période */}

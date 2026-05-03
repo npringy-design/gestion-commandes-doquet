@@ -326,6 +326,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
               >
                 Accueil
               </AppNavTile>
+              <AiAssistantDrawer placement="inline" title="Assistant IA - Imports" getContext={getAiContext} />
             </div>
             <div className="hidden">
             <h1 className="text-2xl font-bold text-gray-900">Données mensuelles</h1>
@@ -692,7 +693,6 @@ const StatsPage: React.FC<StatsPageProps> = ({
           </div>
         </main>
       </div>
-      <AiAssistantDrawer title="Assistant IA - Imports" getContext={getAiContext} />
     </div>
   );
 };
