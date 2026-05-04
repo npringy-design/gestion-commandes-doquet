@@ -13,6 +13,7 @@
 
 // ── Types ────────────────────────────────────────────────────
 import { CURRENT_SITE_ID } from '../constants';
+import { supabase } from '../lib/supabaseClient';
 
 interface SupabaseRow {
   site_id:    string;
@@ -31,12 +32,19 @@ const SITE_KEY_CONFLICT = 'site_id,key';
 export const isSupabaseConfigured = (): boolean =>
   Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
-const headers = (): HeadersInit => ({
-  'Content-Type':  'application/json',
-  'apikey':        SUPABASE_ANON_KEY ?? '',
-  'Authorization': `Bearer ${SUPABASE_ANON_KEY ?? ''}`,
-  'Prefer':        'return=minimal',
-});
+const headers = async (): Promise<HeadersInit> => {
+  const { data } = supabase
+    ? await supabase.auth.getSession()
+    : { data: { session: null } };
+  const bearer = data.session?.access_token ?? SUPABASE_ANON_KEY ?? '';
+
+  return {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_ANON_KEY ?? '',
+    'Authorization': `Bearer ${bearer}`,
+    'Prefer': 'return=minimal',
+  };
+};
 
 // ── Chargement de TOUTES les clés au démarrage ───────────────
 export const loadAllFromSupabase = async (): Promise<Array<SupabaseRow> | null> => {
@@ -44,7 +52,7 @@ export const loadAllFromSupabase = async (): Promise<Array<SupabaseRow> | null> 
   try {
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/${TABLE}?select=site_id,key,value,updated_at&site_id=eq.${SITE_ID_QUERY}`,
-      { headers: headers() }
+      { headers: await headers() }
     );
     if (!res.ok) {
       let body = '';
@@ -65,7 +73,7 @@ export const loadMetaFromSupabase = async (): Promise<Array<Pick<SupabaseRow, 'k
   try {
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/${TABLE}?select=key,updated_at&site_id=eq.${SITE_ID_QUERY}`,
-      { headers: headers() }
+      { headers: await headers() }
     );
     if (!res.ok) {
       let body = '';
@@ -90,7 +98,7 @@ export const loadKeysFromSupabase = async (keys: string[]): Promise<SupabaseRow[
       .join(',');
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/${TABLE}?select=site_id,key,value,updated_at&site_id=eq.${SITE_ID_QUERY}&key=in.(${encoded})`,
-      { headers: headers() }
+      { headers: await headers() }
     );
     if (!res.ok) {
       let body = '';
@@ -119,7 +127,7 @@ export const saveToSupabase = async (
       `${SUPABASE_URL}/rest/v1/${TABLE}?on_conflict=${SITE_KEY_CONFLICT}`,
       {
         method:  'POST',
-        headers: { ...headers(), 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+        headers: { ...(await headers()), 'Prefer': 'resolution=merge-duplicates,return=minimal' },
         body:    JSON.stringify([payload]),
       }
     );
@@ -141,7 +149,7 @@ export const saveToSupabase = async (
       `${SUPABASE_URL}/rest/v1/${TABLE}?site_id=eq.${SITE_ID_QUERY}&key=eq.${encodeURIComponent(key)}&select=key`,
       {
         method: 'PATCH',
-        headers: { ...headers(), 'Prefer': 'return=representation' },
+        headers: { ...(await headers()), 'Prefer': 'return=representation' },
         body: JSON.stringify({ value, updated_at: ts }),
       }
     );
@@ -164,7 +172,7 @@ export const saveToSupabase = async (
       `${SUPABASE_URL}/rest/v1/${TABLE}`,
       {
         method: 'POST',
-        headers: { ...headers(), 'Prefer': 'return=minimal' },
+        headers: { ...(await headers()), 'Prefer': 'return=minimal' },
         body: JSON.stringify([payload]),
       }
     );
