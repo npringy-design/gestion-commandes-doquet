@@ -72,7 +72,7 @@ const readStoredSiteId = (): SiteId | null => {
 // Site courant utilisé pour isoler Supabase.
 // Garder hippo_thillois en défaut protège les données existantes.
 export const CURRENT_SITE_ID =
-  isSiteId(configuredSiteId) ? configuredSiteId : (readStoredSiteId() ?? 'hippo_thillois');
+  readStoredSiteId() ?? (isSiteId(configuredSiteId) ? configuredSiteId : 'hippo_thillois');
 
 // Préfixe réservé aux préférences d'interface locales, pas aux données métier.
 export const STORAGE_PREFIX = `hippo_v6_${CURRENT_SITE_ID}_`;
