@@ -4,7 +4,7 @@
 // Interface simplifiée, ergonomique et pratique
 // =============================================================
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { readFileAsCSV } from '../utils/csvHelpers';
 import { useToast } from '../components/Toast';
 import { View, MONTHS_DISPLAY_CONFIG } from '../constants';
@@ -12,6 +12,7 @@ import { ImportModal } from '../components/Modals';
 import AppNavTile from '../components/AppNavTile';
 import AiAssistantDrawer from '../components/AiAssistantDrawer';
 import { useAuth } from '../auth/AuthProvider';
+import { loadUiState, saveUiState } from '../hooks/appStateHelpers';
 import {
   canAccessRatiosPage,
   canDeleteImport,
@@ -88,11 +89,18 @@ const StatsPage: React.FC<StatsPageProps> = ({
   const { showToast } = useToast();
   const [activeCell, setActiveCell] = useState<CellKey | null>(null);
   const [drafts, setDrafts] = useState<Record<CellKey, string>>({});
-  const [selectedMonthKey, setSelectedMonthKey] = useState(
-    MONTHS_DISPLAY_CONFIG[new Date().getMonth()]?.key ?? MONTHS_DISPLAY_CONFIG[0].key
+  const [selectedMonthKey, setSelectedMonthKey] = useState(() =>
+    loadUiState(
+      'statsSelectedMonth',
+      MONTHS_DISPLAY_CONFIG[new Date().getMonth()]?.key ?? MONTHS_DISPLAY_CONFIG[0].key
+    )
   );
   const [showAllMonths, setShowAllMonths] = useState(false);
   const cellRefs = useRef<Record<CellKey, HTMLInputElement | null>>({});
+
+  useEffect(() => {
+    saveUiState('statsSelectedMonth', selectedMonthKey);
+  }, [selectedMonthKey]);
 
   const editableColumns = useMemo<EditableField[]>(() => ['sales', 'cm', 'covers'], []);
 

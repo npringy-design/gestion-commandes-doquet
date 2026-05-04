@@ -4,6 +4,7 @@ import { useAuth } from './AuthProvider';
 import LoginPage from '../pages/LoginPage';
 import ResetPasswordPage from '../pages/ResetPasswordPage';
 import { ACTIVE_SITE_STORAGE_KEY, SITES, type SiteId } from '../constants';
+import InactivityTimeout from './InactivityTimeout';
 
 function hasRecoveryParams(): boolean {
   try {
@@ -101,5 +102,10 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <InactivityTimeout />
+      {children}
+    </>
+  );
 };

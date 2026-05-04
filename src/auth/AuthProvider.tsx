@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { ACTIVE_SITE_STORAGE_KEY, CURRENT_SITE_ID, SITES, isSiteId, type SiteId } from '../constants';
+import { clearUiSessionState } from '../hooks/appStateHelpers';
 
 export type AppRole =
   | 'super_admin'
@@ -177,6 +178,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
       if (!mounted) return;
+      if (!newSession) clearUiSessionState();
       setSession(newSession ?? null);
       setLoadingSession(false);
       void loadProfile(newSession?.user?.id ?? null);
@@ -214,6 +216,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       },
       signOut: async () => {
         if (!supabase) return;
+        clearUiSessionState();
         try {
           window.sessionStorage.removeItem(ACTIVE_SITE_STORAGE_KEY);
         } catch {

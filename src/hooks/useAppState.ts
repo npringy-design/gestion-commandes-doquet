@@ -22,9 +22,11 @@ import { DailyCoversState } from '../utils/dateHelpers';
 import { getImportedValueForProduct, extractAllNamesFromCsvs } from '../utils/csvHelpers';
 import {
   createInitialProducts,
+  loadUiState,
   loadState,
   mergeSupplierConfigsWithDefaults,
   saveState,
+  saveUiState,
 } from './appStateHelpers';
 import { useProductActions } from './useProductActions';
 import { useCloudSync } from './useCloudSync';
@@ -66,7 +68,7 @@ export const useAppState = () => {
   const { showToast } = useToast();
 
   // Navigation
-  const [view, setView] = useState<View>(() => loadState<View>('currentView', 'home'));
+  const [view, setView] = useState<View>(() => loadUiState<View>('currentView', 'home'));
 
   // Mode de calcul commandes (marge de sécurité ou stock cible)
   const [calculationMode, setCalculationMode] = useState<'margin' | 'target'>('margin');
@@ -179,7 +181,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     } catch (_e) {
       window.scrollTo(0, 0);
     }
-    saveState('currentView', view, onSaveError);
+    saveUiState('currentView', view);
   }, [view]);
 
   // --- Persistance automatique à chaque changement ---

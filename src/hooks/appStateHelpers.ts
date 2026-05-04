@@ -31,6 +31,15 @@ export const loadState = <T>(key: string, defaultVal: T): T => {
   }
 };
 
+export const loadUiState = <T>(key: string, defaultVal: T): T => {
+  try {
+    const saved = sessionStorage.getItem(`${STORAGE_PREFIX}${key}`);
+    return saved ? JSON.parse(saved) : defaultVal;
+  } catch {
+    return defaultVal;
+  }
+};
+
 export const saveState = (key: string, value: unknown, onError?: (msg: string) => void): void => {
   try {
     localStorage.setItem(`${STORAGE_PREFIX}${key}`, JSON.stringify(value));
@@ -41,11 +50,49 @@ export const saveState = (key: string, value: unknown, onError?: (msg: string) =
   }
 };
 
+export const saveUiState = (key: string, value: unknown): void => {
+  try {
+    sessionStorage.setItem(`${STORAGE_PREFIX}${key}`, JSON.stringify(value));
+  } catch {
+    // UI state is best effort only.
+  }
+};
+
 export const removeState = (key: string): void => {
   try {
     localStorage.removeItem(`${STORAGE_PREFIX}${key}`);
   } catch {
     // Ignore local cleanup failures.
+  }
+};
+
+export const removeUiState = (key: string): void => {
+  try {
+    sessionStorage.removeItem(`${STORAGE_PREFIX}${key}`);
+  } catch {
+    // Ignore local cleanup failures.
+  }
+  try {
+    localStorage.removeItem(`${STORAGE_PREFIX}${key}`);
+  } catch {
+    // Ignore legacy cleanup failures.
+  }
+};
+
+export const clearUiSessionState = (): void => {
+  try {
+    Object.keys(sessionStorage)
+      .filter((key) => key.startsWith(STORAGE_PREFIX))
+      .forEach((key) => sessionStorage.removeItem(key));
+  } catch {
+    // Ignore local cleanup failures.
+  }
+  try {
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith(STORAGE_PREFIX) && /currentView|statsSelectedMonth/.test(key))
+      .forEach((key) => localStorage.removeItem(key));
+  } catch {
+    // Ignore legacy cleanup failures.
   }
 };
 
