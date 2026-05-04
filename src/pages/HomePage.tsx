@@ -172,10 +172,6 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   const activeSite = SITES[activeSiteId] ?? SITES.hippo_thillois;
   const siteDisplayName = activeSite.name.replace(/^Hippo\s+/i, '');
   const canSwitchSite = availableSiteIds.length > 1;
-  const displayName = (profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || '')
-    .toString()
-    .trim();
-  const firstName = displayName.includes('@') ? displayName.split('@')[0] : displayName.split(/\s+/)[0];
 
   const mainTiles: HomeTile[] = [
     {
@@ -290,21 +286,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   };
 
   const pageActions = (
-    <div className="mb-4 flex flex-wrap items-end justify-between gap-3 sm:gap-4">
-      <div className="min-h-10">
-        {firstName ? (
-          <div className="flex items-baseline gap-2.5 text-[#FFF6E8] drop-shadow-[0_8px_18px_rgba(0,0,0,0.35)] sm:gap-3">
-            <span className="text-[15px] font-black uppercase tracking-[0.18em] text-[#F6B24A] sm:text-[17px]">
-              Bonjour
-            </span>
-            <span className="restaurant-script text-[2.35rem] font-normal leading-none sm:text-[2.7rem] lg:text-[2.95rem]">
-              {firstName}
-            </span>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="flex flex-wrap items-center justify-end gap-2 pb-1 sm:gap-3">
+    <div className="mb-4 flex flex-wrap items-center justify-end gap-2 sm:gap-3">
         {canSwitchSite ? (
           <div className="inline-flex items-center gap-2 rounded-lg border border-[#D99A4A] bg-[#FFF8E8] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#512A16] shadow-[0_10px_22px_rgba(26,13,8,0.18)] sm:px-4 sm:py-3 sm:text-[12px]">
             <span>{activeSite.name}</span>
@@ -347,7 +329,6 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         </svg>
         Admin
       </button>
-      </div>
     </div>
   );
 
