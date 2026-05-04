@@ -53,6 +53,9 @@ CREATE TABLE IF NOT EXISTS public.user_site_access (
 );
 
 ALTER TABLE public.user_site_access
+  DROP CONSTRAINT IF EXISTS user_site_access_site_id_check;
+
+ALTER TABLE public.user_site_access
   ADD CONSTRAINT user_site_access_site_id_check
   CHECK (site_id IN ('hippo_thillois', 'hippo_st_thibault'));
 
