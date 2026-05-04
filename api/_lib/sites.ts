@@ -7,6 +7,9 @@ const GLOBAL_SITE_ROLE_SET = new Set<string>(GLOBAL_SITE_ROLES);
 export const isGlobalSiteRole = (role: unknown) =>
   typeof role === 'string' && GLOBAL_SITE_ROLE_SET.has(role);
 
+export const hasAllSiteAccess = (profile: { role?: unknown; access_scope?: unknown } | null | undefined) =>
+  Boolean(profile && (isGlobalSiteRole(profile.role) || profile.access_scope === 'all'));
+
 export const normalizeSiteIds = (value: unknown): string[] => {
   const raw = Array.isArray(value) ? value : typeof value === 'string' ? [value] : [];
   return Array.from(new Set(raw.map(String).filter((siteId) => SITE_ID_SET.has(siteId))));
@@ -19,6 +22,25 @@ export const siteIdsForRole = (role: unknown, value: unknown) => {
   if (isGlobalSiteRole(role)) return [...SITE_IDS];
   const siteIds = normalizeSiteIds(value);
   return siteIds.length > 0 ? siteIds : defaultSiteIdsForRole(role);
+};
+
+export const siteIdsForProfile = (
+  profile: { role?: unknown; access_scope?: unknown } | null | undefined,
+  storedSiteIds: unknown,
+) => {
+  if (hasAllSiteAccess(profile)) return [...SITE_IDS];
+  const siteIds = normalizeSiteIds(storedSiteIds);
+  return siteIds.length > 0 ? siteIds : defaultSiteIdsForRole(profile?.role);
+};
+
+export const canUseSiteIds = (
+  actor: { role?: unknown; access_scope?: unknown; site_ids?: unknown } | null | undefined,
+  targetSiteIds: unknown,
+) => {
+  if (hasAllSiteAccess(actor)) return true;
+  const allowedSiteIds = normalizeSiteIds(actor?.site_ids);
+  const requestedSiteIds = normalizeSiteIds(targetSiteIds);
+  return requestedSiteIds.length > 0 && requestedSiteIds.every((siteId) => allowedSiteIds.includes(siteId));
 };
 
 export const replaceUserSiteAccess = async (

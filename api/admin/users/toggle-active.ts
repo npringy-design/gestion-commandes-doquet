@@ -3,6 +3,7 @@ import { assertServerEnv, supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { badRequest, forbidden, methodNotAllowed, sendJson, serverError, unauthorized } from '../../_lib/http.js';
 import { canManageTarget, canToggleUsers } from '../../_lib/permissions.js';
 import { ensureProfileExists } from '../../_lib/profileProvisioning.js';
+import { loadSiteIdsByUser, siteIdsForProfile } from '../../_lib/sites.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'PATCH') return methodNotAllowed(res, ['PATCH']);
@@ -29,6 +30,11 @@ export default async function handler(req: any, res: any) {
     } catch (error: any) {
       return sendJson(res, 404, { ok: false, error: error?.message || 'Profil utilisateur introuvable.' });
     }
+    const siteIdsByUser = await loadSiteIdsByUser(supabaseAdmin, [id]);
+    existing = {
+      ...existing,
+      site_ids: siteIdsForProfile(existing, siteIdsByUser.get(id) ?? []),
+    };
 
     const permission = canManageTarget(auth.profile, existing);
     if (!permission.ok) {

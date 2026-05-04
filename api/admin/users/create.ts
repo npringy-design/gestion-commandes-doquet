@@ -2,7 +2,7 @@ import { requireAdmin } from '../../_lib/auth.js';
 import { assertServerEnv, supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { badRequest, forbidden, methodNotAllowed, sendJson, serverError, unauthorized } from '../../_lib/http.js';
 import { canAssignRole, canCreateUsers, MANAGEABLE_ROLES } from '../../_lib/permissions.js';
-import { isGlobalSiteRole, replaceUserSiteAccess, siteIdsForRole } from '../../_lib/sites.js';
+import { canUseSiteIds, isGlobalSiteRole, normalizeSiteIds, replaceUserSiteAccess, siteIdsForRole } from '../../_lib/sites.js';
 
 const ALLOWED_ROLES = new Set(MANAGEABLE_ROLES);
 
@@ -21,7 +21,7 @@ export default async function handler(req: any, res: any) {
     const email = String(req.body?.email ?? '').trim().toLowerCase();
     const tempPassword = String(req.body?.tempPassword ?? '');
     const role = String(req.body?.role ?? 'commande');
-    const siteIds = siteIdsForRole(role, req.body?.siteIds);
+    const siteIds = isGlobalSiteRole(role) ? siteIdsForRole(role, req.body?.siteIds) : normalizeSiteIds(req.body?.siteIds);
     const fullNameRaw = req.body?.fullName;
     const fullName = typeof fullNameRaw === 'string' ? fullNameRaw.trim() : null;
 
@@ -41,6 +41,22 @@ export default async function handler(req: any, res: any) {
 
     if (!isGlobalSiteRole(role) && siteIds.length === 0) {
       return badRequest(res, 'Choisis au moins un site pour cet utilisateur.');
+    }
+    if (!isGlobalSiteRole(role) && !canUseSiteIds(auth.profile, siteIds)) {
+      return forbidden(res, 'Vous ne pouvez attribuer que vos propres sites.');
+    }
+
+    const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (existingProfileError) {
+      return serverError(res, `Verification email impossible: ${existingProfileError.message}`);
+    }
+    if (existingProfile) {
+      return sendJson(res, 409, { ok: false, error: 'Un utilisateur avec cet email existe deja.' });
     }
 
     const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({

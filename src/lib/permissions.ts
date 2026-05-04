@@ -40,6 +40,21 @@ const GLOBAL_ADMIN_MANAGEABLE: AppRole[] = [ROLES.DIRECTOR, ROLES.MANAGER_PLUS, 
 const DIRECTOR_MANAGEABLE: AppRole[] = [ROLES.MANAGER_PLUS, ROLES.MANAGER, ROLES.COMMANDE];
 const MANAGER_PLUS_MANAGEABLE: AppRole[] = [ROLES.MANAGER, ROLES.COMMANDE];
 
+const hasAllSiteAccess = (profile: Pick<AppProfile, 'role' | 'access_scope'> | null) =>
+  profile?.role === ROLES.SUPER_ADMIN || profile?.role === ROLES.GLOBAL_ADMIN || profile?.access_scope === 'all';
+
+const canAccessTargetSites = (
+  profile: Pick<AppProfile, 'role' | 'access_scope' | 'site_ids'> | null,
+  target: Pick<AppProfile, 'role' | 'access_scope' | 'site_ids'> | null
+) => {
+  if (hasAllSiteAccess(profile)) return true;
+  if (hasAllSiteAccess(target)) return false;
+
+  const profileSiteIds = profile?.site_ids ?? [];
+  const targetSiteIds = target?.site_ids ?? [];
+  return targetSiteIds.length > 0 && targetSiteIds.every((siteId) => profileSiteIds.includes(siteId));
+};
+
 export function canAccessAdminDashboard(profile: AppProfile | null) {
   return hasRole(profile, ADMIN_DASHBOARD_ROLES);
 }
@@ -113,7 +128,10 @@ export function canAssignRole(profile: AppProfile | null, role: AppRole) {
   return getCreatableRoles(profile).includes(role);
 }
 
-export function canManageTarget(profile: AppProfile | null, target: Pick<AppProfile, 'id' | 'role' | 'protected_user'> | null) {
+export function canManageTarget(
+  profile: AppProfile | null,
+  target: Pick<AppProfile, 'id' | 'role' | 'access_scope' | 'site_ids' | 'protected_user'> | null
+) {
   if (!profile || !target) return false;
   if (profile.id === target.id) return false;
   if (profile.role === ROLES.SUPER_ADMIN) return true;
@@ -121,19 +139,22 @@ export function canManageTarget(profile: AppProfile | null, target: Pick<AppProf
 
   switch (profile.role) {
     case ROLES.GLOBAL_ADMIN:
-      return GLOBAL_ADMIN_MANAGEABLE.includes(target.role);
+      return GLOBAL_ADMIN_MANAGEABLE.includes(target.role) && canAccessTargetSites(profile, target);
     case ROLES.DIRECTOR:
-      return DIRECTOR_MANAGEABLE.includes(target.role);
+      return DIRECTOR_MANAGEABLE.includes(target.role) && canAccessTargetSites(profile, target);
     case ROLES.MANAGER_PLUS:
-      return MANAGER_PLUS_MANAGEABLE.includes(target.role);
+      return MANAGER_PLUS_MANAGEABLE.includes(target.role) && canAccessTargetSites(profile, target);
     case ROLES.MANAGER:
-      return target.role === ROLES.COMMANDE;
+      return target.role === ROLES.COMMANDE && canAccessTargetSites(profile, target);
     default:
       return false;
   }
 }
 
-export function getAssignableRoleOptions(profile: AppProfile | null, target: Pick<AppProfile, 'id' | 'role' | 'protected_user'> | null): AppRole[] {
+export function getAssignableRoleOptions(
+  profile: AppProfile | null,
+  target: Pick<AppProfile, 'id' | 'role' | 'access_scope' | 'site_ids' | 'protected_user'> | null
+): AppRole[] {
   if (!profile) return [];
   if (target?.role === ROLES.SUPER_ADMIN) return [ROLES.SUPER_ADMIN];
   if (!target || !canManageTarget(profile, target)) return [];

@@ -45,7 +45,7 @@ const formatDate = (value?: string | null) => {
 };
 
 const UserManagementPage: React.FC<UserManagementPageProps> = ({ setView }) => {
-const { session, profile } = useAuth();
+const { session, profile, availableSiteIds } = useAuth();
   const { showToast } = useToast();
 
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -132,8 +132,24 @@ setLoadError(msg);
   const isSuperAdmin = currentUserRole === 'super_admin';
   const creatableRoles = getCreatableRoles(profile) as Role[];
   const isCreateOnlyUserManagement = currentUserRole === 'manager_plus';
-  const siteOptions = Object.values(SITES);
-  const isGlobalRole = (role: Role) => role === 'super_admin' || role === 'global_admin';
+  const isGlobalRole = (role?: string | null) => role === 'super_admin' || role === 'global_admin';
+  const hasAllSites = isGlobalRole(currentUserRole) || profile?.access_scope === 'all';
+  const siteOptions = useMemo(
+    () => Object.values(SITES).filter((site) => hasAllSites || availableSiteIds.includes(site.id)),
+    [availableSiteIds, hasAllSites]
+  );
+  const defaultFormSiteIds = useMemo<SiteId[]>(
+    () => (siteOptions[0] ? [siteOptions[0].id] : ['hippo_thillois']),
+    [siteOptions]
+  );
+
+  React.useEffect(() => {
+    const allowedSiteIds = new Set(siteOptions.map((site) => site.id));
+    setFormSiteIds((prev) => {
+      const next = prev.filter((siteId) => allowedSiteIds.has(siteId));
+      return next.length > 0 ? next : defaultFormSiteIds;
+    });
+  }, [defaultFormSiteIds, siteOptions]);
 
   const toggleFormSite = (siteId: SiteId) => {
     setFormSiteIds((prev) => {
@@ -176,7 +192,7 @@ setLoadError(msg);
       setFormFullName('');
       setFormTempPassword('');
       setFormRole('commande');
-      setFormSiteIds(['hippo_thillois']);
+      setFormSiteIds(defaultFormSiteIds);
       await loadUsers();
     } catch (error: any) {
       showToast(error?.message || 'Erreur lors de la création.', 'error');
@@ -194,7 +210,7 @@ setLoadError(msg);
         body: JSON.stringify({
           id,
           role,
-          siteIds: isGlobalRole(role) ? undefined : (current?.site_ids ?? ['hippo_thillois']),
+          siteIds: isGlobalRole(role) ? undefined : (current?.site_ids ?? defaultFormSiteIds),
         }),
       });
       const updatedUser = data?.user as Partial<UserRow> | undefined;
@@ -398,7 +414,7 @@ if (!canAccessUserManagement(profile)) {
                     const availableRoleOptions = ((u.role === 'super_admin' ? ['super_admin'] : getAssignableRoleOptions(profile, u)) as Role[]).length
                       ? ((u.role === 'super_admin' ? ['super_admin'] : getAssignableRoleOptions(profile, u)) as Role[])
                       : [u.role];
-                    const rowSiteIds = u.site_ids ?? ['hippo_thillois'];
+                    const rowSiteIds = u.site_ids ?? defaultFormSiteIds;
                     return (
                       <tr key={u.id} className="border-t border-slate-100 hover:bg-slate-50/80 transition-colors">
                         <td className="p-3 text-sm font-bold text-slate-700">{u.email || '—'}</td>

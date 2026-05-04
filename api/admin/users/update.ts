@@ -3,7 +3,15 @@ import { assertServerEnv, supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { badRequest, forbidden, methodNotAllowed, sendJson, serverError, unauthorized } from '../../_lib/http.js';
 import { canAssignRole, canManageTarget, canUpdateUsers, MANAGEABLE_ROLES } from '../../_lib/permissions.js';
 import { ensureProfileExists } from '../../_lib/profileProvisioning.js';
-import { isGlobalSiteRole, replaceUserSiteAccess, siteIdsForRole } from '../../_lib/sites.js';
+import {
+  canUseSiteIds,
+  isGlobalSiteRole,
+  loadSiteIdsByUser,
+  normalizeSiteIds,
+  replaceUserSiteAccess,
+  siteIdsForProfile,
+  siteIdsForRole,
+} from '../../_lib/sites.js';
 
 const ALLOWED_ROLES = new Set(MANAGEABLE_ROLES);
 
@@ -37,6 +45,11 @@ export default async function handler(req: any, res: any) {
     } catch (error: any) {
       return sendJson(res, 404, { ok: false, error: error?.message || 'Profil utilisateur introuvable.' });
     }
+    const targetSiteIdsByUser = await loadSiteIdsByUser(supabaseAdmin, [id]);
+    target = {
+      ...target,
+      site_ids: siteIdsForProfile(target, targetSiteIdsByUser.get(id) ?? []),
+    };
 
     const permission = canManageTarget(auth.profile, target);
     if (!permission.ok) {
@@ -57,9 +70,15 @@ export default async function handler(req: any, res: any) {
       patch.access_scope = isGlobalSiteRole(nextRole) ? 'all' : 'current_site';
     }
 
-    const nextSiteIds = siteIdsForRole(nextRole, hasSiteIdsPatch ? req.body?.siteIds : undefined);
+    const requestedSiteIds = hasSiteIdsPatch ? req.body?.siteIds : target.site_ids;
+    const nextSiteIds = isGlobalSiteRole(nextRole)
+      ? siteIdsForRole(nextRole, requestedSiteIds)
+      : normalizeSiteIds(requestedSiteIds);
     if ((hasSiteIdsPatch || role !== undefined) && !isGlobalSiteRole(nextRole) && nextSiteIds.length === 0) {
       return badRequest(res, 'Choisis au moins un site pour cet utilisateur.');
+    }
+    if ((hasSiteIdsPatch || role !== undefined) && !isGlobalSiteRole(nextRole) && !canUseSiteIds(auth.profile, nextSiteIds)) {
+      return forbidden(res, 'Vous ne pouvez attribuer que vos propres sites.');
     }
 
     if (isActive !== undefined) {
@@ -96,7 +115,7 @@ export default async function handler(req: any, res: any) {
 
     const siteAccess = (hasSiteIdsPatch || role !== undefined)
       ? await replaceUserSiteAccess(supabaseAdmin, id, nextRole, nextSiteIds)
-      : { siteIds: nextSiteIds, accessScope: target.access_scope };
+      : { siteIds: target.site_ids ?? [], accessScope: target.access_scope };
 
     const { data, error } = await supabaseAdmin
       .from('profiles')

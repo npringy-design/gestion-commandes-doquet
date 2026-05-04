@@ -1,4 +1,5 @@
 import { canAccessUserManagement } from './permissions.js';
+import { loadSiteIdsByUser, siteIdsForProfile } from './sites.js';
 import { supabaseAdmin } from './supabaseAdmin.js';
 
 const readBearerToken = (req: any): string | null => {
@@ -37,5 +38,8 @@ export const requireAdmin = async (req: any) => {
     return { ok: false as const, status: 403, error: 'Droits de gestion utilisateurs requis.' };
   }
 
-  return { ok: true as const, user: userData.user, profile };
+  const siteIdsByUser = await loadSiteIdsByUser(supabaseAdmin, [profile.id]);
+  const siteIds = siteIdsForProfile(profile, siteIdsByUser.get(profile.id) ?? []);
+
+  return { ok: true as const, user: userData.user, profile: { ...profile, site_ids: siteIds } };
 };

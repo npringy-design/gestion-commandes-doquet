@@ -35,9 +35,25 @@ export const getCreatableRoles = (actorRole: string) => {
 
 export const canAssignRole = (actorRole: string, nextRole: string) => getCreatableRoles(actorRole).includes(nextRole);
 
+const hasAllSiteAccess = (profile: { role?: string; access_scope?: string | null }) =>
+  profile.role === 'super_admin' || profile.role === 'global_admin' || profile.access_scope === 'all';
+
+const canAccessTargetSites = (
+  actor: { role: string; access_scope?: string | null; site_ids?: string[] | null },
+  target: { role: string; access_scope?: string | null; site_ids?: string[] | null }
+) => {
+  if (hasAllSiteAccess(actor)) return true;
+  if (hasAllSiteAccess(target)) return false;
+
+  const actorSiteIds = Array.isArray(actor.site_ids) ? actor.site_ids : [];
+  const targetSiteIds = Array.isArray(target.site_ids) ? target.site_ids : [];
+
+  return targetSiteIds.length > 0 && targetSiteIds.every((siteId) => actorSiteIds.includes(siteId));
+};
+
 export const canManageTarget = (
-  actor: { id: string; role: string; protected_user?: boolean | null },
-  target: { id: string; role: string; protected_user?: boolean | null }
+  actor: { id: string; role: string; access_scope?: string | null; site_ids?: string[] | null; protected_user?: boolean | null },
+  target: { id: string; role: string; access_scope?: string | null; site_ids?: string[] | null; protected_user?: boolean | null }
 ) => {
   if (actor.id === target.id) {
     return { ok: false as const, error: 'Vous ne pouvez pas modifier votre propre compte via cette action.' };
@@ -60,25 +76,25 @@ export const canManageTarget = (
   }
 
   if (actor.role === 'global_admin') {
-    return ['director', 'manager_plus', 'manager', 'commande'].includes(target.role)
+    return ['director', 'manager_plus', 'manager', 'commande'].includes(target.role) && canAccessTargetSites(actor, target)
       ? { ok: true as const }
       : { ok: false as const, error: 'Vous ne pouvez pas modifier ce niveau de compte.' };
   }
 
   if (actor.role === 'director') {
-    return ['manager_plus', 'manager', 'commande'].includes(target.role)
+    return ['manager_plus', 'manager', 'commande'].includes(target.role) && canAccessTargetSites(actor, target)
       ? { ok: true as const }
       : { ok: false as const, error: 'Vous ne pouvez agir que sur Manager+, Manager et Commande.' };
   }
 
   if (actor.role === 'manager_plus') {
-    return ['manager', 'commande'].includes(target.role)
+    return ['manager', 'commande'].includes(target.role) && canAccessTargetSites(actor, target)
       ? { ok: true as const }
       : { ok: false as const, error: 'Vous ne pouvez agir que sur Manager et Commande.' };
   }
 
   if (actor.role === 'manager') {
-    return target.role === 'commande'
+    return target.role === 'commande' && canAccessTargetSites(actor, target)
       ? { ok: true as const }
       : { ok: false as const, error: 'Vous ne pouvez agir que sur le rôle Commande.' };
   }
