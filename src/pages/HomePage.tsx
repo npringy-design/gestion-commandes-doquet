@@ -291,13 +291,13 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
 
   const pageActions = (
     <div className="mb-4 flex flex-wrap items-end justify-between gap-3 sm:gap-4">
-      <div className="min-h-12">
+      <div className="min-h-10">
         {firstName ? (
-          <div className="leading-none text-[#FFF6E8] drop-shadow-[0_8px_18px_rgba(0,0,0,0.35)]">
-            <span className="block text-[11px] font-black uppercase tracking-[0.22em] text-[#F6B24A] sm:text-[12px]">
+          <div className="flex items-baseline gap-2.5 text-[#FFF6E8] drop-shadow-[0_8px_18px_rgba(0,0,0,0.35)] sm:gap-3">
+            <span className="text-[15px] font-black uppercase tracking-[0.18em] text-[#F6B24A] sm:text-[17px]">
               Bonjour
             </span>
-            <span className="restaurant-title mt-1 block text-[2.4rem] font-bold leading-[0.9] sm:text-[3rem] lg:text-[3.35rem]">
+            <span className="restaurant-script text-[2.35rem] font-normal leading-none sm:text-[2.7rem] lg:text-[2.95rem]">
               {firstName}
             </span>
           </div>
