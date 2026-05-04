@@ -7,15 +7,18 @@ import ForcePasswordChangePage from '../pages/ForcePasswordChangePage';
 import { ACTIVE_SITE_STORAGE_KEY, SITES, type SiteId } from '../constants';
 import InactivityTimeout from './InactivityTimeout';
 
-function hasRecoveryParams(): boolean {
+function hasPasswordSetupParams(): boolean {
   try {
     const url = new URL(window.location.href);
-    if (url.searchParams.get('type') === 'recovery') return true;
+    const searchType = url.searchParams.get('type');
+    if (searchType === 'recovery' || searchType === 'invite') return true;
     if (url.searchParams.get('code')) return true;
     if (url.hash) {
       const hp = new URLSearchParams(url.hash.replace(/^#/, ''));
-      if (hp.get('type') === 'recovery') return true;
+      const hashType = hp.get('type');
+      if (hashType === 'recovery' || hashType === 'invite') return true;
       if (hp.get('code')) return true;
+      if (hp.get('access_token')) return true;
     }
   } catch {
     // ignore
@@ -28,7 +31,7 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   if (!isSupabaseConfigured()) return <>{children}</>;
 
-  if (hasRecoveryParams()) return <ResetPasswordPage />;
+  if (hasPasswordSetupParams()) return <ResetPasswordPage />;
 
   if (loading) {
     return (

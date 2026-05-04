@@ -46,9 +46,9 @@ const ResetPasswordPage: React.FC = () => {
         }
       }
 
-      // Si on arrive ici via un lien recovery (type=recovery), on peut setter le mot de passe
-      if (type && type !== 'recovery') {
-        // Pas un flow reset → on laisse l'utilisateur revenir au login
+      // Si on arrive ici via un lien recovery ou invite, on peut setter le mot de passe.
+      if (type && type !== 'recovery' && type !== 'invite') {
+        // Pas un flow mot de passe, on laisse l'utilisateur revenir au login.
         setStatus('error');
         setMessage('Lien invalide ou expiré.');
         return;

@@ -5,14 +5,7 @@ import { canAssignRole, canCreateUsers, MANAGEABLE_ROLES } from '../../_lib/perm
 import { canUseSiteIds, isGlobalSiteRole, normalizeSiteIds, replaceUserSiteAccess, siteIdsForRole } from '../../_lib/sites.js';
 
 const ALLOWED_ROLES = new Set(MANAGEABLE_ROLES);
-
-const getAppOrigin = (req: any) => {
-  const rawOrigin = req.headers?.origin;
-  if (typeof rawOrigin === 'string' && rawOrigin.startsWith('http')) return rawOrigin;
-  const host = req.headers?.['x-forwarded-host'] || req.headers?.host;
-  const proto = req.headers?.['x-forwarded-proto'] || 'https';
-  return host ? `${proto}://${host}` : undefined;
-};
+const INVITE_REDIRECT_URL = 'https://gestion-commandes-doquet.vercel.app';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return methodNotAllowed(res, ['POST']);
@@ -27,16 +20,12 @@ export default async function handler(req: any, res: any) {
     }
 
     const email = String(req.body?.email ?? '').trim().toLowerCase();
-    const tempPassword = String(req.body?.tempPassword ?? '');
     const role = String(req.body?.role ?? 'commande');
     const siteIds = isGlobalSiteRole(role) ? siteIdsForRole(role, req.body?.siteIds) : normalizeSiteIds(req.body?.siteIds);
     const fullNameRaw = req.body?.fullName;
     const fullName = typeof fullNameRaw === 'string' ? fullNameRaw.trim() : null;
 
     if (!email) return badRequest(res, 'Email requis.');
-    if (!tempPassword || tempPassword.length < 8) {
-      return badRequest(res, 'Mot de passe temporaire requis (minimum 8 caractères).');
-    }
     if (!canCreateUsers(auth.profile.role)) {
       return forbidden(res, 'Votre rôle peut uniquement consulter ou créer selon ses droits.');
     }
@@ -67,17 +56,12 @@ export default async function handler(req: any, res: any) {
       return sendJson(res, 409, { ok: false, error: 'Un utilisateur avec cet email existe deja.' });
     }
 
-    const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: {
+    const { data: created, error: createError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+      redirectTo: INVITE_REDIRECT_URL,
+      data: {
         full_name: fullName ?? undefined,
         role,
-        must_change_password: true,
-      },
-      app_metadata: {
-        role,
+        must_change_password: false,
       },
     });
 
@@ -86,7 +70,7 @@ export default async function handler(req: any, res: any) {
       if (lowered.includes('already') || lowered.includes('exists') || lowered.includes('registered')) {
         return sendJson(res, 409, { ok: false, error: 'Un utilisateur avec cet email existe déjà.' });
       }
-      return serverError(res, `Création utilisateur impossible: ${createError.message}`);
+      return serverError(res, `Invitation Supabase impossible: ${createError.message}`);
     }
 
     const user = created.user;
@@ -114,24 +98,12 @@ export default async function handler(req: any, res: any) {
     }
 
     const siteAccess = await replaceUserSiteAccess(supabaseAdmin, user.id, role, siteIds);
-    let emailSent = false;
-    let emailWarning: string | null = null;
-
-    const { error: resetEmailError } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
-      redirectTo: getAppOrigin(req),
-    });
-
-    if (resetEmailError) {
-      emailWarning = `Compte cree, mais email de creation non envoye: ${resetEmailError.message}`;
-    } else {
-      emailSent = true;
-    }
 
     return sendJson(res, 201, {
       ok: true,
-      email_sent: emailSent,
-      email_warning: emailWarning,
-      message: 'Utilisateur créé avec succès.',
+      email_sent: true,
+      email_warning: null,
+      message: 'Invitation envoyee avec succes.',
       user: { ...profile, site_ids: siteAccess.siteIds },
     });
   } catch (error: any) {
