@@ -290,17 +290,21 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   };
 
   const pageActions = (
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-2 sm:gap-3">
-      <div className="min-h-11">
+    <div className="mb-4 flex flex-wrap items-end justify-between gap-3 sm:gap-4">
+      <div className="min-h-12">
         {firstName ? (
-          <div className="rounded-lg border border-[#D99A4A]/70 bg-[#1F140F]/58 px-4 py-2.5 text-[#FFF6E8] shadow-[0_10px_22px_rgba(26,13,8,0.18)]">
-            <span className="block text-[10px] font-black uppercase tracking-[0.14em] text-[#F6B24A]">Bonjour</span>
-            <span className="block text-lg font-black leading-tight">{firstName}</span>
+          <div className="leading-none text-[#FFF6E8] drop-shadow-[0_8px_18px_rgba(0,0,0,0.35)]">
+            <span className="block text-[11px] font-black uppercase tracking-[0.22em] text-[#F6B24A] sm:text-[12px]">
+              Bonjour
+            </span>
+            <span className="restaurant-title mt-1 block text-[2.4rem] font-bold leading-[0.9] sm:text-[3rem] lg:text-[3.35rem]">
+              {firstName}
+            </span>
           </div>
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+      <div className="flex flex-wrap items-center justify-end gap-2 pb-1 sm:gap-3">
         {canSwitchSite ? (
           <div className="inline-flex items-center gap-2 rounded-lg border border-[#D99A4A] bg-[#FFF8E8] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#512A16] shadow-[0_10px_22px_rgba(26,13,8,0.18)] sm:px-4 sm:py-3 sm:text-[12px]">
             <span>{activeSite.name}</span>
