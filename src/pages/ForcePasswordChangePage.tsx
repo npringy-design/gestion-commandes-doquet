@@ -57,7 +57,16 @@ const ForcePasswordChangePage: React.FC = () => {
       return;
     }
 
-    window.location.href = window.location.origin;
+    await supabase.auth.updateUser({
+      data: {
+        ...(session?.user.user_metadata ?? {}),
+        must_change_password: false,
+      },
+    }).catch(() => null);
+
+    await supabase.auth.refreshSession().catch(() => null);
+
+    window.location.replace(window.location.origin);
   };
 
   return (

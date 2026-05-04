@@ -104,6 +104,15 @@ const ResetPasswordPage: React.FC = () => {
       }).catch(() => null);
     }
 
+    await supabase.auth.updateUser({
+      data: {
+        ...(data.session?.user.user_metadata ?? {}),
+        must_change_password: false,
+      },
+    }).catch(() => null);
+
+    await supabase.auth.refreshSession().catch(() => null);
+
     setLoading(false);
 
     setStatus('done');
