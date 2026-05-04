@@ -40,6 +40,12 @@ const hasFrozenLinkedValue = (snapshot: any) =>
 const hasFrozenMonthData = (product: any, month: string) =>
   !!product.ratioSnapshots?.[month] || Number(product.salesHistory?.[month] || 0) > 0;
 
+const formatWholeVisual = (value: unknown) => {
+  const numeric = Number(value || 0);
+  if (!Number.isFinite(numeric) || numeric <= 0) return '–';
+  return Math.ceil(numeric).toLocaleString('fr-FR');
+};
+
 const ProductCard: React.FC<{
   p: any;
   idx: number;
@@ -49,6 +55,8 @@ const ProductCard: React.FC<{
   displayMonthKey: string;
 }> = ({ p, idx, total, state, canEdit, displayMonthKey }) => {
   const [expanded, setExpanded] = useState(false);
+  const mappingButtonRef = React.useRef<HTMLButtonElement | null>(null);
+  const [mappingAnchorRect, setMappingAnchorRect] = React.useState<DOMRect | null>(null);
   const {
     selectedProductIds, toggleProductSelection,
     moveProduct, handleNameChange,
@@ -94,8 +102,13 @@ const ProductCard: React.FC<{
         />
         <div className="relative z-[70] shrink-0 overflow-visible">
           <button
+            ref={mappingButtonRef}
             type="button"
-            onClick={() => setActiveMappingId(activeMappingId === p.id ? null : p.id)}
+            onClick={() => {
+              const nextOpen = activeMappingId !== p.id;
+              setActiveMappingId(nextOpen ? p.id : null);
+              setMappingAnchorRect(nextOpen ? mappingButtonRef.current?.getBoundingClientRect() ?? null : null);
+            }}
             disabled={!canEdit || isFrozenDisplay}
             className={`flex h-9 w-9 items-center justify-center rounded-xl ${alert ? 'bg-amber-100 text-amber-700' : 'bg-[#F3DDC0] text-[#6A432D] hover:bg-[#FFE8C2]'} disabled:opacity-50`}
             title="Rechercher un mapping"
@@ -107,6 +120,7 @@ const ProductCard: React.FC<{
           {activeMappingId === p.id && !isFrozenDisplay && (
             <div className="absolute right-0 top-[calc(100%+10px)] z-[9999] w-[320px] max-w-[calc(100vw-32px)] overflow-visible">
               <RatiosMappingPopover
+                anchorRect={mappingAnchorRect}
                 orphanNames={Array.from(allAvailableImportNames).filter((name) => {
                   const normalizedName = String(name).trim().toLowerCase();
                   return !products.some((pr) => (
@@ -115,8 +129,8 @@ const ProductCard: React.FC<{
                     pr.searchName.trim().toLowerCase() === normalizedName
                   ));
                 })}
-                onSelect={n => { if (!canEdit) return; updateSearchName(p.id, n); setActiveMappingId(null); }}
-                onClose={() => setActiveMappingId(null)}
+                onSelect={n => { if (!canEdit) return; updateSearchName(p.id, n); setActiveMappingId(null); setMappingAnchorRect(null); }}
+                onClose={() => { setActiveMappingId(null); setMappingAnchorRect(null); }}
               />
             </div>
           )}
@@ -170,7 +184,7 @@ const ProductCard: React.FC<{
                 <div key={m} className={`rounded-lg p-1.5 text-center ${mS[m].isValidated ? 'border border-[#6D8F4E] bg-[#F1F5E9]' : mS[m].isImported ? 'border border-[#D8AE77] bg-[#FFF7EA]' : 'border border-[#E8D8C6] bg-[#FFFDF8]'}`}>
                   <div className="mb-0.5 text-[8px] font-black uppercase text-[#8B6B54]">{MONTH_LABELS[m]}</div>
                   <div className={`mb-0.5 text-xs font-black leading-none ${mS[m].isValidated ? 'text-[#2F6B38]' : mS[m].isImported ? 'text-[#A85F2A]' : 'text-[#B7A08D]'}`}>
-                    {mS[m].value || '–'}
+                    {formatWholeVisual(mS[m].value)}
                   </div>
                   <div className="font-mono text-[8px] text-[#2F7A42]">{mR[m].toFixed(2)}</div>
                   <button

@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface RatiosMappingPopoverProps {
   orphanNames: string[];
   onSelect: (name: string) => void;
   onClose: () => void;
+  anchorRect?: DOMRect | null;
 }
 
-const RatiosMappingPopover: React.FC<RatiosMappingPopoverProps> = ({ orphanNames, onSelect, onClose }) => {
+const RatiosMappingPopover: React.FC<RatiosMappingPopoverProps> = ({ orphanNames, onSelect, onClose, anchorRect }) => {
   const [search, setSearch] = useState('');
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -25,10 +27,21 @@ const RatiosMappingPopover: React.FC<RatiosMappingPopoverProps> = ({ orphanNames
     [orphanNames, search]
   );
 
-  return (
+  const popoverWidth = 320;
+  const fixedStyle = anchorRect
+    ? {
+        position: 'fixed' as const,
+        top: Math.min(anchorRect.bottom + 10, window.innerHeight - 380),
+        left: Math.max(12, Math.min(anchorRect.right - popoverWidth, window.innerWidth - popoverWidth - 12)),
+        zIndex: 99999,
+      }
+    : undefined;
+
+  const content = (
     <div
       ref={popoverRef}
       className="w-[320px] max-w-[72vw] rounded-2xl border border-[#D8C0AA] bg-[#FFF9F1] p-3 shadow-[0_16px_32px_rgba(80,40,20,0.16)]"
+      style={fixedStyle}
     >
       <input
         autoFocus
@@ -72,6 +85,8 @@ const RatiosMappingPopover: React.FC<RatiosMappingPopoverProps> = ({ orphanNames
       </div>
     </div>
   );
+
+  return anchorRect ? createPortal(content, document.body) : content;
 };
 
 export default RatiosMappingPopover;

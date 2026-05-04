@@ -60,6 +60,9 @@ const normalizeRatioMappingId = (value?: string) => String(value || '').trim().t
 const getRatioSnapshot = (product: ProductWithHistory, month: string) =>
   (product as ProductWithRatioSnapshots).ratioSnapshots?.[month];
 
+const roundRatioImportedValue = (value: number | null) =>
+  value == null ? null : Math.ceil(value);
+
 // -----------------------------------------------------------
 // Hook principal
 // -----------------------------------------------------------
@@ -315,7 +318,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
         val = snapshot?.salesValue ?? p.salesHistory[m] ?? 0;
       } else if (isWorkMonth) {
         importedVal = getImportedValueForProduct(detailedInventory[m], p.searchName, p.importDivisor);
-        val = importedVal ?? 0;
+        val = roundRatioImportedValue(importedVal) ?? 0;
       } else {
         val = 0;
       }
@@ -345,7 +348,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
 
       setProducts(prev => prev.map(p => {
         const importedValue = getImportedValueForProduct(detailedInventory[m], p.searchName, p.importDivisor);
-        const salesValue = importedValue ?? getProductStats(p).mS[m].value;
+        const salesValue = roundRatioImportedValue(importedValue) ?? getProductStats(p).mS[m].value;
         const monthCovers = covers[m] || 1;
         const ratio = salesValue / monthCovers;
         const searchName = String(p.searchName || '');
