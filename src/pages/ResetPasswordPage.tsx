@@ -84,13 +84,27 @@ const ResetPasswordPage: React.FC = () => {
 
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password });
-    setLoading(false);
 
     if (error) {
+      setLoading(false);
       setStatus('error');
       setMessage(error.message);
       return;
     }
+
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.access_token) {
+      await fetch('/api/auth/complete-password-change', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${data.session.access_token}`,
+        },
+        body: JSON.stringify({}),
+      }).catch(() => null);
+    }
+
+    setLoading(false);
 
     setStatus('done');
     setMessage('Mot de passe mis à jour.');

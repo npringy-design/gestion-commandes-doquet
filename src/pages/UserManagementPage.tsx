@@ -28,6 +28,13 @@ type ListResponse = {
   error?: string;
 };
 
+type CreateUserResponse = {
+  ok: boolean;
+  email_sent?: boolean;
+  email_warning?: string | null;
+  message?: string;
+};
+
 interface UserManagementPageProps {
   setView: (v: View) => void;
 }
@@ -175,7 +182,7 @@ setLoadError(msg);
 
     setCreateLoading(true);
     try {
-      await request('/api/admin/users/create', {
+      const result = (await request('/api/admin/users/create', {
         method: 'POST',
         body: JSON.stringify({
           email: formEmail.trim(),
@@ -184,9 +191,14 @@ setLoadError(msg);
           role: formRole,
           siteIds: isGlobalRole(formRole) ? undefined : formSiteIds,
         }),
-      });
+      })) as CreateUserResponse;
 
-      showToast('Utilisateur créé avec succès.', 'success');
+      showToast(
+        result.email_sent
+          ? 'Utilisateur cree. Email de creation envoye.'
+          : result.email_warning || 'Utilisateur cree, mais email de creation non confirme.',
+        result.email_sent ? 'success' : 'warning'
+      );
       setCreateOpen(false);
       setFormEmail('');
       setFormFullName('');

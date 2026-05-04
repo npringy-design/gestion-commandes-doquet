@@ -21,6 +21,7 @@ export type AppProfile = {
   access_scope?: 'all' | 'current_site' | null;
   site_ids?: SiteId[];
   protected_user?: boolean;
+  must_change_password?: boolean;
 };
 
 type AuthContextValue = {

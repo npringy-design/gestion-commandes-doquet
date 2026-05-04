@@ -6,6 +6,14 @@ import { canUseSiteIds, isGlobalSiteRole, normalizeSiteIds, replaceUserSiteAcces
 
 const ALLOWED_ROLES = new Set(MANAGEABLE_ROLES);
 
+const getAppOrigin = (req: any) => {
+  const rawOrigin = req.headers?.origin;
+  if (typeof rawOrigin === 'string' && rawOrigin.startsWith('http')) return rawOrigin;
+  const host = req.headers?.['x-forwarded-host'] || req.headers?.host;
+  const proto = req.headers?.['x-forwarded-proto'] || 'https';
+  return host ? `${proto}://${host}` : undefined;
+};
+
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return methodNotAllowed(res, ['POST']);
 
@@ -66,6 +74,7 @@ export default async function handler(req: any, res: any) {
       user_metadata: {
         full_name: fullName ?? undefined,
         role,
+        must_change_password: true,
       },
       app_metadata: {
         role,
@@ -105,9 +114,23 @@ export default async function handler(req: any, res: any) {
     }
 
     const siteAccess = await replaceUserSiteAccess(supabaseAdmin, user.id, role, siteIds);
+    let emailSent = false;
+    let emailWarning: string | null = null;
+
+    const { error: resetEmailError } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
+      redirectTo: getAppOrigin(req),
+    });
+
+    if (resetEmailError) {
+      emailWarning = `Compte cree, mais email de creation non envoye: ${resetEmailError.message}`;
+    } else {
+      emailSent = true;
+    }
 
     return sendJson(res, 201, {
       ok: true,
+      email_sent: emailSent,
+      email_warning: emailWarning,
       message: 'Utilisateur créé avec succès.',
       user: { ...profile, site_ids: siteAccess.siteIds },
     });

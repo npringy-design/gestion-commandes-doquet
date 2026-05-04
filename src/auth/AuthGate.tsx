@@ -3,6 +3,7 @@ import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { useAuth } from './AuthProvider';
 import LoginPage from '../pages/LoginPage';
 import ResetPasswordPage from '../pages/ResetPasswordPage';
+import ForcePasswordChangePage from '../pages/ForcePasswordChangePage';
 import { ACTIVE_SITE_STORAGE_KEY, SITES, type SiteId } from '../constants';
 import InactivityTimeout from './InactivityTimeout';
 
@@ -23,7 +24,7 @@ function hasRecoveryParams(): boolean {
 }
 
 export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, loading, isActive, signOut, availableSiteIds, setActiveSiteId } = useAuth();
+  const { user, profile, loading, isActive, signOut, availableSiteIds, setActiveSiteId } = useAuth();
 
   if (!isSupabaseConfigured()) return <>{children}</>;
 
@@ -58,6 +59,10 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
         </div>
       </div>
     );
+  }
+
+  if (profile?.must_change_password || user.user_metadata?.must_change_password) {
+    return <ForcePasswordChangePage />;
   }
 
   let hasChosenSite = true;
