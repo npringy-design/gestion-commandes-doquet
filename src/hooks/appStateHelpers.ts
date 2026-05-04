@@ -139,14 +139,8 @@ export const mergeSupplierConfigsWithDefaults = (
   return merged;
 };
 
-export const mergeAndNormalizeProducts = (incoming: ProductWithHistory[]): ProductWithHistory[] => {
-  const existingIds = new Set(incoming.map((p: ProductWithHistory) => p.id));
-  const merged = [...incoming];
-  DEFAULT_PRODUCTS.forEach((p) => {
-    if (!existingIds.has(p.id)) merged.push(p);
-  });
-
-  return merged.map((p: ProductWithHistory) => ({
+const normalizeProducts = (incoming: ProductWithHistory[]): ProductWithHistory[] =>
+  incoming.map((p: ProductWithHistory) => ({
     ...p,
     stock: p.stock == null || p.stock === 0 ? '' : p.stock,
     upcomingDelivery: p.upcomingDelivery == null || p.upcomingDelivery === 0 ? '' : p.upcomingDelivery,
@@ -155,10 +149,12 @@ export const mergeAndNormalizeProducts = (incoming: ProductWithHistory[]): Produ
     importDivisor: !p.importDivisor || p.importDivisor === 0 ? '' : p.importDivisor,
     supplierId: p.supplierId || (DOQUET_PRODUCTS.find((dp) => dp.id === p.id) ? 'doquet' : 'vins'),
   }));
-};
+
+export const mergeAndNormalizeProducts = (incoming: ProductWithHistory[]): ProductWithHistory[] =>
+  normalizeProducts(incoming);
 
 export const createInitialProducts = (savedProducts: ProductWithHistory[]): ProductWithHistory[] =>
-  mergeAndNormalizeProducts(savedProducts);
+  normalizeProducts(savedProducts.length > 0 ? savedProducts : DEFAULT_PRODUCTS);
 
 export const getSupplierIdForView = (view: string, ratioTab: SupplierId): SupplierId => {
   if (view === 'ratios') return ratioTab;
