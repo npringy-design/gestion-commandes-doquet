@@ -9,6 +9,40 @@
 
 BEGIN;
 
+-- Helpers RLS autonomes. Certains projets ont encore l'ancien
+-- SUPABASE_PROFILES_SETUP.sql sans ces fonctions.
+CREATE OR REPLACE FUNCTION public.is_current_user_admin()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.profiles p
+    WHERE p.id = auth.uid()
+      AND p.role IN ('super_admin', 'global_admin', 'director', 'manager_plus')
+      AND p.is_active = TRUE
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.can_manage_users()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.profiles p
+    WHERE p.id = auth.uid()
+      AND p.role IN ('super_admin', 'global_admin', 'director', 'manager_plus', 'manager')
+      AND p.is_active = TRUE
+  );
+$$;
+
 CREATE TABLE IF NOT EXISTS public.user_site_access (
   user_id    UUID        NOT NULL REFERENCES public.profiles (id) ON DELETE CASCADE,
   site_id    TEXT        NOT NULL,
