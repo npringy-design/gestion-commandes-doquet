@@ -66,14 +66,9 @@ TO authenticated
 USING (public.can_access_app_state_site(site_id))
 WITH CHECK (public.can_access_app_state_site(site_id));
 
-CREATE POLICY "app_state_delete_authorized_site"
-ON public.app_state
-FOR DELETE
-TO authenticated
-USING (public.can_access_app_state_site(site_id));
-
 REVOKE ALL ON public.app_state FROM anon;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.app_state TO authenticated;
+REVOKE ALL ON public.app_state FROM authenticated;
+GRANT SELECT, INSERT, UPDATE ON public.app_state TO authenticated;
 
 COMMIT;
 
