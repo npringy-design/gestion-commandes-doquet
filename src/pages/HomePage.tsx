@@ -148,7 +148,7 @@ const TileButton: React.FC<HomeTile> = ({ title, subtitle, onClick, icon, tone, 
 const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const { profile, user, signOut, activeSiteId, availableSiteIds, setActiveSiteId } = useAuth();
+  const { profile, user, signOut, activeSiteId, availableSiteIds } = useAuth();
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -172,6 +172,10 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   const activeSite = SITES[activeSiteId] ?? SITES.hippo_thillois;
   const siteDisplayName = activeSite.name.replace(/^Hippo\s+/i, '');
   const canSwitchSite = availableSiteIds.length > 1;
+  const displayName = (profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || '')
+    .toString()
+    .trim();
+  const firstName = displayName.includes('@') ? displayName.split('@')[0] : displayName.split(/\s+/)[0];
 
   const mainTiles: HomeTile[] = [
     {
@@ -286,10 +290,20 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   };
 
   const pageActions = (
-    <div className="mb-4 flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-      <div className="inline-flex items-center gap-2 rounded-lg border border-[#D99A4A] bg-[#FFF8E8] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#512A16] shadow-[0_10px_22px_rgba(26,13,8,0.18)] sm:px-4 sm:py-3 sm:text-[12px]">
-        <span>{activeSite.name}</span>
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+      <div className="min-h-11">
+        {firstName ? (
+          <div className="rounded-lg border border-[#D99A4A]/70 bg-[#1F140F]/58 px-4 py-2.5 text-[#FFF6E8] shadow-[0_10px_22px_rgba(26,13,8,0.18)]">
+            <span className="block text-[10px] font-black uppercase tracking-[0.14em] text-[#F6B24A]">Bonjour</span>
+            <span className="block text-lg font-black leading-tight">{firstName}</span>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
         {canSwitchSite ? (
+          <div className="inline-flex items-center gap-2 rounded-lg border border-[#D99A4A] bg-[#FFF8E8] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#512A16] shadow-[0_10px_22px_rgba(26,13,8,0.18)] sm:px-4 sm:py-3 sm:text-[12px]">
+            <span>{activeSite.name}</span>
           <button
             type="button"
             onClick={handleSwitchSite}
@@ -297,8 +311,8 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           >
             Changer
           </button>
+          </div>
         ) : null}
-      </div>
 
       {isAuthConfigured() && user ? (
         <button
@@ -329,6 +343,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         </svg>
         Admin
       </button>
+      </div>
     </div>
   );
 
