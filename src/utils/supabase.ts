@@ -3,7 +3,8 @@
 // Client Supabase + helpers de lecture/écriture de l'état app
 //
 // Table Supabase attendue :
-//   app_state (key text PRIMARY KEY, value jsonb, updated_at timestamptz)
+//   app_state (site_id text, key text, value jsonb, updated_at timestamptz)
+//   contrainte unique ou clé primaire : (site_id, key)
 //
 // Stratégie de sync : LAST WRITE WINS basé sur updated_at
 // → Aucun device n'est prioritaire. C'est la dernière modification
@@ -11,7 +12,10 @@
 // =============================================================
 
 // ── Types ────────────────────────────────────────────────────
+import { CURRENT_SITE_ID } from '../constants';
+
 interface SupabaseRow {
+  site_id:    string;
   key:        string;
   value:      unknown;
   updated_at: string;
@@ -21,6 +25,8 @@ interface SupabaseRow {
 const SUPABASE_URL      = import.meta.env.VITE_SUPABASE_URL      as string | undefined;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 const TABLE             = 'app_state';
+const SITE_ID_QUERY     = encodeURIComponent(CURRENT_SITE_ID);
+const SITE_KEY_CONFLICT = 'site_id,key';
 
 export const isSupabaseConfigured = (): boolean =>
   Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
@@ -37,12 +43,18 @@ export const loadAllFromSupabase = async (): Promise<Array<SupabaseRow> | null> 
   if (!isSupabaseConfigured()) return null;
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/${TABLE}?select=key,value,updated_at`,
+      `${SUPABASE_URL}/rest/v1/${TABLE}?select=site_id,key,value,updated_at&site_id=eq.${SITE_ID_QUERY}`,
       { headers: headers() }
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      let body = '';
+      try { body = await res.text(); } catch {}
+      console.error('[Supabase loadAll error]', { siteId: CURRENT_SITE_ID, status: res.status, body });
+      return null;
+    }
     return await res.json() as SupabaseRow[];
-  } catch {
+  } catch (err) {
+    console.error('[Supabase loadAll exception]', { siteId: CURRENT_SITE_ID, err });
     return null;
   }
 };
@@ -52,12 +64,18 @@ export const loadMetaFromSupabase = async (): Promise<Array<Pick<SupabaseRow, 'k
   if (!isSupabaseConfigured()) return null;
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/${TABLE}?select=key,updated_at`,
+      `${SUPABASE_URL}/rest/v1/${TABLE}?select=key,updated_at&site_id=eq.${SITE_ID_QUERY}`,
       { headers: headers() }
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      let body = '';
+      try { body = await res.text(); } catch {}
+      console.error('[Supabase loadMeta error]', { siteId: CURRENT_SITE_ID, status: res.status, body });
+      return null;
+    }
     return await res.json() as Array<Pick<SupabaseRow, 'key' | 'updated_at'>>;
-  } catch {
+  } catch (err) {
+    console.error('[Supabase loadMeta exception]', { siteId: CURRENT_SITE_ID, err });
     return null;
   }
 };
@@ -71,12 +89,18 @@ export const loadKeysFromSupabase = async (keys: string[]): Promise<SupabaseRow[
       .map(k => `"${String(k).replace(/"/g, '\\"')}"`)
       .join(',');
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/${TABLE}?select=key,value,updated_at&key=in.(${encoded})`,
+      `${SUPABASE_URL}/rest/v1/${TABLE}?select=site_id,key,value,updated_at&site_id=eq.${SITE_ID_QUERY}&key=in.(${encoded})`,
       { headers: headers() }
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      let body = '';
+      try { body = await res.text(); } catch {}
+      console.error('[Supabase loadKeys error]', { siteId: CURRENT_SITE_ID, keys, status: res.status, body });
+      return null;
+    }
     return await res.json() as SupabaseRow[];
-  } catch {
+  } catch (err) {
+    console.error('[Supabase loadKeys exception]', { siteId: CURRENT_SITE_ID, keys, err });
     return null;
   }
 };
@@ -89,24 +113,79 @@ export const saveToSupabase = async (
   ts:    string  // timestamp ISO généré par l'appelant au moment de la frappe
 ): Promise<string | null> => {
   if (!isSupabaseConfigured()) return null;
+  const payload = { site_id: CURRENT_SITE_ID, key, value, updated_at: ts };
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/${TABLE}?on_conflict=key`,
+      `${SUPABASE_URL}/rest/v1/${TABLE}?on_conflict=${SITE_KEY_CONFLICT}`,
       {
         method:  'POST',
         headers: { ...headers(), 'Prefer': 'resolution=merge-duplicates,return=minimal' },
-        body:    JSON.stringify([{ key, value, updated_at: ts }]),
+        body:    JSON.stringify([payload]),
       }
     );
-    if (!res.ok) {
+    if (res.ok) return ts; // Supabase a accepté notre timestamp
+
+    {
       let body = '';
       try { body = await res.text(); } catch {}
-      console.error('[Supabase save error]', key, res.status, body);
-      return null;
+      console.error('[Supabase save error]', {
+        siteId: CURRENT_SITE_ID,
+        key,
+        status: res.status,
+        body,
+        payload: { site_id: CURRENT_SITE_ID, key, updated_at: ts },
+      });
     }
-    return ts; // Supabase a accepté notre timestamp
+
+    const updateRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/${TABLE}?site_id=eq.${SITE_ID_QUERY}&key=eq.${encodeURIComponent(key)}&select=key`,
+      {
+        method: 'PATCH',
+        headers: { ...headers(), 'Prefer': 'return=representation' },
+        body: JSON.stringify({ value, updated_at: ts }),
+      }
+    );
+
+    if (updateRes.ok) {
+      const updatedRows = await updateRes.json().catch(() => []);
+      if (Array.isArray(updatedRows) && updatedRows.length > 0) return ts;
+    } else {
+      let body = '';
+      try { body = await updateRes.text(); } catch {}
+      console.error('[Supabase fallback update error]', {
+        siteId: CURRENT_SITE_ID,
+        key,
+        status: updateRes.status,
+        body,
+      });
+    }
+
+    const insertRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/${TABLE}`,
+      {
+        method: 'POST',
+        headers: { ...headers(), 'Prefer': 'return=minimal' },
+        body: JSON.stringify([payload]),
+      }
+    );
+
+    if (insertRes.ok) return ts;
+
+    {
+      let body = '';
+      try { body = await insertRes.text(); } catch {}
+      console.error('[Supabase fallback insert error]', {
+        siteId: CURRENT_SITE_ID,
+        key,
+        status: insertRes.status,
+        body,
+        payload: { site_id: CURRENT_SITE_ID, key, updated_at: ts },
+      });
+    }
+
+    return null;
   } catch (err) {
-    console.error('[Supabase save exception]', key, err);
+    console.error('[Supabase save exception]', { siteId: CURRENT_SITE_ID, key, err });
     return null;
   }
 };
@@ -142,7 +221,7 @@ export const saveToSupabaseDebounced = (
     if (cloudTs && cloudTs > localTs) {
       // Le cloud est plus récent → ne pas écraser
       // (un autre device a écrit après nous, le polling va appliquer sa valeur)
-      console.log(`[LWW] Skipping save for "${key}" — cloud (${cloudTs}) > local (${localTs})`);
+      console.error('[Supabase save skipped by LWW]', { siteId: CURRENT_SITE_ID, key, cloudTs, localTs });
       return;
     }
     const confirmedTs = await saveToSupabase(key, value, localTs);

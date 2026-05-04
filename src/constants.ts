@@ -39,8 +39,13 @@ export const MONTH_KEY_TO_NAME: Record<string, string> = {
   sep: 'Septembre', oct: 'Octobre', nov: 'Novembre', dec: 'Décembre',
 };
 
+// Site courant utilisé pour isoler Supabase et le stockage local.
+// Garder hippo_thillois en défaut protège les données existantes.
+export const CURRENT_SITE_ID =
+  (import.meta.env.VITE_SITE_ID as string | undefined)?.trim() || 'hippo_thillois';
+
 // Préfixe utilisé pour toutes les clés localStorage
-export const STORAGE_PREFIX = 'hippo_v6_';
+export const STORAGE_PREFIX = `hippo_v6_${CURRENT_SITE_ID}_`;
 
 // Types de vues de navigation
 export type CoreView =

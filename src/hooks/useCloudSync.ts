@@ -5,8 +5,8 @@
 // Remplace l'ancien polling par un channel postgres_changes.
 //
 // ANTI-CLIGNOTEMENT :
-//   Quand une update externe arrive sur une clé "saisie active"
-//   (orderStates, products, covers, dailyCovers), on vérifie si
+//   Quand une update externe arrive sur une clé de commande en saisie active
+//   (orderStates), on vérifie si
 //   l'utilisateur a un input en focus. Si oui → on met l'update
 //   en file d'attente (pendingRealtimeRef). Dès que l'utilisateur
 //   quitte le champ (focusout global), on applique la file.
@@ -24,6 +24,7 @@ import {
 } from '../utils/supabase';
 import { OrderState, SupplierConfig, PrepBatch, PrepItem, PrepImportsByMonth, PrepForecastsByDate } from '../types';
 import { ProductWithHistory } from '../data';
+import { CURRENT_SITE_ID } from '../constants';
 import { DailyCoversState } from '../utils/dateHelpers';
 import {
   mergeAndNormalizeProducts,
@@ -82,7 +83,6 @@ type UseCloudSyncParams = PersistedState &
 // ait fini de saisir avant d'être appliquées (anti-clignotement)
 const DEFER_WHILE_TYPING = new Set<string>([
   'orderStates',
-  'products',
 ]);
 
 // Le Realtime reste volontairement limité au flux commande.
@@ -91,7 +91,6 @@ const DEFER_WHILE_TYPING = new Set<string>([
 // inutile et des re-renders sur des écrans non opérationnels.
 const REALTIME_KEYS = new Set<string>([
   'orderStates',
-  'products',
   'deliveryDateBySupplier',
   'nextDeliveryDateBySupplier',
 ]);
@@ -385,12 +384,13 @@ export const useCloudSync = ({
     if (!supabaseLoaded || !isSupabaseConfigured() || !supabase) return;
 
     const channel = supabase
-      .channel('app_state_sync')
+      .channel(`app_state_sync:${CURRENT_SITE_ID}`)
       .on(
         'postgres_changes' as any,
-        { event: '*', schema: 'public', table: 'app_state' },
+        { event: '*', schema: 'public', table: 'app_state', filter: `site_id=eq.${CURRENT_SITE_ID}` },
         (payload: any) => {
-          const row = payload.new as { key: string; value: unknown; updated_at: string } | null;
+          const row = payload.new as { site_id?: string; key: string; value: unknown; updated_at: string } | null;
+          if (row?.site_id && row.site_id !== CURRENT_SITE_ID) return;
           if (!row?.key || !row?.updated_at) return;
           handleRealtimeEvent(row.key, row.updated_at, row.value);
         }
@@ -421,9 +421,11 @@ export const useCloudSync = ({
     if (!CLOUD_ONLY_KEYS.has(key)) {
       saveState(key, value, onSaveError);
     }
-    lastPersistedSignatureByKey.current[key] = signature;
   
-    if (isHydratingFromCloud.current || !supabaseLoaded || !isSupabaseConfigured()) return;
+    if (isHydratingFromCloud.current || !supabaseLoaded || !isSupabaseConfigured()) {
+      lastPersistedSignatureByKey.current[key] = signature;
+      return;
+    }
 
     const ts = nowIso();
     localTsByKey.current[key] = ts;
