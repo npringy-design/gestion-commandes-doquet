@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View } from '../constants';
+import { ACTIVE_SITE_STORAGE_KEY, SITES, View } from '../constants';
 import { PasswordModal } from '../components/Modals';
 import { useAuth } from '../auth/AuthProvider';
 import { isSupabaseConfigured as isAuthConfigured } from '../lib/supabaseClient';
@@ -148,7 +148,7 @@ const TileButton: React.FC<HomeTile> = ({ title, subtitle, onClick, icon, tone, 
 const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const { profile, user, signOut } = useAuth();
+  const { profile, user, signOut, activeSiteId, availableSiteIds, setActiveSiteId } = useAuth();
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -169,6 +169,9 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   const canSeeStats = canAccessStatsPage(profile);
   const canOpenAdmin = canAccessAdminDashboard(profile);
   const showStats = !isMobile && canSeeStats;
+  const activeSite = SITES[activeSiteId] ?? SITES.hippo_thillois;
+  const siteDisplayName = activeSite.name.replace(/^Hippo\s+/i, '');
+  const canSwitchSite = availableSiteIds.length > 1;
 
   const mainTiles: HomeTile[] = [
     {
@@ -272,8 +275,31 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
     setView('home');
   };
 
+  const handleSwitchSite = () => {
+    if (!canSwitchSite) return;
+    try {
+      window.sessionStorage.removeItem(ACTIVE_SITE_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+    window.location.reload();
+  };
+
   const pageActions = (
     <div className="mb-4 flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+      <div className="inline-flex items-center gap-2 rounded-lg border border-[#D99A4A] bg-[#FFF8E8] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#512A16] shadow-[0_10px_22px_rgba(26,13,8,0.18)] sm:px-4 sm:py-3 sm:text-[12px]">
+        <span>{activeSite.name}</span>
+        {canSwitchSite ? (
+          <button
+            type="button"
+            onClick={handleSwitchSite}
+            className="rounded-md bg-[#512A16] px-2 py-1 text-[9px] text-white sm:text-[10px]"
+          >
+            Changer
+          </button>
+        ) : null}
+      </div>
+
       {isAuthConfigured() && user ? (
         <button
           onClick={handleSignOut}
@@ -415,7 +441,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
                 <div>
                   <h1 className="restaurant-title max-w-[760px] text-[3.35rem] font-bold leading-[0.9] text-[#FFF6E8] drop-shadow-[0_8px_18px_rgba(0,0,0,0.42)] sm:text-[4.9rem] lg:text-[6rem]">
                     Hippopotamus
-                    <span className="restaurant-script mt-2 block text-[4rem] font-normal leading-[0.78] text-[#F6B24A] sm:text-[5.8rem] lg:text-[7.2rem]">Thillois</span>
+                    <span className="restaurant-script mt-2 block text-[4rem] font-normal leading-[0.78] text-[#F6B24A] sm:text-[5.8rem] lg:text-[7.2rem]">{siteDisplayName}</span>
                   </h1>
                 </div>
               </div>
