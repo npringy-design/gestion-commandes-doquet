@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { MONTHS_DISPLAY_CONFIG, MONTH_KEY_TO_NAME, STORAGE_PREFIX, View } from '../constants';
+import { MONTHS_DISPLAY_CONFIG, MONTH_KEY_TO_NAME, View } from '../constants';
 import AppNavTile from '../components/AppNavTile';
 import AiAssistantDrawer from '../components/AiAssistantDrawer';
 import type { TakeRateMappingRow } from './TakeRatePage';
@@ -14,15 +14,8 @@ interface TakeRateResultsPageProps {
 
 type SortKey = 'takeRate' | 'sales' | 'marginTotal';
 
-const STORAGE_KEYS = [
-  `${STORAGE_PREFIX}take_rate_rows_v3`,
-  `${STORAGE_PREFIX}take_rate_rows_v2`,
-  `${STORAGE_PREFIX}take_rate_rows_v1`,
-];
-const TAKE_RATE_BASE_ROWS_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_base_rows_v1`;
 const TAKE_RATE_FROZEN_CLOUD_KEY = 'takeRateFrozenMonths';
 const TAKE_RATE_BASE_ROWS_CLOUD_KEY = 'takeRateBaseRows';
-const TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY = `${STORAGE_PREFIX}take_rate_frozen_months_v1`;
 
 interface TakeRateMonthSnapshot {
   rows?: TakeRateMappingRow[];
@@ -212,28 +205,10 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
   useEffect(() => {
     let cancelled = false;
 
-    const loadLegacyRows = () => {
-      const rawBase = localStorage.getItem(TAKE_RATE_BASE_ROWS_STORAGE_KEY);
-      if (rawBase) {
-        const parsedBase = JSON.parse(rawBase);
-        if (Array.isArray(parsedBase)) return parsedBase;
-      }
-      for (const key of STORAGE_KEYS) {
-        const raw = localStorage.getItem(key);
-        if (!raw) continue;
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          return parsed;
-        }
-      }
-      return [];
-    };
-
     const run = async () => {
       try {
-        const rawFrozen = localStorage.getItem(TAKE_RATE_FROZEN_MONTHS_STORAGE_KEY);
-        let nextFrozen = rawFrozen ? JSON.parse(rawFrozen) : {};
-        let nextBaseRows = loadLegacyRows();
+        let nextFrozen = {};
+        let nextBaseRows: TakeRateMappingRow[] = [];
 
         if (isSupabaseConfigured()) {
           const cloud = await loadAllFromSupabase();
@@ -249,7 +224,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
         setBaseRows(nextBaseRows.map(normalizeResultRow));
         setFrozenMonths(nextFrozen && typeof nextFrozen === 'object' ? nextFrozen : {});
       } catch (_error) {
-        if (!cancelled) setRows(loadLegacyRows().map(normalizeResultRow));
+        if (!cancelled) setRows([]);
       }
     };
 
@@ -283,20 +258,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
       return;
     }
 
-    try {
-      for (const key of STORAGE_KEYS) {
-        const raw = localStorage.getItem(key);
-        if (!raw) continue;
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          setRows(parsed.map(normalizeResultRow));
-          return;
-        }
-      }
-      setRows([]);
-    } catch (_error) {
-      setRows([]);
-    }
+    setRows([]);
   }, [baseRows, frozenMonths, selectedMonth]);
 
   const monthSalesMap = useMemo(

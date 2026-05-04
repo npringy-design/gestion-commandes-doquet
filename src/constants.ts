@@ -39,12 +39,42 @@ export const MONTH_KEY_TO_NAME: Record<string, string> = {
   sep: 'Septembre', oct: 'Octobre', nov: 'Novembre', dec: 'Décembre',
 };
 
-// Site courant utilisé pour isoler Supabase et le stockage local.
+export const SITES = {
+  hippo_thillois: {
+    id: 'hippo_thillois',
+    name: 'Hippo Thillois',
+  },
+  hippo_st_thibault: {
+    id: 'hippo_st_thibault',
+    name: 'Hippo St Thibault',
+  },
+} as const;
+
+export type SiteId = keyof typeof SITES;
+
+export const ACTIVE_SITE_STORAGE_KEY = 'hippo_active_site_id';
+
+export const isSiteId = (value: unknown): value is SiteId =>
+  typeof value === 'string' && value in SITES;
+
+const configuredSiteId = (import.meta.env.VITE_SITE_ID as string | undefined)?.trim();
+
+const readStoredSiteId = (): SiteId | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = window.sessionStorage.getItem(ACTIVE_SITE_STORAGE_KEY);
+    return isSiteId(stored) ? stored : null;
+  } catch {
+    return null;
+  }
+};
+
+// Site courant utilisé pour isoler Supabase.
 // Garder hippo_thillois en défaut protège les données existantes.
 export const CURRENT_SITE_ID =
-  (import.meta.env.VITE_SITE_ID as string | undefined)?.trim() || 'hippo_thillois';
+  isSiteId(configuredSiteId) ? configuredSiteId : (readStoredSiteId() ?? 'hippo_thillois');
 
-// Préfixe utilisé pour toutes les clés localStorage
+// Préfixe réservé aux préférences d'interface locales, pas aux données métier.
 export const STORAGE_PREFIX = `hippo_v6_${CURRENT_SITE_ID}_`;
 
 // Types de vues de navigation

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { ACTIVE_SITE_STORAGE_KEY, CURRENT_SITE_ID, SITES, isSiteId, type SiteId } from '../constants';
 
 export type AppRole =
   | 'super_admin'
@@ -17,6 +18,7 @@ export type AppProfile = {
   full_name?: string | null;
   email?: string | null;
   access_scope?: 'all' | 'current_site' | null;
+  site_ids?: SiteId[];
   protected_user?: boolean;
 };
 
@@ -27,11 +29,16 @@ type AuthContextValue = {
   loading: boolean;
   isAdmin: boolean;
   isActive: boolean;
+  activeSiteId: SiteId;
+  availableSiteIds: SiteId[];
+  setActiveSiteId: (siteId: SiteId) => void;
   signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 const AUTH_TIMEOUT_MS = 7000;
+const ALL_SITE_IDS = Object.keys(SITES) as SiteId[];
+const isGlobalSiteRole = (role?: string | null) => role === 'super_admin' || role === 'global_admin';
 
 async function withTimeout<T>(promise: PromiseLike<T>, label: string, timeoutMs = AUTH_TIMEOUT_MS): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -96,7 +103,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (error) console.warn('[auth] Profil indisponible:', error.message);
           setProfile(null);
         } else {
-          setProfile(data as AppProfile);
+          const baseProfile = data as AppProfile;
+          let siteIds: SiteId[] = [];
+
+          if (isGlobalSiteRole(baseProfile.role) || baseProfile.access_scope === 'all') {
+            siteIds = ALL_SITE_IDS;
+          } else {
+            const { data: accessRows, error: accessError } = await supabase
+              .from('user_site_access')
+              .select('site_id, is_active')
+              .eq('user_id', userId);
+
+            if (accessError) {
+              console.warn('[auth] Acces sites indisponibles:', accessError.message);
+            }
+
+            siteIds = (accessRows ?? [])
+              .filter((row: any) => row?.is_active && isSiteId(row.site_id))
+              .map((row: any) => row.site_id as SiteId);
+
+            if (siteIds.length === 0) siteIds = ['hippo_thillois'];
+          }
+
+          const nextProfile = { ...baseProfile, site_ids: siteIds };
+          setProfile(nextProfile);
+
+          if (!siteIds.includes(CURRENT_SITE_ID as SiteId)) {
+            try {
+              window.sessionStorage.setItem(ACTIVE_SITE_STORAGE_KEY, siteIds[0]);
+              window.location.reload();
+            } catch {
+              // ignore
+            }
+          }
         }
       } catch (error) {
         console.warn('[auth] Erreur lors du chargement du profil:', error);
@@ -153,6 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const value = useMemo<AuthContextValue>(() => {
     const isActive = profile?.is_active ?? true;
     const isAdmin = ['super_admin', 'global_admin', 'director', 'manager_plus'].includes(profile?.role ?? '') && isActive;
+    const availableSiteIds = profile?.site_ids?.length ? profile.site_ids : [CURRENT_SITE_ID as SiteId];
 
     return {
       session,
@@ -161,8 +201,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       loading: loadingSession || loadingProfile,
       isAdmin,
       isActive,
+      activeSiteId: CURRENT_SITE_ID as SiteId,
+      availableSiteIds,
+      setActiveSiteId: (siteId: SiteId) => {
+        if (!availableSiteIds.includes(siteId)) return;
+        try {
+          window.sessionStorage.setItem(ACTIVE_SITE_STORAGE_KEY, siteId);
+        } catch {
+          // ignore
+        }
+        window.location.reload();
+      },
       signOut: async () => {
         if (!supabase) return;
+        try {
+          window.sessionStorage.removeItem(ACTIVE_SITE_STORAGE_KEY);
+        } catch {
+          // ignore
+        }
         await supabase.auth.signOut();
       },
     };

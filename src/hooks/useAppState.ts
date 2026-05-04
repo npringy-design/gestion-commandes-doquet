@@ -16,7 +16,7 @@ import {
   ProductWithHistory,
   DAILY_COVERS_INITIAL,
 } from '../data';
-import { OrderState, SupplierConfig, PrepBatch, PrepItem, PrepImportsByMonth, PrepForecastsByDate } from '../types';
+import { OrderState, SupplierConfig, PrepBatch, PrepItem, PrepImportsByMonth, PrepForecastsByDate, PrepSheetStocks } from '../types';
 import { MONTHS_ORDER, View, SupplierId } from '../constants';
 import { DailyCoversState } from '../utils/dateHelpers';
 import { getImportedValueForProduct, extractAllNamesFromCsvs } from '../utils/csvHelpers';
@@ -88,56 +88,54 @@ export const useAppState = () => {
   // Sélection multi-produits (page Ratios)
   const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
 
-  // --- États persistés (localStorage) ---
+  // --- Etats metier persistés dans Supabase ---
   const [deliveryDateBySupplier, setDeliveryDateBySupplier] =
-    useState<Record<string, string>>(() => loadState('deliveryDateBySupplier', {}));
+    useState<Record<string, string>>({});
 
   const [nextDeliveryDateBySupplier, setNextDeliveryDateBySupplier] =
-    useState<Record<string, string>>(() => loadState('nextDeliveryDateBySupplier', {}));
+    useState<Record<string, string>>({});
 
   const [covers, setCovers] =
-    useState<Record<string, number>>(() => loadState('covers', INITIAL_COVERS));
+    useState<Record<string, number>>(INITIAL_COVERS);
 
   const [dailyCovers, setDailyCovers] =
-    useState<DailyCoversState>(() => loadState('dailyCovers', DAILY_COVERS_INITIAL));
+    useState<DailyCoversState>(DAILY_COVERS_INITIAL);
 
   const [orderStates, setOrderStates] =
-    useState<Record<string, OrderState>>(() => loadState('orderStates', {}));
+    useState<Record<string, OrderState>>({});
 
   const [detailedInventory, setDetailedInventory] =
     useState<Record<string, string>>({});
 
   const [salesHtByMonth, setSalesHtByMonth] =
-    useState<Record<string, number>>(() => loadState('salesHtByMonth', INITIAL_COVERS));
+    useState<Record<string, number>>(INITIAL_COVERS);
 
   const [costMatterByMonth, setCostMatterByMonth] =
-    useState<Record<string, number>>(() => loadState('costMatterByMonth', INITIAL_COVERS));
+    useState<Record<string, number>>(INITIAL_COVERS);
 
   // Figeage propre à la page Calcul vente ratio.
   // On garde la clé cloud existante `validatedMonths` pour ne pas casser la synchro Supabase,
   // mais on n'expose plus ce verrou à la page Paramètres.
   const [ratioValidatedMonths, setRatioValidatedMonths] =
-    useState<Record<string, boolean>>(() =>
-      loadState('ratioValidatedMonths', loadState('validatedMonths', {} as Record<string, boolean>))
-    );
+    useState<Record<string, boolean>>({});
 
   // La page Paramètres doit rester modifiable : le figé ratio ne doit pas la verrouiller.
   const validatedMonths = useMemo<Record<string, boolean>>(() => ({}), []);
 
   const [prepValidatedMonths, setPrepValidatedMonths] =
-    useState<Record<string, boolean>>(() => loadState('prepValidatedMonths', {}));
+    useState<Record<string, boolean>>({});
 
   const [supplierConfigs, setSupplierConfigs] =
-useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(loadState<Record<string, SupplierConfig>>('supplierConfigs', {})));
+useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults({}));
 
   const [products, setProducts] = useState<ProductWithHistory[]>(() =>
-    createInitialProducts(loadState('products', [] as ProductWithHistory[]))
+    createInitialProducts([])
   );
 
   // Produits supprimés volontairement dans Calcul vente ratio.
   // Garde-fou contre un rechargement cloud/import qui réinjecte les produits quelques secondes après.
   const [deletedRatioProductIds, setDeletedRatioProductIds] =
-    useState<string[]>(() => loadState('deletedRatioProductIds', [] as string[]));
+    useState<string[]>([]);
 
   const deletedRatioProductIdSet = useMemo(
     () => new Set(deletedRatioProductIds),
@@ -161,16 +159,19 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
   }, [deletedRatioProductIdSet]);
 
   const [prepItems, setPrepItems] =
-    useState<PrepItem[]>(() => loadState('prepItems', [] as PrepItem[]));
+    useState<PrepItem[]>([]);
 
   const [prepImportsByMonth, setPrepImportsByMonth] =
     useState<PrepImportsByMonth>({});
 
+  const [prepSheetStocks, setPrepSheetStocks] =
+    useState<PrepSheetStocks>({});
+
   const [prepBatches, setPrepBatches] =
-    useState<PrepBatch[]>(() => loadState('prepBatches', [] as PrepBatch[]));
+    useState<PrepBatch[]>([]);
 
   const [prepForecasts, setPrepForecasts] =
-    useState<PrepForecastsByDate>(() => loadState('prepForecasts', {}));
+    useState<PrepForecastsByDate>({});
 
   useEffect(() => {
     try {
@@ -188,10 +189,6 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     saveState('ratioTab', ratioTab, onSaveError);
   }, [ratioTab]);
 
-  useEffect(() => {
-    saveState('ratioValidatedMonths', ratioValidatedMonths, onSaveError);
-  }, [ratioValidatedMonths]);
-
   const { supabaseLoaded, syncStatus } = useCloudSync({
     covers,
     dailyCovers,
@@ -207,6 +204,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     products: visibleProducts,
     prepItems,
     prepImportsByMonth,
+    prepSheetStocks,
     prepBatches,
     prepForecasts,
     setCovers,
@@ -223,14 +221,11 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     setProducts: setProductsWithoutDeleted,
     setPrepItems,
     setPrepImportsByMonth,
+    setPrepSheetStocks,
     setPrepBatches,
     setPrepForecasts,
     onSaveError,
   });
-
-  useEffect(() => {
-    saveState('deletedRatioProductIds', deletedRatioProductIds, onSaveError);
-  }, [deletedRatioProductIds]);
 
   useEffect(() => {
     if (!deletedRatioProductIdSet.size) return;
@@ -476,6 +471,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     products: visibleProducts, setProducts: setProductsWithoutDeleted,
     prepItems, setPrepItems,
     prepImportsByMonth, setPrepImportsByMonth,
+    prepSheetStocks, setPrepSheetStocks,
     prepBatches, setPrepBatches,
     prepForecasts, setPrepForecasts,
 

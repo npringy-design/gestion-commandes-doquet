@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View } from '../constants';
+import { SITES, View, type SiteId } from '../constants';
 import { useAuth } from '../auth/AuthProvider';
 import { useToast } from '../components/Toast';
 import AppNavTile from '../components/AppNavTile';
@@ -14,6 +14,7 @@ type UserRow = {
   role: Role;
   is_active: boolean;
   access_scope?: 'all' | 'current_site';
+  site_ids?: SiteId[];
   protected_user?: boolean;
   created_at: string;
   updated_at?: string;
@@ -59,6 +60,7 @@ const [loadError, setLoadError] = useState<string | null>(null);
   const [formFullName, setFormFullName] = useState('');
   const [formTempPassword, setFormTempPassword] = useState('');
   const [formRole, setFormRole] = useState<Role>('commande');
+  const [formSiteIds, setFormSiteIds] = useState<SiteId[]>(['hippo_thillois']);
 
   const bearer = session?.access_token;
 
@@ -130,6 +132,18 @@ setLoadError(msg);
   const isSuperAdmin = currentUserRole === 'super_admin';
   const creatableRoles = getCreatableRoles(profile) as Role[];
   const isCreateOnlyUserManagement = currentUserRole === 'manager_plus';
+  const siteOptions = Object.values(SITES);
+  const isGlobalRole = (role: Role) => role === 'super_admin' || role === 'global_admin';
+
+  const toggleFormSite = (siteId: SiteId) => {
+    setFormSiteIds((prev) => {
+      if (prev.includes(siteId)) {
+        const next = prev.filter((id) => id !== siteId);
+        return next.length > 0 ? next : prev;
+      }
+      return [...prev, siteId];
+    });
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,6 +151,10 @@ setLoadError(msg);
     if (!formEmail.trim()) return showToast('Email requis.', 'warning');
     if (!formTempPassword || formTempPassword.length < 8) {
       return showToast('Mot de passe temporaire minimum 8 caractères.', 'warning');
+    }
+
+    if (!isGlobalRole(formRole) && formSiteIds.length === 0) {
+      return showToast('Choisis au moins un site.', 'warning');
     }
 
     setCreateLoading(true);
@@ -148,6 +166,7 @@ setLoadError(msg);
           fullName: formFullName.trim() || null,
           tempPassword: formTempPassword,
           role: formRole,
+          siteIds: isGlobalRole(formRole) ? undefined : formSiteIds,
         }),
       });
 
@@ -157,6 +176,7 @@ setLoadError(msg);
       setFormFullName('');
       setFormTempPassword('');
       setFormRole('commande');
+      setFormSiteIds(['hippo_thillois']);
       await loadUsers();
     } catch (error: any) {
       showToast(error?.message || 'Erreur lors de la création.', 'error');
@@ -168,9 +188,14 @@ setLoadError(msg);
   const updateRole = async (id: string, role: Role) => {
     setActionId(id);
     try {
+      const current = users.find((u) => u.id === id);
       const data = await request('/api/admin/users/update', {
         method: 'PATCH',
-        body: JSON.stringify({ id, role }),
+        body: JSON.stringify({
+          id,
+          role,
+          siteIds: isGlobalRole(role) ? undefined : (current?.site_ids ?? ['hippo_thillois']),
+        }),
       });
       const updatedUser = data?.user as Partial<UserRow> | undefined;
       if (updatedUser) {
@@ -192,6 +217,29 @@ setLoadError(msg);
     } catch (error: any) {
       await loadUsers();
       showToast(error?.message || 'Impossible de modifier le rôle.', 'error');
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const updateUserSites = async (id: string, siteIds: SiteId[]) => {
+    if (siteIds.length === 0) return showToast('Choisis au moins un site.', 'warning');
+    setActionId(id);
+    try {
+      const data = await request('/api/admin/users/update', {
+        method: 'PATCH',
+        body: JSON.stringify({ id, siteIds }),
+      });
+      const updatedUser = data?.user as Partial<UserRow> | undefined;
+      if (updatedUser) {
+        setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...updatedUser } : u)));
+      } else {
+        await loadUsers();
+      }
+      showToast('Sites mis a jour.', 'success');
+    } catch (error: any) {
+      await loadUsers();
+      showToast(error?.message || 'Impossible de modifier les sites.', 'error');
     } finally {
       setActionId(null);
     }
@@ -294,6 +342,7 @@ if (!canAccessUserManagement(profile)) {
                   <th className="p-3 text-left text-[11px] font-black uppercase tracking-wider">Email</th>
                   <th className="p-3 text-left text-[11px] font-black uppercase tracking-wider">Nom</th>
                   <th className="p-3 text-left text-[11px] font-black uppercase tracking-wider">Rôle</th>
+                  <th className="p-3 text-left text-[11px] font-black uppercase tracking-wider">Sites</th>
                   <th className="p-3 text-left text-[11px] font-black uppercase tracking-wider">Statut</th>
                   <th className="p-3 text-left text-[11px] font-black uppercase tracking-wider">Créé le</th>
                   <th className="p-3 text-left text-[11px] font-black uppercase tracking-wider">Actions</th>
@@ -303,7 +352,7 @@ if (!canAccessUserManagement(profile)) {
               <tbody>
                 {loading && (
                   <tr>
-                    <td colSpan={6} className="p-10 text-center">
+                    <td colSpan={7} className="p-10 text-center">
                       <div className="inline-flex items-center gap-3 text-slate-500 font-bold">
                         <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
                         Chargement des utilisateurs...
@@ -314,7 +363,7 @@ if (!canAccessUserManagement(profile)) {
 
 {!loading && loadError && (
   <tr>
-    <td colSpan={6} className="p-6 text-center">
+    <td colSpan={7} className="p-6 text-center">
       <div className="inline-flex flex-col items-center gap-3">
         <p className="text-red-600 font-bold">{loadError}</p>
         <button
@@ -330,7 +379,7 @@ if (!canAccessUserManagement(profile)) {
 
 {!loading && !loadError && users.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="p-10 text-center text-slate-400 font-bold">
+                    <td colSpan={7} className="p-10 text-center text-slate-400 font-bold">
                       Aucun utilisateur à afficher.
                     </td>
                   </tr>
@@ -349,6 +398,7 @@ if (!canAccessUserManagement(profile)) {
                     const availableRoleOptions = ((u.role === 'super_admin' ? ['super_admin'] : getAssignableRoleOptions(profile, u)) as Role[]).length
                       ? ((u.role === 'super_admin' ? ['super_admin'] : getAssignableRoleOptions(profile, u)) as Role[])
                       : [u.role];
+                    const rowSiteIds = u.site_ids ?? ['hippo_thillois'];
                     return (
                       <tr key={u.id} className="border-t border-slate-100 hover:bg-slate-50/80 transition-colors">
                         <td className="p-3 text-sm font-bold text-slate-700">{u.email || '—'}</td>
@@ -366,6 +416,36 @@ if (!canAccessUserManagement(profile)) {
                               </option>
                             ))}
                           </select>
+                        </td>
+                        <td className="p-3">
+                          {isGlobalRole(u.role) ? (
+                            <span className="inline-flex rounded-full bg-indigo-100 px-2.5 py-1 text-[11px] font-black uppercase text-indigo-700">
+                              Tous sites
+                            </span>
+                          ) : (
+                            <div className="flex flex-col gap-1.5">
+                              {siteOptions.map((site) => {
+                                const checked = rowSiteIds.includes(site.id);
+                                return (
+                                  <label key={`${u.id}-${site.id}`} className="inline-flex items-center gap-2 text-[12px] font-bold text-slate-600">
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      disabled={!canEditRole}
+                                      onChange={() => {
+                                        const next = checked
+                                          ? rowSiteIds.filter((id) => id !== site.id)
+                                          : [...rowSiteIds, site.id];
+                                        void updateUserSites(u.id, next);
+                                      }}
+                                      className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
+                                    />
+                                    {site.name}
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
                         </td>
                         <td className="p-3">
                           <div className="flex flex-wrap items-center gap-2">
@@ -471,6 +551,29 @@ if (!canAccessUserManagement(profile)) {
                   </option>
                 ))}
               </select>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <div className="mb-2 text-[11px] font-black uppercase tracking-wider text-slate-500">Sites autorisés</div>
+                {isGlobalRole(formRole) ? (
+                  <div className="rounded-lg bg-indigo-100 px-3 py-2 text-sm font-black text-indigo-700">
+                    Accès automatique à tous les sites
+                  </div>
+                ) : (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {siteOptions.map((site) => (
+                      <label key={site.id} className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-bold text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={formSiteIds.includes(site.id)}
+                          onChange={() => toggleFormSite(site.id)}
+                          className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
+                        />
+                        {site.name}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <div className="pt-2 flex items-center justify-end gap-2">
                 <button

@@ -1,7 +1,7 @@
 import React from 'react';
 import { MONTHS_DISPLAY_CONFIG, MONTHS_ORDER, type View } from '../constants';
 import AppNavTile from '../components/AppNavTile';
-import type { PrepCategory, PrepImportsByMonth, PrepItem } from '../types';
+import type { PrepCategory, PrepImportsByMonth, PrepItem, PrepSheetStocks } from '../types';
 import { getImportedValueForProduct } from '../utils/csvHelpers';
 import type { DailyCoversState } from '../utils/dateHelpers';
 
@@ -29,6 +29,8 @@ interface PrepSheetPageProps {
   dailyCovers: DailyCoversState;
   covers: Record<string, number>;
   prepImportsByMonth: PrepImportsByMonth;
+  prepSheetStocks: PrepSheetStocks;
+  setPrepSheetStocks: React.Dispatch<React.SetStateAction<PrepSheetStocks>>;
 }
 
 type PrepItemExtended = PrepItem & {
@@ -86,10 +88,6 @@ type StandaloneRow = {
 };
 
 type DisplayRow = BaseParentRow | SingleBaseRow | StandaloneRow;
-type StockState = Record<string, number>;
-
-const STOCK_STORAGE_KEY = 'prep-sheet-stocks-v4';
-
 const getBaseProduction = (item: PrepItem) => String((item as PrepItemExtended).baseProduction || '').trim();
 const getUnitWeight = (item: PrepItem) => Number((item as PrepItemExtended).unitWeightGrams || 0);
 const getUnitType = (item: PrepItem): UnitType => ((item as PrepItemExtended).unitType === 'kg' ? 'kg' : 'piece');
@@ -174,31 +172,23 @@ const formatKg = (value: number) => `${value.toFixed(1).replace('.', ',')} kg`;
 const formatUnits = (value: number) => Number.isInteger(value) ? String(value) : value.toFixed(1);
 const buildStockKey = (date: string, category: PrepCategory, rowKey: string) => `${date}__${category}__${rowKey}`;
 
-const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, dailyCovers, covers, prepImportsByMonth }) => {
+const PrepSheetPage: React.FC<PrepSheetPageProps> = ({
+  setView,
+  prepItems,
+  dailyCovers,
+  covers,
+  prepImportsByMonth,
+  prepSheetStocks,
+  setPrepSheetStocks,
+}) => {
   const [selectedDate, setSelectedDate] = React.useState(() => new Date().toISOString().slice(0, 10));
   const [activeCategory, setActiveCategory] = React.useState<PrepCategory | 'all'>('all');
-  const [stocks, setStocks] = React.useState<StockState>({});
-
-  React.useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STOCK_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object') setStocks(parsed);
-    } catch {}
-  }, []);
-
-  React.useEffect(() => {
-    try {
-      localStorage.setItem(STOCK_STORAGE_KEY, JSON.stringify(stocks));
-    } catch {}
-  }, [stocks]);
 
   const coversForDay = React.useMemo(() => getCoversForDate(selectedDate, dailyCovers), [selectedDate, dailyCovers]);
   const monthLabel = React.useMemo(() => MONTHS_DISPLAY_CONFIG.find((m) => m.key === getMonthKeyFromDate(selectedDate))?.label ?? '', [selectedDate]);
 
   const setStockValue = (key: string, value: number) => {
-    setStocks((prev) => ({ ...prev, [key]: Math.max(0, value) }));
+    setPrepSheetStocks((prev) => ({ ...prev, [key]: Math.max(0, value) }));
   };
 
   const groupedRows = React.useMemo(() => {
@@ -242,7 +232,7 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
               unitType: row.unitType,
               needUnits: row.needUnits,
               needKg: row.needKg,
-              stock: Number(stocks[stockKey] || 0),
+              stock: Number(prepSheetStocks[stockKey] || 0),
               toProduce: 0,
               toProduceKg: 0,
               stockKey,
@@ -266,7 +256,7 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
           const existing = merged.get(labelKey);
 
           if (!existing) {
-            const stock = Number(stocks[stockKey] || 0);
+            const stock = Number(prepSheetStocks[stockKey] || 0);
             const toProduce = Math.max(0, Math.ceil(child.needUnits - (child.unitType === 'piece' ? stock : 0)));
             const toProduceKg = roundUpToHalfKg(Math.max(0, child.needKg - (child.unitType === 'kg' ? stock : 0)));
             merged.set(labelKey, {
@@ -299,7 +289,7 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
         if (childrenRows.length === 1) {
           const child = childrenRows[0];
           const stockKey = buildStockKey(selectedDate, category, `singlebase::${baseProduction.toLowerCase()}::${baseUnitType}`);
-          const stock = Number(stocks[stockKey] || 0);
+          const stock = Number(prepSheetStocks[stockKey] || 0);
           displayRows.push({
             kind: 'single_base',
             baseProduction,
@@ -334,7 +324,7 @@ const PrepSheetPage: React.FC<PrepSheetPageProps> = ({ setView, prepItems, daily
 
       return { category, rows: displayRows };
     }).filter((group) => group.rows.length > 0);
-  }, [covers, dailyCovers, prepImportsByMonth, prepItems, selectedDate, stocks]);
+  }, [covers, dailyCovers, prepImportsByMonth, prepItems, prepSheetStocks, selectedDate]);
 
   const visibleGroups = React.useMemo(() => {
     if (activeCategory === 'all') return groupedRows;

@@ -3,6 +3,7 @@ import { assertServerEnv, supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { badRequest, forbidden, methodNotAllowed, sendJson, serverError, unauthorized } from '../../_lib/http.js';
 import { canAssignRole, canManageTarget, canUpdateUsers, MANAGEABLE_ROLES } from '../../_lib/permissions.js';
 import { ensureProfileExists } from '../../_lib/profileProvisioning.js';
+import { isGlobalSiteRole, replaceUserSiteAccess, siteIdsForRole } from '../../_lib/sites.js';
 
 const ALLOWED_ROLES = new Set(MANAGEABLE_ROLES);
 
@@ -19,13 +20,14 @@ export default async function handler(req: any, res: any) {
     }
 
     if (!canUpdateUsers(auth.profile.role)) {
-      return forbidden(res, 'Votre rôle ne peut pas modifier les utilisateurs.');
+      return forbidden(res, 'Votre role ne peut pas modifier les utilisateurs.');
     }
 
     const id = String(req.body?.id ?? '').trim();
     const role = req.body?.role;
     const isActive = req.body?.is_active;
     const fullName = req.body?.full_name;
+    const hasSiteIdsPatch = Object.prototype.hasOwnProperty.call(req.body ?? {}, 'siteIds');
 
     if (!id) return badRequest(res, 'Identifiant utilisateur (id) requis.');
 
@@ -42,48 +44,59 @@ export default async function handler(req: any, res: any) {
     }
 
     const patch: Record<string, unknown> = {};
+    const nextRole = role === undefined ? String(target.role) : String(role);
 
     if (role !== undefined) {
-      const nextRole = String(role);
       if (!ALLOWED_ROLES.has(nextRole)) {
-        return badRequest(res, 'Rôle invalide. Valeurs autorisées: global_admin, director, manager_plus, manager, commande.');
+        return badRequest(res, 'Role invalide. Valeurs autorisees: global_admin, director, manager_plus, manager, commande.');
       }
       if (!canAssignRole(auth.profile.role, nextRole)) {
-        return forbidden(res, 'Vous ne pouvez pas attribuer ce rôle.');
+        return forbidden(res, 'Vous ne pouvez pas attribuer ce role.');
       }
       patch.role = nextRole;
-      patch.access_scope = nextRole === 'global_admin' ? 'all' : 'current_site';
+      patch.access_scope = isGlobalSiteRole(nextRole) ? 'all' : 'current_site';
+    }
+
+    const nextSiteIds = siteIdsForRole(nextRole, hasSiteIdsPatch ? req.body?.siteIds : undefined);
+    if ((hasSiteIdsPatch || role !== undefined) && !isGlobalSiteRole(nextRole) && nextSiteIds.length === 0) {
+      return badRequest(res, 'Choisis au moins un site pour cet utilisateur.');
     }
 
     if (isActive !== undefined) {
       if (typeof isActive !== 'boolean') {
-        return badRequest(res, 'is_active doit être un booléen.');
+        return badRequest(res, 'is_active doit etre un booleen.');
       }
       patch.is_active = isActive;
     }
 
     if (fullName !== undefined) {
       if (fullName !== null && typeof fullName !== 'string') {
-        return badRequest(res, 'full_name doit être une string ou null.');
+        return badRequest(res, 'full_name doit etre une string ou null.');
       }
       patch.full_name = fullName === null ? null : fullName.trim();
     }
 
-    if (Object.keys(patch).length === 0) {
-      return badRequest(res, 'Aucune propriété à mettre à jour (role, is_active, full_name).');
+    if (Object.keys(patch).length === 0 && !hasSiteIdsPatch) {
+      return badRequest(res, 'Aucune propriete a mettre a jour (role, is_active, full_name, siteIds).');
     }
 
-    const { error: updateError } = await supabaseAdmin
-      .from('profiles')
-      .update({
-        ...patch,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id);
+    if (Object.keys(patch).length > 0) {
+      const { error: updateError } = await supabaseAdmin
+        .from('profiles')
+        .update({
+          ...patch,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id);
 
-    if (updateError) {
-      return serverError(res, `Mise à jour impossible: ${updateError.message}`);
+      if (updateError) {
+        return serverError(res, `Mise a jour impossible: ${updateError.message}`);
+      }
     }
+
+    const siteAccess = (hasSiteIdsPatch || role !== undefined)
+      ? await replaceUserSiteAccess(supabaseAdmin, id, nextRole, nextSiteIds)
+      : { siteIds: nextSiteIds, accessScope: target.access_scope };
 
     const { data, error } = await supabaseAdmin
       .from('profiles')
@@ -92,15 +105,15 @@ export default async function handler(req: any, res: any) {
       .maybeSingle();
 
     if (error) {
-      return serverError(res, `Relecture du profil impossible après mise à jour: ${error.message}`);
+      return serverError(res, `Relecture du profil impossible apres mise a jour: ${error.message}`);
     }
 
     return sendJson(res, 200, {
       ok: true,
-      message: 'Profil mis à jour avec succès.',
-      user: data ?? { id, ...target, ...patch },
+      message: 'Profil mis a jour avec succes.',
+      user: { ...(data ?? { id, ...target, ...patch }), site_ids: siteAccess.siteIds },
     });
   } catch (error: any) {
-    return serverError(res, error?.message || 'Erreur inattendue lors de la mise à jour.');
+    return serverError(res, error?.message || 'Erreur inattendue lors de la mise a jour.');
   }
 }

@@ -184,6 +184,8 @@ const AppRouter: React.FC<AppRouterProps> = ({
         dailyCovers={state.dailyCovers}
         covers={state.covers}
         prepImportsByMonth={state.prepImportsByMonth}
+        prepSheetStocks={state.prepSheetStocks}
+        setPrepSheetStocks={state.setPrepSheetStocks}
       />,
       'Chargement de la feuille de mise en place…'
     );

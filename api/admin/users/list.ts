@@ -2,6 +2,7 @@ import { assertServerEnv, supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { forbidden, methodNotAllowed, sendJson, serverError, unauthorized } from '../../_lib/http.js';
 import { requireAdmin } from '../../_lib/auth.js';
 import { ensureProfilesExist } from '../../_lib/profileProvisioning.js';
+import { defaultSiteIdsForRole, isGlobalSiteRole, loadSiteIdsByUser } from '../../_lib/sites.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'GET') return methodNotAllowed(res, ['GET']);
@@ -23,16 +24,23 @@ export default async function handler(req: any, res: any) {
 
     const ids = (data?.users ?? []).map((u) => u.id);
     const profilesMap = await ensureProfilesExist(ids);
+    const siteIdsByUser = await loadSiteIdsByUser(supabaseAdmin, ids);
 
     const users = (data?.users ?? []).map((u) => {
       const p = profilesMap.get(u.id);
+      const role = p?.role ?? 'commande';
+      const storedSiteIds = siteIdsByUser.get(u.id) ?? [];
+      const siteIds = isGlobalSiteRole(role)
+        ? defaultSiteIdsForRole(role)
+        : (storedSiteIds.length > 0 ? storedSiteIds : defaultSiteIdsForRole(role));
       return {
         id: u.id,
         email: p?.email ?? u.email ?? null,
         full_name: p?.full_name ?? u.user_metadata?.full_name ?? u.user_metadata?.name ?? null,
-        role: p?.role ?? 'commande',
+        role,
         is_active: p?.is_active ?? true,
         access_scope: p?.access_scope ?? 'current_site',
+        site_ids: siteIds,
         protected_user: p?.protected_user ?? false,
         created_at: p?.created_at ?? u.created_at,
         updated_at: p?.updated_at ?? u.updated_at,

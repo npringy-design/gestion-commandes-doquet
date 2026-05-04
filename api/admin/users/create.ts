@@ -2,6 +2,7 @@ import { requireAdmin } from '../../_lib/auth.js';
 import { assertServerEnv, supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { badRequest, forbidden, methodNotAllowed, sendJson, serverError, unauthorized } from '../../_lib/http.js';
 import { canAssignRole, canCreateUsers, MANAGEABLE_ROLES } from '../../_lib/permissions.js';
+import { isGlobalSiteRole, replaceUserSiteAccess, siteIdsForRole } from '../../_lib/sites.js';
 
 const ALLOWED_ROLES = new Set(MANAGEABLE_ROLES);
 
@@ -20,6 +21,7 @@ export default async function handler(req: any, res: any) {
     const email = String(req.body?.email ?? '').trim().toLowerCase();
     const tempPassword = String(req.body?.tempPassword ?? '');
     const role = String(req.body?.role ?? 'commande');
+    const siteIds = siteIdsForRole(role, req.body?.siteIds);
     const fullNameRaw = req.body?.fullName;
     const fullName = typeof fullNameRaw === 'string' ? fullNameRaw.trim() : null;
 
@@ -35,6 +37,10 @@ export default async function handler(req: any, res: any) {
     }
     if (!canAssignRole(auth.profile.role, role)) {
       return forbidden(res, 'Vous ne pouvez pas attribuer ce rôle.');
+    }
+
+    if (!isGlobalSiteRole(role) && siteIds.length === 0) {
+      return badRequest(res, 'Choisis au moins un site pour cet utilisateur.');
     }
 
     const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -70,7 +76,7 @@ export default async function handler(req: any, res: any) {
           full_name: fullName,
           role,
           is_active: true,
-          access_scope: role === 'global_admin' ? 'all' : 'current_site',
+          access_scope: isGlobalSiteRole(role) ? 'all' : 'current_site',
           protected_user: false,
         },
         { onConflict: 'id' }
@@ -82,10 +88,12 @@ export default async function handler(req: any, res: any) {
       return serverError(res, `Utilisateur Auth créé mais synchronisation profil échouée: ${profileErr?.message || 'profil non relu'}`);
     }
 
+    const siteAccess = await replaceUserSiteAccess(supabaseAdmin, user.id, role, siteIds);
+
     return sendJson(res, 201, {
       ok: true,
       message: 'Utilisateur créé avec succès.',
-      user: profile,
+      user: { ...profile, site_ids: siteAccess.siteIds },
     });
   } catch (error: any) {
     return serverError(res, error?.message || 'Erreur inattendue lors de la création utilisateur.');

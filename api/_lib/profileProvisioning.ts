@@ -1,4 +1,5 @@
 import { supabaseAdmin } from './supabaseAdmin.js';
+import { isGlobalSiteRole } from './sites.js';
 
 const normalizeRole = (value: unknown): string => {
   const role = typeof value === 'string' ? value : 'commande';
@@ -8,7 +9,7 @@ const normalizeRole = (value: unknown): string => {
 };
 
 const scopeFromRole = (role: string): 'all' | 'current_site' =>
-  role === 'super_admin' || role === 'global_admin' ? 'all' : 'current_site';
+  isGlobalSiteRole(role) ? 'all' : 'current_site';
 
 export const ensureProfileExists = async (userId: string) => {
   const { data: existing, error: existingError } = await supabaseAdmin

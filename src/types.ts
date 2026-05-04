@@ -86,6 +86,7 @@ export interface PrepItem {
 
 export type PrepImportsByMonth = Record<string, string>;
 export type PrepForecastsByDate = Record<string, number>;
+export type PrepSheetStocks = Record<string, number>;
 
 export interface PrepBatch {
   id: string;
