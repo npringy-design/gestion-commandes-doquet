@@ -65,6 +65,7 @@ const [loadError, setLoadError] = useState<string | null>(null);
 
   const [formEmail, setFormEmail] = useState('');
   const [formFullName, setFormFullName] = useState('');
+  const [formTempPassword, setFormTempPassword] = useState('');
   const [formRole, setFormRole] = useState<Role>('commande');
   const [formSiteIds, setFormSiteIds] = useState<SiteId[]>(['hippo_thillois']);
 
@@ -171,6 +172,9 @@ setLoadError(msg);
     e.preventDefault();
 
     if (!formEmail.trim()) return showToast('Email requis.', 'warning');
+    if (!formTempPassword || formTempPassword.length < 8) {
+      return showToast('Mot de passe temporaire minimum 8 caracteres.', 'warning');
+    }
     if (!isGlobalRole(formRole) && formSiteIds.length === 0) {
       return showToast('Choisis au moins un site.', 'warning');
     }
@@ -182,6 +186,7 @@ setLoadError(msg);
         body: JSON.stringify({
           email: formEmail.trim(),
           fullName: formFullName.trim() || null,
+          tempPassword: formTempPassword,
           role: formRole,
           siteIds: isGlobalRole(formRole) ? undefined : formSiteIds,
         }),
@@ -196,6 +201,7 @@ setLoadError(msg);
       setCreateOpen(false);
       setFormEmail('');
       setFormFullName('');
+      setFormTempPassword('');
       setFormRole('commande');
       setFormSiteIds(defaultFormSiteIds);
       await loadUsers();
@@ -553,6 +559,17 @@ if (!canAccessUserManagement(profile)) {
                 placeholder="Nom (optionnel)"
                 className="w-full h-11 px-3 rounded-xl border border-slate-300 font-semibold"
               />
+              <input
+                value={formTempPassword}
+                onChange={(e) => setFormTempPassword(e.target.value)}
+                type="text"
+                placeholder="Mot de passe temporaire"
+                className="w-full h-11 px-3 rounded-xl border border-slate-300 font-semibold"
+                required
+              />
+              <p className="text-xs font-semibold text-slate-500">
+                Utilise seulement si l email Supabase ne part pas: l utilisateur devra le remplacer a la premiere connexion.
+              </p>
               <select
                 value={formRole}
                 onChange={(e) => setFormRole(e.target.value as Role)}
