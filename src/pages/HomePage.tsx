@@ -370,7 +370,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         .home-page-frame {
           min-height: 100dvh;
           padding-top: clamp(1rem, 2.5vh, 1.5rem);
-          padding-bottom: clamp(1rem, 2.5vh, 1.5rem);
+          padding-bottom: clamp(0.35rem, 1.2vh, 0.8rem);
         }
 
         .home-hero {
@@ -411,6 +411,25 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
             font-size: 1.9rem;
           }
         }
+
+        @media (min-width: 1024px) and (max-height: 840px) {
+          .home-page-frame {
+            padding-top: 0.75rem;
+            padding-bottom: 0.35rem;
+          }
+
+          .home-hero {
+            min-height: 205px;
+          }
+
+          .home-tile {
+            min-height: 136px;
+          }
+
+          .home-tile-primary {
+            min-height: 140px;
+          }
+        }
       `}</style>
 
       <div className="home-shell relative min-h-[100dvh] overflow-x-hidden text-[#2E1B12]">
@@ -448,7 +467,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
             </div>
           </header>
 
-          <section className="mb-8">
+          <section className="mb-0">
             <div className="grid gap-4 lg:grid-cols-4">
               {quickAccessTiles.map((tile) => (
                 <TileButton key={tile.title} {...tile} />
