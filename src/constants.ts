@@ -57,6 +57,21 @@ export const ACTIVE_SITE_STORAGE_KEY = 'hippo_active_site_id';
 export const isSiteId = (value: unknown): value is SiteId =>
   typeof value === 'string' && value in SITES;
 
+export type AppEnvironment = 'production' | 'staging' | 'test' | 'development';
+
+const configuredAppEnv = (import.meta.env.VITE_APP_ENV as string | undefined)?.trim().toLowerCase();
+
+export const APP_ENV: AppEnvironment =
+  configuredAppEnv === 'staging' || configuredAppEnv === 'test' || configuredAppEnv === 'development'
+    ? configuredAppEnv
+    : 'production';
+
+export const IS_NON_PRODUCTION_ENV = APP_ENV !== 'production';
+
+export const APP_ENV_LABEL =
+  (import.meta.env.VITE_APP_ENV_LABEL as string | undefined)?.trim()
+  || (APP_ENV === 'production' ? 'PRODUCTION' : 'TEST');
+
 const configuredSiteId = (import.meta.env.VITE_SITE_ID as string | undefined)?.trim();
 
 const readStoredSiteId = (): SiteId | null => {

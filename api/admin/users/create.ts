@@ -5,7 +5,10 @@ import { canAssignRole, canCreateUsers, MANAGEABLE_ROLES } from '../../_lib/perm
 import { canUseSiteIds, isGlobalSiteRole, normalizeSiteIds, replaceUserSiteAccess, siteIdsForRole } from '../../_lib/sites.js';
 
 const ALLOWED_ROLES = new Set(MANAGEABLE_ROLES);
-const INVITE_REDIRECT_URL = 'https://gestion-commandes-doquet.vercel.app';
+const INVITE_REDIRECT_URL =
+  process.env.APP_BASE_URL
+  || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '')
+  || 'https://gestion-commandes-doquet.vercel.app';
 
 const isMailLimitError = (message: string) => {
   const lowered = message.toLowerCase();

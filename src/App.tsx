@@ -11,6 +11,7 @@ import React from 'react';
 import { useAppState } from './hooks/useAppState';
 import { useSyncedHorizontalScroll } from './hooks/useSyncedHorizontalScroll';
 import AppRouter from './components/AppRouter';
+import EnvironmentBanner from './components/EnvironmentBanner';
 
 const App: React.FC = () => {
   const state = useAppState();
@@ -24,13 +25,16 @@ const App: React.FC = () => {
   } = useSyncedHorizontalScroll(view === 'ratios', [view, ratioTab]);
 
   return (
-    <AppRouter
-      state={state}
-      ratiosScrollRef={mainScrollRef}
-      ratiosBottomScrollRef={bottomScrollRef}
-      ratiosScrollWidth={scrollWidth}
-      syncRatiosScroll={syncScroll}
-    />
+    <>
+      <EnvironmentBanner />
+      <AppRouter
+        state={state}
+        ratiosScrollRef={mainScrollRef}
+        ratiosBottomScrollRef={bottomScrollRef}
+        ratiosScrollWidth={scrollWidth}
+        syncRatiosScroll={syncScroll}
+      />
+    </>
   );
 };
 
