@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ACTIVE_SITE_STORAGE_KEY, APP_ENV_LABEL, IS_NON_PRODUCTION_ENV, SITES, View } from '../constants';
+import { ACTIVE_SITE_STORAGE_KEY, SITES, View, getDisplaySiteName, getDisplaySiteShortName } from '../constants';
 import { PasswordModal } from '../components/Modals';
 import { useAuth } from '../auth/AuthProvider';
 import { isSupabaseConfigured as isAuthConfigured } from '../lib/supabaseClient';
@@ -170,8 +170,8 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   const canOpenAdmin = canAccessAdminDashboard(profile);
   const showStats = !isMobile && canSeeStats;
   const activeSite = SITES[activeSiteId] ?? SITES.hippo_thillois;
-  const siteDisplayName = IS_NON_PRODUCTION_ENV ? APP_ENV_LABEL : activeSite.name.replace(/^Hippo\s+/i, '');
-  const activeSiteHeaderLabel = IS_NON_PRODUCTION_ENV ? APP_ENV_LABEL : activeSite.name;
+  const siteDisplayName = getDisplaySiteShortName(activeSite.name);
+  const activeSiteHeaderLabel = getDisplaySiteName(activeSite.name);
   const canSwitchSite = availableSiteIds.length > 1;
 
   const mainTiles: HomeTile[] = [

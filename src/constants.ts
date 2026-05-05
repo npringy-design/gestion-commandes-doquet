@@ -68,9 +68,24 @@ export const APP_ENV: AppEnvironment =
 
 export const IS_NON_PRODUCTION_ENV = APP_ENV !== 'production';
 
+const currentHost = typeof window === 'undefined' ? '' : window.location.hostname.toLowerCase();
+
+export const IS_TEST_RUNTIME =
+  IS_NON_PRODUCTION_ENV
+  || currentHost.includes('test')
+  || currentHost.includes('staging');
+
 export const APP_ENV_LABEL =
   (import.meta.env.VITE_APP_ENV_LABEL as string | undefined)?.trim()
-  || (APP_ENV === 'production' ? 'PRODUCTION' : 'TEST');
+  || (IS_TEST_RUNTIME ? 'TEST' : 'PRODUCTION');
+
+export const getDisplaySiteName = (siteName: string): string =>
+  IS_TEST_RUNTIME ? `${siteName} - TEST` : siteName;
+
+export const getDisplaySiteShortName = (siteName: string): string => {
+  const shortName = siteName.replace(/^Hippo\s+/i, '');
+  return IS_TEST_RUNTIME ? `${shortName} TEST` : shortName;
+};
 
 const configuredSiteId = (import.meta.env.VITE_SITE_ID as string | undefined)?.trim();
 

@@ -4,7 +4,7 @@ import { useAuth } from './AuthProvider';
 import LoginPage from '../pages/LoginPage';
 import ResetPasswordPage from '../pages/ResetPasswordPage';
 import ForcePasswordChangePage from '../pages/ForcePasswordChangePage';
-import { ACTIVE_SITE_STORAGE_KEY, SITES, type SiteId } from '../constants';
+import { ACTIVE_SITE_STORAGE_KEY, SITES, getDisplaySiteName, type SiteId } from '../constants';
 import InactivityTimeout from './InactivityTimeout';
 
 function hasPasswordSetupParams(): boolean {
@@ -93,7 +93,7 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
                   onClick={() => setActiveSiteId(siteId as SiteId)}
                   className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-6 text-left shadow-sm transition hover:border-red-500 hover:bg-red-50"
                 >
-                  <span className="block text-lg font-black uppercase text-slate-900">{site.name}</span>
+                  <span className="block text-lg font-black uppercase text-slate-900">{getDisplaySiteName(site.name)}</span>
                   <span className="mt-2 block text-xs font-bold text-slate-500">{site.id}</span>
                 </button>
               );
