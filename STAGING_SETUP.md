@@ -14,8 +14,8 @@ Dans le projet Supabase test, executer les scripts SQL de structure dans cet ord
 
 1. `SUPABASE_SETUP.sql`
 2. `SUPABASE_PROFILES_SETUP.sql`
-3. `SUPABASE_APP_STATE_RLS_LOCKDOWN.sql`
-4. `SUPABASE_USER_SITE_ACCESS.sql`
+3. `SUPABASE_USER_SITE_ACCESS.sql`
+4. `SUPABASE_APP_STATE_RLS_LOCKDOWN.sql`
 5. `SUPABASE_ENABLE_REALTIME.sql`
 
 Ensuite, creer les utilisateurs de test necessaires dans l'application test ou dans Supabase Auth.

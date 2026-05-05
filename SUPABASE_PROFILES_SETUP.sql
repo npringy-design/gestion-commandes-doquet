@@ -12,7 +12,38 @@ BEGIN
     JOIN pg_namespace n ON n.oid = t.typnamespace
     WHERE t.typname = 'app_role' AND n.nspname = 'public'
   ) THEN
-    CREATE TYPE public.app_role AS ENUM ('admin', 'manager', 'viewer');
+    CREATE TYPE public.app_role AS ENUM (
+      'super_admin',
+      'global_admin',
+      'director',
+      'manager_plus',
+      'manager',
+      'commande'
+    );
+  END IF;
+END
+$$;
+
+-- Compatibilite avec les projets crees avec l'ancien enum admin/manager/viewer.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumtypid = 'public.app_role'::regtype AND enumlabel = 'super_admin') THEN
+    ALTER TYPE public.app_role ADD VALUE 'super_admin';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumtypid = 'public.app_role'::regtype AND enumlabel = 'global_admin') THEN
+    ALTER TYPE public.app_role ADD VALUE 'global_admin';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumtypid = 'public.app_role'::regtype AND enumlabel = 'director') THEN
+    ALTER TYPE public.app_role ADD VALUE 'director';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumtypid = 'public.app_role'::regtype AND enumlabel = 'manager_plus') THEN
+    ALTER TYPE public.app_role ADD VALUE 'manager_plus';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumtypid = 'public.app_role'::regtype AND enumlabel = 'manager') THEN
+    ALTER TYPE public.app_role ADD VALUE 'manager';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumtypid = 'public.app_role'::regtype AND enumlabel = 'commande') THEN
+    ALTER TYPE public.app_role ADD VALUE 'commande';
   END IF;
 END
 $$;
@@ -22,11 +53,37 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   id         UUID PRIMARY KEY REFERENCES auth.users (id) ON DELETE CASCADE,
   email      TEXT NOT NULL,
   full_name  TEXT,
-  role       public.app_role NOT NULL DEFAULT 'viewer',
+  role       public.app_role NOT NULL DEFAULT 'commande',
   is_active  BOOLEAN NOT NULL DEFAULT TRUE,
+  access_scope TEXT NOT NULL DEFAULT 'current_site',
+  protected_user BOOLEAN NOT NULL DEFAULT FALSE,
+  must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS access_scope TEXT NOT NULL DEFAULT 'current_site',
+  ADD COLUMN IF NOT EXISTS protected_user BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE public.profiles
+  ALTER COLUMN role SET DEFAULT 'commande';
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'profiles_access_scope_check'
+      AND conrelid = 'public.profiles'::regclass
+  ) THEN
+    ALTER TABLE public.profiles
+      ADD CONSTRAINT profiles_access_scope_check
+      CHECK (access_scope IN ('all', 'current_site'));
+  END IF;
+END;
+$$;
 
 -- Index utiles
 CREATE INDEX IF NOT EXISTS profiles_role_idx ON public.profiles (role);
@@ -112,7 +169,7 @@ AS $$
     SELECT 1
     FROM public.profiles p
     WHERE p.id = auth.uid()
-      AND p.role = 'admin'
+      AND p.role IN ('super_admin', 'global_admin', 'director', 'manager_plus')
       AND p.is_active = TRUE
   );
 $$;
@@ -164,5 +221,5 @@ USING (public.is_current_user_admin());
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.profiles TO authenticated;
 
 COMMENT ON TABLE public.profiles IS 'Profils applicatifs liés à auth.users pour la gestion des rôles et statuts';
-COMMENT ON COLUMN public.profiles.role IS 'Rôle applicatif: admin | manager | viewer';
+COMMENT ON COLUMN public.profiles.role IS 'Rôle applicatif: super_admin | global_admin | director | manager_plus | manager | commande';
 COMMENT ON COLUMN public.profiles.is_active IS 'Compte actif/inactif côté application';
