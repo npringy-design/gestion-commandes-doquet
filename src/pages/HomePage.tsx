@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ACTIVE_SITE_STORAGE_KEY, SITES, View } from '../constants';
+import { ACTIVE_SITE_STORAGE_KEY, APP_ENV_LABEL, IS_NON_PRODUCTION_ENV, SITES, View } from '../constants';
 import { PasswordModal } from '../components/Modals';
 import { useAuth } from '../auth/AuthProvider';
 import { isSupabaseConfigured as isAuthConfigured } from '../lib/supabaseClient';
@@ -170,7 +170,8 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   const canOpenAdmin = canAccessAdminDashboard(profile);
   const showStats = !isMobile && canSeeStats;
   const activeSite = SITES[activeSiteId] ?? SITES.hippo_thillois;
-  const siteDisplayName = activeSite.name.replace(/^Hippo\s+/i, '');
+  const siteDisplayName = IS_NON_PRODUCTION_ENV ? APP_ENV_LABEL : activeSite.name.replace(/^Hippo\s+/i, '');
+  const activeSiteHeaderLabel = IS_NON_PRODUCTION_ENV ? APP_ENV_LABEL : activeSite.name;
   const canSwitchSite = availableSiteIds.length > 1;
 
   const mainTiles: HomeTile[] = [
@@ -289,7 +290,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
     <div className="mb-4 flex flex-wrap items-center justify-end gap-2 sm:gap-3">
         {canSwitchSite ? (
           <div className="inline-flex items-center gap-2 rounded-lg border border-[#D99A4A] bg-[#FFF8E8] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#512A16] shadow-[0_10px_22px_rgba(26,13,8,0.18)] sm:px-4 sm:py-3 sm:text-[12px]">
-            <span>{activeSite.name}</span>
+            <span>{activeSiteHeaderLabel}</span>
           <button
             type="button"
             onClick={handleSwitchSite}
