@@ -103,7 +103,7 @@ const CLOUD_ONLY_KEYS = new Set<string>([
 
 const SAVE_DEBOUNCE_MS_BY_KEY: Record<string, number> = {
   orderStates: 1200,
-  products: 1200,
+  products: 0,
   deliveryDateBySupplier: 1200,
   nextDeliveryDateBySupplier: 1200,
   covers: 2000,
@@ -342,6 +342,8 @@ export const useCloudSync = ({
           const cloudMap: Record<string, unknown> = {};
 
           cloud.forEach((row: any) => {
+            const localTs = localTsByKey.current[row.key];
+            if (localTs && localTs > row.updated_at) return;
             lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
             lastPersistedSignatureByKey.current[row.key] = stableStringify(row.value);
             cloudMap[row.key] = row.value;
