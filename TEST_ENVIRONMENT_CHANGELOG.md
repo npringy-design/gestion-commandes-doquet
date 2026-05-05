@@ -7,6 +7,17 @@ Il doit etre conserve dans GitHub pour retrouver le contexte meme dans une nouve
 
 Eviter de modifier directement l'application production.
 
+## Regle de travail obligatoire
+
+A partir de la mise en place de cet environnement, toute modification de l'application doit suivre ce cycle :
+
+1. developper la modification sur une branche ou un deploiement de test ;
+2. verifier la modification sur l'application test connectee au Supabase test ;
+3. attendre la validation utilisateur explicite ;
+4. seulement apres validation, appliquer/pousser la modification vers la version production.
+
+Ne pas modifier ou deployer volontairement la production en premier, sauf demande explicite et exceptionnelle.
+
 Le workflow choisi :
 
 - application production : projet Vercel classique + Supabase production ;
