@@ -188,7 +188,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
           .au-bureau-theme [class~="text-amber-700"],
           .au-bureau-theme [class~="text-amber-800"],
           .au-bureau-theme [class~="text-amber-900"] {
-            color: #0E7490 !important;
+            color: #111827 !important;
           }
 
           .au-bureau-theme [class~="bg-amber-500"],
@@ -214,7 +214,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
           }
 
           .au-bureau-theme [class~="text-orange-600"] {
-            color: #0891B2 !important;
+            color: #111827 !important;
           }
 
           .au-bureau-theme [class*="border-[#3A2116"],
@@ -256,8 +256,12 @@ const AppRouter: React.FC<AppRouterProps> = ({
           }
 
           .au-bureau-theme h1,
-          .au-bureau-theme h2 {
-            color: #0B1F26;
+          .au-bureau-theme h2,
+          .au-bureau-theme h3,
+          .au-bureau-theme p,
+          .au-bureau-theme span,
+          .au-bureau-theme label {
+            color: #111827;
           }
 
           .au-bureau-theme [class*="bg-[#062933"] h1,
@@ -267,10 +271,38 @@ const AppRouter: React.FC<AppRouterProps> = ({
           .au-bureau-theme [class*="bg-[#062933"] h2,
           .au-bureau-theme [class*="bg-[#083D49"] h2,
           .au-bureau-theme [class*="bg-[#0B5A66"] h2,
-          .au-bureau-theme [class*="bg-[linear-gradient"] h2 {
+          .au-bureau-theme [class*="bg-[linear-gradient"] h2,
+          .au-bureau-theme [class*="bg-[#062933"] p,
+          .au-bureau-theme [class*="bg-[#083D49"] p,
+          .au-bureau-theme [class*="bg-[#0B5A66"] p,
+          .au-bureau-theme [class*="bg-[linear-gradient"] p,
+          .au-bureau-theme [class*="bg-[#062933"] span,
+          .au-bureau-theme [class*="bg-[#083D49"] span,
+          .au-bureau-theme [class*="bg-[#0B5A66"] span,
+          .au-bureau-theme [class*="bg-[linear-gradient"] span {
             color: #F4FBFC !important;
             background: transparent !important;
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+          }
+
+          .au-bureau-theme [class*="bg-[#F8DEA3"],
+          .au-bureau-theme [class*="bg-[#FCEEB5"],
+          .au-bureau-theme [class*="bg-[#EBD7B8"],
+          .au-bureau-theme [class*="bg-[#E9D9C4"],
+          .au-bureau-theme [class*="from-[#FFF7EA"],
+          .au-bureau-theme [class*="via-[#F3DDC0"],
+          .au-bureau-theme [class*="to-[#C97933"],
+          .au-bureau-theme [class*="to-[#EDBE73"],
+          .au-bureau-theme [class*="bg-amber-50"],
+          .au-bureau-theme [class*="bg-orange-50"],
+          .au-bureau-theme [class*="bg-stone-50"] {
+            background: #EAF8FA !important;
+            background-color: #EAF8FA !important;
+          }
+
+          .au-bureau-theme > div,
+          .au-bureau-theme main {
+            background-color: #EAF8FA;
           }
 
           .au-bureau-theme button[class*="border-[#E2B16E]"],
