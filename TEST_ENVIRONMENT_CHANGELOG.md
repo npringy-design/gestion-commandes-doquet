@@ -18,6 +18,8 @@ A partir de la mise en place de cet environnement, toute modification de l'appli
 
 Ne pas modifier ou deployer volontairement la production en premier, sauf demande explicite et exceptionnelle.
 
+Exception pour l'environnement test : les changements destines uniquement a la version test/staging peuvent etre pousses directement sur GitHub et deployes sur le projet Vercel test, sans attendre une validation supplementaire. Cette autorisation ne concerne jamais la production.
+
 Le workflow choisi :
 
 - application production : projet Vercel classique + Supabase production ;
