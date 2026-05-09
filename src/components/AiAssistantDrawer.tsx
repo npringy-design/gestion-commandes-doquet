@@ -54,7 +54,7 @@ const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`${placement === 'fixed' ? 'fixed top-5 z-[99999]' : 'relative z-10 shrink-0'} flex items-center gap-2 rounded-[18px] border border-[#D8AE77] bg-[#3A2116] px-3 py-2 text-[#FFF7EA] shadow-[0_10px_24px_rgba(54,24,12,0.22)] transition hover:bg-[#4A2819] focus:outline-none focus:ring-2 focus:ring-[#F7C05B] ${className}`}
+        className={`${placement === 'fixed' ? 'fixed top-20 z-[99999]' : 'relative z-10 shrink-0'} flex items-center gap-2 rounded-[18px] border border-[#D8AE77] bg-[#3A2116] px-3 py-2 text-[#FFF7EA] shadow-[0_10px_24px_rgba(54,24,12,0.22)] transition hover:bg-[#4A2819] focus:outline-none focus:ring-2 focus:ring-[#F7C05B] ${className}`}
         style={placement === 'fixed' ? { right: 'clamp(1rem, 2vw, 2rem)' } : undefined}
         title="Ouvrir l'assistant IA"
       >

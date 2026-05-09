@@ -24,7 +24,7 @@ const StatCard: React.FC<StatCardProps> = ({ label, value, suffix, color = 'indi
     indigo: 'border-[#D8AE77] text-[#2F1D14] bg-[#FFF7EA]/90',
     emerald: 'border-[#A8B69A] text-[#263A1D] bg-[#F1F5E9]/90',
     rose: 'border-[#D9A08B] text-[#6E2F1E] bg-[#FFF1EA]/90',
-    orange: 'border-[#D8AE77] text-[#6A3A17] bg-[#FFE8C2]/90',
+    orange: 'border-[#A7DEE5] text-[#111827] bg-[#DDF5F8]/90',
   } as const;
 
   const displayValue = (() => {
