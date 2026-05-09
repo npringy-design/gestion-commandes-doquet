@@ -91,6 +91,10 @@ const AppRouter: React.FC<AppRouterProps> = ({
           .au-bureau-theme [class~="bg-[#FBF2DC]"],
           .au-bureau-theme [class~="bg-[#F2EAE2]"],
           .au-bureau-theme [class~="bg-[#F2D59E]"],
+          .au-bureau-theme [class~="bg-[#F1F5E9]/90"],
+          .au-bureau-theme [class~="bg-[#FFF1EA]/90"],
+          .au-bureau-theme [class~="bg-[#FFE8C2]/90"],
+          .au-bureau-theme [class~="bg-[#F6DEB1]/85"],
           .au-bureau-theme [class~="bg-amber-50"],
           .au-bureau-theme [class~="bg-amber-50/20"],
           .au-bureau-theme [class~="bg-amber-50/50"],
@@ -122,6 +126,8 @@ const AppRouter: React.FC<AppRouterProps> = ({
           .au-bureau-theme [class~="border-[#F1C27B]/45"],
           .au-bureau-theme [class~="border-[#F1C27B]/60"],
           .au-bureau-theme [class~="border-[#F1C27B]/70"],
+          .au-bureau-theme [class~="border-[#A8B69A]"],
+          .au-bureau-theme [class~="border-[#D9A08B]"],
           .au-bureau-theme [class~="border-amber-100"],
           .au-bureau-theme [class~="border-amber-100/50"],
           .au-bureau-theme [class~="border-amber-200"],
@@ -153,6 +159,10 @@ const AppRouter: React.FC<AppRouterProps> = ({
           .au-bureau-theme [class~="text-[#A85F2A]"],
           .au-bureau-theme [class~="text-[#F1C27B]"],
           .au-bureau-theme [class~="text-[#F7C05B]"],
+          .au-bureau-theme [class~="text-[#263A1D]"],
+          .au-bureau-theme [class~="text-[#6E2F1E]"],
+          .au-bureau-theme [class~="text-[#6A3A17]"],
+          .au-bureau-theme [class~="text-[#B5412D]"],
           .au-bureau-theme [class~="text-amber-400"],
           .au-bureau-theme [class~="text-amber-500"],
           .au-bureau-theme [class~="text-amber-700"],
@@ -167,8 +177,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
           .au-bureau-theme [class~="bg-orange-500"],
           .au-bureau-theme [class~="bg-[#A85F2A]"],
           .au-bureau-theme [class~="bg-[#C86F24]"],
-          .au-bureau-theme [class~="bg-[#F7B24A]"],
-          .au-bureau-theme [class~="bg-[#F7D66A_0%,#E5AF2F_100%)]"] {
+          .au-bureau-theme [class~="bg-[#F7B24A]"] {
             background-color: #0891B2 !important;
           }
 
@@ -194,11 +203,24 @@ const AppRouter: React.FC<AppRouterProps> = ({
           .au-bureau-theme [class*="bg-[#5A2819]"],
           .au-bureau-theme [class*="bg-[#2F1D14]"],
           .au-bureau-theme [class*="bg-[#2C1A10]"],
+          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#3A2116"],
+          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#69331F"],
+          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#7B3A1E"],
+          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#A85F2A"],
+          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#C86F24"],
           .au-bureau-theme [class*="from-[#3A2116]"],
           .au-bureau-theme [class*="via-[#69331F]"],
           .au-bureau-theme [class*="to-[#A85F2A]"] {
             background: linear-gradient(135deg, #062933 0%, #083D49 56%, #0B5A66 100%) !important;
             color: #F4FBFC !important;
+          }
+
+          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#F7D66A"],
+          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#E5AF2F"],
+          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#F7B24A"],
+          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#FFC266"] {
+            background: linear-gradient(180deg, #BDECF2 0%, #6FC7D2 100%) !important;
+            color: #062933 !important;
           }
 
           .au-bureau-theme button[class*="border-[#E2B16E]"],
