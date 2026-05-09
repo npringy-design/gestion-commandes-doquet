@@ -68,153 +68,104 @@ const AppRouter: React.FC<AppRouterProps> = ({
     <div className={isAuBureauTheme ? 'au-bureau-theme' : undefined}>
       {isAuBureauTheme ? (
         <style>{`
-          .au-bureau-theme [class~="bg-[#FCEEB5]"],
-          .au-bureau-theme [class~="bg-[#F8DEA3]"],
-          .au-bureau-theme [class*="bg-[#F8DEA3"],
-          .au-bureau-theme [class*="bg-[#F3DDC0"],
-          .au-bureau-theme [class*="bg-[#C97933"],
-          .au-bureau-theme [class*="#F3DDC0_"],
-          .au-bureau-theme [class*="#C97933_"],
-          .au-bureau-theme [style*="#F8DEA3"],
-          .au-bureau-theme [style*="#F3DDC0"],
-          .au-bureau-theme [style*="#C97933"] {
-            background: linear-gradient(180deg, #F4FBFC 0%, #EAF8FA 48%, #DDF5F8 100%) !important;
+          .au-bureau-theme {
+            background: #EAF8FA;
+            color: #111827;
           }
 
-          .au-bureau-theme [class~="bg-[#FFFDF8]"],
-          .au-bureau-theme [class~="bg-[#FFFDF9]"],
-          .au-bureau-theme [class~="bg-[#FFF7E2]"],
-          .au-bureau-theme [class~="bg-[#FFF4D9]"],
-          .au-bureau-theme [class~="bg-[#FFF0CC]"],
-          .au-bureau-theme [class~="bg-[#FFE8CC]"],
-          .au-bureau-theme [class~="bg-[#FFF8EF]"],
-          .au-bureau-theme [class~="bg-[#FFF7EA]"],
-          .au-bureau-theme [class~="bg-[#FBF0D8]"],
-          .au-bureau-theme [class~="bg-[#FBF2DC]"],
-          .au-bureau-theme [class~="bg-[#F2EAE2]"],
-          .au-bureau-theme [class~="bg-[#F2D59E]"],
-          .au-bureau-theme [class~="bg-[#F1F5E9]/90"],
-          .au-bureau-theme [class~="bg-[#FFF1EA]/90"],
-          .au-bureau-theme [class~="bg-[#FFE8C2]/90"],
-          .au-bureau-theme [class~="bg-[#F6DEB1]/85"],
-          .au-bureau-theme [class~="bg-amber-50"],
-          .au-bureau-theme [class~="bg-amber-50/20"],
-          .au-bureau-theme [class~="bg-amber-50/50"],
-          .au-bureau-theme [class~="bg-amber-100"],
-          .au-bureau-theme [class*="from-amber-50"],
-          .au-bureau-theme [class*="via-orange-50"] {
-            background-color: #EFFBFD !important;
+          .au-bureau-theme [class*="bg-[radial-gradient"][class*="#FFF7EA"],
+          .au-bureau-theme [class*="bg-[linear-gradient(180deg,#FFF1D9"],
+          .au-bureau-theme [class*="bg-[#F8DEA3]"],
+          .au-bureau-theme [class*="bg-[#FCEEB5]"] {
+            background: linear-gradient(180deg, #F4FBFC 0%, #EAF8FA 55%, #DDF5F8 100%) !important;
           }
 
-          .au-bureau-theme [class*="bg-[#FFF7EA"],
-          .au-bureau-theme [class*="bg-[#FFF8EF"],
-          .au-bureau-theme [class*="bg-[#FFF3DF"],
-          .au-bureau-theme [class*="from-[#FFF7EA"],
-          .au-bureau-theme [class*="from-[#FFF4C9"],
-          .au-bureau-theme [class*="via-[#F3DDC0"],
-          .au-bureau-theme [class*="to-[#EDBE73"] {
+          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#3A2116"],
+          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#4A2217"],
+          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#69331F"],
+          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#7B3A1E"],
+          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#A85F2A"],
+          .au-bureau-theme [class*="from-[#3A2116]"],
+          .au-bureau-theme [class*="via-[#69331F]"],
+          .au-bureau-theme [class*="to-[#A85F2A]"] {
+            background: linear-gradient(135deg, #062933 0%, #083D49 58%, #0E6572 100%) !important;
+            border-color: #0E6572 !important;
+            color: #F4FBFC !important;
+          }
+
+          .au-bureau-theme [class*="bg-[#3A2116]"],
+          .au-bureau-theme [class*="bg-[#4A2217]"],
+          .au-bureau-theme [class*="bg-[#4A2819]"],
+          .au-bureau-theme [class*="bg-[#5A2819]"],
+          .au-bureau-theme [class*="bg-[#2F1D14]"],
+          .au-bureau-theme [class*="bg-[#2C1A10]"] {
+            background-color: #063F4A !important;
+            border-color: #0E6572 !important;
+            color: #F4FBFC !important;
+          }
+
+          .au-bureau-theme [class*="bg-[#FFF7EA]"],
+          .au-bureau-theme [class*="bg-[#FFF8EF]"],
+          .au-bureau-theme [class*="bg-[#FFF9F1]"],
+          .au-bureau-theme [class*="bg-[#FFFDF8]"],
+          .au-bureau-theme [class*="bg-[#FFFDF9]"],
+          .au-bureau-theme [class*="bg-[#FCF4EB]"],
+          .au-bureau-theme [class*="bg-[#FFF9F2]"],
+          .au-bureau-theme [class*="bg-[#FBF0D8]"],
+          .au-bureau-theme [class*="bg-[#FBF2DC]"],
+          .au-bureau-theme [class*="bg-[#F4E8D8]"],
+          .au-bureau-theme [class*="bg-[#F4ECDD]"],
+          .au-bureau-theme [class*="bg-[#FFF1EA]"],
+          .au-bureau-theme [class*="bg-orange-50"],
+          .au-bureau-theme [class*="bg-stone-50"],
+          .au-bureau-theme [class*="bg-amber-50"] {
             background-color: #F4FBFC !important;
           }
 
-          .au-bureau-theme [class~="hover:bg-[#F7E0AD]"]:hover,
-          .au-bureau-theme [class~="hover:bg-[#FFEABF]"]:hover,
-          .au-bureau-theme [class~="hover:bg-amber-200"]:hover,
-          .au-bureau-theme [class~="hover:bg-orange-50"]:hover,
-          .au-bureau-theme [class~="hover:bg-amber-50/40"]:hover {
+          .au-bureau-theme [class*="bg-[#F3DDC0]"],
+          .au-bureau-theme [class*="bg-[#F2DDC0]"],
+          .au-bureau-theme [class*="bg-[#EBD7B8]"],
+          .au-bureau-theme [class*="bg-[#E9D9C4]"],
+          .au-bureau-theme [class*="bg-[#FFE8A8]"],
+          .au-bureau-theme [class*="bg-[#FFF1C9]"],
+          .au-bureau-theme [class*="bg-[#F2D59E]"],
+          .au-bureau-theme [class*="bg-amber-100"],
+          .au-bureau-theme [class*="bg-yellow-50"],
+          .au-bureau-theme [class*="bg-yellow-100"],
+          .au-bureau-theme [class*="bg-orange-100"],
+          .au-bureau-theme [class*="bg-stone-100"] {
             background-color: #DDF5F8 !important;
           }
 
-          .au-bureau-theme [class~="border-[#E2BE7F]"],
-          .au-bureau-theme [class~="border-[#E7C990]"],
-          .au-bureau-theme [class~="border-[#D0B08D]"],
-          .au-bureau-theme [class~="border-[#D8AE77]"],
-          .au-bureau-theme [class~="border-[#E6C79A]"],
-          .au-bureau-theme [class~="border-[#E2C39B]"],
-          .au-bureau-theme [class~="border-[#E2B16E]/75"],
-          .au-bureau-theme [class~="border-[#F1C27B]/45"],
-          .au-bureau-theme [class~="border-[#F1C27B]/60"],
-          .au-bureau-theme [class~="border-[#F1C27B]/70"],
-          .au-bureau-theme [class~="border-[#A8B69A]"],
-          .au-bureau-theme [class~="border-[#D9A08B]"],
-          .au-bureau-theme [class~="border-orange-200"],
-          .au-bureau-theme [class~="border-orange-300"],
-          .au-bureau-theme [class~="border-yellow-200"],
-          .au-bureau-theme [class~="border-yellow-300"],
-          .au-bureau-theme [class~="border-amber-100"],
-          .au-bureau-theme [class~="border-amber-100/50"],
-          .au-bureau-theme [class~="border-amber-200"],
-          .au-bureau-theme [class~="border-amber-200/50"],
-          .au-bureau-theme [class~="border-amber-300"] {
-            border-color: #A7DEE5 !important;
-          }
-
-          .au-bureau-theme [class~="focus:border-amber-400"]:focus {
-            border-color: #0891B2 !important;
-          }
-
-          .au-bureau-theme [class~="focus:ring-amber-500"]:focus {
-            --tw-ring-color: #0891B2 !important;
-          }
-
-          .au-bureau-theme [class~="text-[#7A5A22]"],
-          .au-bureau-theme [class~="text-[#8A6418]"],
-          .au-bureau-theme [class~="text-[#A97718]"],
-          .au-bureau-theme [class~="text-[#B38A3A]"],
-          .au-bureau-theme [class~="text-[#C59A44]"],
-          .au-bureau-theme [class~="text-[#8A5A2F]"],
-          .au-bureau-theme [class~="text-[#8B5A35]"],
-          .au-bureau-theme [class~="text-[#8B6B54]"],
-          .au-bureau-theme [class~="text-[#8B431C]"],
-          .au-bureau-theme [class~="text-[#6A432D]"],
-          .au-bureau-theme [class~="text-[#6F4B10]"],
-          .au-bureau-theme [class~="text-[#554B42]"],
-          .au-bureau-theme [class~="text-[#A85F2A]"],
-          .au-bureau-theme [class~="text-[#F1C27B]"],
-          .au-bureau-theme [class~="text-[#F7C05B]"],
-          .au-bureau-theme [class~="text-[#263A1D]"],
-          .au-bureau-theme [class~="text-[#6E2F1E]"],
-          .au-bureau-theme [class~="text-[#6A3A17]"],
-          .au-bureau-theme [class~="text-[#B5412D]"],
-          .au-bureau-theme [class~="text-orange-500"],
-          .au-bureau-theme [class~="text-orange-700"],
-          .au-bureau-theme [class~="text-yellow-700"],
-          .au-bureau-theme [class~="text-yellow-800"],
-          .au-bureau-theme [class~="text-stone-500"],
-          .au-bureau-theme [class~="text-stone-600"],
-          .au-bureau-theme [class~="text-stone-700"],
-          .au-bureau-theme [class~="text-stone-800"],
-          .au-bureau-theme [class~="text-amber-400"],
-          .au-bureau-theme [class~="text-amber-500"],
-          .au-bureau-theme [class~="text-amber-700"],
-          .au-bureau-theme [class~="text-amber-800"],
-          .au-bureau-theme [class~="text-amber-900"] {
-            color: #111827 !important;
-          }
-
-          .au-bureau-theme [class~="bg-amber-500"],
-          .au-bureau-theme [class~="bg-amber-600"],
-          .au-bureau-theme [class~="bg-[#FDBA74]"],
-          .au-bureau-theme [class~="bg-orange-500"],
-          .au-bureau-theme [class~="bg-[#A85F2A]"],
-          .au-bureau-theme [class~="bg-[#C86F24]"],
-          .au-bureau-theme [class~="bg-[#F7B24A]"],
-          .au-bureau-theme [class~="bg-orange-400"],
-          .au-bureau-theme [class~="bg-orange-500"],
-          .au-bureau-theme [class~="bg-yellow-400"] {
+          .au-bureau-theme [class*="bg-[#C86F24]"],
+          .au-bureau-theme [class*="bg-[#A85F2A]"],
+          .au-bureau-theme [class*="bg-[#A93E2A]"],
+          .au-bureau-theme [class*="bg-[#F7B24A]"],
+          .au-bureau-theme [class*="bg-[#FDBA74]"],
+          .au-bureau-theme [class*="bg-amber-500"],
+          .au-bureau-theme [class*="bg-amber-600"],
+          .au-bureau-theme [class*="bg-orange-400"],
+          .au-bureau-theme [class*="bg-orange-500"],
+          .au-bureau-theme [class*="bg-yellow-400"] {
             background-color: #0891B2 !important;
           }
 
-          .au-bureau-theme [class~="bg-orange-50"],
-          .au-bureau-theme [class~="bg-orange-100"],
-          .au-bureau-theme [class~="bg-yellow-50"],
-          .au-bureau-theme [class~="bg-yellow-100"],
-          .au-bureau-theme [class~="bg-stone-50"],
-          .au-bureau-theme [class~="bg-stone-100"] {
-            background-color: #EFFBFD !important;
-          }
-
-          .au-bureau-theme [class~="text-orange-600"] {
-            color: #111827 !important;
+          .au-bureau-theme [class*="border-[#D8AE77]"],
+          .au-bureau-theme [class*="border-[#D8A96E]"],
+          .au-bureau-theme [class*="border-[#D7B79B]"],
+          .au-bureau-theme [class*="border-[#D0B08D]"],
+          .au-bureau-theme [class*="border-[#D8B39E]"],
+          .au-bureau-theme [class*="border-[#E2BE7F]"],
+          .au-bureau-theme [class*="border-[#E2C39B]"],
+          .au-bureau-theme [class*="border-[#E5C89D]"],
+          .au-bureau-theme [class*="border-[#E8D8C8]"],
+          .au-bureau-theme [class*="border-[#EBC28A]"],
+          .au-bureau-theme [class*="border-[#E0CCBA]"],
+          .au-bureau-theme [class*="border-[#EBC28A]"],
+          .au-bureau-theme [class*="border-amber-"],
+          .au-bureau-theme [class*="border-orange-"],
+          .au-bureau-theme [class*="border-yellow-"] {
+            border-color: #A7DEE5 !important;
           }
 
           .au-bureau-theme [class*="border-[#3A2116"],
@@ -226,104 +177,58 @@ const AppRouter: React.FC<AppRouterProps> = ({
           .au-bureau-theme [class*="border-[#8B431C"],
           .au-bureau-theme [class*="border-[#A85F2A"],
           .au-bureau-theme [class*="border-[#C86F24"] {
-            border-color: #0E5A66 !important;
+            border-color: #0E6572 !important;
           }
 
-          .au-bureau-theme [class*="bg-[#3A2116]"],
-          .au-bureau-theme [class*="bg-[#4A2217]"],
-          .au-bureau-theme [class*="bg-[#4A2819]"],
-          .au-bureau-theme [class*="bg-[#5A2819]"],
-          .au-bureau-theme [class*="bg-[#2F1D14]"],
-          .au-bureau-theme [class*="bg-[#2C1A10]"],
-          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#3A2116"],
-          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#69331F"],
-          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#7B3A1E"],
-          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#A85F2A"],
-          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#C86F24"],
-          .au-bureau-theme [class*="from-[#3A2116]"],
-          .au-bureau-theme [class*="via-[#69331F]"],
-          .au-bureau-theme [class*="to-[#A85F2A]"] {
-            background: linear-gradient(135deg, #062933 0%, #083D49 56%, #0B5A66 100%) !important;
+          .au-bureau-theme [class*="text-[#7A5A22]"],
+          .au-bureau-theme [class*="text-[#8A6418]"],
+          .au-bureau-theme [class*="text-[#A97718]"],
+          .au-bureau-theme [class*="text-[#B38A3A]"],
+          .au-bureau-theme [class*="text-[#C59A44]"],
+          .au-bureau-theme [class*="text-[#8A5A2F]"],
+          .au-bureau-theme [class*="text-[#8B5A35]"],
+          .au-bureau-theme [class*="text-[#8B6B54]"],
+          .au-bureau-theme [class*="text-[#8B431C]"],
+          .au-bureau-theme [class*="text-[#6A432D]"],
+          .au-bureau-theme [class*="text-[#6F4B10]"],
+          .au-bureau-theme [class*="text-[#554B42]"],
+          .au-bureau-theme [class*="text-[#A85F2A]"],
+          .au-bureau-theme [class*="text-[#263A1D]"],
+          .au-bureau-theme [class*="text-[#6E2F1E]"],
+          .au-bureau-theme [class*="text-[#6A3A17]"],
+          .au-bureau-theme [class*="text-[#B5412D]"],
+          .au-bureau-theme [class*="text-orange-"],
+          .au-bureau-theme [class*="text-yellow-"],
+          .au-bureau-theme [class*="text-stone-"],
+          .au-bureau-theme [class*="text-amber-"] {
+            color: #111827 !important;
+          }
+
+          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#3A2116"] :is(h1, h2, h3, p, span, label, div),
+          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#4A2217"] :is(h1, h2, h3, p, span, label, div),
+          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#69331F"] :is(h1, h2, h3, p, span, label, div),
+          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#7B3A1E"] :is(h1, h2, h3, p, span, label, div),
+          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#A85F2A"] :is(h1, h2, h3, p, span, label, div),
+          .au-bureau-theme [class*="bg-[#3A2116]"] :is(h1, h2, h3, p, span, label, div),
+          .au-bureau-theme [class*="bg-[#4A2217]"] :is(h1, h2, h3, p, span, label, div),
+          .au-bureau-theme [class*="bg-[#4A2819]"] :is(h1, h2, h3, p, span, label, div),
+          .au-bureau-theme [class*="bg-[#5A2819]"] :is(h1, h2, h3, p, span, label, div),
+          .au-bureau-theme [class*="bg-[#2F1D14]"] :is(h1, h2, h3, p, span, label, div),
+          .au-bureau-theme [class*="bg-[#2C1A10]"] :is(h1, h2, h3, p, span, label, div) {
             color: #F4FBFC !important;
-          }
-
-          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#F7D66A"],
-          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#E5AF2F"],
-          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#F7B24A"],
-          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#FFC266"] {
-            background: linear-gradient(180deg, #BDECF2 0%, #6FC7D2 100%) !important;
-            color: #062933 !important;
-          }
-
-          .au-bureau-theme h1,
-          .au-bureau-theme h2,
-          .au-bureau-theme h3,
-          .au-bureau-theme p,
-          .au-bureau-theme span,
-          .au-bureau-theme label {
-            color: #111827;
-          }
-
-          .au-bureau-theme [class*="bg-[#062933"] h1,
-          .au-bureau-theme [class*="bg-[#083D49"] h1,
-          .au-bureau-theme [class*="bg-[#0B5A66"] h1,
-          .au-bureau-theme [class*="bg-[linear-gradient"] h1,
-          .au-bureau-theme [class*="bg-[#062933"] h2,
-          .au-bureau-theme [class*="bg-[#083D49"] h2,
-          .au-bureau-theme [class*="bg-[#0B5A66"] h2,
-          .au-bureau-theme [class*="bg-[linear-gradient"] h2,
-          .au-bureau-theme [class*="bg-[#062933"] p,
-          .au-bureau-theme [class*="bg-[#083D49"] p,
-          .au-bureau-theme [class*="bg-[#0B5A66"] p,
-          .au-bureau-theme [class*="bg-[linear-gradient"] p,
-          .au-bureau-theme [class*="bg-[#062933"] span,
-          .au-bureau-theme [class*="bg-[#083D49"] span,
-          .au-bureau-theme [class*="bg-[#0B5A66"] span,
-          .au-bureau-theme [class*="bg-[linear-gradient"] span {
-            color: #F4FBFC !important;
-            background: transparent !important;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-          }
-
-          .au-bureau-theme [class*="bg-[#F8DEA3"],
-          .au-bureau-theme [class*="bg-[#FCEEB5"],
-          .au-bureau-theme [class*="bg-[#EBD7B8"],
-          .au-bureau-theme [class*="bg-[#E9D9C4"],
-          .au-bureau-theme [class*="from-[#FFF7EA"],
-          .au-bureau-theme [class*="via-[#F3DDC0"],
-          .au-bureau-theme [class*="to-[#C97933"],
-          .au-bureau-theme [class*="to-[#EDBE73"],
-          .au-bureau-theme [class*="bg-amber-50"],
-          .au-bureau-theme [class*="bg-orange-50"],
-          .au-bureau-theme [class*="bg-stone-50"] {
-            background: #EAF8FA !important;
-            background-color: #EAF8FA !important;
-          }
-
-          .au-bureau-theme > div,
-          .au-bureau-theme main {
-            background-color: #EAF8FA;
-          }
-
-          .au-bureau-theme button[class*="border-[#E2B16E]"],
-          .au-bureau-theme button[class*="border-[#F1C27B]"],
-          .au-bureau-theme button[class*="bg-[#FFF7EA]"] {
-            border-color: #8DD6E0 !important;
-            background: #F4FBFC !important;
-            color: #083D49 !important;
-            box-shadow: 0 8px 18px rgba(8, 61, 73, 0.14) !important;
-          }
-
-          .au-bureau-theme button[class*="border-[#E2B16E]"] span,
-          .au-bureau-theme button[class*="border-[#F1C27B]"] span,
-          .au-bureau-theme button[class*="bg-[#FFF7EA]"] span {
-            color: inherit !important;
           }
 
           .au-bureau-theme input,
           .au-bureau-theme select,
           .au-bureau-theme textarea {
             border-color: #A7DEE5 !important;
+          }
+
+          .au-bureau-theme input,
+          .au-bureau-theme select,
+          .au-bureau-theme textarea,
+          .au-bureau-theme table {
+            color: #111827;
           }
 
           .au-bureau-theme .recharts-cartesian-grid line {
