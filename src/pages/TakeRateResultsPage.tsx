@@ -344,14 +344,22 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
     <div className="min-h-screen bg-[#F8DEA3] text-[#2E1B12]" style={pageBackgroundStyle}>
       <main className="mx-auto flex min-h-screen w-full max-w-[1480px] flex-col gap-5 px-6 py-5 xl:px-8">
         <div className="flex flex-col items-start gap-4">
-          <AppNavTile
-            onClick={() => setView('home')}
-            eyebrow="Retour"
-            icon="home"
-            size="sm"
-          >
-            Accueil
-          </AppNavTile>
+          <div className="flex flex-wrap items-center gap-3">
+            <AppNavTile
+              onClick={() => setView('home')}
+              eyebrow="Retour"
+              icon="home"
+              size="sm"
+            >
+              Accueil
+            </AppNavTile>
+            <AiAssistantDrawer
+              placement="inline"
+              title="Assistant IA - Taux de prise"
+              getContext={getAiContext}
+              className="border-[#A7DEE5] bg-[#064D59] text-white shadow-[0_12px_28px_rgba(6,77,89,0.18)] hover:bg-[#083F49]"
+            />
+          </div>
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.20em] text-[#A97718]">Lecture mensuelle</p>
             <h1 className="mt-2 text-[26px] font-black leading-tight text-[#1D120D]">Taux de prise</h1>
@@ -572,7 +580,6 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
           )}
         </div>
       </main>
-      <AiAssistantDrawer title="Assistant IA - Taux de prise" getContext={getAiContext} />
     </div>
   );
 };
