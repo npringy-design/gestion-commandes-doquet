@@ -48,6 +48,10 @@ export const SITES = {
     id: 'hippo_st_thibault',
     name: 'Hippo St Thibault',
   },
+  au_bureau_montevrain: {
+    id: 'au_bureau_montevrain',
+    name: 'Au bureau Montévrain',
+  },
 } as const;
 
 export type SiteId = keyof typeof SITES;

@@ -52,20 +52,12 @@ CREATE TABLE IF NOT EXISTS public.user_site_access (
   PRIMARY KEY (user_id, site_id)
 );
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_constraint
-    WHERE conname = 'user_site_access_site_id_check'
-      AND conrelid = 'public.user_site_access'::regclass
-  ) THEN
-    ALTER TABLE public.user_site_access
-      ADD CONSTRAINT user_site_access_site_id_check
-      CHECK (site_id IN ('hippo_thillois', 'hippo_st_thibault'));
-  END IF;
-END;
-$$;
+ALTER TABLE public.user_site_access
+  DROP CONSTRAINT IF EXISTS user_site_access_site_id_check;
+
+ALTER TABLE public.user_site_access
+  ADD CONSTRAINT user_site_access_site_id_check
+  CHECK (site_id IN ('hippo_thillois', 'hippo_st_thibault', 'au_bureau_montevrain'));
 
 CREATE INDEX IF NOT EXISTS user_site_access_user_idx
   ON public.user_site_access (user_id);
@@ -125,6 +117,6 @@ WITH CHECK (public.is_current_user_admin());
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.user_site_access TO authenticated;
 
 COMMENT ON TABLE public.user_site_access IS 'Sites autorisés par utilisateur pour le mode multisite';
-COMMENT ON COLUMN public.user_site_access.site_id IS 'Identifiant site : hippo_thillois | hippo_st_thibault';
+COMMENT ON COLUMN public.user_site_access.site_id IS 'Identifiant site : hippo_thillois | hippo_st_thibault | au_bureau_montevrain';
 
 COMMIT;

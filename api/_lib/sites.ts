@@ -1,4 +1,4 @@
-export const SITE_IDS = ['hippo_thillois', 'hippo_st_thibault'] as const;
+export const SITE_IDS = ['hippo_thillois', 'hippo_st_thibault', 'au_bureau_montevrain'] as const;
 export const GLOBAL_SITE_ROLES = ['super_admin', 'global_admin'] as const;
 
 const SITE_ID_SET = new Set<string>(SITE_IDS);
