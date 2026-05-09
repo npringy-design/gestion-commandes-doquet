@@ -49,7 +49,8 @@ const AppRouter: React.FC<AppRouterProps> = ({
   syncRatiosScroll,
 }) => {
   const { view, setView } = state;
-  const { profile } = useAuth();
+  const { activeSiteId, profile } = useAuth();
+  const isAuBureauTheme = activeSiteId === 'au_bureau_montevrain';
 
   const [isMobile, setIsMobile] = React.useState(false);
   React.useEffect(() => {
@@ -64,9 +65,80 @@ const AppRouter: React.FC<AppRouterProps> = ({
     .map((config) => config.id as View);
 
   const renderWithShell = (node: React.ReactNode) => (
-    <>
+    <div className={isAuBureauTheme ? 'au-bureau-theme' : undefined}>
+      {isAuBureauTheme ? (
+        <style>{`
+          .au-bureau-theme [class~="bg-[#FCEEB5]"],
+          .au-bureau-theme [class~="bg-[#F8DEA3]"] {
+            background: linear-gradient(180deg, #F4FBFC 0%, #EAF8FA 48%, #DDF5F8 100%) !important;
+          }
+
+          .au-bureau-theme [class~="bg-[#FFFDF8]"],
+          .au-bureau-theme [class~="bg-[#FFFDF9]"],
+          .au-bureau-theme [class~="bg-[#FFF7E2]"],
+          .au-bureau-theme [class~="bg-[#FFF4D9]"],
+          .au-bureau-theme [class~="bg-[#FFF0CC]"],
+          .au-bureau-theme [class~="bg-[#FFE8CC]"],
+          .au-bureau-theme [class~="bg-amber-50"],
+          .au-bureau-theme [class~="bg-amber-50/20"],
+          .au-bureau-theme [class~="bg-amber-50/50"],
+          .au-bureau-theme [class~="bg-amber-100"] {
+            background-color: #EFFBFD !important;
+          }
+
+          .au-bureau-theme [class~="hover:bg-[#F7E0AD]"]:hover,
+          .au-bureau-theme [class~="hover:bg-[#FFEABF]"]:hover,
+          .au-bureau-theme [class~="hover:bg-amber-50/40"]:hover {
+            background-color: #DDF5F8 !important;
+          }
+
+          .au-bureau-theme [class~="border-[#E2BE7F]"],
+          .au-bureau-theme [class~="border-[#E7C990]"],
+          .au-bureau-theme [class~="border-[#D0B08D]"],
+          .au-bureau-theme [class~="border-amber-100"],
+          .au-bureau-theme [class~="border-amber-100/50"],
+          .au-bureau-theme [class~="border-amber-200"],
+          .au-bureau-theme [class~="border-amber-200/50"],
+          .au-bureau-theme [class~="border-amber-300"] {
+            border-color: #A7DEE5 !important;
+          }
+
+          .au-bureau-theme [class~="focus:border-amber-400"]:focus {
+            border-color: #0891B2 !important;
+          }
+
+          .au-bureau-theme [class~="focus:ring-amber-500"]:focus {
+            --tw-ring-color: #0891B2 !important;
+          }
+
+          .au-bureau-theme [class~="text-[#7A5A22]"],
+          .au-bureau-theme [class~="text-[#8A6418]"],
+          .au-bureau-theme [class~="text-[#A97718]"],
+          .au-bureau-theme [class~="text-[#B38A3A]"],
+          .au-bureau-theme [class~="text-[#C59A44]"],
+          .au-bureau-theme [class~="text-[#8A5A2F]"],
+          .au-bureau-theme [class~="text-amber-400"],
+          .au-bureau-theme [class~="text-amber-500"],
+          .au-bureau-theme [class~="text-amber-700"],
+          .au-bureau-theme [class~="text-amber-800"],
+          .au-bureau-theme [class~="text-amber-900"] {
+            color: #0E7490 !important;
+          }
+
+          .au-bureau-theme [class~="bg-amber-500"],
+          .au-bureau-theme [class~="bg-amber-600"],
+          .au-bureau-theme [class~="bg-[#FDBA74]"],
+          .au-bureau-theme [class~="bg-orange-500"] {
+            background-color: #0891B2 !important;
+          }
+
+          .au-bureau-theme [class~="text-orange-600"] {
+            color: #0891B2 !important;
+          }
+        `}</style>
+      ) : null}
       {node}
-    </>
+    </div>
   );
 
   const renderLazyPage = (node: React.ReactNode, label?: string) =>
