@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { isSupabaseConfigured as isAuthConfigured } from '../lib/supabaseClient';
 import { canAccessAdminDashboard, canAccessStatsPage } from '../lib/permissions';
 import restaurantHero from '../assets/hippopotamus-thillois-home.jpg';
+import auBureauHero from '../assets/au-bureau-montevrain-home.png';
 
 interface HomePageProps {
   setView: (v: View) => void;
@@ -69,6 +70,51 @@ const tones = {
     border: '#DDBB82',
     text: '#3F2B16',
     glow: '#EAD0A3',
+  },
+} satisfies Record<string, TileTone>;
+
+const auBureauTones = {
+  order: {
+    accent: '#078892',
+    accentSoft: '#E5F7F6',
+    border: '#8FD6D1',
+    text: '#062F38',
+    glow: '#BFEDEA',
+  },
+  prep: {
+    accent: '#0F766E',
+    accentSoft: '#E8F7F2',
+    border: '#9AD8CC',
+    text: '#063B35',
+    glow: '#BDE9DF',
+  },
+  settings: {
+    accent: '#0F5D66',
+    accentSoft: '#E6F3F5',
+    border: '#90CCD2',
+    text: '#072F36',
+    glow: '#C0E4E8',
+  },
+  sales: {
+    accent: '#0891B2',
+    accentSoft: '#E6F7FB',
+    border: '#93D7E6',
+    text: '#073241',
+    glow: '#C3EDF5',
+  },
+  finance: {
+    accent: '#F59E0B',
+    accentSoft: '#FFF7E6',
+    border: '#F3C96B',
+    text: '#3D2A05',
+    glow: '#F8D891',
+  },
+  takeRate: {
+    accent: '#14B8A6',
+    accentSoft: '#E6FAF7',
+    border: '#8BDDD3',
+    text: '#063A36',
+    glow: '#B7ECE5',
   },
 } satisfies Record<string, TileTone>;
 
@@ -173,13 +219,27 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   const siteDisplayName = getDisplaySiteShortName(activeSite.name);
   const activeSiteHeaderLabel = getDisplaySiteName(activeSite.name);
   const canSwitchSite = availableSiteIds.length > 1;
+  const isAuBureauHome = activeSiteId === 'au_bureau_montevrain';
+  const homeTones = isAuBureauHome ? auBureauTones : tones;
+  const heroImage = isAuBureauHome ? auBureauHero : restaurantHero;
+  const heroBrand = isAuBureauHome ? 'Au Bureau' : 'Hippopotamus';
+  const heroLocation = isAuBureauHome ? getDisplaySiteName('Montévrain') : siteDisplayName;
+  const actionBadgeClass = isAuBureauHome
+    ? 'inline-flex items-center gap-2 rounded-lg border border-cyan-100/25 bg-[#052A34]/80 px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-cyan-50 shadow-[0_10px_22px_rgba(3,47,56,0.22)] ring-1 ring-white/10 sm:px-4 sm:py-3 sm:text-[12px]'
+    : 'inline-flex items-center gap-2 rounded-lg border border-[#D99A4A] bg-[#FFF8E8] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#512A16] shadow-[0_10px_22px_rgba(26,13,8,0.18)] sm:px-4 sm:py-3 sm:text-[12px]';
+  const actionButtonClass = isAuBureauHome
+    ? 'inline-flex items-center gap-2 rounded-lg border border-cyan-100/25 bg-[#052A34]/80 px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-cyan-50 shadow-[0_10px_22px_rgba(3,47,56,0.22)] ring-1 ring-white/10 transition hover:bg-[#0A4D58] sm:px-4 sm:py-3 sm:text-[12px]'
+    : 'inline-flex items-center gap-2 rounded-lg border border-[#D99A4A] bg-[#FFF2CF] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#512A16] shadow-[0_10px_22px_rgba(26,13,8,0.18)] transition hover:bg-white sm:px-4 sm:py-3 sm:text-[12px]';
+  const actionSmallButtonClass = isAuBureauHome
+    ? 'rounded-md bg-[#078892] px-2 py-1 text-[9px] text-white sm:text-[10px]'
+    : 'rounded-md bg-[#512A16] px-2 py-1 text-[9px] text-white sm:text-[10px]';
 
   const mainTiles: HomeTile[] = [
     {
       title: 'Commandes',
       subtitle: 'Fournisseurs',
       onClick: () => setView('suppliers'),
-      tone: tones.order,
+      tone: homeTones.order,
       primary: true,
       icon: (
         <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -191,7 +251,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
       title: 'Mise en place',
       subtitle: 'Préparation',
       onClick: () => setView('prep_sheet'),
-      tone: tones.prep,
+      tone: homeTones.prep,
       icon: (
         <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.5L19 11.5V19a2 2 0 01-2 2z" />
@@ -205,7 +265,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
       title: 'Paramètres',
       subtitle: 'Réglages',
       onClick: () => setView('stats'),
-      tone: tones.settings,
+      tone: homeTones.settings,
       icon: (
         <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 15.5A3.5 3.5 0 1112 8a3.5 3.5 0 010 7.5z" />
@@ -220,7 +280,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
       title: 'Mix produit',
       subtitle: 'Ventes',
       onClick: () => setView('product_mix'),
-      tone: tones.sales,
+      tone: homeTones.sales,
       icon: (
         <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M11 3.05A9 9 0 1020.95 13H11V3.05z" />
@@ -232,7 +292,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
       title: 'Coût matière',
       subtitle: 'Marge',
       onClick: () => setView('cost_analysis'),
-      tone: tones.finance,
+      tone: homeTones.finance,
       icon: (
         <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M4 19V9m5 10V5m5 14v-7m5 7V8" />
@@ -244,7 +304,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
       title: 'Taux de prise',
       subtitle: 'Suivi',
       onClick: () => setView('take_rate_sheet'),
-      tone: tones.takeRate,
+      tone: homeTones.takeRate,
       icon: (
         <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M4 17l6-6 4 4 6-8" />
@@ -289,12 +349,12 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   const pageActions = (
     <div className="mb-4 flex flex-wrap items-center justify-end gap-2 sm:gap-3">
         {canSwitchSite ? (
-          <div className="inline-flex items-center gap-2 rounded-lg border border-[#D99A4A] bg-[#FFF8E8] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#512A16] shadow-[0_10px_22px_rgba(26,13,8,0.18)] sm:px-4 sm:py-3 sm:text-[12px]">
+          <div className={actionBadgeClass}>
             <span>{activeSiteHeaderLabel}</span>
           <button
             type="button"
             onClick={handleSwitchSite}
-            className="rounded-md bg-[#512A16] px-2 py-1 text-[9px] text-white sm:text-[10px]"
+            className={actionSmallButtonClass}
           >
             Changer
           </button>
@@ -304,7 +364,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
       {isAuthConfigured() && user ? (
         <button
           onClick={handleSignOut}
-          className="inline-flex items-center gap-2 rounded-lg border border-[#D99A4A] bg-[#FFF2CF] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#512A16] shadow-[0_10px_22px_rgba(26,13,8,0.18)] transition hover:bg-white sm:px-4 sm:py-3 sm:text-[12px]"
+          className={actionButtonClass}
           title="Se déconnecter"
         >
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -323,7 +383,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           }
           setShowPassword(true);
         }}
-        className="inline-flex items-center gap-2 rounded-lg border border-[#D99A4A] bg-[#FFF2CF] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#512A16] shadow-[0_10px_22px_rgba(26,13,8,0.18)] transition hover:bg-white sm:px-4 sm:py-3 sm:text-[12px]"
+        className={actionButtonClass}
       >
         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -346,6 +406,12 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           min-height: 100dvh;
         }
 
+        .home-shell-au-bureau {
+          background:
+            linear-gradient(135deg, rgba(237, 248, 246, 0.96) 0%, rgba(231, 244, 242, 0.96) 48%, rgba(248, 245, 237, 0.98) 100%),
+            linear-gradient(135deg, #edf8f6 0%, #e7f4f2 52%, #f8f5ed 100%);
+        }
+
         .home-shell::before {
           content: '';
           position: absolute;
@@ -354,6 +420,11 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           pointer-events: none;
           background:
             linear-gradient(165deg, transparent 0%, rgba(120, 45, 28, 0.18) 50%, rgba(245, 169, 78, 0.26) 100%);
+        }
+
+        .home-shell-au-bureau::before {
+          background:
+            linear-gradient(165deg, transparent 0%, rgba(8, 145, 178, 0.12) 48%, rgba(20, 184, 166, 0.18) 100%);
         }
 
         .restaurant-title {
@@ -433,7 +504,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         }
       `}</style>
 
-      <div className="home-shell relative min-h-[100dvh] overflow-x-hidden text-[#2E1B12]">
+      <div className={`home-shell ${isAuBureauHome ? 'home-shell-au-bureau text-[#062F38]' : 'text-[#2E1B12]'} relative min-h-[100dvh] overflow-x-hidden`}>
         {showPassword && (
           <PasswordModal
             onConfirm={() => {
@@ -447,23 +518,56 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         <main className="home-page-frame relative z-10 mx-auto flex w-full max-w-[1280px] flex-col px-4 sm:px-6 lg:px-8">
           {pageActions}
 
-          <header className="mb-5 overflow-hidden rounded-lg border border-[#B8793B] bg-[#1F140F] shadow-[0_22px_55px_rgba(65,37,18,0.24)]">
+          <header
+            className={`mb-5 overflow-hidden rounded-lg border shadow-[0_22px_55px_rgba(65,37,18,0.24)] ${
+              isAuBureauHome
+                ? 'border-slate-800/60 bg-[#050914]'
+                : 'border-[#B8793B] bg-[#1F140F]'
+            }`}
+          >
             <div className="home-hero relative">
               <img
-                src={restaurantHero}
+                src={heroImage}
                 alt=""
                 className="absolute inset-0 h-full w-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-r from-[#170E0A]/88 via-[#170E0A]/55 to-[#170E0A]/18" />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#170E0A]/75 via-transparent to-transparent" />
+              <div
+                className={`absolute inset-0 ${
+                  isAuBureauHome
+                    ? 'bg-gradient-to-r from-[#050914]/88 via-[#101B3F]/48 to-[#123847]/12'
+                    : 'bg-gradient-to-r from-[#170E0A]/88 via-[#170E0A]/55 to-[#170E0A]/18'
+                }`}
+              />
+              <div
+                className={`absolute inset-0 ${
+                  isAuBureauHome
+                    ? 'bg-gradient-to-t from-[#050914]/70 via-transparent to-transparent'
+                    : 'bg-gradient-to-t from-[#170E0A]/75 via-transparent to-transparent'
+                }`}
+              />
 
               <div className="home-hero relative z-10 flex flex-col justify-end p-5 sm:p-7 lg:p-8">
-                <div>
-                  <h1 className="restaurant-title max-w-[760px] text-[3.35rem] font-bold leading-[0.9] text-[#FFF6E8] drop-shadow-[0_8px_18px_rgba(0,0,0,0.42)] sm:text-[4.9rem] lg:text-[6rem]">
-                    Hippopotamus
-                    <span className="restaurant-script mt-2 block text-[4rem] font-normal leading-[0.78] text-[#F6B24A] sm:text-[5.8rem] lg:text-[7.2rem]">{siteDisplayName}</span>
-                  </h1>
-                </div>
+                {isAuBureauHome ? (
+                  <div className="max-w-[420px]">
+                    <div className="mb-3 h-px bg-gradient-to-r from-transparent via-amber-200/80 to-transparent" />
+                    <h1 className="font-serif text-[clamp(3rem,6vw,5rem)] font-black uppercase leading-none tracking-[0.08em] text-amber-50 drop-shadow-[0_8px_18px_rgba(0,0,0,0.42)]">
+                      {heroBrand}
+                    </h1>
+                    <div className="mt-3 h-px bg-gradient-to-r from-transparent via-amber-200/75 to-transparent" />
+                    <div className="mt-3 text-center text-[12px] font-black uppercase tracking-[0.42em] text-white/90 sm:text-sm">
+                      {heroLocation}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <h1 className="restaurant-title max-w-[760px] text-[3.35rem] font-bold leading-[0.9] text-[#FFF6E8] drop-shadow-[0_8px_18px_rgba(0,0,0,0.42)] sm:text-[4.9rem] lg:text-[6rem]">
+                      {heroBrand}
+                      <span className="restaurant-script mt-2 block text-[4rem] font-normal leading-[0.78] text-[#F6B24A] sm:text-[5.8rem] lg:text-[7.2rem]">
+                        {heroLocation}
+                      </span>
+                    </h1>
+                  </div>
+                )}
               </div>
             </div>
           </header>
