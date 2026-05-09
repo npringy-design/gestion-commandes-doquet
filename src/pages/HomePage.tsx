@@ -574,11 +574,11 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
               <div className="home-hero relative z-10 flex flex-col justify-end p-5 sm:p-7 lg:p-8">
                 {isAuBureauHome ? (
                   <div className="max-w-[420px]">
-                    <div className="mb-3 h-px bg-gradient-to-r from-transparent via-amber-200/80 to-transparent" />
-                    <h1 className="font-serif text-[clamp(3rem,6vw,5rem)] font-black uppercase leading-none tracking-[0.08em] text-amber-50 drop-shadow-[0_8px_18px_rgba(0,0,0,0.42)]">
+                    <div className="mb-3 h-px bg-gradient-to-r from-transparent via-[#F6D675]/80 to-transparent" />
+                    <h1 className="font-serif text-[clamp(3rem,6vw,5rem)] font-black uppercase leading-none tracking-[0.08em] text-[#F8E7A4] drop-shadow-[0_8px_18px_rgba(0,0,0,0.48)]">
                       {heroBrand}
                     </h1>
-                    <div className="mt-3 h-px bg-gradient-to-r from-transparent via-amber-200/75 to-transparent" />
+                    <div className="mt-3 h-px bg-gradient-to-r from-transparent via-[#F6D675]/75 to-transparent" />
                     <div className="mt-3 text-center text-[12px] font-black uppercase tracking-[0.42em] text-white/90 sm:text-sm">
                       {heroLocation}
                     </div>

@@ -75,6 +75,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
 
           .au-bureau-theme [class*="bg-[radial-gradient"][class*="#FFF7EA"],
           .au-bureau-theme [class*="bg-[linear-gradient(180deg,#FFF1D9"],
+          .au-bureau-theme [class*="bg-[linear-gradient(180deg,#FFF4C9"],
           .au-bureau-theme [class*="bg-[#F8DEA3]"],
           .au-bureau-theme [class*="bg-[#FCEEB5]"] {
             background: linear-gradient(180deg, #F4FBFC 0%, #EAF8FA 55%, #DDF5F8 100%) !important;
@@ -105,6 +106,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
           }
 
           .au-bureau-theme [class*="bg-[#FFF7EA]"],
+          .au-bureau-theme [class*="bg-[#FFF7E2]"],
           .au-bureau-theme [class*="bg-[#FFF8EF]"],
           .au-bureau-theme [class*="bg-[#FFF9F1]"],
           .au-bureau-theme [class*="bg-[#FFFDF8]"],
@@ -116,6 +118,9 @@ const AppRouter: React.FC<AppRouterProps> = ({
           .au-bureau-theme [class*="bg-[#F4E8D8]"],
           .au-bureau-theme [class*="bg-[#F4ECDD]"],
           .au-bureau-theme [class*="bg-[#FFF1EA]"],
+          .au-bureau-theme [class*="bg-[#FFF6DE]"],
+          .au-bureau-theme [class*="bg-[#FFF4D9]"],
+          .au-bureau-theme [class*="bg-[#FFF0CC]"],
           .au-bureau-theme [class*="bg-orange-50"],
           .au-bureau-theme [class*="bg-stone-50"],
           .au-bureau-theme [class*="bg-amber-50"] {
@@ -128,6 +133,8 @@ const AppRouter: React.FC<AppRouterProps> = ({
           .au-bureau-theme [class*="bg-[#E9D9C4]"],
           .au-bureau-theme [class*="bg-[#FFE8A8]"],
           .au-bureau-theme [class*="bg-[#FFF1C9]"],
+          .au-bureau-theme [class*="bg-[#FFEABF]"],
+          .au-bureau-theme [class*="bg-[#F7E0AD]"],
           .au-bureau-theme [class*="bg-[#F2D59E]"],
           .au-bureau-theme [class*="bg-amber-100"],
           .au-bureau-theme [class*="bg-yellow-50"],
@@ -156,7 +163,9 @@ const AppRouter: React.FC<AppRouterProps> = ({
           .au-bureau-theme [class*="border-[#D0B08D]"],
           .au-bureau-theme [class*="border-[#D8B39E]"],
           .au-bureau-theme [class*="border-[#E2BE7F]"],
+          .au-bureau-theme [class*="border-[#E7C990]"],
           .au-bureau-theme [class*="border-[#E2C39B]"],
+          .au-bureau-theme [class*="border-[#E5C27A]"],
           .au-bureau-theme [class*="border-[#E5C89D]"],
           .au-bureau-theme [class*="border-[#E8D8C8]"],
           .au-bureau-theme [class*="border-[#EBC28A]"],
@@ -193,6 +202,9 @@ const AppRouter: React.FC<AppRouterProps> = ({
           .au-bureau-theme [class*="text-[#6F4B10]"],
           .au-bureau-theme [class*="text-[#554B42]"],
           .au-bureau-theme [class*="text-[#A85F2A]"],
+          .au-bureau-theme [class*="text-[#71402D]"],
+          .au-bureau-theme [class*="text-[#7A5A22]"],
+          .au-bureau-theme [class*="text-[#9A6A13]"],
           .au-bureau-theme [class*="text-[#263A1D]"],
           .au-bureau-theme [class*="text-[#6E2F1E]"],
           .au-bureau-theme [class*="text-[#6A3A17]"],
@@ -202,20 +214,6 @@ const AppRouter: React.FC<AppRouterProps> = ({
           .au-bureau-theme [class*="text-stone-"],
           .au-bureau-theme [class*="text-amber-"] {
             color: #111827 !important;
-          }
-
-          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#3A2116"] :is(h1, h2, h3, p, span, label, div),
-          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#4A2217"] :is(h1, h2, h3, p, span, label, div),
-          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#69331F"] :is(h1, h2, h3, p, span, label, div),
-          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#7B3A1E"] :is(h1, h2, h3, p, span, label, div),
-          .au-bureau-theme [class*="bg-[linear-gradient"][class*="#A85F2A"] :is(h1, h2, h3, p, span, label, div),
-          .au-bureau-theme [class*="bg-[#3A2116]"] :is(h1, h2, h3, p, span, label, div),
-          .au-bureau-theme [class*="bg-[#4A2217]"] :is(h1, h2, h3, p, span, label, div),
-          .au-bureau-theme [class*="bg-[#4A2819]"] :is(h1, h2, h3, p, span, label, div),
-          .au-bureau-theme [class*="bg-[#5A2819]"] :is(h1, h2, h3, p, span, label, div),
-          .au-bureau-theme [class*="bg-[#2F1D14]"] :is(h1, h2, h3, p, span, label, div),
-          .au-bureau-theme [class*="bg-[#2C1A10]"] :is(h1, h2, h3, p, span, label, div) {
-            color: #F4FBFC !important;
           }
 
           .au-bureau-theme input,
