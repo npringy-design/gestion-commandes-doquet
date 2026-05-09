@@ -331,15 +331,15 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
   }, [activeSupplierLabel, alertProductsCount, availableImportNames.length, displayMonthKey, displaySourceProducts, isLinkedProduct, mappedProductsCount, monthFreezeMap, state, workMonthKey]);
 
   return (
-    <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_12%_0%,rgba(184,91,43,0.18),transparent_30%),radial-gradient(circle_at_88%_8%,rgba(109,143,78,0.12),transparent_28%),linear-gradient(180deg,#F8F1E7_0%,#EFE1D0_52%,#D7AA78_100%)] text-[#2F1D14]">
+    <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_12%_0%,rgba(14,101,114,0.16),transparent_30%),radial-gradient(circle_at_88%_8%,rgba(8,145,178,0.12),transparent_28%),linear-gradient(180deg,#F4FBFC_0%,#EAF8FA_52%,#DDF5F8_100%)] text-[#111827]">
       <div className="mx-auto flex min-h-[100dvh] max-w-[1760px] flex-col gap-3 p-3 lg:h-[100dvh] lg:min-h-0 lg:overflow-hidden lg:p-4">
-        <header className="flex-none overflow-hidden rounded-[28px] border border-[#7B3A1E] bg-[linear-gradient(90deg,#4A2217_0%,#6F321D_48%,#9D541E_100%)] shadow-[0_18px_36px_rgba(72,35,19,0.22)]">
+        <header className="flex-none overflow-hidden rounded-[28px] border border-[#0E6572] bg-[linear-gradient(90deg,#062933_0%,#083D49_48%,#0E6572_100%)] shadow-[0_18px_36px_rgba(8,61,73,0.18)]">
           <div className="flex flex-col gap-3 px-4 py-3 lg:px-5">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="flex min-w-0 items-center gap-3">
               <AppNavTile onClick={() => setView('home')} eyebrow="Retour" icon="home" size="sm" tone="cream">Accueil</AppNavTile>
               <AppNavTile onClick={() => setView('stats')} eyebrow="Retour" icon="settings" size="sm" tone="cream">Paramètres</AppNavTile>
-              <div className="hidden h-12 w-px bg-[#E9B25D]/35 sm:block" />
+              <div className="hidden h-12 w-px bg-[#A7DEE5]/45 sm:block" />
               <div className="min-w-0">
                 <h2 className="truncate text-3xl font-black leading-none text-[#FFF7EA]">Calcul vente ratio</h2>
               </div>
@@ -392,7 +392,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
               </div>
               </div>
             </div>
-            <div className="rounded-2xl border border-[#B8793F]/65 bg-[#FFF7EA]/10 p-2">
+            <div className="rounded-2xl border border-[#A7DEE5]/65 bg-[#EAF8FA]/10 p-2">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#F7C05B]">Figer les mois de vente</p>
                 <div className="flex items-center gap-2">
@@ -445,7 +445,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
           </div>
         )}
 
-        <nav className="flex-none rounded-[24px] border border-[#D8CAB8] bg-[#FFFBF4]/92 p-3 shadow-[0_10px_22px_rgba(66,42,24,0.08)] backdrop-blur">
+        <nav className="flex-none rounded-[24px] border border-[#A7DEE5] bg-[#EFFBFD]/92 p-3 shadow-[0_10px_22px_rgba(8,61,73,0.08)] backdrop-blur">
           <div className="flex flex-wrap items-center gap-2">
             <span className="mr-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#A85F2A]">Fournisseur</span>
             {supplierTabs.map(tab => (
@@ -461,8 +461,8 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
         </nav>
 
         <main className="grid min-h-0 flex-1 grid-cols-12 gap-3 overflow-hidden">
-          <section className="col-span-12 flex min-h-0 flex-col overflow-hidden rounded-[28px] border border-[#D8CAB8] bg-[#FFFBF4]/88 shadow-[0_16px_32px_rgba(66,42,24,0.10)] backdrop-blur">
-            <div className="flex flex-col gap-3 border-b border-[#D8CAB8] bg-[#F8F0E6]/95 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+          <section className="col-span-12 flex min-h-0 flex-col overflow-hidden rounded-[28px] border border-[#A7DEE5] bg-[#F4FBFC]/88 shadow-[0_16px_32px_rgba(8,61,73,0.10)] backdrop-blur">
+            <div className="flex flex-col gap-3 border-b border-[#A7DEE5] bg-[#EAF8FA]/95 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A85F2A]">Produits à paramétrer</p>
                 <h3 className="text-xl font-black text-[#2F1D14]">{activeSupplierLabel}</h3>
