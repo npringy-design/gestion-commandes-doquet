@@ -70,9 +70,11 @@ const AppRouter: React.FC<AppRouterProps> = ({
         <style>{`
           .au-bureau-theme [class~="bg-[#FCEEB5]"],
           .au-bureau-theme [class~="bg-[#F8DEA3]"],
-          .au-bureau-theme [class*="#F8DEA3"],
-          .au-bureau-theme [class*="#F3DDC0"],
-          .au-bureau-theme [class*="#C97933"],
+          .au-bureau-theme [class*="bg-[#F8DEA3"],
+          .au-bureau-theme [class*="bg-[#F3DDC0"],
+          .au-bureau-theme [class*="bg-[#C97933"],
+          .au-bureau-theme [class*="#F3DDC0_"],
+          .au-bureau-theme [class*="#C97933_"],
           .au-bureau-theme [style*="#F8DEA3"],
           .au-bureau-theme [style*="#F3DDC0"],
           .au-bureau-theme [style*="#C97933"] {
@@ -104,14 +106,20 @@ const AppRouter: React.FC<AppRouterProps> = ({
             background-color: #EFFBFD !important;
           }
 
-          .au-bureau-theme [class*="#FFF7EA"],
-          .au-bureau-theme [class*="#FFF8EF"],
-          .au-bureau-theme [class*="#FFF3DF"] {
+          .au-bureau-theme [class*="bg-[#FFF7EA"],
+          .au-bureau-theme [class*="bg-[#FFF8EF"],
+          .au-bureau-theme [class*="bg-[#FFF3DF"],
+          .au-bureau-theme [class*="from-[#FFF7EA"],
+          .au-bureau-theme [class*="from-[#FFF4C9"],
+          .au-bureau-theme [class*="via-[#F3DDC0"],
+          .au-bureau-theme [class*="to-[#EDBE73"] {
             background-color: #F4FBFC !important;
           }
 
           .au-bureau-theme [class~="hover:bg-[#F7E0AD]"]:hover,
           .au-bureau-theme [class~="hover:bg-[#FFEABF]"]:hover,
+          .au-bureau-theme [class~="hover:bg-amber-200"]:hover,
+          .au-bureau-theme [class~="hover:bg-orange-50"]:hover,
           .au-bureau-theme [class~="hover:bg-amber-50/40"]:hover {
             background-color: #DDF5F8 !important;
           }
@@ -128,6 +136,10 @@ const AppRouter: React.FC<AppRouterProps> = ({
           .au-bureau-theme [class~="border-[#F1C27B]/70"],
           .au-bureau-theme [class~="border-[#A8B69A]"],
           .au-bureau-theme [class~="border-[#D9A08B]"],
+          .au-bureau-theme [class~="border-orange-200"],
+          .au-bureau-theme [class~="border-orange-300"],
+          .au-bureau-theme [class~="border-yellow-200"],
+          .au-bureau-theme [class~="border-yellow-300"],
           .au-bureau-theme [class~="border-amber-100"],
           .au-bureau-theme [class~="border-amber-100/50"],
           .au-bureau-theme [class~="border-amber-200"],
@@ -163,6 +175,14 @@ const AppRouter: React.FC<AppRouterProps> = ({
           .au-bureau-theme [class~="text-[#6E2F1E]"],
           .au-bureau-theme [class~="text-[#6A3A17]"],
           .au-bureau-theme [class~="text-[#B5412D]"],
+          .au-bureau-theme [class~="text-orange-500"],
+          .au-bureau-theme [class~="text-orange-700"],
+          .au-bureau-theme [class~="text-yellow-700"],
+          .au-bureau-theme [class~="text-yellow-800"],
+          .au-bureau-theme [class~="text-stone-500"],
+          .au-bureau-theme [class~="text-stone-600"],
+          .au-bureau-theme [class~="text-stone-700"],
+          .au-bureau-theme [class~="text-stone-800"],
           .au-bureau-theme [class~="text-amber-400"],
           .au-bureau-theme [class~="text-amber-500"],
           .au-bureau-theme [class~="text-amber-700"],
@@ -177,23 +197,35 @@ const AppRouter: React.FC<AppRouterProps> = ({
           .au-bureau-theme [class~="bg-orange-500"],
           .au-bureau-theme [class~="bg-[#A85F2A]"],
           .au-bureau-theme [class~="bg-[#C86F24]"],
-          .au-bureau-theme [class~="bg-[#F7B24A]"] {
+          .au-bureau-theme [class~="bg-[#F7B24A]"],
+          .au-bureau-theme [class~="bg-orange-400"],
+          .au-bureau-theme [class~="bg-orange-500"],
+          .au-bureau-theme [class~="bg-yellow-400"] {
             background-color: #0891B2 !important;
+          }
+
+          .au-bureau-theme [class~="bg-orange-50"],
+          .au-bureau-theme [class~="bg-orange-100"],
+          .au-bureau-theme [class~="bg-yellow-50"],
+          .au-bureau-theme [class~="bg-yellow-100"],
+          .au-bureau-theme [class~="bg-stone-50"],
+          .au-bureau-theme [class~="bg-stone-100"] {
+            background-color: #EFFBFD !important;
           }
 
           .au-bureau-theme [class~="text-orange-600"] {
             color: #0891B2 !important;
           }
 
-          .au-bureau-theme [class*="#3A2116"],
-          .au-bureau-theme [class*="#4A2217"],
-          .au-bureau-theme [class*="#4A2819"],
-          .au-bureau-theme [class*="#5A2819"],
-          .au-bureau-theme [class*="#69331F"],
-          .au-bureau-theme [class*="#7B3A1E"],
-          .au-bureau-theme [class*="#8B431C"],
-          .au-bureau-theme [class*="#A85F2A"],
-          .au-bureau-theme [class*="#C86F24"] {
+          .au-bureau-theme [class*="border-[#3A2116"],
+          .au-bureau-theme [class*="border-[#4A2217"],
+          .au-bureau-theme [class*="border-[#4A2819"],
+          .au-bureau-theme [class*="border-[#5A2819"],
+          .au-bureau-theme [class*="border-[#69331F"],
+          .au-bureau-theme [class*="border-[#7B3A1E"],
+          .au-bureau-theme [class*="border-[#8B431C"],
+          .au-bureau-theme [class*="border-[#A85F2A"],
+          .au-bureau-theme [class*="border-[#C86F24"] {
             border-color: #0E5A66 !important;
           }
 
@@ -221,6 +253,24 @@ const AppRouter: React.FC<AppRouterProps> = ({
           .au-bureau-theme [class*="bg-[linear-gradient"][class*="#FFC266"] {
             background: linear-gradient(180deg, #BDECF2 0%, #6FC7D2 100%) !important;
             color: #062933 !important;
+          }
+
+          .au-bureau-theme h1,
+          .au-bureau-theme h2 {
+            color: #0B1F26;
+          }
+
+          .au-bureau-theme [class*="bg-[#062933"] h1,
+          .au-bureau-theme [class*="bg-[#083D49"] h1,
+          .au-bureau-theme [class*="bg-[#0B5A66"] h1,
+          .au-bureau-theme [class*="bg-[linear-gradient"] h1,
+          .au-bureau-theme [class*="bg-[#062933"] h2,
+          .au-bureau-theme [class*="bg-[#083D49"] h2,
+          .au-bureau-theme [class*="bg-[#0B5A66"] h2,
+          .au-bureau-theme [class*="bg-[linear-gradient"] h2 {
+            color: #F4FBFC !important;
+            background: transparent !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
           }
 
           .au-bureau-theme button[class*="border-[#E2B16E]"],
