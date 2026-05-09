@@ -17,6 +17,9 @@ type TileTone = {
   border: string;
   text: string;
   glow: string;
+  surface?: string;
+  subtitleText?: string;
+  shadow?: string;
 };
 
 type HomeTile = {
@@ -76,45 +79,63 @@ const tones = {
 const auBureauTones = {
   order: {
     accent: '#078892',
-    accentSoft: '#E5F7F6',
-    border: '#8FD6D1',
-    text: '#062F38',
-    glow: '#BFEDEA',
+    accentSoft: 'rgba(125, 211, 216, 0.14)',
+    border: 'rgba(125, 211, 216, 0.35)',
+    text: '#F0FDFA',
+    glow: 'rgba(125, 211, 216, 0.22)',
+    surface: 'linear-gradient(135deg, rgba(6, 31, 40, 0.96), rgba(7, 56, 70, 0.94) 52%, rgba(11, 90, 98, 0.92))',
+    subtitleText: '#A7F3F0',
+    shadow: '0 16px 34px rgba(2, 18, 24, 0.28)',
   },
   prep: {
     accent: '#0F766E',
-    accentSoft: '#E8F7F2',
-    border: '#9AD8CC',
-    text: '#063B35',
-    glow: '#BDE9DF',
+    accentSoft: 'rgba(153, 246, 228, 0.13)',
+    border: 'rgba(125, 211, 216, 0.30)',
+    text: '#E6FFFB',
+    glow: 'rgba(20, 184, 166, 0.20)',
+    surface: 'linear-gradient(135deg, rgba(6, 31, 40, 0.94), rgba(7, 56, 70, 0.92) 52%, rgba(11, 90, 98, 0.90))',
+    subtitleText: '#A7F3F0',
+    shadow: '0 16px 34px rgba(2, 18, 24, 0.26)',
   },
   settings: {
     accent: '#0F5D66',
-    accentSoft: '#E6F3F5',
-    border: '#90CCD2',
-    text: '#072F36',
-    glow: '#C0E4E8',
+    accentSoft: 'rgba(125, 211, 216, 0.13)',
+    border: 'rgba(125, 211, 216, 0.30)',
+    text: '#E6FFFB',
+    glow: 'rgba(8, 145, 178, 0.19)',
+    surface: 'linear-gradient(135deg, rgba(6, 31, 40, 0.94), rgba(7, 56, 70, 0.92) 52%, rgba(11, 90, 98, 0.90))',
+    subtitleText: '#A7F3F0',
+    shadow: '0 16px 34px rgba(2, 18, 24, 0.26)',
   },
   sales: {
     accent: '#0891B2',
-    accentSoft: '#E6F7FB',
-    border: '#93D7E6',
-    text: '#073241',
-    glow: '#C3EDF5',
+    accentSoft: 'rgba(103, 232, 249, 0.13)',
+    border: 'rgba(103, 232, 249, 0.30)',
+    text: '#E6FFFB',
+    glow: 'rgba(8, 145, 178, 0.20)',
+    surface: 'linear-gradient(135deg, rgba(6, 31, 40, 0.94), rgba(7, 56, 70, 0.92) 52%, rgba(11, 90, 98, 0.90))',
+    subtitleText: '#A7F3F0',
+    shadow: '0 16px 34px rgba(2, 18, 24, 0.26)',
   },
   finance: {
     accent: '#F59E0B',
-    accentSoft: '#FFF7E6',
-    border: '#F3C96B',
-    text: '#3D2A05',
-    glow: '#F8D891',
+    accentSoft: 'rgba(245, 158, 11, 0.18)',
+    border: 'rgba(251, 191, 36, 0.42)',
+    text: '#FFF7ED',
+    glow: 'rgba(245, 158, 11, 0.24)',
+    surface: 'linear-gradient(135deg, rgba(6, 31, 40, 0.96), rgba(7, 56, 70, 0.94) 50%, rgba(11, 90, 98, 0.90))',
+    subtitleText: '#FDE68A',
+    shadow: '0 16px 34px rgba(2, 18, 24, 0.30)',
   },
   takeRate: {
     accent: '#14B8A6',
-    accentSoft: '#E6FAF7',
-    border: '#8BDDD3',
-    text: '#063A36',
-    glow: '#B7ECE5',
+    accentSoft: 'rgba(153, 246, 228, 0.13)',
+    border: 'rgba(125, 211, 216, 0.30)',
+    text: '#E6FFFB',
+    glow: 'rgba(20, 184, 166, 0.20)',
+    surface: 'linear-gradient(135deg, rgba(6, 31, 40, 0.94), rgba(7, 56, 70, 0.92) 52%, rgba(11, 90, 98, 0.90))',
+    subtitleText: '#A7F3F0',
+    shadow: '0 16px 34px rgba(2, 18, 24, 0.26)',
   },
 } satisfies Record<string, TileTone>;
 
@@ -124,7 +145,11 @@ const TileButton: React.FC<HomeTile> = ({ title, subtitle, onClick, icon, tone, 
     className={`home-tile group relative flex w-full overflow-hidden rounded-lg border bg-white p-4 text-left shadow-[0_8px_24px_rgba(81,52,24,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_32px_rgba(81,52,24,0.14)] sm:p-5 ${
       primary ? 'home-tile-primary lg:col-span-2' : ''
     }`}
-    style={{ borderColor: tone.border }}
+    style={{
+      borderColor: tone.border,
+      background: tone.surface,
+      boxShadow: tone.shadow,
+    }}
   >
     <span className="pointer-events-none absolute inset-x-0 top-0 h-2" style={{ backgroundColor: tone.glow }} />
     <span className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full opacity-55 blur-2xl" style={{ backgroundColor: tone.glow }} />
@@ -143,7 +168,7 @@ const TileButton: React.FC<HomeTile> = ({ title, subtitle, onClick, icon, tone, 
             <span className="home-tile-title-primary block whitespace-normal text-[2rem] font-black leading-[1.05] tracking-normal sm:text-[2.25rem]" style={{ color: tone.text }}>
               {title}
             </span>
-            <span className="mt-2 block text-[12px] font-black uppercase tracking-[0.11em] text-[#7B675A]">
+            <span className="mt-2 block text-[12px] font-black uppercase tracking-[0.11em] text-[#7B675A]" style={{ color: tone.subtitleText }}>
               {subtitle}
             </span>
           </span>
@@ -182,7 +207,7 @@ const TileButton: React.FC<HomeTile> = ({ title, subtitle, onClick, icon, tone, 
           <span className="home-tile-title block whitespace-normal text-[1.55rem] font-black leading-[1.08] tracking-normal" style={{ color: tone.text }}>
             {title}
           </span>
-          <span className="mt-2 block text-[12px] font-black uppercase tracking-[0.11em] text-[#7B675A]">
+          <span className="mt-2 block text-[12px] font-black uppercase tracking-[0.11em] text-[#7B675A]" style={{ color: tone.subtitleText }}>
             {subtitle}
           </span>
         </span>
@@ -225,10 +250,10 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   const heroBrand = isAuBureauHome ? 'Au Bureau' : 'Hippopotamus';
   const heroLocation = isAuBureauHome ? getDisplaySiteName('Montévrain') : siteDisplayName;
   const actionBadgeClass = isAuBureauHome
-    ? 'inline-flex items-center gap-2 rounded-lg border border-cyan-100/25 bg-[#052A34]/80 px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-cyan-50 shadow-[0_10px_22px_rgba(3,47,56,0.22)] ring-1 ring-white/10 sm:px-4 sm:py-3 sm:text-[12px]'
+    ? 'inline-flex items-center gap-2 rounded-lg border border-cyan-100/25 bg-gradient-to-r from-[#061F28]/95 via-[#073846]/95 to-[#0B5A62]/95 px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-cyan-50 shadow-[0_10px_22px_rgba(2,18,24,0.28)] ring-1 ring-white/10 sm:px-4 sm:py-3 sm:text-[12px]'
     : 'inline-flex items-center gap-2 rounded-lg border border-[#D99A4A] bg-[#FFF8E8] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#512A16] shadow-[0_10px_22px_rgba(26,13,8,0.18)] sm:px-4 sm:py-3 sm:text-[12px]';
   const actionButtonClass = isAuBureauHome
-    ? 'inline-flex items-center gap-2 rounded-lg border border-cyan-100/25 bg-[#052A34]/80 px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-cyan-50 shadow-[0_10px_22px_rgba(3,47,56,0.22)] ring-1 ring-white/10 transition hover:bg-[#0A4D58] sm:px-4 sm:py-3 sm:text-[12px]'
+    ? 'inline-flex items-center gap-2 rounded-lg border border-cyan-100/25 bg-gradient-to-r from-[#061F28]/95 via-[#073846]/95 to-[#0B5A62]/95 px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-cyan-50 shadow-[0_10px_22px_rgba(2,18,24,0.28)] ring-1 ring-white/10 transition hover:border-cyan-100/45 sm:px-4 sm:py-3 sm:text-[12px]'
     : 'inline-flex items-center gap-2 rounded-lg border border-[#D99A4A] bg-[#FFF2CF] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#512A16] shadow-[0_10px_22px_rgba(26,13,8,0.18)] transition hover:bg-white sm:px-4 sm:py-3 sm:text-[12px]';
   const actionSmallButtonClass = isAuBureauHome
     ? 'rounded-md bg-[#078892] px-2 py-1 text-[9px] text-white sm:text-[10px]'
@@ -408,8 +433,8 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
 
         .home-shell-au-bureau {
           background:
-            linear-gradient(135deg, rgba(237, 248, 246, 0.96) 0%, rgba(231, 244, 242, 0.96) 48%, rgba(248, 245, 237, 0.98) 100%),
-            linear-gradient(135deg, #edf8f6 0%, #e7f4f2 52%, #f8f5ed 100%);
+            radial-gradient(circle at 18% 0%, rgba(125, 211, 216, 0.16), transparent 32%),
+            linear-gradient(180deg, #061F28 0%, #073846 45%, #0B5A62 100%);
         }
 
         .home-shell::before {
@@ -424,7 +449,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
 
         .home-shell-au-bureau::before {
           background:
-            linear-gradient(165deg, transparent 0%, rgba(8, 145, 178, 0.12) 48%, rgba(20, 184, 166, 0.18) 100%);
+            linear-gradient(165deg, transparent 0%, rgba(8, 145, 178, 0.20) 48%, rgba(20, 184, 166, 0.28) 100%);
         }
 
         .restaurant-title {
