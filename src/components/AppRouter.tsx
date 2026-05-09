@@ -69,7 +69,13 @@ const AppRouter: React.FC<AppRouterProps> = ({
       {isAuBureauTheme ? (
         <style>{`
           .au-bureau-theme [class~="bg-[#FCEEB5]"],
-          .au-bureau-theme [class~="bg-[#F8DEA3]"] {
+          .au-bureau-theme [class~="bg-[#F8DEA3]"],
+          .au-bureau-theme [class*="#F8DEA3"],
+          .au-bureau-theme [class*="#F3DDC0"],
+          .au-bureau-theme [class*="#C97933"],
+          .au-bureau-theme [style*="#F8DEA3"],
+          .au-bureau-theme [style*="#F3DDC0"],
+          .au-bureau-theme [style*="#C97933"] {
             background: linear-gradient(180deg, #F4FBFC 0%, #EAF8FA 48%, #DDF5F8 100%) !important;
           }
 
@@ -79,11 +85,25 @@ const AppRouter: React.FC<AppRouterProps> = ({
           .au-bureau-theme [class~="bg-[#FFF4D9]"],
           .au-bureau-theme [class~="bg-[#FFF0CC]"],
           .au-bureau-theme [class~="bg-[#FFE8CC]"],
+          .au-bureau-theme [class~="bg-[#FFF8EF]"],
+          .au-bureau-theme [class~="bg-[#FFF7EA]"],
+          .au-bureau-theme [class~="bg-[#FBF0D8]"],
+          .au-bureau-theme [class~="bg-[#FBF2DC]"],
+          .au-bureau-theme [class~="bg-[#F2EAE2]"],
+          .au-bureau-theme [class~="bg-[#F2D59E]"],
           .au-bureau-theme [class~="bg-amber-50"],
           .au-bureau-theme [class~="bg-amber-50/20"],
           .au-bureau-theme [class~="bg-amber-50/50"],
-          .au-bureau-theme [class~="bg-amber-100"] {
+          .au-bureau-theme [class~="bg-amber-100"],
+          .au-bureau-theme [class*="from-amber-50"],
+          .au-bureau-theme [class*="via-orange-50"] {
             background-color: #EFFBFD !important;
+          }
+
+          .au-bureau-theme [class*="#FFF7EA"],
+          .au-bureau-theme [class*="#FFF8EF"],
+          .au-bureau-theme [class*="#FFF3DF"] {
+            background-color: #F4FBFC !important;
           }
 
           .au-bureau-theme [class~="hover:bg-[#F7E0AD]"]:hover,
@@ -95,6 +115,13 @@ const AppRouter: React.FC<AppRouterProps> = ({
           .au-bureau-theme [class~="border-[#E2BE7F]"],
           .au-bureau-theme [class~="border-[#E7C990]"],
           .au-bureau-theme [class~="border-[#D0B08D]"],
+          .au-bureau-theme [class~="border-[#D8AE77]"],
+          .au-bureau-theme [class~="border-[#E6C79A]"],
+          .au-bureau-theme [class~="border-[#E2C39B]"],
+          .au-bureau-theme [class~="border-[#E2B16E]/75"],
+          .au-bureau-theme [class~="border-[#F1C27B]/45"],
+          .au-bureau-theme [class~="border-[#F1C27B]/60"],
+          .au-bureau-theme [class~="border-[#F1C27B]/70"],
           .au-bureau-theme [class~="border-amber-100"],
           .au-bureau-theme [class~="border-amber-100/50"],
           .au-bureau-theme [class~="border-amber-200"],
@@ -117,6 +144,15 @@ const AppRouter: React.FC<AppRouterProps> = ({
           .au-bureau-theme [class~="text-[#B38A3A]"],
           .au-bureau-theme [class~="text-[#C59A44]"],
           .au-bureau-theme [class~="text-[#8A5A2F]"],
+          .au-bureau-theme [class~="text-[#8B5A35]"],
+          .au-bureau-theme [class~="text-[#8B6B54]"],
+          .au-bureau-theme [class~="text-[#8B431C]"],
+          .au-bureau-theme [class~="text-[#6A432D]"],
+          .au-bureau-theme [class~="text-[#6F4B10]"],
+          .au-bureau-theme [class~="text-[#554B42]"],
+          .au-bureau-theme [class~="text-[#A85F2A]"],
+          .au-bureau-theme [class~="text-[#F1C27B]"],
+          .au-bureau-theme [class~="text-[#F7C05B]"],
           .au-bureau-theme [class~="text-amber-400"],
           .au-bureau-theme [class~="text-amber-500"],
           .au-bureau-theme [class~="text-amber-700"],
@@ -128,12 +164,77 @@ const AppRouter: React.FC<AppRouterProps> = ({
           .au-bureau-theme [class~="bg-amber-500"],
           .au-bureau-theme [class~="bg-amber-600"],
           .au-bureau-theme [class~="bg-[#FDBA74]"],
-          .au-bureau-theme [class~="bg-orange-500"] {
+          .au-bureau-theme [class~="bg-orange-500"],
+          .au-bureau-theme [class~="bg-[#A85F2A]"],
+          .au-bureau-theme [class~="bg-[#C86F24]"],
+          .au-bureau-theme [class~="bg-[#F7B24A]"],
+          .au-bureau-theme [class~="bg-[#F7D66A_0%,#E5AF2F_100%)]"] {
             background-color: #0891B2 !important;
           }
 
           .au-bureau-theme [class~="text-orange-600"] {
             color: #0891B2 !important;
+          }
+
+          .au-bureau-theme [class*="#3A2116"],
+          .au-bureau-theme [class*="#4A2217"],
+          .au-bureau-theme [class*="#4A2819"],
+          .au-bureau-theme [class*="#5A2819"],
+          .au-bureau-theme [class*="#69331F"],
+          .au-bureau-theme [class*="#7B3A1E"],
+          .au-bureau-theme [class*="#8B431C"],
+          .au-bureau-theme [class*="#A85F2A"],
+          .au-bureau-theme [class*="#C86F24"] {
+            border-color: #0E5A66 !important;
+          }
+
+          .au-bureau-theme [class*="bg-[#3A2116]"],
+          .au-bureau-theme [class*="bg-[#4A2217]"],
+          .au-bureau-theme [class*="bg-[#4A2819]"],
+          .au-bureau-theme [class*="bg-[#5A2819]"],
+          .au-bureau-theme [class*="bg-[#2F1D14]"],
+          .au-bureau-theme [class*="bg-[#2C1A10]"],
+          .au-bureau-theme [class*="from-[#3A2116]"],
+          .au-bureau-theme [class*="via-[#69331F]"],
+          .au-bureau-theme [class*="to-[#A85F2A]"] {
+            background: linear-gradient(135deg, #062933 0%, #083D49 56%, #0B5A66 100%) !important;
+            color: #F4FBFC !important;
+          }
+
+          .au-bureau-theme button[class*="border-[#E2B16E]"],
+          .au-bureau-theme button[class*="border-[#F1C27B]"],
+          .au-bureau-theme button[class*="bg-[#FFF7EA]"] {
+            border-color: #8DD6E0 !important;
+            background: #F4FBFC !important;
+            color: #083D49 !important;
+            box-shadow: 0 8px 18px rgba(8, 61, 73, 0.14) !important;
+          }
+
+          .au-bureau-theme button[class*="border-[#E2B16E]"] span,
+          .au-bureau-theme button[class*="border-[#F1C27B]"] span,
+          .au-bureau-theme button[class*="bg-[#FFF7EA]"] span {
+            color: inherit !important;
+          }
+
+          .au-bureau-theme input,
+          .au-bureau-theme select,
+          .au-bureau-theme textarea {
+            border-color: #A7DEE5 !important;
+          }
+
+          .au-bureau-theme .recharts-cartesian-grid line {
+            stroke: #C5EDF2 !important;
+          }
+
+          .au-bureau-theme .recharts-reference-line line {
+            stroke: #0E7490 !important;
+          }
+
+          .au-bureau-theme .recharts-bar-rectangle path,
+          .au-bureau-theme .recharts-area-area,
+          .au-bureau-theme .recharts-area-curve {
+            fill: #0891B2 !important;
+            stroke: #0E7490 !important;
           }
         `}</style>
       ) : null}
