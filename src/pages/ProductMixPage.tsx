@@ -94,7 +94,7 @@ const ProductMixPage: React.FC<ProductMixPageProps> = ({ setView, salesHtByMonth
   // Calcul des totaux par catégorie
   const categoryTotals = useMemo(() => {
     return categories.map(cat => {
-      const total = Object.values(cat.salesByMonth).reduce((sum, val) => sum + val, 0);
+      const total = Object.values(cat.salesByMonth).reduce<number>((sum, val) => sum + Number(val), 0);
       return { ...cat, total };
     });
   }, [categories]);
