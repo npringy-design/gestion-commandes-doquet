@@ -61,6 +61,7 @@ Checklist courte a faire sur staging avant passage en production :
 
 ### Taux de prise
 
+- [ ] Lancer `npm run test:margin-parser`
 - [ ] Verifier import marge
 - [ ] Verifier base produits marge
 - [ ] Verifier variantes non fusionnees

@@ -7,8 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
+    "test:margin-parser": "node scripts/test-margin-parser.mjs",
     "check:secrets": "node scripts/check-sensitive-env.mjs",
-    "verify": "npm run typecheck && npm run build && npm run check:secrets",
+    "verify": "npm run typecheck && npm run test:margin-parser && npm run build && npm run check:secrets",
     "preview": "vite preview"
   },
   "dependencies": {
