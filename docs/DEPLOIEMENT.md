@@ -35,6 +35,26 @@ Sans redeploy, l'application peut continuer a utiliser les anciennes valeurs.
 8. Verifier rapidement la production apres deploiement : connexion, accueil, fonctionnalite modifiee et absence de badge TEST.
 9. En cas de probleme, rollback Vercel vers le dernier deploiement stable.
 
+## Protection de la branche production main
+
+`main` correspond a la production. Aucune modification ne doit etre poussee directement sur `main`.
+
+Les modifications doivent d'abord etre faites et testees sur `staging`, puis passer en production via Pull Request ou merge valide.
+
+Avant merge vers `main`, la GitHub Action `verify` doit passer. Si `verify` echoue, ne pas merger.
+
+Apres merge sur `main`, verifier Vercel production `gestion-commandes-doquet` et garder un rollback possible via le dernier deploiement Vercel stable.
+
+Reglages GitHub recommandes :
+
+1. Aller dans `Settings > Branches > Branch protection rules`.
+2. Creer ou modifier une regle pour proteger `main`.
+3. Activer `Require a pull request before merging`.
+4. Activer `Require status checks to pass`.
+5. Activer `Require branches to be up to date before merging` si disponible.
+6. Activer `Prevent force pushes`.
+7. Activer `Prevent deletion`.
+
 ## Garde-fous
 
 - Ne pas toucher a Supabase production pendant les tests staging.
