@@ -835,7 +835,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   }, [availableImportRows.length, filteredRows.length, hasMarginImport, importSalesByName, marginCatalog.length, monthCovers, okCount, reviewCount, rows, selectedMonth, withoutLinkCount]);
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[linear-gradient(180deg,#F4FBFC_0%,#EAF8FA_54%,#DDF5F8_100%)] text-[#111827]">
+    <div className="min-h-screen overflow-hidden bg-[linear-gradient(180deg,#FFF7EA_0%,#F8E6C7_54%,#E9C38B_100%)] text-[#2E1B12]">
       <div className="mx-auto flex h-screen max-w-[1920px] flex-col gap-3 p-2 sm:p-3">
       <aside className="hidden">
         <AppNavTile
@@ -884,12 +884,12 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       </aside>
 
       <main className="flex min-h-0 min-w-0 flex-1">
-        <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[28px] border border-[#A7DEE5] bg-[#F4FBFC]/96 shadow-[0_18px_38px_rgba(8,61,73,0.14)]">
-          <div className="border-b border-[#0E6572] bg-[#063F4A] px-4 py-3 shadow-[0_14px_28px_rgba(8,61,73,0.20)] sm:px-5">
+        <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[28px] border border-[#EBC28A] bg-[#FFFDF8]/96 shadow-[0_18px_38px_rgba(66,42,24,0.14)]">
+          <div className="border-b border-[#8B431C] bg-[#2F1D14] px-4 py-3 shadow-[0_14px_28px_rgba(66,42,24,0.20)] sm:px-5">
               <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-3">
                 <AppNavTile onClick={() => setView('home')} eyebrow="Retour" icon="home" size="sm" tone="cream">Accueil</AppNavTile>
                 <AppNavTile onClick={() => setView('stats')} eyebrow="Retour" icon="settings" size="sm" tone="cream">Parametres</AppNavTile>
-                <div className="hidden h-12 w-px bg-[#A7DEE5]/45 xl:block" />
+                <div className="hidden h-12 w-px bg-[#EBC28A]/45 xl:block" />
                 <div className="min-w-0">
                   <h2 className="text-3xl font-black leading-none text-[#FFF7EA]">Taux de prise</h2>
                 <p className="mt-1 text-[10px] font-black uppercase tracking-[0.22em] text-[#F7C05B]">Parametrage</p>
@@ -920,7 +920,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
             </div>
           </div>
           </div>
-            <div className="border-b border-[#A7DEE5] bg-[#EAF8FA] px-4 py-3 sm:px-5">
+            <div className="border-b border-[#EBC28A] bg-[#FFF7EA] px-4 py-3 sm:px-5">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8A5A2F]">Figer les mois du taux de prise</p>
                 <label className="flex items-center gap-2">
@@ -998,7 +998,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 </div>
               ))}
             </div>
-            <div className="flex flex-wrap items-end gap-3 border-b border-[#A7DEE5] bg-[#EAF8FA] px-4 py-3 sm:px-5">
+            <div className="flex flex-wrap items-end gap-3 border-b border-[#EBC28A] bg-[#FFF7EA] px-4 py-3 sm:px-5">
               <label className="min-w-[260px] flex-1">
                 <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.10em] text-[#8A5A2F]">Recherche produit</span>
                 <input
@@ -1058,7 +1058,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
 
             </div>
 
-          <div ref={tableScrollRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#F4FBFC]">
+          <div ref={tableScrollRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#FFFDF8]">
             <table className="w-full table-fixed border-separate border-spacing-0">
               <colgroup>
                 <col className="w-[3%]" />
@@ -1075,8 +1075,8 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                 <col className="w-[4%]" />
               </colgroup>
               <thead className="sticky top-0 z-10">
-                <tr className="bg-[#DDF5F8] text-[#111827]">
-                  <th className="border-b border-[#A7DEE5] px-2 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">
+                <tr className="bg-[#F8E0B8] text-[#2E1B12]">
+                  <th className="border-b border-[#EBC28A] px-2 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">
                     <input
                       type="checkbox"
                       checked={allVisibleRowsSelected}
@@ -1086,17 +1086,17 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                       className="h-4 w-4 rounded border-[#B98D76] text-[#A24E30] focus:ring-[#D9A58F]"
                     />
                   </th>
-                  <th className="border-b border-[#A7DEE5] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">État</th>
-                  <th className="border-b border-[#A7DEE5] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Produit marge</th>
-                  <th className="border-b border-[#A7DEE5] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Famille</th>
-                  <th className="border-b border-[#A7DEE5] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">CR €</th>
-                  <th className="border-b border-[#A7DEE5] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Prix TTC €</th>
-                  <th className="border-b border-[#A7DEE5] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Marge €</th>
-                  <th className="border-b border-[#A7DEE5] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Marge %</th>
-                  <th className="border-b border-[#A7DEE5] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Recherche import</th>
-                  <th className="border-b border-[#A7DEE5] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Ventes</th>
-                  <th className="border-b border-[#A7DEE5] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Taux</th>
-                  <th className="border-b border-[#A7DEE5] px-3 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">Suppr.</th>
+                  <th className="border-b border-[#EBC28A] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">État</th>
+                  <th className="border-b border-[#EBC28A] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Produit marge</th>
+                  <th className="border-b border-[#EBC28A] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Famille</th>
+                  <th className="border-b border-[#EBC28A] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">CR €</th>
+                  <th className="border-b border-[#EBC28A] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Prix TTC €</th>
+                  <th className="border-b border-[#EBC28A] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Marge €</th>
+                  <th className="border-b border-[#EBC28A] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Marge %</th>
+                  <th className="border-b border-[#EBC28A] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Recherche import</th>
+                  <th className="border-b border-[#EBC28A] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Ventes</th>
+                  <th className="border-b border-[#EBC28A] px-3 py-4 text-left text-[12px] font-black uppercase tracking-[0.07em]">Taux</th>
+                  <th className="border-b border-[#EBC28A] px-3 py-4 text-center text-[12px] font-black uppercase tracking-[0.07em]">Suppr.</th>
                 </tr>
               </thead>
               <tbody>
@@ -1122,7 +1122,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                       .slice(0, 60);
 
                     return (
-                      <tr key={row.id} className={`${rowIndex % 2 === 0 ? 'bg-[#F4FBFC]' : 'bg-[#EFFBFD]'} ${meta.rowRing}`}>
+                      <tr key={row.id} className={`${rowIndex % 2 === 0 ? 'bg-[#FFFDF8]' : 'bg-[#FFF7EA]'} ${meta.rowRing}`}>
                         <td className="border-b border-[#E8D8C8] px-2 py-3 align-top text-center">
                           <input
                             type="checkbox"
