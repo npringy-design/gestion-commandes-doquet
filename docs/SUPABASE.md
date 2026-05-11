@@ -34,3 +34,30 @@ Ne jamais creer de variable `VITE_SUPABASE_SERVICE_ROLE_KEY`.
 Tout changement SQL doit etre teste d'abord sur Supabase test.
 
 Ne pas executer un script SQL en production avant validation complete sur staging.
+
+## Sauvegarde Supabase avant modification sensible
+
+Avant toute modification sensible, toujours tester le SQL d'abord sur Supabase test.
+
+Avant tout SQL en production, faire une sauvegarde ou un export de la base production.
+
+Ne jamais executer un SQL genere automatiquement sans relecture humaine. Eviter les `DROP` et `DELETE` sans backup verifie. Privilegier les migrations reversibles, avec une procedure de retour arriere claire.
+
+Apres migration, verifier les donnees critiques :
+
+- `app_state`
+- `profiles`
+- user/site access
+- commandes si concerne
+
+En cas de probleme, ne pas continuer a modifier la production. Faire un rollback Vercel si le probleme vient du deploiement, ou restaurer la sauvegarde Supabase si le probleme vient des donnees.
+
+Checklist avant migration production :
+
+- [ ] Backup fait
+- [ ] SQL relu
+- [ ] SQL teste sur Supabase test
+- [ ] Resultat valide
+- [ ] Production sauvegardee
+- [ ] Migration executee
+- [ ] App testee apres migration
