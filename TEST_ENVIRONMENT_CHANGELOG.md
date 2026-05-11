@@ -11,7 +11,7 @@ Eviter de modifier directement l'application production.
 
 A partir de la mise en place de cet environnement, toute modification de l'application doit suivre ce cycle :
 
-1. developper la modification sur une branche ou un deploiement de test ;
+1. developper la modification sur la branche de test `codex-setup-staging-workflow` ;
 2. verifier la modification sur l'application test connectee au Supabase test ;
 3. attendre la validation utilisateur explicite ;
 4. seulement apres validation, appliquer/pousser la modification vers la version production.
@@ -24,7 +24,16 @@ Le workflow choisi :
 
 - application production : projet Vercel classique + Supabase production ;
 - application test : projet Vercel separe + Supabase test separe ;
+- branche officielle de test : `codex-setup-staging-workflow` ;
+- projet Vercel test `gestion-commande-test` : deploie depuis `codex-setup-staging-workflow` ;
+- projet Vercel production `gestion-commandes-doquet` : deploie depuis `main` ;
 - les modifications sont testees sur l'application test avant d'etre appliquees a la production.
+
+Memo important pour Codex :
+
+- Ne pas creer une branche temporaire pour une modification a tester sans raison explicite.
+- Par defaut, appliquer et pousser les modifications de test sur `codex-setup-staging-workflow`.
+- N'utiliser `main` que pour la production, apres validation utilisateur explicite.
 
 ## Changements code
 

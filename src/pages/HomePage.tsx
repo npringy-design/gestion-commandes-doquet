@@ -33,44 +33,44 @@ type HomeTile = {
 
 const tones = {
   order: {
-    accent: '#C46B22',
+    accent: '#B5412D',
     accentSoft: '#FFF0D2',
-    border: '#E7B56F',
-    text: '#3C2415',
-    glow: '#F8D69E',
+    border: '#E0A247',
+    text: '#3A1E12',
+    glow: '#F7B24A',
   },
   prep: {
-    accent: '#5E7A3E',
-    accentSoft: '#F2F6E7',
-    border: '#BFD19E',
-    text: '#273C18',
-    glow: '#DFEBC5',
+    accent: '#7B3A1E',
+    accentSoft: '#F8E0B8',
+    border: '#D58A3A',
+    text: '#35190F',
+    glow: '#E7A94E',
   },
   settings: {
-    accent: '#A77A19',
+    accent: '#8B431C',
     accentSoft: '#FFF4C6',
-    border: '#E1BF5F',
+    border: '#E0B45A',
     text: '#3E2B0C',
     glow: '#F7DEA0',
   },
   sales: {
-    accent: '#9A7428',
+    accent: '#C86F24',
     accentSoft: '#F8EED4',
-    border: '#DDBE76',
+    border: '#E2B766',
     text: '#3E2B10',
     glow: '#EED69B',
   },
   finance: {
-    accent: '#456B7A',
-    accentSoft: '#E7F0F0',
-    border: '#B8CED1',
-    text: '#203942',
-    glow: '#D4E6E7',
+    accent: '#5A2819',
+    accentSoft: '#F6E0C4',
+    border: '#D49A5B',
+    text: '#35190F',
+    glow: '#E7A866',
   },
   takeRate: {
-    accent: '#8F6A2F',
+    accent: '#A85F2A',
     accentSoft: '#F8ECD6',
-    border: '#DDBB82',
+    border: '#E0B273',
     text: '#3F2B16',
     glow: '#EAD0A3',
   },
@@ -245,6 +245,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   const activeSiteHeaderLabel = getDisplaySiteName(activeSite.name);
   const canSwitchSite = availableSiteIds.length > 1;
   const isAuBureauHome = activeSiteId === 'au_bureau_montevrain';
+  const isHippoHome = activeSiteId === 'hippo_thillois' || activeSiteId === 'hippo_st_thibault';
   const homeTones = isAuBureauHome ? auBureauTones : tones;
   const heroImage = isAuBureauHome ? auBureauHero : restaurantHero;
   const heroBrand = isAuBureauHome ? 'Au Bureau' : 'Hippopotamus';
@@ -437,6 +438,13 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
             linear-gradient(180deg, #061F28 0%, #073846 45%, #0B5A62 100%);
         }
 
+        .home-shell-hippo {
+          background:
+            radial-gradient(circle at 18% 0%, rgba(247, 178, 74, 0.18), transparent 32%),
+            linear-gradient(180deg, rgba(31, 15, 10, 0.98) 0%, rgba(91, 34, 24, 0.97) 48%, rgba(188, 92, 36, 0.94) 100%),
+            linear-gradient(135deg, #1F0F0A 0%, #7B2E1F 48%, #D88A35 100%);
+        }
+
         .home-shell::before {
           content: '';
           position: absolute;
@@ -450,6 +458,11 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         .home-shell-au-bureau::before {
           background:
             linear-gradient(165deg, transparent 0%, rgba(8, 145, 178, 0.20) 48%, rgba(20, 184, 166, 0.28) 100%);
+        }
+
+        .home-shell-hippo::before {
+          background:
+            linear-gradient(165deg, transparent 0%, rgba(123, 46, 31, 0.22) 48%, rgba(247, 178, 74, 0.30) 100%);
         }
 
         .restaurant-title {
@@ -529,7 +542,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         }
       `}</style>
 
-      <div className={`home-shell ${isAuBureauHome ? 'home-shell-au-bureau text-[#062F38]' : 'text-[#2E1B12]'} relative min-h-[100dvh] overflow-x-hidden`}>
+      <div className={`home-shell ${isAuBureauHome ? 'home-shell-au-bureau text-[#062F38]' : isHippoHome ? 'home-shell-hippo text-[#2E1B12]' : 'text-[#2E1B12]'} relative min-h-[100dvh] overflow-x-hidden`}>
         {showPassword && (
           <PasswordModal
             onConfirm={() => {
