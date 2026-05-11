@@ -61,8 +61,8 @@ Une donnée d'un site ne doit jamais être sauvegardée sur un autre site.
 2. Vérifier que Vercel test pointe bien vers Supabase test.
 3. Tester les fonctionnalités concernées avec la checklist.
 4. Lancer ou vérifier `npm run verify`.
-5. Passer en production uniquement après validation.
-6. Utiliser une Pull Request vers `main` si la protection GitHub est active.
+5. Si la version test est validée explicitement, cela vaut feu vert pour le déploiement production.
+6. La Pull Request n'est pas obligatoire si le dépôt autorise le push direct vers `main`.
 7. Après déploiement production, vérifier rapidement l'application originale.
 
 `main` correspond à la production. Aucune modification sensible ne doit partir en production sans validation préalable sur l'environnement test.
