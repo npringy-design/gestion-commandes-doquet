@@ -70,6 +70,8 @@ export const APP_ENV: AppEnvironment =
     ? configuredAppEnv
     : 'production';
 
+export const IS_STAGING = APP_ENV === 'staging';
+export const IS_PRODUCTION = APP_ENV === 'production';
 export const IS_NON_PRODUCTION_ENV = APP_ENV !== 'production';
 
 const currentHost = typeof window === 'undefined' ? '' : window.location.hostname.toLowerCase();

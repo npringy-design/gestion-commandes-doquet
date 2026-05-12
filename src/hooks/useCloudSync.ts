@@ -444,7 +444,7 @@ export const useCloudSync = ({
       currentKey => lastCloudUpdatedAtByKey.current[currentKey],
       (confirmedKey, confirmedTs) => {
         lastCloudUpdatedAtByKey.current[confirmedKey] = confirmedTs;
-        delete localTsByKey.current[confirmedKey];
+        localTsByKey.current[confirmedKey] = confirmedTs;
         lastPersistedSignatureByKey.current[confirmedKey] = signature;
       },
       debounceMs ?? SAVE_DEBOUNCE_MS_BY_KEY[key] ?? 1500,
