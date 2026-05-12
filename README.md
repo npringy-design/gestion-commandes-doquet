@@ -6,6 +6,8 @@
 
 This contains everything you need to run your app locally.
 
+Workflow test 2026-05-12 : micro-modification documentaire sans impact applicatif.
+
 View your app in AI Studio: https://ai.studio/apps/drive/1yXxM8Qw3Q89HnigAh6mXidRebrFO4RS5
 
 ## Run Locally
