@@ -4,6 +4,8 @@ Application multisite de gestion de commandes restaurant, utilisée pour Hippopo
 
 Elle permet de gérer les commandes, les imports de fichiers, les ratios, le coût matière, le taux de prise et les données par site avec isolation via `site_id`.
 
+Workflow test 2026-05-12 : micro-modification documentaire sans impact applicatif.
+
 ## Stack technique
 
 - React
