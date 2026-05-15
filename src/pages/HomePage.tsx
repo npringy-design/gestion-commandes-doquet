@@ -32,7 +32,9 @@ type HomeTile = {
 };
 
 const customGptUrl = (import.meta.env.VITE_CUSTOM_GPT_URL as string | undefined)?.trim();
-const customGptHref = customGptUrl || 'https://chatgpt.com/gpts';
+const customGptHref = customGptUrl
+  ? (/^https?:\/\//i.test(customGptUrl) ? customGptUrl : `https://${customGptUrl}`)
+  : '';
 
 const tones = {
   order: {
@@ -375,6 +377,17 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
     window.location.reload();
   };
 
+  const gptButtonContent = (
+    <>
+      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M8 10h8M8 14h5" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M7 19.5A7.5 7.5 0 1119.5 7 7.5 7.5 0 017 19.5z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M5.5 18.5L4 21l2.5-1.5" />
+      </svg>
+      Assistant GPT
+    </>
+  );
+
   const pageActions = (
     <div className="mb-4 flex flex-wrap items-center justify-end gap-2 sm:gap-3">
         {canSwitchSite ? (
@@ -404,21 +417,28 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         </button>
       ) : null}
 
-      <a
-        href={customGptHref}
-        target="_blank"
-        rel="noreferrer"
-        className={actionButtonClass}
-        title={customGptUrl ? 'Ouvrir mon GPT' : 'Configurer VITE_CUSTOM_GPT_URL pour ouvrir ton GPT directement'}
-        aria-label="Ouvrir mon GPT dans un nouvel onglet"
-      >
-        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M8 10h8M8 14h5" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M7 19.5A7.5 7.5 0 1119.5 7 7.5 7.5 0 017 19.5z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M5.5 18.5L4 21l2.5-1.5" />
-        </svg>
-        Assistant GPT
-      </a>
+      {customGptHref ? (
+        <a
+          href={customGptHref}
+          target="_blank"
+          rel="noreferrer"
+          className={actionButtonClass}
+          title="Ouvrir mon GPT"
+          aria-label="Ouvrir mon GPT dans un nouvel onglet"
+        >
+          {gptButtonContent}
+        </a>
+      ) : (
+        <button
+          type="button"
+          onClick={() => window.alert('Lien GPT non configure : ajoute VITE_CUSTOM_GPT_URL dans les variables Vercel test, puis relance un redeploiement.')}
+          className={actionButtonClass}
+          title="Lien GPT non configure"
+          aria-label="Lien GPT non configure"
+        >
+          {gptButtonContent}
+        </button>
+      )}
 
       <button
         onClick={() => {
