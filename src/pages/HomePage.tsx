@@ -31,6 +31,9 @@ type HomeTile = {
   primary?: boolean;
 };
 
+const customGptUrl = (import.meta.env.VITE_CUSTOM_GPT_URL as string | undefined)?.trim();
+const customGptHref = customGptUrl || 'https://chatgpt.com/gpts';
+
 const tones = {
   order: {
     accent: '#C46B22',
@@ -399,6 +402,22 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
           Déconnexion
         </button>
       ) : null}
+
+      <a
+        href={customGptHref}
+        target="_blank"
+        rel="noreferrer"
+        className={actionButtonClass}
+        title={customGptUrl ? 'Ouvrir mon GPT' : 'Configurer VITE_CUSTOM_GPT_URL pour ouvrir ton GPT directement'}
+        aria-label="Ouvrir mon GPT dans un nouvel onglet"
+      >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M8 10h8M8 14h5" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M7 19.5A7.5 7.5 0 1119.5 7 7.5 7.5 0 017 19.5z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M5.5 18.5L4 21l2.5-1.5" />
+        </svg>
+        Assistant GPT
+      </a>
 
       <button
         onClick={() => {
