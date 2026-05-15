@@ -31,10 +31,16 @@ type HomeTile = {
   primary?: boolean;
 };
 
-const customGptUrl = (import.meta.env.VITE_CUSTOM_GPT_URL as string | undefined)?.trim();
-const customGptHref = customGptUrl
-  ? (/^https?:\/\//i.test(customGptUrl) ? customGptUrl : `https://${customGptUrl}`)
-  : '';
+const normalizeExternalUrl = (url?: string) => {
+  const trimmed = url?.trim();
+  if (!trimmed) return '';
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+};
+
+const hippoGptUrl =
+  (import.meta.env.VITE_HIPPO_GPT_URL as string | undefined)?.trim()
+  || (import.meta.env.VITE_CUSTOM_GPT_URL as string | undefined)?.trim();
+const auBureauGptUrl = (import.meta.env.VITE_AU_BUREAU_GPT_URL as string | undefined)?.trim();
 
 const tones = {
   order: {
@@ -251,6 +257,9 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
   const canSwitchSite = availableSiteIds.length > 1;
   const isAuBureauHome = activeSiteId === 'au_bureau_montevrain';
   const isHippoHome = activeSiteId === 'hippo_thillois' || activeSiteId === 'hippo_st_thibault';
+  const siteGptHref = normalizeExternalUrl(isAuBureauHome ? auBureauGptUrl : isHippoHome ? hippoGptUrl : undefined);
+  const showGptButton = Boolean(siteGptHref) || isHippoHome;
+  const gptButtonLabel = isAuBureauHome ? 'Assistant Au Bureau' : 'Assistant Hippo';
   const homeTones = isAuBureauHome ? auBureauTones : tones;
   const heroImage = isAuBureauHome ? auBureauHero : restaurantHero;
   const heroBrand = isAuBureauHome ? 'Au Bureau' : 'Hippopotamus';
@@ -384,7 +393,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M7 19.5A7.5 7.5 0 1119.5 7 7.5 7.5 0 017 19.5z" />
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M5.5 18.5L4 21l2.5-1.5" />
       </svg>
-      Assistant GPT
+      {gptButtonLabel}
     </>
   );
 
@@ -417,28 +426,30 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
         </button>
       ) : null}
 
-      {customGptHref ? (
-        <a
-          href={customGptHref}
-          target="_blank"
-          rel="noreferrer"
-          className={actionButtonClass}
-          title="Ouvrir mon GPT"
-          aria-label="Ouvrir mon GPT dans un nouvel onglet"
-        >
-          {gptButtonContent}
-        </a>
-      ) : (
-        <button
-          type="button"
-          onClick={() => window.alert('Lien GPT non configure : ajoute VITE_CUSTOM_GPT_URL dans les variables Vercel test, puis relance un redeploiement.')}
-          className={actionButtonClass}
-          title="Lien GPT non configure"
-          aria-label="Lien GPT non configure"
-        >
-          {gptButtonContent}
-        </button>
-      )}
+      {showGptButton ? (
+        siteGptHref ? (
+          <a
+            href={siteGptHref}
+            target="_blank"
+            rel="noreferrer"
+            className={actionButtonClass}
+            title={`Ouvrir ${gptButtonLabel}`}
+            aria-label={`Ouvrir ${gptButtonLabel} dans un nouvel onglet`}
+          >
+            {gptButtonContent}
+          </a>
+        ) : (
+          <button
+            type="button"
+            onClick={() => window.alert('Lien GPT Hippo non configure : ajoute VITE_HIPPO_GPT_URL dans les variables Vercel test, puis relance un redeploiement.')}
+            className={actionButtonClass}
+            title="Lien GPT Hippo non configure"
+            aria-label="Lien GPT Hippo non configure"
+          >
+            {gptButtonContent}
+          </button>
+        )
+      ) : null}
 
       <button
         onClick={() => {
