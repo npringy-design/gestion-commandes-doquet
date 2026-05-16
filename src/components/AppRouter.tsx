@@ -13,6 +13,7 @@ const CostAnalysisPage = lazy(() => import('../pages/CostAnalysisPage'));
 const StatsPage = lazy(() => import('../pages/StatsPage'));
 const DailyForecastPage = lazy(() => import('../pages/DailyForecastPage'));
 const SupplierSettingsPage = lazy(() => import('../pages/SupplierSettingsPage'));
+const OrderParametersPage = lazy(() => import('../pages/OrderParametersPage'));
 const SupplierOrderPage = lazy(() => import('../pages/SupplierOrderPage'));
 const RatiosPage = lazy(() => import('../pages/RatiosPage'));
 const UserManagementPage = lazy(() => import('../pages/UserManagementPage'));
@@ -435,6 +436,24 @@ const AppRouter: React.FC<AppRouterProps> = ({
         setConfigs={state.setSupplierConfigs}
       />,
       'Chargement des fournisseurs…'
+    );
+  }
+
+  if (view === 'order_parameters' && isMobile) {
+    return renderWithShell(<MobileBlocked title="Paramètre commandes" />);
+  }
+
+  if (view === 'order_parameters') {
+    if (!canAccessStatsPage(profile)) {
+      return renderWithShell(<AccessDenied message="Cette section est reservee aux roles autorises pour ce module." />);
+    }
+    return renderLazyPage(
+      <OrderParametersPage
+        setView={setView}
+        rows={state.orderParameterRows}
+        setRows={state.setOrderParameterRows}
+      />,
+      'Chargement du paramètre commandes...'
     );
   }
 

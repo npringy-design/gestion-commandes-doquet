@@ -66,6 +66,13 @@ export interface SupplierConfig {
   createdAt?:       string;
 }
 
+export interface OrderParameterRow {
+  id: string;
+  product: string;
+  packaging: number | '';
+  unitValue: number | '';
+}
+
 
 export type PrepCategory = 'poste_chaud' | 'poste_entree' | 'poste_dessert' | 'decongelation';
 

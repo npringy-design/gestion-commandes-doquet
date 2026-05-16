@@ -122,6 +122,7 @@ export type CoreView =
   | 'daily_forecast'
   | 'admin_dashboard'
   | 'supplier_settings'
+  | 'order_parameters'
   | 'user_management'
   | 'cost_analysis'
   | 'prep_sheet'
@@ -155,6 +156,7 @@ export const RESERVED_VIEWS = new Set<CoreView>([
   'daily_forecast',
   'admin_dashboard',
   'supplier_settings',
+  'order_parameters',
   'user_management',
   'cost_analysis',
   'prep_sheet',

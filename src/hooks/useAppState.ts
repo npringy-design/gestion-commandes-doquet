@@ -16,7 +16,7 @@ import {
   ProductWithHistory,
   DAILY_COVERS_INITIAL,
 } from '../data';
-import { OrderState, SupplierConfig, PrepBatch, PrepItem, PrepImportsByMonth, PrepForecastsByDate, PrepSheetStocks } from '../types';
+import { OrderState, SupplierConfig, PrepBatch, PrepItem, PrepImportsByMonth, PrepForecastsByDate, PrepSheetStocks, OrderParameterRow } from '../types';
 import { MONTHS_ORDER, View, SupplierId } from '../constants';
 import { DailyCoversState } from '../utils/dateHelpers';
 import { getImportedValueForProduct, extractAllNamesFromCsvs } from '../utils/csvHelpers';
@@ -133,6 +133,9 @@ export const useAppState = () => {
   const [supplierConfigs, setSupplierConfigs] =
 useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults({}));
 
+  const [orderParameterRows, setOrderParameterRows] =
+    useState<OrderParameterRow[]>([]);
+
   const [products, setProducts] = useState<ProductWithHistory[]>(() =>
     createInitialProducts([])
   );
@@ -204,6 +207,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     validatedMonths: ratioValidatedMonths,
     prepValidatedMonths,
     supplierConfigs,
+    orderParameterRows,
     deliveryDateBySupplier,
     nextDeliveryDateBySupplier,
     products: visibleProducts,
@@ -221,6 +225,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     setValidatedMonths: setRatioValidatedMonths,
     setPrepValidatedMonths,
     setSupplierConfigs,
+    setOrderParameterRows,
     setDeliveryDateBySupplier,
     setNextDeliveryDateBySupplier,
     setProducts: setProductsWithoutDeleted,
@@ -473,6 +478,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     importTargetMonth,
     prepImportTargetMonth,
     supplierConfigs, setSupplierConfigs,
+    orderParameterRows, setOrderParameterRows,
     products: visibleProducts, setProducts: setProductsWithoutDeleted,
     prepItems, setPrepItems,
     prepImportsByMonth, setPrepImportsByMonth,

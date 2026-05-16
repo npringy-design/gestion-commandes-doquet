@@ -342,7 +342,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
             </div>
             <h1 className="text-2xl font-bold text-gray-900">Paramètres</h1>
 
-            <div className="grid gap-2 sm:grid-cols-3 xl:min-w-[560px] [&>button:nth-child(-n+2)]:hidden">
+            <div className="grid gap-2 sm:grid-cols-4 xl:min-w-[720px] [&>button:nth-child(-n+2)]:hidden">
               <button
                 type="button"
                 onClick={() => setView('home')}
@@ -389,6 +389,16 @@ const StatsPage: React.FC<StatsPageProps> = ({
                 size="md"
               >
                 Taux de prise
+              </AppNavTile>
+
+              <AppNavTile
+                type="button"
+                onClick={() => setView('order_parameters')}
+                eyebrow="Paramètre"
+                icon="settings"
+                size="md"
+              >
+                Commandes
               </AppNavTile>
             </div>
           </div>
