@@ -81,6 +81,13 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
     && !availableSiteIds.includes(activeSiteId)
   );
 
+  const siteAccessBlocked = Boolean(
+    user
+    && isActive
+    && profile
+    && availableSiteIds.length === 0
+  );
+
   const resetStoredSite = React.useCallback(() => {
     const fallbackSite = availableSiteIds[0];
     try {
@@ -131,6 +138,16 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
     return <ForcePasswordChangePage />;
   }
 
+  if (!profile || siteAccessBlocked) {
+    return (
+      <LoadingScreen
+        label="Acces site bloque"
+        message="Aucun site autorise n'a pu etre confirme pour ce compte. Reconnectez-vous ou contactez un administrateur."
+        onSignOut={() => void signOut()}
+      />
+    );
+  }
+
   if (siteMismatch) {
     return (
       <LoadingScreen
@@ -141,7 +158,6 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
       />
     );
   }
-
   let hasChosenSite = true;
   try {
     hasChosenSite = Boolean(window.sessionStorage.getItem(ACTIVE_SITE_STORAGE_KEY));
