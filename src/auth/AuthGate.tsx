@@ -53,6 +53,13 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
     && !availableSiteIds.includes(activeSiteId)
   );
 
+  const siteAccessBlocked = Boolean(
+    user
+    && isActive
+    && profile
+    && availableSiteIds.length === 0
+  );
+
   React.useEffect(() => {
     if (!siteMismatch) return;
     const fallbackSite = availableSiteIds[0];
@@ -88,6 +95,25 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   if (profile?.must_change_password || user.user_metadata?.must_change_password) {
     return <ForcePasswordChangePage />;
+  }
+
+  if (!profile || siteAccessBlocked) {
+    return (
+      <div className="min-h-screen bg-[#1a0f0a] flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white rounded-3xl p-6 shadow-2xl border-4 border-red-600 text-center">
+          <h2 className="text-2xl font-black uppercase tracking-tight text-slate-800 mb-2">Acces site bloque</h2>
+          <p className="text-slate-600 text-sm font-semibold">
+            Aucun site autorise n'a pu etre confirme pour ce compte. Reconnectez-vous ou contactez un administrateur.
+          </p>
+          <button
+            onClick={() => void signOut()}
+            className="mt-5 w-full bg-red-600 text-white font-black uppercase tracking-widest text-sm py-3 rounded-2xl hover:opacity-95"
+          >
+            Se deconnecter
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (siteMismatch) return <LoadingScreen label="Correction du site…" />;
