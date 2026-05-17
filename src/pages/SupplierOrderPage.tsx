@@ -26,6 +26,14 @@ import { isCommandeRole } from '../lib/permissions';
 type AppState = ReturnType<typeof useAppState>;
 interface SupplierOrderPageProps { state: AppState; }
 
+const normalizeProductKey = (value: unknown) =>
+  String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
 const SupplierIcon: React.FC<{ view: string }> = ({ view }) => {
   // Doquet — sac shopping (softs & jus)
   if (view === 'doquet')
@@ -62,7 +70,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
     deliveryDateBySupplier, setDeliveryDateBySupplier,
     nextDeliveryDateBySupplier, setNextDeliveryDateBySupplier,
     orderStates, setOrderStates,
-    supplierConfigs, products, dailyCovers,
+    supplierConfigs, products, dailyCovers, orderParameterRows,
     performReset, updateProductValue, getProductStats,
   } = state;
 
@@ -108,6 +116,19 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
     subtitle: currentConfig.subtitle || 'Fournisseur',
   };
   const displayedProducts = products.filter(p => p.supplierId === currentSupplierId);
+
+  const countingUnitByProduct = React.useMemo(() => {
+    const map = new Map<string, string>();
+    orderParameterRows
+      .filter(row => (row.supplierId ?? currentSupplierId) === currentSupplierId && String(row.countingUnit || '').trim())
+      .forEach(row => map.set(normalizeProductKey(row.product), String(row.countingUnit).trim()));
+    return map;
+  }, [orderParameterRows, currentSupplierId]);
+
+  const getCountingUnitForProduct = (product: { name: string; searchName?: string }) =>
+    countingUnitByProduct.get(normalizeProductKey(product.name))
+    ?? countingUnitByProduct.get(normalizeProductKey(product.searchName))
+    ?? '-';
 
   const dates = getDeliveryDates(currentConfig);
 
@@ -436,16 +457,17 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
           <table
             className="w-full"
             style={isMobile
-              ? { tableLayout: 'fixed', width: '100%' }
-              : { tableLayout: 'auto', minWidth: calculationMode === 'margin' ? '760px' : '840px' }
+              ? { tableLayout: 'fixed', minWidth: '620px' }
+              : { tableLayout: 'auto', minWidth: calculationMode === 'margin' ? '860px' : '940px' }
             }>
-            {/* colgroup mobile : répartition % sur 4 colonnes visibles */}
+            {/* colgroup mobile/tablette : produit + stocks + unité + à commander */}
             {isMobile && (
               <colgroup>
-                <col style={{ width: '38%' }} />
-                <col style={{ width: '26%' }} />
-                <col style={{ width: '22%' }} />
-                <col style={{ width: '14%' }} />
+                <col style={{ width: '190px' }} />
+                <col style={{ width: '110px' }} />
+                <col style={{ width: '100px' }} />
+                <col style={{ width: '120px' }} />
+                <col style={{ width: '90px' }} />
               </colgroup>
             )}
             <thead>
@@ -462,6 +484,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                   <th className="hidden lg:table-cell p-2 bg-emerald-600 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Livr.<br/>à venir</th>
                   <th className="p-2 bg-amber-600 text-white font-black uppercase text-[10px] tracking-widest text-center">U. Colisage<br/>en stock</th>
                   <th className="p-2 bg-amber-500 text-white font-black uppercase text-[10px] tracking-widest text-center">U. Pièce<br/>en stock</th>
+                  <th className="p-2 bg-[#F59E0B] text-white font-black uppercase text-[10px] tracking-widest text-center">Unité<br/>comptage</th>
                   <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Colis.</th>
                   <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Marge<br/>(%)</th>
                 </>) : (<>
@@ -469,6 +492,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                   <th className="hidden lg:table-cell p-2 bg-emerald-600 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Livr.<br/>à venir</th>
                   <th className="p-2 bg-amber-600 text-white font-black uppercase text-[10px] tracking-widest text-center">U. Colisage<br/>en stock</th>
                   <th className="p-2 bg-amber-500 text-white font-black uppercase text-[10px] tracking-widest text-center">U. Pièce<br/>en stock</th>
+                  <th className="p-2 bg-[#F59E0B] text-white font-black uppercase text-[10px] tracking-widest text-center">Unité<br/>comptage</th>
                   <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Conso<br/>Estimée</th>
                   <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Manque</th>
                   <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Colis.</th>
@@ -488,6 +512,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                 const stockSafe      = getStockSplit(p.stock, p.packaging).totalStock;
                 const upcomingInUnit = getUpcomingDeliveryUnits(p.upcomingDelivery, p.packaging);
                 const targetSafe     = toNumber(p.targetStock);
+                const countingUnit   = getCountingUnitForProduct(p);
                 let toOrder = 0;
                 let displayInfo1: number | null = null;
                 let displayInfo2: number | null = null;
@@ -548,6 +573,12 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                           inputMode="numeric"
                           className="w-full h-10 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
                           placeholder="-" />
+                      </td>
+
+                      <td className="p-2 bg-amber-50/20 text-center">
+                        <span className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-amber-200/50 bg-white px-1 text-[10px] lg:text-xs font-black uppercase leading-tight text-slate-700 shadow-sm">
+                          {countingUnit}
+                        </span>
                       </td>
 
                       <td className="hidden lg:table-cell p-2 text-center bg-[#FFE8CC]">
@@ -611,6 +642,12 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                           inputMode="numeric"
                           className="w-full h-10 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
                           placeholder="-" />
+                      </td>
+
+                      <td className="p-2 bg-amber-50/20 text-center">
+                        <span className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-amber-200/50 bg-white px-1 text-[10px] lg:text-xs font-black uppercase leading-tight text-slate-700 shadow-sm">
+                          {countingUnit}
+                        </span>
                       </td>
 
                       <td className="hidden lg:table-cell p-2 text-center bg-[#FFE8CC] whitespace-nowrap">
