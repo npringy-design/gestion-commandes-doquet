@@ -42,16 +42,23 @@ Cette colonne ne modifie pas encore les calculs. Elle sert d'information de para
 
 Les pages de commandes fournisseur affichent aussi l'unite de comptage.
 
-La colonne est placee entre :
+Sur PC, la page garde un tableau complet. La colonne `Unite comptage` est placee entre :
 
 1. `U. Piece en stock` ;
 2. `Colisage`.
 
-Elle reste visible sur mobile et tablette dans le tableau horizontal scrollable.
+Sur mobile et tablette, il ne faut pas utiliser un tableau horizontal a swiper. L'affichage operationnel est une carte par produit, avec toutes les informations utiles visibles sans glisser horizontalement :
+
+- nom du produit ;
+- unite de comptage ;
+- besoin ou conso estimee selon le mode ;
+- U. colisage en stock ;
+- U. piece en stock ;
+- total a commander.
 
 La valeur affichee vient de `orderParameterRows`, en recherchant le produit du fournisseur actif. Si aucune unite n'est renseignee, la page affiche `-`.
 
-Cette colonne est en lecture seule dans les pages de commandes : la modification se fait depuis `Parametre commandes`.
+Cette information est en lecture seule dans les pages de commandes : la modification se fait depuis `Parametre commandes`.
 
 ## Sauvegarde
 
@@ -63,4 +70,5 @@ Aucune nouvelle table Supabase n'est necessaire.
 
 - Ne pas melanger les lignes de plusieurs fournisseurs pendant un import.
 - Ne pas supprimer les donnees existantes des autres fournisseurs quand on importe un fichier pour un fournisseur precis.
+- Ne pas remettre de scroll horizontal obligatoire sur mobile/tablette pour les commandes : ce n'est pas pratique en operationnel.
 - Si la colonne `Unite de comptage` devient plus tard une base de calcul, ajouter une validation stricte avant de l'utiliser dans les commandes.
