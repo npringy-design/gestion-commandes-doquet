@@ -68,9 +68,11 @@ export interface SupplierConfig {
 
 export interface OrderParameterRow {
   id: string;
+  supplierId?: string;
   product: string;
   packaging: number | '';
   unitValue: number | '';
+  countingUnit?: string;
 }
 
 
