@@ -26,10 +26,38 @@ function hasPasswordSetupParams(): boolean {
   return false;
 }
 
-const LoadingScreen: React.FC<{ label?: string }> = ({ label = 'Chargement…' }) => (
-  <div className="min-h-screen bg-[#1a0f0a] flex items-center justify-center">
-    <div className="bg-white rounded-3xl px-6 py-5 shadow-2xl border-4 border-red-600 text-center">
+const LoadingScreen: React.FC<{
+  label?: string;
+  message?: string;
+  onResetSite?: () => void;
+  onSignOut?: () => void;
+}> = ({ label = 'Chargement…', message, onResetSite, onSignOut }) => (
+  <div className="min-h-screen bg-[#1a0f0a] flex items-center justify-center p-6">
+    <div className="w-full max-w-md bg-white rounded-3xl px-6 py-5 shadow-2xl border-4 border-red-600 text-center">
       <div className="text-slate-800 font-black uppercase tracking-widest text-sm">{label}</div>
+      {message ? <p className="mt-3 text-sm font-semibold text-slate-600">{message}</p> : null}
+      {(onResetSite || onSignOut) ? (
+        <div className="mt-5 grid gap-3">
+          {onResetSite ? (
+            <button
+              type="button"
+              onClick={onResetSite}
+              className="w-full rounded-2xl bg-red-600 py-3 text-sm font-black uppercase tracking-widest text-white"
+            >
+              Réinitialiser le site
+            </button>
+          ) : null}
+          {onSignOut ? (
+            <button
+              type="button"
+              onClick={onSignOut}
+              className="w-full rounded-2xl bg-slate-900 py-3 text-sm font-black uppercase tracking-widest text-white"
+            >
+              Déconnexion forcée
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   </div>
 );
@@ -53,11 +81,24 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
     && !availableSiteIds.includes(activeSiteId)
   );
 
+  const resetStoredSite = React.useCallback(() => {
+    const fallbackSite = availableSiteIds[0];
+    try {
+      if (fallbackSite) {
+        window.sessionStorage.setItem(ACTIVE_SITE_STORAGE_KEY, fallbackSite);
+      } else {
+        window.sessionStorage.removeItem(ACTIVE_SITE_STORAGE_KEY);
+      }
+    } catch {
+      // ignore
+    }
+    window.location.reload();
+  }, [availableSiteIds]);
+
   React.useEffect(() => {
     if (!siteMismatch) return;
-    const fallbackSite = availableSiteIds[0];
-    if (fallbackSite) setActiveSiteId(fallbackSite);
-  }, [availableSiteIds, setActiveSiteId, siteMismatch]);
+    resetStoredSite();
+  }, [resetStoredSite, siteMismatch]);
 
   if (!isSupabaseConfigured()) return <>{children}</>;
 
@@ -90,7 +131,16 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
     return <ForcePasswordChangePage />;
   }
 
-  if (siteMismatch) return <LoadingScreen label="Correction du site…" />;
+  if (siteMismatch) {
+    return (
+      <LoadingScreen
+        label="Correction du site…"
+        message="Si l'application reste bloquée, utilise un des boutons ci-dessous."
+        onResetSite={resetStoredSite}
+        onSignOut={() => void signOut()}
+      />
+    );
+  }
 
   let hasChosenSite = true;
   try {
