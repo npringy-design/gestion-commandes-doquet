@@ -12,6 +12,7 @@ Avant toute modification sur ce projet :
 * Ne pas rechercher d'autres erreurs apres correction.
 * Ne pas refactoriser sans demande explicite.
 * Repondre court.
+* Toujours verifier que la version utilisee est `5.4` en mode `moyen`.
 
 Regle de branche obligatoire :
 
