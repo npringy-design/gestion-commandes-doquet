@@ -26,22 +26,44 @@ function hasPasswordSetupParams(): boolean {
   return false;
 }
 
+const LoadingScreen: React.FC<{ label?: string }> = ({ label = 'Chargement…' }) => (
+  <div className="min-h-screen bg-[#1a0f0a] flex items-center justify-center">
+    <div className="bg-white rounded-3xl px-6 py-5 shadow-2xl border-4 border-red-600 text-center">
+      <div className="text-slate-800 font-black uppercase tracking-widest text-sm">{label}</div>
+    </div>
+  </div>
+);
+
 export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, profile, loading, isActive, signOut, availableSiteIds, setActiveSiteId } = useAuth();
+  const {
+    user,
+    profile,
+    loading,
+    isActive,
+    signOut,
+    activeSiteId,
+    availableSiteIds,
+    setActiveSiteId,
+  } = useAuth();
+
+  const siteMismatch = Boolean(
+    user
+    && isActive
+    && availableSiteIds.length > 0
+    && !availableSiteIds.includes(activeSiteId)
+  );
+
+  React.useEffect(() => {
+    if (!siteMismatch) return;
+    const fallbackSite = availableSiteIds[0];
+    if (fallbackSite) setActiveSiteId(fallbackSite);
+  }, [availableSiteIds, setActiveSiteId, siteMismatch]);
 
   if (!isSupabaseConfigured()) return <>{children}</>;
 
   if (hasPasswordSetupParams()) return <ResetPasswordPage />;
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#1a0f0a] flex items-center justify-center">
-        <div className="bg-white rounded-3xl px-6 py-5 shadow-2xl border-4 border-red-600 text-center">
-          <div className="text-slate-800 font-black uppercase tracking-widest text-sm">Chargement…</div>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingScreen />;
 
   if (!user) return <LoginPage />;
 
@@ -67,6 +89,8 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
   if (profile?.must_change_password || user.user_metadata?.must_change_password) {
     return <ForcePasswordChangePage />;
   }
+
+  if (siteMismatch) return <LoadingScreen label="Correction du site…" />;
 
   let hasChosenSite = true;
   try {
