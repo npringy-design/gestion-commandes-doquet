@@ -30,6 +30,16 @@ Les donnees partagees passent principalement par Supabase `app_state`, isolee pa
 
 Le site existant a proteger en priorite est `hippo_thillois`.
 
+## Securite multisite critique
+
+Le site actif peut venir de `sessionStorage` via `ACTIVE_SITE_STORAGE_KEY`.
+
+Risque identifie : si un ancien site actif reste stocke ou si un reload intervient avant que le profil utilisateur soit totalement verifie, l'application peut demarrer avec un mauvais `site_id`. Cela peut donner un symptome du type : accueil visuellement correct mais pages commandes avec le theme ou les donnees d'un autre site.
+
+Correctif en cours sur test : `AuthGate` verifie maintenant que `activeSiteId` appartient bien aux `availableSiteIds` du profil utilisateur. Si ce n'est pas le cas, l'application ne rend pas les pages metier, affiche `Correction du site...`, force le retour vers le premier site autorise puis recharge l'application.
+
+Point de vigilance : ne jamais laisser `App` / `useAppState` charger les donnees metier si le site actif n'est pas autorise pour l'utilisateur connecte.
+
 ## Pages et relations principales
 
 ### Accueil
@@ -183,6 +193,7 @@ Point de vigilance :
 
 - Ne jamais ecraser les donnees d'un site en changeant de site.
 - Tester les acces multi-site d'abord sur Supabase test.
+- Bloquer le rendu metier si `activeSiteId` n'est pas autorise pour le profil courant.
 
 ## Ce qui est valide a ce stade
 
