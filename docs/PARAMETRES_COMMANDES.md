@@ -38,6 +38,21 @@ Exemples :
 
 Cette colonne ne modifie pas encore les calculs. Elle sert d'information de parametre et de garde-fou operationnel.
 
+## Affichage dans les pages de commandes
+
+Les pages de commandes fournisseur affichent aussi l'unite de comptage.
+
+La colonne est placee entre :
+
+1. `U. Piece en stock` ;
+2. `Colisage`.
+
+Elle reste visible sur mobile et tablette dans le tableau horizontal scrollable.
+
+La valeur affichee vient de `orderParameterRows`, en recherchant le produit du fournisseur actif. Si aucune unite n'est renseignee, la page affiche `-`.
+
+Cette colonne est en lecture seule dans les pages de commandes : la modification se fait depuis `Parametre commandes`.
+
 ## Sauvegarde
 
 Les donnees restent sauvegardees dans la cle Supabase existante `orderParameterRows`.
