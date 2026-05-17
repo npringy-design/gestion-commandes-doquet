@@ -18,3 +18,11 @@ Regle de branche obligatoire :
 * Pour les travaux lies a l'overview, a la version test/staging ou au workflow de staging, travailler et pousser uniquement sur la branche `codex-setup-staging-workflow`, sauf demande explicite contraire.
 * Avant tout commit ou push, verifier la branche courante avec `git status --short --branch`.
 * Ne jamais pousser ces travaux directement sur `main`.
+
+Push et securite :
+
+* Le commit/push est autorise sur les environnements de test.
+* Ne jamais pousser vers la production sauf demande explicite, phrase exemple : "Je valide la version test".
+* Ne pas elargir la tache avant push.
+* Ne modifier que les fichiers necessaires.
+* Si la correction necessite plus de 3 fichiers, expliquer brievement pourquoi.
