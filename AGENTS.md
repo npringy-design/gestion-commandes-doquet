@@ -3,6 +3,15 @@
 Avant toute modification sur ce projet :
 
 * Lire obligatoirement `TEST_ENVIRONMENT_CHANGELOG.md`
+* Lire la feuille de route si elle existe dans le projet.
+* Respecter les regles metier et techniques decrites dans ces documents.
+* Mode economie strict : ne lire que les fichiers necessaires.
+* Ne pas faire de diagnostic global du repo sauf demande explicite.
+* Ne pas lancer build/test/lint complet sauf demande explicite.
+* Corriger uniquement le probleme demande.
+* Ne pas rechercher d'autres erreurs apres correction.
+* Ne pas refactoriser sans demande explicite.
+* Repondre court.
 
 Regle de branche obligatoire :
 
