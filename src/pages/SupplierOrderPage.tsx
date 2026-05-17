@@ -1,23 +1,28 @@
 // =============================================================
 // pages/SupplierOrderPage.tsx
-// Page de commande pour un fournisseur (tableau principal)
+// Page de commande pour un fournisseur
 //
-// ✅ Mobile-first :
-//   - Header : grille 2x2 compacte sur mobile, ligne unique sur lg
-//   - Tableau : scrollable horizontalement, colonne "À Commander" sticky
+// Desktop : tableau complet.
+// Mobile/tablette : cartes operationnelles sans scroll horizontal.
 // =============================================================
 
 import React from 'react';
-import { View, SupplierId } from '../constants';
+import { SupplierId } from '../constants';
 import { getDeliveryDates, getForecastForWindow } from '../utils/dateHelpers';
 import { calculateOrder, calculateTargetOrder, capitalizeFirstLetter, toNumber } from '../utils/calculations';
 import { ResetConfirmModal } from '../components/Modals';
 import WindowsCalendar from '../components/WindowsCalendar';
 import AppNavTile from '../components/AppNavTile';
 import {
-  DOQUET_CONFIG, VINS_CONFIG, VIANDES_CONFIG,
-  DOMAFRAIS_CONFIG, DOMAFRAIS_BOF_CONFIG, POMONA_TERRE_AZUR_CONFIG, POMONA_EPISAVEURS_CONFIG,
+  DOQUET_CONFIG,
+  VINS_CONFIG,
+  VIANDES_CONFIG,
+  DOMAFRAIS_CONFIG,
+  DOMAFRAIS_BOF_CONFIG,
+  POMONA_TERRE_AZUR_CONFIG,
+  POMONA_EPISAVEURS_CONFIG,
 } from '../data';
+import type { Product } from '../types';
 import { SupplierConfig } from '../types';
 import { useAppState } from '../hooks/useAppState';
 import { useAuth } from '../auth/AuthProvider';
@@ -25,6 +30,11 @@ import { isCommandeRole } from '../lib/permissions';
 
 type AppState = ReturnType<typeof useAppState>;
 interface SupplierOrderPageProps { state: AppState; }
+
+type DisplayProduct = Product & {
+  salesHistory?: Record<string, number>;
+  ratioHistory?: Record<string, number>;
+};
 
 const normalizeProductKey = (value: unknown) =>
   String(value ?? '')
@@ -35,74 +45,87 @@ const normalizeProductKey = (value: unknown) =>
     .trim();
 
 const SupplierIcon: React.FC<{ view: string }> = ({ view }) => {
-  // Doquet — sac shopping (softs & jus)
-  if (view === 'doquet')
-    return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>;
-  // Richard Vins — flacon de labo / vin
-  if (view === 'vins')
-    return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>;
-  // Plaine Maison — camion livraison viandes
-  if (view === 'viandes')
-    return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 1m8-11h4l3 5v5h-2m-5 0H9"/></svg>;
-  // Domafrais Viandes — os / viande (couteau + fourchette)
-  if (view === 'domafrais')
-    return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 6c0-1.1.9-2 2-2s2 .9 2 2v6H5a2 2 0 01-2-2V6zM15 4c-1.1 0-2 .9-2 2v2h2v2h-2v2c0 1.1.9 2 2 2h4V4h-4z"/><circle cx="17" cy="17" r="2" strokeWidth="2"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12v5a2 2 0 002 2h1"/></svg>;
-  // Domafrais BOF — fromage / crémerie
-  if (view === 'domafrais_bof')
-    return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><circle cx="12" cy="12" r="2" strokeWidth="2"/></svg>;
-  // Pomona Terre Azur — cagette fruits & légumes
-  if (view === 'pomona_terre_azur')
-    return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16l-1 10H5L4 8z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 8V6a3 3 0 016 0v2"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11v4M10 13h4"/></svg>;
-  // Pomona Episaveurs — caisse épicerie
-  if (view === 'pomona_episaveurs')
-    return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7h18l-2 10H5L3 7z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V5a4 4 0 018 0v2"/></svg>;
-  // Fallback — panier
-  return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>;
+  if (view === 'doquet') {
+    return <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>;
+  }
+  if (view === 'vins') {
+    return <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 4h8l-1 1v5l5 6c1 1.3.2 4-1.6 4H5.6C3.8 20 3 17.3 4 16l5-6V5L8 4z" /></svg>;
+  }
+  return <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7h18l-2 10H5L3 7zM8 7V5a4 4 0 018 0v2" /></svg>;
+};
+
+const defaultConfigs: Record<string, SupplierConfig> = {
+  doquet: { ...DOQUET_CONFIG, subtitle: 'Softs • Jus • Cocktails' },
+  vins: { ...VINS_CONFIG, subtitle: 'Cave • Alcools' },
+  viandes: { ...VIANDES_CONFIG, subtitle: 'Boucherie • Grill' },
+  domafrais: { ...DOMAFRAIS_CONFIG, subtitle: 'Viandes • Volailles' },
+  domafrais_bof: { ...DOMAFRAIS_BOF_CONFIG, subtitle: 'Crémerie • Fromages' },
+  pomona_terre_azur: { ...POMONA_TERRE_AZUR_CONFIG, subtitle: 'Fruits • Légumes' },
+  pomona_episaveurs: { ...POMONA_EPISAVEURS_CONFIG, subtitle: 'Épicerie • Aides culinaires' },
+};
+
+const NumberInput: React.FC<{
+  value: number | '';
+  onChange: (value: string) => void;
+  tabIndex?: number;
+  onKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  disabled?: boolean;
+  tone?: 'amber' | 'emerald' | 'blue' | 'neutral';
+}> = ({ value, onChange, tabIndex, onKeyDown, disabled, tone = 'neutral' }) => {
+  const toneClass = tone === 'amber'
+    ? 'border-amber-200 text-amber-700 focus:border-amber-400'
+    : tone === 'emerald'
+      ? 'border-emerald-200 text-emerald-700 focus:border-emerald-400'
+      : tone === 'blue'
+        ? 'border-blue-200 text-blue-700 focus:border-blue-400'
+        : 'border-slate-200 text-slate-700 focus:border-slate-400';
+
+  return (
+    <input
+      type="number"
+      inputMode="numeric"
+      enterKeyHint="next"
+      value={value}
+      disabled={disabled}
+      tabIndex={tabIndex}
+      onKeyDown={onKeyDown}
+      onChange={event => onChange(event.target.value)}
+      className={`h-11 w-full rounded-xl border bg-white text-center text-base font-black outline-none transition ${toneClass} ${disabled ? 'cursor-not-allowed bg-slate-100 text-slate-400' : ''}`}
+      placeholder="-"
+    />
+  );
 };
 
 const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
   const {
-    view, setView,
-    calculationMode, setCalculationMode,
-    showResetConfirm, setShowResetConfirm,
-    activeCalendarSupplier, setActiveCalendarSupplier,
-    calendarAnchorRectBySupplier, setCalendarAnchorRectBySupplier,
-    deliveryDateBySupplier, setDeliveryDateBySupplier,
-    nextDeliveryDateBySupplier, setNextDeliveryDateBySupplier,
-    orderStates, setOrderStates,
-    supplierConfigs, products, dailyCovers, orderParameterRows,
-    performReset, updateProductValue, getProductStats,
+    view,
+    setView,
+    calculationMode,
+    setCalculationMode,
+    showResetConfirm,
+    setShowResetConfirm,
+    activeCalendarSupplier,
+    setActiveCalendarSupplier,
+    deliveryDateBySupplier,
+    setDeliveryDateBySupplier,
+    nextDeliveryDateBySupplier,
+    setNextDeliveryDateBySupplier,
+    orderStates,
+    setOrderStates,
+    supplierConfigs,
+    products,
+    dailyCovers,
+    orderParameterRows,
+    performReset,
+    updateProductValue,
+    getProductStats,
   } = state;
 
   const [activeNextCalendar, setActiveNextCalendar] = React.useState(false);
   const { profile } = useAuth();
   const commandeOnly = isCommandeRole(profile);
-
-  const [isMobile, setIsMobile] = React.useState(() =>
-    typeof window !== 'undefined' && window.innerWidth < 1024
-  );
-  React.useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 1024);
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
-
-  React.useEffect(() => {
-    if (calculationMode === 'target') setActiveNextCalendar(false);
-  }, [calculationMode]);
-
   const currentSupplierId = view as SupplierId;
-  // Guard : si la config n'est pas encore chargée (Supabase en cours), utiliser le défaut du code
-  const _configDefaults: Record<string, SupplierConfig> = {
-    doquet: { ...DOQUET_CONFIG, subtitle: 'Softs • Jus • Cocktails' },
-    vins: { ...VINS_CONFIG, subtitle: 'Cave • Alcools' },
-    viandes: { ...VIANDES_CONFIG, subtitle: 'Boucherie • Grill' },
-    domafrais: { ...DOMAFRAIS_CONFIG, subtitle: 'Viandes • Volailles' },
-    domafrais_bof: { ...DOMAFRAIS_BOF_CONFIG, subtitle: 'Crémerie • Fromages' },
-    pomona_terre_azur: { ...POMONA_TERRE_AZUR_CONFIG, subtitle: 'Fruits • Légumes' },
-    pomona_episaveurs: { ...POMONA_EPISAVEURS_CONFIG, subtitle: 'Épicerie • Aides culinaires' },
-  };
-  const currentConfig  = supplierConfigs[currentSupplierId] ?? _configDefaults[currentSupplierId] ?? {
+  const currentConfig = supplierConfigs[currentSupplierId] ?? defaultConfigs[currentSupplierId] ?? {
     id: currentSupplierId,
     name: currentSupplierId,
     subtitle: 'Fournisseur',
@@ -111,11 +134,16 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
     cutoffTime: '10:00',
     deliveryRules: [{ cutoffDay: 2, deliveryDay: 3 }],
   };
-  const supplierLabel  = {
+
+  React.useEffect(() => {
+    if (calculationMode === 'target') setActiveNextCalendar(false);
+  }, [calculationMode]);
+
+  const displayedProducts = products.filter(product => product.supplierId === currentSupplierId) as DisplayProduct[];
+  const supplierLabel = {
     name: (currentConfig.name || currentSupplierId).toUpperCase(),
     subtitle: currentConfig.subtitle || 'Fournisseur',
   };
-  const displayedProducts = products.filter(p => p.supplierId === currentSupplierId);
 
   const countingUnitByProduct = React.useMemo(() => {
     const map = new Map<string, string>();
@@ -125,85 +153,54 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
     return map;
   }, [orderParameterRows, currentSupplierId]);
 
-  const getCountingUnitForProduct = (product: { name: string; searchName?: string }) =>
+  const getCountingUnitForProduct = (product: DisplayProduct) =>
     countingUnitByProduct.get(normalizeProductKey(product.name))
     ?? countingUnitByProduct.get(normalizeProductKey(product.searchName))
     ?? '-';
 
   const dates = getDeliveryDates(currentConfig);
-
-  // ── Contraintes de date ───────────────────────────────────────
   const minDelivery1 = new Date(dates.delivery);
   minDelivery1.setHours(0, 0, 0, 0);
 
-  // ── Livraison courante (calendrier 1) ────────────────────────
-  // Par défaut = calculé par getDeliveryDates (respecte les cut-offs)
-  // Si l'override stocké est antérieur au minimum autorisé métier → réinitialiser
   const deliveryOverride = deliveryDateBySupplier[currentSupplierId];
-  const _rawDelivery = deliveryOverride ? new Date(deliveryOverride) : dates.delivery;
-  const selectedDeliveryDate = _rawDelivery < minDelivery1 ? dates.delivery : _rawDelivery;
+  const rawDelivery = deliveryOverride ? new Date(deliveryOverride) : dates.delivery;
+  const selectedDeliveryDate = rawDelivery < minDelivery1 ? dates.delivery : rawDelivery;
+  const selectedDeliveryFormatted = selectedDeliveryDate.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
 
-  // Nettoyer le stockage si l'override est périmé (ou invalide métier)
   React.useEffect(() => {
     if (deliveryOverride && new Date(deliveryOverride) < minDelivery1) {
-      setDeliveryDateBySupplier(prev => { const n = { ...prev }; delete n[currentSupplierId]; return n; });
-      setNextDeliveryDateBySupplier(prev => { const n = { ...prev }; delete n[currentSupplierId]; return n; });
+      setDeliveryDateBySupplier(prev => { const next = { ...prev }; delete next[currentSupplierId]; return next; });
+      setNextDeliveryDateBySupplier(prev => { const next = { ...prev }; delete next[currentSupplierId]; return next; });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSupplierId, dates.delivery]);
 
-  const selectedDeliveryFormatted = selectedDeliveryDate.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
-
-  // ── Minimum pour calendrier 2 = cal1 + 1 jour ────────────────
   const minDelivery2 = new Date(selectedDeliveryDate);
   minDelivery2.setDate(selectedDeliveryDate.getDate() + 1);
-
-  // ── Livraison suivante (calendrier 2) ────────────────────────
-  // Par défaut = delivery2 calculé par getDeliveryDates (prochaine livraison après cal1)
-  // Affiché = veille de cette livraison (= fin de la fenêtre de commande)
   const nextDeliveryOverride = nextDeliveryDateBySupplier[currentSupplierId];
-  const _rawNext = nextDeliveryOverride ? new Date(nextDeliveryOverride) : dates.delivery2;
-  const selectedNextDeliveryDate = (!_rawNext || _rawNext <= selectedDeliveryDate) ? dates.delivery2 : _rawNext;
+  const rawNextDelivery = nextDeliveryOverride ? new Date(nextDeliveryOverride) : dates.delivery2;
+  const selectedNextDeliveryDate = !rawNextDelivery || rawNextDelivery <= selectedDeliveryDate ? dates.delivery2 : rawNextDelivery;
   const selectedNextDeliveryFormatted = selectedNextDeliveryDate.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
 
-  // ── Couverts prévus ────────────────────────────────────────────
-  // Mode Marge : mécanique actuelle conservée (veille de la livraison suivante)
   const marginForecastEnd = new Date(selectedNextDeliveryDate);
   marginForecastEnd.setDate(selectedNextDeliveryDate.getDate() - 1);
   const marginWindowForecast = getForecastForWindow(marginForecastEnd, dailyCovers);
 
-  // Mode Cible : jusqu'à la veille de la date de livraison choisie (calendrier unique "Livraison")
   const targetForecastEnd = new Date(selectedDeliveryDate);
   targetForecastEnd.setDate(selectedDeliveryDate.getDate() - 1);
   const targetWindowForecast = getForecastForWindow(targetForecastEnd, dailyCovers);
-
   const windowForecast = calculationMode === 'target' ? targetWindowForecast : marginWindowForecast;
-
-  // ─── Navigation "Suivant" mobile via tabIndex ordonné ──────────────────
-  // La seule approche fiable sur Samsung Internet / Android / iOS :
-  // on assigne un tabIndex explicite à chaque input.
-  // tabIndex = BASE + rowIdx  → le navigateur suit cet ordre nativement
-  // quand l'utilisateur appuie sur "Suivant" du clavier.
-  //
-  // Trois colonnes indépendantes :
-  //   upcomingDelivery : base 100  → 100, 101, 102...
-  //   stock colissage  : base 200  → 200, 201, 202...
-  //   stock pièces     : base 300  → 300, 301, 302...
-  //
-  // Sur PC, Enter dans un input focus le tabIndex suivant via handleEnterKey.
-  const TAB_UPCOMING = 100;
-  const TAB_STOCK_CASES = 200;
-  const TAB_STOCK_PIECES = 300;
-
 
   const getStockSplit = (stockVal: number | '' | undefined, packagingVal: number | '') => {
     const totalStock = Math.max(0, Math.floor(toNumber(stockVal)));
     const pkg = Math.max(1, Math.floor(toNumber(packagingVal) || 1));
-    const stockCases = Math.floor(totalStock / pkg);
-    const stockPieces = totalStock % pkg;
-    return { totalStock, pkg, stockCases, stockPieces };
+    return {
+      totalStock,
+      pkg,
+      stockCases: Math.floor(totalStock / pkg),
+      stockPieces: totalStock % pkg,
+    };
   };
-
 
   const getUpcomingDeliveryUnits = (upcomingVal: number | '' | undefined, packagingVal: number | '') => {
     const upcomingCases = Math.max(0, Math.floor(toNumber(upcomingVal)));
@@ -211,111 +208,87 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
     return upcomingCases * pkg;
   };
 
-  const updateStockFromSplit = (
-    productId: string,
-    packagingVal: number | '',
-    rawCases: string,
-    rawPieces: string
-  ) => {
-    const pkg = Math.max(1, Math.floor(toNumber(packagingVal) || 1));
-    const parsedCases = rawCases === '' ? 0 : Math.max(0, Math.floor(Number(rawCases) || 0));
-    const parsedPieces = rawPieces === '' ? 0 : Math.max(0, Math.floor(Number(rawPieces) || 0));
-
+  const updateStockFromSplit = (productId: string, packagingVal: number | '', rawCases: string, rawPieces: string) => {
     if (rawCases === '' && rawPieces === '') {
       updateProductValue(productId, 'stock', '');
       return;
     }
-
-    const totalStock = parsedCases * pkg + parsedPieces;
-    updateProductValue(productId, 'stock', String(totalStock));
+    const pkg = Math.max(1, Math.floor(toNumber(packagingVal) || 1));
+    const parsedCases = rawCases === '' ? 0 : Math.max(0, Math.floor(Number(rawCases) || 0));
+    const parsedPieces = rawPieces === '' ? 0 : Math.max(0, Math.floor(Number(rawPieces) || 0));
+    updateProductValue(productId, 'stock', String(parsedCases * pkg + parsedPieces));
   };
 
-  const handleEnterKey = (e: React.KeyboardEvent<HTMLInputElement>, tabBase: number, rowIdx: number) => {
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
-    const nextTab = tabBase + rowIdx + 1;
-    const next = document.querySelector<HTMLInputElement>(`[tabindex="${nextTab}"]`);
+  const handleEnterKey = (event: React.KeyboardEvent<HTMLInputElement>, tabBase: number, rowIdx: number) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    const next = document.querySelector<HTMLInputElement>(`[tabindex="${tabBase + rowIdx + 1}"]`);
     if (next) {
       next.focus();
       next.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
   };
 
-  return (
-    <div className="min-h-screen bg-[#FCEEB5] p-3 md:p-8 font-sans text-xs relative">
-      {showResetConfirm && (
-        <ResetConfirmModal onConfirm={performReset} onClose={() => setShowResetConfirm(false)} />
-      )}
+  const getRowResult = (product: DisplayProduct) => {
+    const { avgRatio } = getProductStats(product);
+    const stockSafe = getStockSplit(product.stock, product.packaging).totalStock;
+    const upcomingInUnit = getUpcomingDeliveryUnits(product.upcomingDelivery, product.packaging);
+    const targetSafe = toNumber(product.targetStock);
 
-      {/* ================================================================
-          HEADER MOBILE-FIRST
-          Mobile  : 2 rangées compactes (nom+nav | mode+infos)
-          Desktop : 1 ligne flex-row
-      ================================================================ */}
-      <div className="max-w-[1600px] mx-auto mb-4">
-        <div className="bg-white/90 backdrop-blur-xl rounded-2xl lg:rounded-[32px] p-3 lg:p-6 shadow border border-white">
+    if (calculationMode === 'margin') {
+      const dynamicTheo = Math.ceil(avgRatio * windowForecast.total);
+      const currentMargin = orderStates[product.id]?.margin ?? 30;
+      const result = calculateOrder(dynamicTheo, upcomingInUnit, stockSafe, currentMargin, product.packaging);
+      return { toOrder: result.toOrder, info1: dynamicTheo, info2: null as number | null };
+    }
 
-          {/* ══════════════════════════════════════════════
-              HEADER MOBILE — 3 rangées empilées
-          ══════════════════════════════════════════════ */}
-          <div className="lg:hidden flex flex-col gap-2">
+    const estimatedConso = Math.ceil(avgRatio * windowForecast.total);
+    const result = calculateTargetOrder(targetSafe, product.stock, estimatedConso, product.packaging);
+    return { toOrder: result.toOrder, info1: estimatedConso, info2: result.missing };
+  };
 
-            {/* ── Rangée 1 : navigation toujours au même endroit ── */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 shrink-0">
-                <AppNavTile onClick={() => setView('home')} title="Accueil" aria-label="Accueil" icon="home" size="icon" />
-                <AppNavTile onClick={() => setView('suppliers')} title="Fournisseurs" aria-label="Fournisseurs" icon="back" size="icon" />
-              </div>
-              <button onClick={() => setShowResetConfirm(true)}
-                className="h-9 px-3 bg-red-50 text-red-600 font-black uppercase text-[10px] rounded-xl border border-red-100">
-                RAZ
-              </button>
+  const renderHeader = () => (
+    <div className="mx-auto mb-4 max-w-[1600px]">
+      <div className="rounded-2xl border border-white bg-white/90 p-3 shadow lg:rounded-[32px] lg:p-6">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
+          <div className="flex items-center justify-between gap-2 lg:block">
+            <div className="mb-0 flex gap-2 lg:mb-2">
+              <AppNavTile onClick={() => setView('home')} title="Accueil" aria-label="Accueil" icon="home" size="icon" className="h-10 w-10 lg:h-12 lg:w-12" />
+              <AppNavTile onClick={() => setView('suppliers')} title="Fournisseurs" aria-label="Fournisseurs" icon="back" size="icon" className="h-10 w-10 lg:h-12 lg:w-12" />
             </div>
+            <button onClick={() => setShowResetConfirm(true)} className="h-10 rounded-xl border border-red-100 bg-red-50 px-3 text-[10px] font-black uppercase text-red-600 lg:hidden">
+              RAZ
+            </button>
+          </div>
 
-            {/* ── Rangée 2 : icône + nom fournisseur ── */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="w-9 h-9 shrink-0 bg-slate-900 rounded-full flex items-center justify-center text-[#ffd700]">
-                  <SupplierIcon view={view} />
-                </span>
-                <div className="min-w-0">
-                  <h1 className="text-base font-black text-slate-800 uppercase tracking-tighter truncate leading-tight">
-                    {supplierLabel.name}
-                  </h1>
-                  <p className="text-slate-400 font-bold uppercase text-[9px] tracking-widest truncate">
-                    {supplierLabel.subtitle}
-                  </p>
-                </div>
-              </div>
+          <div className="flex min-w-0 items-center gap-2 lg:mr-auto">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[#ffd700] shadow-lg lg:h-12 lg:w-12">
+              <SupplierIcon view={view} />
+            </span>
+            <div className="min-w-0">
+              <h1 className="truncate text-base font-black uppercase leading-tight tracking-tighter text-slate-800 lg:text-3xl">{supplierLabel.name}</h1>
+              <p className="truncate text-[9px] font-bold uppercase tracking-widest text-slate-400 lg:text-[10px]">{supplierLabel.subtitle}</p>
             </div>
+          </div>
 
-            {/* ── Rangée 2 : livraison courante uniquement (mobile terrain) ── */}
-            <div className="relative">
-              <button
-                onClick={() => {
-                  setActiveCalendarSupplier(prev => prev === currentSupplierId ? null : currentSupplierId);
-                  setActiveNextCalendar(false);
-                }}
-                className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl"
-              >
-                <div className="flex flex-col items-start min-w-0">
-                  <span className="text-[8px] font-black text-emerald-400 uppercase leading-none mb-0.5">Livraison</span>
-                  <span className="font-black text-emerald-900 text-[12px] truncate leading-tight">
-                    {capitalizeFirstLetter(selectedDeliveryFormatted)}
-                  </span>
-                </div>
-                <svg className={`w-3 h-3 text-emerald-400 shrink-0 transition-transform ${activeCalendarSupplier === currentSupplierId ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"/>
-                </svg>
+          <div className="flex rounded-xl border border-white/50 bg-[#FCEEB5] p-1 lg:rounded-2xl lg:p-1.5">
+            <button onClick={() => setCalculationMode('margin')} className={`flex-1 rounded-lg px-3 py-2 text-[10px] font-black uppercase transition lg:px-6 lg:py-3 ${calculationMode === 'margin' ? 'bg-white text-orange-600 shadow' : 'text-slate-400'}`}>Mode Marge</button>
+            <button onClick={() => setCalculationMode('target')} className={`flex-1 rounded-lg px-3 py-2 text-[10px] font-black uppercase transition lg:px-6 lg:py-3 ${calculationMode === 'target' ? 'bg-white text-blue-600 shadow' : 'text-slate-400'}`}>Mode Cible</button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 lg:flex lg:gap-4">
+            <div className="relative rounded-2xl border border-emerald-100 bg-emerald-50/70 px-3 py-2 text-center lg:min-w-[140px] lg:px-6 lg:py-3">
+              <span className="block text-[8px] font-black uppercase tracking-widest text-emerald-400 lg:text-[9px]">Livraison</span>
+              <button onClick={() => { setActiveCalendarSupplier(prev => prev === currentSupplierId ? null : currentSupplierId); setActiveNextCalendar(false); }} className="mt-1 rounded-xl bg-white/70 px-2 py-1 text-xs font-black text-emerald-900 lg:text-sm">
+                {capitalizeFirstLetter(selectedDeliveryFormatted)}
               </button>
               {activeCalendarSupplier === currentSupplierId && (
                 <WindowsCalendar
                   selectedDate={selectedDeliveryDate}
                   minDate={minDelivery1}
-                  onSelect={d => {
-                    setDeliveryDateBySupplier(prev => ({ ...prev, [currentSupplierId]: d.toISOString() }));
-                    const next = new Date(d); next.setDate(d.getDate() + 7);
-                    setNextDeliveryDateBySupplier(prev => ({ ...prev, [currentSupplierId]: next.toISOString() }));
+                  onSelect={date => {
+                    setDeliveryDateBySupplier(prev => ({ ...prev, [currentSupplierId]: date.toISOString() }));
+                    setNextDeliveryDateBySupplier(prev => { const next = { ...prev }; delete next[currentSupplierId]; return next; });
                     setActiveCalendarSupplier(null);
                   }}
                   onClose={() => setActiveCalendarSupplier(null)}
@@ -323,373 +296,171 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
               )}
             </div>
 
-            {/* ── Rangée 3 : sélecteur mode calcul ── */}
-            <div className="flex bg-[#FCEEB5] p-1 rounded-xl border border-white/50">
-              <button onClick={() => setCalculationMode('margin')}
-                className={`flex-1 py-2 rounded-lg font-black uppercase text-[10px] transition-all ${calculationMode === 'margin' ? 'bg-white text-orange-600 shadow' : 'text-slate-400'}`}>
-                Mode Marge
-              </button>
-              <button onClick={() => setCalculationMode('target')}
-                className={`flex-1 py-2 rounded-lg font-black uppercase text-[10px] transition-all ${calculationMode === 'target' ? 'bg-white text-blue-600 shadow' : 'text-slate-400'}`}>
-                Mode Cible
-              </button>
-            </div>
-
-          </div>
-
-          {/* ── VERSION DESKTOP : 1 seule ligne (inchangée) ── */}
-          <div className="hidden lg:flex items-center justify-between gap-6">
-
-            <div className="flex flex-col gap-1">
-              <div className="mb-2 flex gap-2">
-                <AppNavTile onClick={() => setView('home')} title="Retour Accueil" aria-label="Retour Accueil" icon="home" size="icon" className="h-12 w-12" />
-                <AppNavTile onClick={() => setView('suppliers')} title="Retour Commandes" aria-label="Retour Commandes" icon="back" size="icon" className="h-12 w-12" />
-              </div>
-              <h1 className="text-3xl font-black text-slate-800 uppercase tracking-tighter flex items-center gap-3">
-                <span className="w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center text-[#ffd700] shadow-lg">
-                  <SupplierIcon view={view} />
-                </span>
-                {supplierLabel.name}
-              </h1>
-              <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest pl-16">{supplierLabel.subtitle}</p>
-            </div>
-
-            <div className="flex gap-2 bg-[#FCEEB5] p-1.5 rounded-2xl border border-white/50">
-              <button onClick={() => setCalculationMode('margin')}
-                className={`px-6 py-3 rounded-xl font-black uppercase text-[10px] transition-all flex items-center gap-2 ${calculationMode === 'margin' ? 'bg-white text-orange-600 shadow-md' : 'text-slate-400'}`}>
-                <div className={`w-2 h-2 rounded-full ${calculationMode === 'margin' ? 'bg-orange-500' : 'bg-slate-300'}`} />
-                Mode Marge
-              </button>
-              <button onClick={() => setCalculationMode('target')}
-                className={`px-6 py-3 rounded-xl font-black uppercase text-[10px] transition-all flex items-center gap-2 ${calculationMode === 'target' ? 'bg-white text-blue-600 shadow-md' : 'text-slate-400'}`}>
-                <div className={`w-2 h-2 rounded-full ${calculationMode === 'target' ? 'bg-blue-500' : 'bg-slate-300'}`} />
-                Mode Cible
-              </button>
-            </div>
-
-            <div className="flex gap-4">
-              {/* Calendrier 1 — Livraison courante */}
-              <div className="bg-emerald-50/50 px-6 py-3 rounded-2xl border border-emerald-100/50 flex flex-col items-center min-w-[140px] relative">
-                <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1">Livraison</span>
-                <button
-                  onClick={() => {
-                    setActiveCalendarSupplier(prev => prev === currentSupplierId ? null : currentSupplierId);
-                    setActiveNextCalendar(false);
-                  }}
-                  className="mt-1 flex items-center gap-2 px-3 py-1.5 bg-white/70 hover:bg-white rounded-xl border border-emerald-100 transition-colors"
-                >
-                  <span className="font-black text-emerald-900 text-sm">{capitalizeFirstLetter(selectedDeliveryFormatted)}</span>
-                  <svg className={`w-4 h-4 text-emerald-400 transition-transform ${activeCalendarSupplier === currentSupplierId ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"/>
-                  </svg>
-                </button>
-                {activeCalendarSupplier === currentSupplierId && (
-                  <WindowsCalendar
-                    selectedDate={selectedDeliveryDate}
-                    minDate={minDelivery1}
-                    onSelect={d => {
-                      setDeliveryDateBySupplier(prev => ({ ...prev, [currentSupplierId]: d.toISOString() }));
-                      // Réinitialiser cal2 → sera recalculé par getDeliveryDates
-                      setNextDeliveryDateBySupplier(prev => { const n = { ...prev }; delete n[currentSupplierId]; return n; });
-                      setActiveCalendarSupplier(null);
-                    }}
-                    onClose={() => setActiveCalendarSupplier(null)}
-                  />
-                )}
-              </div>
-
-              {calculationMode === 'margin' && (
-                <>
-                  {/* Calendrier 2 — Livraison suivante */}
-                  <div className="bg-amber-50/50 px-6 py-3 rounded-2xl border border-amber-100/50 flex flex-col items-center min-w-[140px] relative">
-                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-1">Livr. Suivante</span>
-                <button
-                  onClick={() => {
-                    setActiveNextCalendar(v => !v);
-                    setActiveCalendarSupplier(null);
-                  }}
-                  className="mt-1 flex items-center gap-2 px-3 py-1.5 bg-white/70 hover:bg-white rounded-xl border border-amber-100 transition-colors"
-                >
-                  <span className="font-black text-amber-900 text-sm">{capitalizeFirstLetter(selectedNextDeliveryFormatted)}</span>
-                  <svg className={`w-4 h-4 text-amber-400 transition-transform ${activeNextCalendar ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"/>
-                  </svg>
+            {calculationMode === 'margin' && (
+              <div className="relative hidden rounded-2xl border border-amber-100 bg-amber-50/70 px-6 py-3 text-center lg:block lg:min-w-[140px]">
+                <span className="block text-[9px] font-black uppercase tracking-widest text-amber-500">Livr. Suivante</span>
+                <button onClick={() => { setActiveNextCalendar(v => !v); setActiveCalendarSupplier(null); }} className="mt-1 rounded-xl bg-white/70 px-2 py-1 text-sm font-black text-amber-900">
+                  {capitalizeFirstLetter(selectedNextDeliveryFormatted)}
                 </button>
                 {activeNextCalendar && (
                   <WindowsCalendar
                     selectedDate={selectedNextDeliveryDate}
                     minDate={minDelivery2}
-                    onSelect={d => {
-                      setNextDeliveryDateBySupplier(prev => ({ ...prev, [currentSupplierId]: d.toISOString() }));
-                      setActiveNextCalendar(false);
-                    }}
+                    onSelect={date => { setNextDeliveryDateBySupplier(prev => ({ ...prev, [currentSupplierId]: date.toISOString() })); setActiveNextCalendar(false); }}
                     onClose={() => setActiveNextCalendar(false)}
                   />
                 )}
-                  </div>
-                </>
-              )}
-
-              {/* Couverts Prévus */}
-              <div className="bg-indigo-50/50 px-6 py-3 rounded-2xl border border-indigo-100/50 flex flex-col items-center min-w-[120px]">
-                <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">Couverts Prévus</span>
-                <span className="font-black text-indigo-900 text-xl leading-none">{windowForecast.total}</span>
               </div>
-            </div>
+            )}
 
-            <div className="flex gap-3">
-              <button onClick={() => setShowResetConfirm(true)}
-                className="px-6 py-3 bg-red-50 text-red-600 font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-red-600 hover:text-white transition-all border border-red-100 shadow-sm">
-                RAZ
-              </button>
+            <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 px-3 py-2 text-center lg:min-w-[120px] lg:px-6 lg:py-3">
+              <span className="block text-[8px] font-black uppercase tracking-widest text-indigo-400 lg:text-[9px]">Couverts prévus</span>
+              <span className="text-lg font-black leading-none text-indigo-900 lg:text-xl">{windowForecast.total}</span>
             </div>
           </div>
 
+          <button onClick={() => setShowResetConfirm(true)} className="hidden rounded-2xl border border-red-100 bg-red-50 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-red-600 transition hover:bg-red-600 hover:text-white lg:block">
+            RAZ
+          </button>
         </div>
       </div>
+    </div>
+  );
 
-      {/* ================================================================
-          TABLEAU — scrollable horizontalement sur mobile
-          La colonne "À Commander" est sticky à droite (position: sticky)
-      ================================================================ */}
-      <div className="max-w-[1600px] mx-auto pb-24">
-        <div className="bg-white rounded-2xl lg:rounded-[32px] shadow-2xl shadow-slate-300/20 border border-slate-100 overflow-x-auto">
-          <table
-            className="w-full"
-            style={isMobile
-              ? { tableLayout: 'fixed', minWidth: '620px' }
-              : { tableLayout: 'auto', minWidth: calculationMode === 'margin' ? '860px' : '940px' }
-            }>
-            {/* colgroup mobile/tablette : produit + stocks + unité + à commander */}
-            {isMobile && (
-              <colgroup>
-                <col style={{ width: '190px' }} />
-                <col style={{ width: '110px' }} />
-                <col style={{ width: '100px' }} />
-                <col style={{ width: '120px' }} />
-                <col style={{ width: '90px' }} />
-              </colgroup>
-            )}
-            <thead>
-              <tr className="text-left h-12 lg:h-16">
+  const renderMobileCards = () => (
+    <div className="mx-auto max-w-[720px] space-y-3 pb-24 lg:hidden">
+      {displayedProducts.map((product, rowIdx) => {
+        const split = getStockSplit(product.stock, product.packaging);
+        const result = getRowResult(product);
+        const unit = getCountingUnitForProduct(product);
+        return (
+          <div key={product.id} className="rounded-2xl border border-amber-100 bg-white p-3 shadow-lg shadow-slate-300/20">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-sm font-black leading-tight text-slate-800">{capitalizeFirstLetter(product.name)}</h2>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-black uppercase text-amber-800">Unité : {unit}</span>
+                  {calculationMode === 'margin' ? (
+                    <span className="rounded-full bg-orange-50 px-2 py-1 text-[10px] font-bold text-orange-700">Besoin : {result.info1}</span>
+                  ) : (
+                    <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700">Conso : {result.info1}</span>
+                  )}
+                </div>
+              </div>
+              <div className={`flex h-14 w-16 shrink-0 flex-col items-center justify-center rounded-2xl text-white shadow ${result.toOrder > 0 ? calculationMode === 'margin' ? 'bg-orange-500' : 'bg-blue-600' : 'bg-slate-200 text-slate-400'}`}>
+                <span className="text-[8px] font-black uppercase leading-none">À cmd</span>
+                <span className="text-2xl font-black leading-tight">{result.toOrder}</span>
+              </div>
+            </div>
 
-                {/* Colonne Produit */}
-                <th className="px-3 lg:px-6 bg-[#2c1810] text-[#ffd700] font-black uppercase text-[10px] lg:text-xs tracking-widest"
-                    style={{ position: 'sticky', left: 0, zIndex: 20 }}>
-                  Produit
-                </th>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="rounded-2xl bg-amber-50 p-2">
+                <span className="mb-1 block text-[10px] font-black uppercase text-amber-700">U. colisage stock</span>
+                <NumberInput
+                  value={product.stock === '' ? '' : split.stockCases}
+                  onChange={value => updateStockFromSplit(product.id, product.packaging, value, String(split.stockPieces))}
+                  tabIndex={200 + rowIdx}
+                  onKeyDown={event => handleEnterKey(event, 200, rowIdx)}
+                  tone="amber"
+                />
+              </label>
+              <label className="rounded-2xl bg-amber-50 p-2">
+                <span className="mb-1 block text-[10px] font-black uppercase text-amber-700">U. pièce stock</span>
+                <NumberInput
+                  value={product.stock === '' ? '' : split.stockPieces}
+                  onChange={value => updateStockFromSplit(product.id, product.packaging, String(split.stockCases), value)}
+                  tabIndex={300 + rowIdx}
+                  onKeyDown={event => handleEnterKey(event, 300, rowIdx)}
+                  tone="amber"
+                />
+              </label>
+            </div>
 
-                {calculationMode === 'margin' ? (<>
-                  <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Besoin<br/>Théo.</th>
-                  <th className="hidden lg:table-cell p-2 bg-emerald-600 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Livr.<br/>à venir</th>
-                  <th className="p-2 bg-amber-600 text-white font-black uppercase text-[10px] tracking-widest text-center">U. Colisage<br/>en stock</th>
-                  <th className="p-2 bg-amber-500 text-white font-black uppercase text-[10px] tracking-widest text-center">U. Pièce<br/>en stock</th>
-                  <th className="p-2 bg-[#F59E0B] text-white font-black uppercase text-[10px] tracking-widest text-center">Unité<br/>comptage</th>
-                  <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Colis.</th>
-                  <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Marge<br/>(%)</th>
-                </>) : (<>
-                  <th className="hidden lg:table-cell p-2 bg-blue-600 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Cible<br/>(Unités)</th>
-                  <th className="hidden lg:table-cell p-2 bg-emerald-600 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Livr.<br/>à venir</th>
-                  <th className="p-2 bg-amber-600 text-white font-black uppercase text-[10px] tracking-widest text-center">U. Colisage<br/>en stock</th>
-                  <th className="p-2 bg-amber-500 text-white font-black uppercase text-[10px] tracking-widest text-center">U. Pièce<br/>en stock</th>
-                  <th className="p-2 bg-[#F59E0B] text-white font-black uppercase text-[10px] tracking-widest text-center">Unité<br/>comptage</th>
-                  <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Conso<br/>Estimée</th>
-                  <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Manque</th>
-                  <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Colis.</th>
-                </>)}
+            <div className="mt-2 grid grid-cols-3 gap-2 text-center text-[10px] font-bold text-slate-500">
+              <div className="rounded-xl bg-slate-50 px-2 py-2">Colisage<br /><span className="text-slate-800">{product.packaging || '-'}</span></div>
+              <div className="rounded-xl bg-slate-50 px-2 py-2">Stock total<br /><span className="text-slate-800">{split.totalStock}</span></div>
+              {calculationMode === 'target' && result.info2 !== null ? (
+                <div className="rounded-xl bg-red-50 px-2 py-2 text-red-600">Manque<br /><span>{result.info2 > 0 ? `-${result.info2}` : '-'}</span></div>
+              ) : (
+                <div className="rounded-xl bg-slate-50 px-2 py-2">Mode<br /><span className="text-slate-800">{calculationMode === 'margin' ? 'Marge' : 'Cible'}</span></div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 
-                {/* Colonne À Commander — sticky droite */}
-                <th className="px-2 lg:px-4 bg-slate-900 text-white font-black uppercase text-[10px] lg:text-xs tracking-widest text-center whitespace-nowrap"
-                    style={{ position: 'sticky', right: 0, zIndex: 20, minWidth: '80px' }}>
-                  À Cmd.
-                </th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y-2 divide-slate-200">
-              {displayedProducts.map((p, rowIdx) => {
-                const { avgRatio } = getProductStats(p);
-                const stockSafe      = getStockSplit(p.stock, p.packaging).totalStock;
-                const upcomingInUnit = getUpcomingDeliveryUnits(p.upcomingDelivery, p.packaging);
-                const targetSafe     = toNumber(p.targetStock);
-                const countingUnit   = getCountingUnitForProduct(p);
-                let toOrder = 0;
-                let displayInfo1: number | null = null;
-                let displayInfo2: number | null = null;
-
-                if (calculationMode === 'margin') {
-                  const dynamicTheo   = Math.ceil(avgRatio * windowForecast.total);
-                  const currentMargin = orderStates[p.id]?.margin ?? 30;
-                  const res           = calculateOrder(dynamicTheo, upcomingInUnit, stockSafe, currentMargin, p.packaging);
-                  toOrder      = res.toOrder;
-                  displayInfo1 = dynamicTheo;
-                } else {
-                  const estimatedConso = Math.ceil(avgRatio * windowForecast.total);
-                  const res            = calculateTargetOrder(targetSafe, p.stock, estimatedConso, p.packaging);
-                  toOrder      = res.toOrder;
-                  displayInfo1 = estimatedConso;
-                  displayInfo2 = res.missing;
-                }
-
-                return (
-                  <tr key={p.id} className="hover:bg-amber-50/40 transition-colors">
-
-                    {/* Nom produit — sticky gauche */}
-                    <td className="px-3 lg:px-6 py-3 font-['Roboto_Slab'] font-bold text-slate-800 text-xs lg:text-sm border-r-2 border-slate-100 bg-white overflow-hidden"
-                        style={{ position: 'sticky', left: 0, zIndex: 10 }}>
-                      <span className="block truncate">{capitalizeFirstLetter(p.name)}</span>
-                    </td>
-
-                    {calculationMode === 'margin' ? (<>
-                      <td className="hidden lg:table-cell p-2 text-center font-bold text-slate-700 text-sm bg-[#FFE8CC] whitespace-nowrap">{displayInfo1}</td>
-                      <td className="hidden lg:table-cell p-2 bg-emerald-50/20">
-                        <input type="number" value={p.upcomingDelivery}
-                          onChange={e => updateProductValue(p.id, 'upcomingDelivery', e.target.value)}
-                          tabIndex={TAB_UPCOMING + rowIdx}
-                          onKeyDown={e => handleEnterKey(e, TAB_UPCOMING, rowIdx)}
-                          enterKeyHint="next"
-                          inputMode="numeric"
-                          className="w-14 lg:w-full h-9 lg:h-10 rounded-lg border border-emerald-200/50 bg-white text-emerald-700 text-center font-black text-sm outline-none focus:border-emerald-400 transition-all shadow-sm"
-                          placeholder="-" />
-                      </td>
-
-                      <td className="p-2 bg-amber-50/20">
-                        <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockCases}
-                          onChange={e => updateStockFromSplit(p.id, p.packaging, e.target.value, String(getStockSplit(p.stock, p.packaging).stockPieces))}
-                          tabIndex={TAB_STOCK_CASES + rowIdx}
-                          onKeyDown={e => handleEnterKey(e, TAB_STOCK_CASES, rowIdx)}
-                          enterKeyHint="next"
-                          inputMode="numeric"
-                          className="w-full h-10 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
-                          placeholder="-" />
-                      </td>
-
-                      <td className="p-2 bg-amber-50/20">
-                        <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockPieces}
-                          onChange={e => updateStockFromSplit(p.id, p.packaging, String(getStockSplit(p.stock, p.packaging).stockCases), e.target.value)}
-                          tabIndex={TAB_STOCK_PIECES + rowIdx}
-                          onKeyDown={e => handleEnterKey(e, TAB_STOCK_PIECES, rowIdx)}
-                          enterKeyHint="next"
-                          inputMode="numeric"
-                          className="w-full h-10 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
-                          placeholder="-" />
-                      </td>
-
-                      <td className="p-2 bg-amber-50/20 text-center">
-                        <span className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-amber-200/50 bg-white px-1 text-[10px] lg:text-xs font-black uppercase leading-tight text-slate-700 shadow-sm">
-                          {countingUnit}
-                        </span>
-                      </td>
-
-                      <td className="hidden lg:table-cell p-2 text-center bg-[#FFE8CC]">
-                        <input type="number" value={p.packaging} disabled={commandeOnly}
-                          onChange={e => updateProductValue(p.id, 'packaging', e.target.value)}
-                          className={`w-12 lg:w-16 text-center border border-slate-200 rounded-lg font-bold text-sm outline-none py-1 ${commandeOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/50 text-slate-600'}`} />
-                      </td>
-
-                      <td className="hidden lg:table-cell p-2 text-center bg-[#FFE8CC]">
-                        <select
-                          value={orderStates[p.id]?.margin ?? 30}
-                          disabled={commandeOnly}
-                          onChange={e => setOrderStates(pv => ({ ...pv, [p.id]: { ...pv[p.id], margin: Number(e.target.value) } }))}
-                          className={`border border-slate-300 font-bold text-xs py-1 px-1 rounded-lg outline-none shadow-sm ${commandeOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/80 text-slate-700 cursor-pointer'}`}
-                        >
-                          {[0,5,10,15,20,25,30,35,40,45,50].map(o => <option key={o} value={o}>{o}%</option>)}
-                        </select>
-                      </td>
-
-                    </>) : (<>
-                      <td className="hidden lg:table-cell p-2 relative bg-blue-50/20">
-                        <input type="number" value={p.targetStock} disabled={commandeOnly}
-                          onChange={e => updateProductValue(p.id, 'targetStock', e.target.value)}
-                          className={`w-14 lg:w-full h-9 lg:h-10 rounded-lg border border-blue-200/50 text-center font-black text-sm outline-none transition-all shadow-sm ${commandeOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white text-blue-700 focus:border-blue-400'}`}
-                          placeholder="-" />
-                        {toNumber(p.packaging) > 1 && targetSafe > 0 && (
-                          <div className="absolute top-2 right-2 text-[8px] font-bold text-blue-400 bg-blue-50 px-1 py-0.5 rounded pointer-events-none hidden lg:block">
-                            {(targetSafe / toNumber(p.packaging) || 1).toFixed(1)} cs
-                          </div>
-                        )}
-                      </td>
-
-                      <td className="hidden lg:table-cell p-2 bg-emerald-50/20">
-                        <input type="number" value={p.upcomingDelivery}
-                          onChange={e => updateProductValue(p.id, 'upcomingDelivery', e.target.value)}
-                          tabIndex={TAB_UPCOMING + rowIdx}
-                          onKeyDown={e => handleEnterKey(e, TAB_UPCOMING, rowIdx)}
-                          enterKeyHint="next"
-                          inputMode="numeric"
-                          className="w-14 lg:w-full h-9 lg:h-10 rounded-lg border border-emerald-200/50 bg-white text-emerald-700 text-center font-black text-sm outline-none focus:border-emerald-400 transition-all shadow-sm"
-                          placeholder="-" />
-                      </td>
-
-                      <td className="p-2 bg-amber-50/20">
-                        <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockCases}
-                          onChange={e => updateStockFromSplit(p.id, p.packaging, e.target.value, String(getStockSplit(p.stock, p.packaging).stockPieces))}
-                          tabIndex={TAB_STOCK_CASES + rowIdx}
-                          onKeyDown={e => handleEnterKey(e, TAB_STOCK_CASES, rowIdx)}
-                          enterKeyHint="next"
-                          inputMode="numeric"
-                          className="w-full h-10 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
-                          placeholder="-" />
-                      </td>
-
-                      <td className="p-2 bg-amber-50/20">
-                        <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockPieces}
-                          onChange={e => updateStockFromSplit(p.id, p.packaging, String(getStockSplit(p.stock, p.packaging).stockCases), e.target.value)}
-                          tabIndex={TAB_STOCK_PIECES + rowIdx}
-                          onKeyDown={e => handleEnterKey(e, TAB_STOCK_PIECES, rowIdx)}
-                          enterKeyHint="next"
-                          inputMode="numeric"
-                          className="w-full h-10 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
-                          placeholder="-" />
-                      </td>
-
-                      <td className="p-2 bg-amber-50/20 text-center">
-                        <span className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-amber-200/50 bg-white px-1 text-[10px] lg:text-xs font-black uppercase leading-tight text-slate-700 shadow-sm">
-                          {countingUnit}
-                        </span>
-                      </td>
-
-                      <td className="hidden lg:table-cell p-2 text-center bg-[#FFE8CC] whitespace-nowrap">
-                        <span className="text-slate-600 font-bold text-sm">{displayInfo1}</span>
-                      </td>
-
-                      <td className="hidden lg:table-cell p-2 text-center bg-[#FFE8CC]">
-                        {displayInfo2 !== null && displayInfo2 > 0 ? (
-                          <span className="text-red-600 font-black bg-white/50 border border-red-200 px-1.5 py-0.5 rounded text-xs">-{displayInfo2}</span>
-                        ) : (
-                          <span className="text-slate-400 text-sm">-</span>
-                        )}
-                      </td>
-
-                      <td className="hidden lg:table-cell p-2 text-center bg-[#FFE8CC]">
-                        <input type="number" value={p.packaging} disabled={commandeOnly}
-                          onChange={e => updateProductValue(p.id, 'packaging', e.target.value)}
-                          className={`w-12 lg:w-16 text-center border border-slate-200 rounded-lg font-bold text-sm outline-none py-1 ${commandeOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/50 text-slate-600'}`} />
-                      </td>
-                    </>)}
-
-                    {/* À Commander — sticky droite */}
-                    <td className="p-2 text-center border-l-2 border-slate-200 bg-white"
-                        style={{ position: 'sticky', right: 0, zIndex: 10 }}>
-                      <div className={`inline-flex items-center justify-center w-11 lg:w-14 h-9 lg:h-10 rounded-xl font-black text-lg shadow-sm transition-all
-                        ${toOrder > 0
-                          ? calculationMode === 'margin'
-                            ? 'bg-orange-500 text-white shadow-orange-200 scale-110'
-                            : 'bg-blue-600 text-white shadow-blue-200 scale-110'
-                          : 'bg-slate-100 text-slate-300 scale-90 opacity-50'}`}>
-                        {toOrder}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-
+  const renderDesktopTable = () => (
+    <div className="mx-auto hidden max-w-[1600px] pb-24 lg:block">
+      <div className="overflow-x-auto rounded-[32px] border border-slate-100 bg-white shadow-2xl shadow-slate-300/20">
+        <table className="w-full" style={{ tableLayout: 'auto', minWidth: calculationMode === 'margin' ? '860px' : '940px' }}>
+          <thead>
+            <tr className="h-16 text-left">
+              <th className="sticky left-0 z-20 bg-[#2c1810] px-6 text-xs font-black uppercase tracking-widest text-[#ffd700]">Produit</th>
+              {calculationMode === 'margin' ? (<>
+                <th className="bg-[#FDBA74] p-2 text-center text-[10px] font-black uppercase tracking-widest text-white">Besoin<br />Théo.</th>
+                <th className="bg-emerald-600 p-2 text-center text-[10px] font-black uppercase tracking-widest text-white">Livr.<br />à venir</th>
+                <th className="bg-amber-600 p-2 text-center text-[10px] font-black uppercase tracking-widest text-white">U. Colisage<br />en stock</th>
+                <th className="bg-amber-500 p-2 text-center text-[10px] font-black uppercase tracking-widest text-white">U. Pièce<br />en stock</th>
+                <th className="bg-[#F59E0B] p-2 text-center text-[10px] font-black uppercase tracking-widest text-white">Unité<br />comptage</th>
+                <th className="bg-[#FDBA74] p-2 text-center text-[10px] font-black uppercase tracking-widest text-white">Colis.</th>
+                <th className="bg-[#FDBA74] p-2 text-center text-[10px] font-black uppercase tracking-widest text-white">Marge<br />(%)</th>
+              </>) : (<>
+                <th className="bg-blue-600 p-2 text-center text-[10px] font-black uppercase tracking-widest text-white">Cible<br />(Unités)</th>
+                <th className="bg-emerald-600 p-2 text-center text-[10px] font-black uppercase tracking-widest text-white">Livr.<br />à venir</th>
+                <th className="bg-amber-600 p-2 text-center text-[10px] font-black uppercase tracking-widest text-white">U. Colisage<br />en stock</th>
+                <th className="bg-amber-500 p-2 text-center text-[10px] font-black uppercase tracking-widest text-white">U. Pièce<br />en stock</th>
+                <th className="bg-[#F59E0B] p-2 text-center text-[10px] font-black uppercase tracking-widest text-white">Unité<br />comptage</th>
+                <th className="bg-[#FDBA74] p-2 text-center text-[10px] font-black uppercase tracking-widest text-white">Conso<br />Estimée</th>
+                <th className="bg-[#FDBA74] p-2 text-center text-[10px] font-black uppercase tracking-widest text-white">Manque</th>
+                <th className="bg-[#FDBA74] p-2 text-center text-[10px] font-black uppercase tracking-widest text-white">Colis.</th>
+              </>)}
+              <th className="sticky right-0 z-20 bg-slate-900 px-4 text-center text-xs font-black uppercase tracking-widest text-white">À Cmd.</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y-2 divide-slate-200">
+            {displayedProducts.map((product, rowIdx) => {
+              const split = getStockSplit(product.stock, product.packaging);
+              const result = getRowResult(product);
+              const unit = getCountingUnitForProduct(product);
+              return (
+                <tr key={product.id} className="transition hover:bg-amber-50/40">
+                  <td className="sticky left-0 z-10 overflow-hidden border-r-2 border-slate-100 bg-white px-6 py-3 font-['Roboto_Slab'] text-sm font-bold text-slate-800"><span className="block truncate">{capitalizeFirstLetter(product.name)}</span></td>
+                  {calculationMode === 'margin' ? (<>
+                    <td className="bg-[#FFE8CC] p-2 text-center text-sm font-bold text-slate-700">{result.info1}</td>
+                    <td className="bg-emerald-50/20 p-2"><NumberInput value={product.upcomingDelivery ?? ''} onChange={value => updateProductValue(product.id, 'upcomingDelivery', value)} tabIndex={100 + rowIdx} onKeyDown={event => handleEnterKey(event, 100, rowIdx)} tone="emerald" /></td>
+                    <td className="bg-amber-50/20 p-2"><NumberInput value={product.stock === '' ? '' : split.stockCases} onChange={value => updateStockFromSplit(product.id, product.packaging, value, String(split.stockPieces))} tabIndex={200 + rowIdx} onKeyDown={event => handleEnterKey(event, 200, rowIdx)} tone="amber" /></td>
+                    <td className="bg-amber-50/20 p-2"><NumberInput value={product.stock === '' ? '' : split.stockPieces} onChange={value => updateStockFromSplit(product.id, product.packaging, String(split.stockCases), value)} tabIndex={300 + rowIdx} onKeyDown={event => handleEnterKey(event, 300, rowIdx)} tone="amber" /></td>
+                    <td className="bg-amber-50/20 p-2 text-center"><span className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-amber-200 bg-white px-1 text-xs font-black uppercase text-slate-700">{unit}</span></td>
+                    <td className="bg-[#FFE8CC] p-2 text-center"><NumberInput value={product.packaging} disabled={commandeOnly} onChange={value => updateProductValue(product.id, 'packaging', value)} /></td>
+                    <td className="bg-[#FFE8CC] p-2 text-center"><select value={orderStates[product.id]?.margin ?? 30} disabled={commandeOnly} onChange={event => setOrderStates(prev => ({ ...prev, [product.id]: { ...prev[product.id], margin: Number(event.target.value) } }))} className={`rounded-lg border border-slate-300 px-1 py-1 text-xs font-bold shadow-sm ${commandeOnly ? 'cursor-not-allowed bg-slate-100 text-slate-400' : 'bg-white/80 text-slate-700'}`}>{[0,5,10,15,20,25,30,35,40,45,50].map(value => <option key={value} value={value}>{value}%</option>)}</select></td>
+                  </>) : (<>
+                    <td className="bg-blue-50/20 p-2"><NumberInput value={product.targetStock ?? ''} disabled={commandeOnly} onChange={value => updateProductValue(product.id, 'targetStock', value)} tone="blue" /></td>
+                    <td className="bg-emerald-50/20 p-2"><NumberInput value={product.upcomingDelivery ?? ''} onChange={value => updateProductValue(product.id, 'upcomingDelivery', value)} tabIndex={100 + rowIdx} onKeyDown={event => handleEnterKey(event, 100, rowIdx)} tone="emerald" /></td>
+                    <td className="bg-amber-50/20 p-2"><NumberInput value={product.stock === '' ? '' : split.stockCases} onChange={value => updateStockFromSplit(product.id, product.packaging, value, String(split.stockPieces))} tabIndex={200 + rowIdx} onKeyDown={event => handleEnterKey(event, 200, rowIdx)} tone="amber" /></td>
+                    <td className="bg-amber-50/20 p-2"><NumberInput value={product.stock === '' ? '' : split.stockPieces} onChange={value => updateStockFromSplit(product.id, product.packaging, String(split.stockCases), value)} tabIndex={300 + rowIdx} onKeyDown={event => handleEnterKey(event, 300, rowIdx)} tone="amber" /></td>
+                    <td className="bg-amber-50/20 p-2 text-center"><span className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-amber-200 bg-white px-1 text-xs font-black uppercase text-slate-700">{unit}</span></td>
+                    <td className="bg-[#FFE8CC] p-2 text-center text-sm font-bold text-slate-600">{result.info1}</td>
+                    <td className="bg-[#FFE8CC] p-2 text-center">{result.info2 !== null && result.info2 > 0 ? <span className="rounded border border-red-200 bg-white/50 px-1.5 py-0.5 text-xs font-black text-red-600">-{result.info2}</span> : <span className="text-sm text-slate-400">-</span>}</td>
+                    <td className="bg-[#FFE8CC] p-2 text-center"><NumberInput value={product.packaging} disabled={commandeOnly} onChange={value => updateProductValue(product.id, 'packaging', value)} /></td>
+                  </>)}
+                  <td className="sticky right-0 z-10 border-l-2 border-slate-200 bg-white p-2 text-center"><div className={`inline-flex h-10 w-14 items-center justify-center rounded-xl text-lg font-black shadow-sm ${result.toOrder > 0 ? calculationMode === 'margin' ? 'scale-110 bg-orange-500 text-white shadow-orange-200' : 'scale-110 bg-blue-600 text-white shadow-blue-200' : 'scale-90 bg-slate-100 text-slate-300 opacity-50'}`}>{result.toOrder}</div></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
+    </div>
+  );
+
+  return (
+    <div className="relative min-h-screen bg-[#FCEEB5] p-3 font-sans text-xs md:p-8">
+      {showResetConfirm && <ResetConfirmModal onConfirm={performReset} onClose={() => setShowResetConfirm(false)} />}
+      {renderHeader()}
+      {renderMobileCards()}
+      {renderDesktopTable()}
     </div>
   );
 };
