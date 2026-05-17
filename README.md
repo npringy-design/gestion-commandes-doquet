@@ -18,8 +18,8 @@ Elle permet de gérer les commandes, les imports de fichiers, les ratios, le co�
 
 Le projet utilise deux environnements séparés :
 
-- Production : projet Vercel `gestion-commandes-doquet`
-- Test / staging : projet Vercel `gestion-commande-test`
+- Production : projet Vercel `gestion-commandes-doquet`, branche `main`
+- Test / staging : projet Vercel `gestion-commande-test`, branche `codex-setup-staging-workflow`
 - Supabase production : base réelle utilisée par les restaurants
 - Supabase test : base dédiée aux tests et validations
 
@@ -57,7 +57,7 @@ Une donnée d'un site ne doit jamais être sauvegardée sur un autre site.
 
 ## Workflow de développement
 
-1. Travailler d'abord sur l'environnement test / staging.
+1. Travailler d'abord sur la branche test `codex-setup-staging-workflow`.
 2. Vérifier que Vercel test pointe bien vers Supabase test.
 3. Tester les fonctionnalités concernées avec la checklist.
 4. Lancer ou vérifier `npm run verify`.
@@ -69,6 +69,7 @@ Une donnée d'un site ne doit jamais être sauvegardée sur un autre site.
 
 ## Documentation
 
+- [Etat projet](docs/ETAT_PROJET.md)
 - [Déploiement](docs/DEPLOIEMENT.md)
 - [Supabase](docs/SUPABASE.md)
 - [Multisite](docs/MULTISITE.md)
