@@ -42,6 +42,22 @@ const AUTH_TIMEOUT_MS = 7000;
 const ALL_SITE_IDS = Object.keys(SITES) as SiteId[];
 const isGlobalSiteRole = (role?: string | null) => role === 'super_admin' || role === 'global_admin';
 
+const clearStoredAuthState = () => {
+  clearUiSessionState();
+  try {
+    window.sessionStorage.removeItem(ACTIVE_SITE_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+  try {
+    Object.keys(window.localStorage)
+      .filter((key) => key.startsWith('sb-') && key.endsWith('-auth-token'))
+      .forEach((key) => window.localStorage.removeItem(key));
+  } catch {
+    // ignore
+  }
+};
+
 async function withTimeout<T>(promise: PromiseLike<T>, label: string, timeoutMs = AUTH_TIMEOUT_MS): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
@@ -118,19 +134,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             if (accessError) {
               console.warn('[auth] Acces sites indisponibles:', accessError.message);
+              setProfile({ ...baseProfile, site_ids: [] });
+              return;
             }
 
             siteIds = (accessRows ?? [])
               .filter((row: any) => row?.is_active && isSiteId(row.site_id))
               .map((row: any) => row.site_id as SiteId);
-
-            if (siteIds.length === 0) siteIds = ['hippo_thillois'];
           }
 
           const nextProfile = { ...baseProfile, site_ids: siteIds };
           setProfile(nextProfile);
 
-          if (!siteIds.includes(CURRENT_SITE_ID as SiteId)) {
+          if (siteIds.length > 0 && !siteIds.includes(CURRENT_SITE_ID as SiteId)) {
             try {
               window.sessionStorage.setItem(ACTIVE_SITE_STORAGE_KEY, siteIds[0]);
               window.location.reload();
@@ -179,7 +195,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
       if (!mounted) return;
-      if (!newSession) clearUiSessionState();
+      if (!newSession) clearStoredAuthState();
       setSession(newSession ?? null);
       setLoadingSession(false);
       void loadProfile(newSession?.user?.id ?? null);
@@ -195,7 +211,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const value = useMemo<AuthContextValue>(() => {
     const isActive = profile?.is_active ?? true;
     const isAdmin = ['super_admin', 'global_admin', 'director', 'manager_plus'].includes(profile?.role ?? '') && isActive;
-    const availableSiteIds = profile?.site_ids?.length ? profile.site_ids : [CURRENT_SITE_ID as SiteId];
+    const availableSiteIds = profile?.site_ids ?? [];
 
     return {
       session,
@@ -217,13 +233,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       },
       signOut: async () => {
         if (!supabase) return;
-        clearUiSessionState();
-        try {
-          window.sessionStorage.removeItem(ACTIVE_SITE_STORAGE_KEY);
-        } catch {
-          // ignore
-        }
-        await supabase.auth.signOut();
+        clearStoredAuthState();
+        setSession(null);
+        setProfile(null);
+        await withTimeout(supabase.auth.signOut(), 'Deconnexion', 3000).catch((error) => {
+          console.warn('[auth] Deconnexion distante indisponible:', error);
+        });
       },
     };
   }, [session, profile, loadingSession, loadingProfile]);
