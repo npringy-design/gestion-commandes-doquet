@@ -380,6 +380,7 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
     if (!canSwitchSite) return;
     try {
       window.sessionStorage.removeItem(ACTIVE_SITE_STORAGE_KEY);
+      window.sessionStorage.setItem(`${ACTIVE_SITE_STORAGE_KEY}:picker`, '1');
     } catch {
       // ignore
     }
