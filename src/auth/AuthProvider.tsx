@@ -41,14 +41,45 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 const AUTH_TIMEOUT_MS = 7000;
 const ALL_SITE_IDS = Object.keys(SITES) as SiteId[];
 const isGlobalSiteRole = (role?: string | null) => role === 'super_admin' || role === 'global_admin';
+const USER_SITE_STORAGE_PREFIX = `${ACTIVE_SITE_STORAGE_KEY}:user:`;
 
-const clearStoredAuthState = () => {
-  clearUiSessionState();
+const getUserSiteStorageKey = (userId: string) => `${USER_SITE_STORAGE_PREFIX}${userId}`;
+
+const readStoredSite = (key: string): SiteId | null => {
+  try {
+    const stored = window.localStorage.getItem(key) ?? window.sessionStorage.getItem(key);
+    return isSiteId(stored) ? stored : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeActiveSite = (siteId: SiteId, userId?: string | null) => {
+  try {
+    window.sessionStorage.setItem(ACTIVE_SITE_STORAGE_KEY, siteId);
+  } catch {
+    // ignore
+  }
+  if (userId) {
+    try {
+      window.localStorage.setItem(getUserSiteStorageKey(userId), siteId);
+    } catch {
+      // ignore
+    }
+  }
+};
+
+const clearGlobalActiveSite = () => {
   try {
     window.sessionStorage.removeItem(ACTIVE_SITE_STORAGE_KEY);
   } catch {
     // ignore
   }
+};
+
+const clearStoredAuthState = () => {
+  clearUiSessionState();
+  clearGlobalActiveSite();
   try {
     Object.keys(window.localStorage)
       .filter((key) => key.startsWith('sb-') && key.endsWith('-auth-token'))
@@ -98,6 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!mounted) return;
 
       if (!userId) {
+        clearGlobalActiveSite();
         setProfile(null);
         setLoadingProfile(false);
         return;
@@ -119,6 +151,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (error || !data) {
           if (error) console.warn('[auth] Profil indisponible:', error.message);
+          clearGlobalActiveSite();
           setProfile(null);
         } else {
           const baseProfile = data as AppProfile;
@@ -134,6 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             if (accessError) {
               console.warn('[auth] Acces sites indisponibles:', accessError.message);
+              clearGlobalActiveSite();
               setProfile({ ...baseProfile, site_ids: [] });
               return;
             }
@@ -144,20 +178,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
 
           const nextProfile = { ...baseProfile, site_ids: siteIds };
-          setProfile(nextProfile);
 
-          if (!siteIds.includes(CURRENT_SITE_ID as SiteId)) {
-            try {
-              window.sessionStorage.setItem(ACTIVE_SITE_STORAGE_KEY, siteIds[0]);
-              window.location.reload();
-            } catch {
-              // ignore
-            }
+          if (siteIds.length === 0) {
+            clearGlobalActiveSite();
+            setProfile(nextProfile);
+            return;
           }
+
+          const userStoredSite = readStoredSite(getUserSiteStorageKey(userId));
+          const desiredSite = userStoredSite && siteIds.includes(userStoredSite)
+            ? userStoredSite
+            : siteIds[0];
+
+          if (CURRENT_SITE_ID !== desiredSite) {
+            writeActiveSite(desiredSite, userId);
+            window.location.reload();
+            return;
+          }
+
+          writeActiveSite(desiredSite, userId);
+          setProfile(nextProfile);
         }
       } catch (error) {
         console.warn('[auth] Erreur lors du chargement du profil:', error);
-        if (mounted) setProfile(null);
+        if (mounted) {
+          clearGlobalActiveSite();
+          setProfile(null);
+        }
       } finally {
         if (mounted) setLoadingProfile(false);
       }
@@ -171,6 +218,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (error) {
           console.warn('[auth] getSession:', error.message);
+          clearGlobalActiveSite();
           setSession(null);
           setLoadingSession(false);
           setLoadingProfile(false);
@@ -178,12 +226,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         const nextSession = data.session ?? null;
+        if (!nextSession) clearGlobalActiveSite();
         setSession(nextSession);
         setLoadingSession(false);
         await loadProfile(nextSession?.user?.id ?? null);
       } catch (error) {
         console.warn('[auth] Impossible de récupérer la session:', error);
         if (!mounted) return;
+        clearGlobalActiveSite();
         setSession(null);
         setProfile(null);
         setLoadingSession(false);
@@ -196,6 +246,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
       if (!mounted) return;
       if (!newSession) clearStoredAuthState();
+      if (newSession?.user?.id !== session?.user?.id) clearGlobalActiveSite();
       setSession(newSession ?? null);
       setLoadingSession(false);
       void loadProfile(newSession?.user?.id ?? null);
@@ -224,11 +275,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       availableSiteIds,
       setActiveSiteId: (siteId: SiteId) => {
         if (!availableSiteIds.includes(siteId)) return;
-        try {
-          window.sessionStorage.setItem(ACTIVE_SITE_STORAGE_KEY, siteId);
-        } catch {
-          // ignore
-        }
+        writeActiveSite(siteId, session?.user?.id ?? null);
         window.location.reload();
       },
       signOut: async () => {
