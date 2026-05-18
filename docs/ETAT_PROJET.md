@@ -32,13 +32,22 @@ Le site existant a proteger en priorite est `hippo_thillois`.
 
 ## Securite multisite critique
 
-Le site actif peut venir de `sessionStorage` via `ACTIVE_SITE_STORAGE_KEY`.
+Incident observe : un utilisateur Thillois a saisi ses stocks sur telephone, puis apres un chargement les pages de commandes Au Bureau sont apparues tout en gardant le theme Hippo. Le PC avait ete utilise avant par un utilisateur multisite ayant switche entre restaurants.
 
-Risque identifie : si un ancien site actif reste stocke ou si un reload intervient avant que le profil utilisateur soit totalement verifie, l'application peut demarrer avec un mauvais `site_id`. Cela peut donner un symptome du type : accueil visuellement correct mais pages commandes avec le theme ou les donnees d'un autre site.
+Cause racine : le site actif etait stocke avec une cle navigateur globale `hippo_active_site_id`. Sur un PC partage, un utilisateur pouvait heriter du dernier site choisi par un autre utilisateur.
 
-Correctif en cours sur test : `AuthGate` verifie maintenant que `activeSiteId` appartient bien aux `availableSiteIds` du profil utilisateur. Si ce n'est pas le cas, l'application ne rend pas les pages metier, affiche `Correction du site...`, force le retour vers le premier site autorise puis recharge l'application.
+Correctif durable en cours sur test :
 
-Point de vigilance : ne jamais laisser `App` / `useAppState` charger les donnees metier si le site actif n'est pas autorise pour l'utilisateur connecte.
+- Le site actif reste synchronise dans `sessionStorage` pour que `CURRENT_SITE_ID` isole Supabase au chargement.
+- Mais la preference durable est maintenant stockee par utilisateur : `hippo_active_site_id:user:<userId>`.
+- Au chargement du profil, l'application ignore la vieille cle globale si elle ne correspond pas a la preference de l'utilisateur connecte.
+- Si l'utilisateur n'a pas encore de preference, le premier site autorise de son profil est utilise.
+- En cas de changement de compte, la cle globale est supprimee avant de recalculer le site actif.
+- Si le site actif ne correspond pas au site attendu pour l'utilisateur, l'application ecrit le bon site puis recharge avant de rendre les pages metier.
+
+Regle importante : ne jamais reutiliser directement une selection de site globale entre deux utilisateurs differents sur le meme navigateur.
+
+Point de vigilance : ne jamais laisser `App` / `useAppState` charger les donnees metier si le site actif n'est pas autorise ou pas resynchronise pour l'utilisateur connecte.
 
 ## Pages et relations principales
 
@@ -194,6 +203,7 @@ Point de vigilance :
 - Ne jamais ecraser les donnees d'un site en changeant de site.
 - Tester les acces multi-site d'abord sur Supabase test.
 - Bloquer le rendu metier si `activeSiteId` n'est pas autorise pour le profil courant.
+- Le site actif ne doit jamais etre une preference globale partagee entre utilisateurs d'un meme navigateur.
 
 ## Ce qui est valide a ce stade
 
