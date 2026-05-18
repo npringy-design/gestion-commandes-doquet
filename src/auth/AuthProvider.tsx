@@ -42,10 +42,12 @@ const AUTH_TIMEOUT_MS = 7000;
 const ALL_SITE_IDS = Object.keys(SITES) as SiteId[];
 const isGlobalSiteRole = (role?: string | null) => role === 'super_admin' || role === 'global_admin';
 const getUserSiteStorageKey = (userId: string) => `${ACTIVE_SITE_STORAGE_KEY}:user:${userId}`;
+const ACTIVE_SITE_PICKER_STORAGE_KEY = `${ACTIVE_SITE_STORAGE_KEY}:picker`;
 
 const clearActiveSessionSite = () => {
   try {
     window.sessionStorage.removeItem(ACTIVE_SITE_STORAGE_KEY);
+    window.sessionStorage.removeItem(ACTIVE_SITE_PICKER_STORAGE_KEY);
   } catch {
     // ignore
   }
@@ -71,8 +73,17 @@ const writeUserSitePreference = (userId: string, siteId: SiteId) => {
 const writeActiveSessionSite = (siteId: SiteId) => {
   try {
     window.sessionStorage.setItem(ACTIVE_SITE_STORAGE_KEY, siteId);
+    window.sessionStorage.removeItem(ACTIVE_SITE_PICKER_STORAGE_KEY);
   } catch {
     // ignore
+  }
+};
+
+const shouldOpenSitePicker = () => {
+  try {
+    return window.sessionStorage.getItem(ACTIVE_SITE_PICKER_STORAGE_KEY) === '1';
+  } catch {
+    return false;
   }
 };
 
@@ -183,6 +194,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return;
           }
 
+          const nextProfile = { ...baseProfile, site_ids: siteIds };
+          if (siteIds.length > 1 && shouldOpenSitePicker()) {
+            setProfile(nextProfile);
+            return;
+          }
+
           const selectedSiteId = readUserSitePreference(userId, siteIds) ?? siteIds[0];
           writeActiveSessionSite(selectedSiteId);
 
@@ -192,7 +209,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return;
           }
 
-          const nextProfile = { ...baseProfile, site_ids: siteIds };
           setProfile(nextProfile);
         }
       } catch (error) {
@@ -219,10 +235,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const nextSession = data.session ?? null;
         const nextUserId = nextSession?.user?.id ?? null;
-        if (lastUserIdRef.current !== nextUserId) {
+        if (lastUserIdRef.current && lastUserIdRef.current !== nextUserId) {
           clearActiveSessionSite();
-          lastUserIdRef.current = nextUserId;
         }
+        lastUserIdRef.current = nextUserId;
         setSession(nextSession);
         setLoadingSession(false);
         await loadProfile(nextUserId);
@@ -241,10 +257,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
       if (!mounted) return;
       const nextUserId = newSession?.user?.id ?? null;
-      if (lastUserIdRef.current !== nextUserId) {
+      if (lastUserIdRef.current && lastUserIdRef.current !== nextUserId) {
         clearActiveSessionSite();
-        lastUserIdRef.current = nextUserId;
       }
+      lastUserIdRef.current = nextUserId;
       if (!newSession) clearStoredAuthState();
       setSession(newSession ?? null);
       setLoadingSession(false);
