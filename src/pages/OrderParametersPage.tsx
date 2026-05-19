@@ -27,6 +27,36 @@ const findCol = (headers: unknown[], names: string[]) => {
 };
 const cellNumber = (value: unknown): number | '' => typeof value === 'number' && Number.isFinite(value) ? value : toNumber(String(value ?? ''));
 
+const COUNTING_UNIT_OPTIONS = [
+  '',
+  'Pièce',
+  'Bouteille',
+  'Kg',
+  'Litre',
+  'Carton',
+  'Sachet',
+  'Barquette',
+  'Seau',
+  'Bidon',
+  'Pack',
+  'Caisse',
+  'Boîte',
+  'Bac',
+  'Fût',
+];
+
+const getCountingUnitOptions = (value?: string) => {
+  const current = clean(value);
+  if (!current || COUNTING_UNIT_OPTIONS.includes(current)) return COUNTING_UNIT_OPTIONS;
+  return ['', current, ...COUNTING_UNIT_OPTIONS.filter(Boolean)];
+};
+
+const normalizeImportedCountingUnit = (value: unknown) => {
+  const raw = clean(value);
+  if (!raw) return '';
+  return COUNTING_UNIT_OPTIONS.find((option) => option && norm(option) === norm(raw)) ?? raw;
+};
+
 const OrderParametersPage: React.FC<OrderParametersPageProps> = ({
   setView,
   rows,
@@ -90,7 +120,7 @@ const OrderParametersPage: React.FC<OrderParametersPageProps> = ({
         product: clean(row[productCol >= 0 ? productCol : 0]),
         packaging: cellNumber(row[packagingCol >= 0 ? packagingCol : 1]),
         unitValue: cellNumber(row[unitValueCol >= 0 ? unitValueCol : 2]),
-        countingUnit: countingUnitCol >= 0 ? clean(row[countingUnitCol]) : '',
+        countingUnit: countingUnitCol >= 0 ? normalizeImportedCountingUnit(row[countingUnitCol]) : '',
       })).filter((row) => row.product || row.packaging !== '' || row.unitValue !== '' || row.countingUnit);
       if (!importedRows.length) throw new Error('Aucune ligne exploitable trouvee.');
       setRows((prev) => [...prev.filter((row) => row.supplierId !== activeSupplierId), ...importedRows]);
@@ -140,7 +170,13 @@ const OrderParametersPage: React.FC<OrderParametersPageProps> = ({
                     <td className="px-4 py-3"><input value={row.product} onChange={(e) => updateText(row.id, 'product', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm font-bold" placeholder="Nom du produit" /></td>
                     <td className="px-4 py-3"><input inputMode="decimal" value={drafts[`${row.id}-packaging`] ?? toInput(row.packaging)} onChange={(e) => updateNumber(row.id, 'packaging', e.target.value)} onBlur={() => clearDraft(row.id, 'packaging')} className="w-full rounded-xl border px-3 py-2 text-sm font-bold" placeholder="0" /></td>
                     <td className="px-4 py-3"><input inputMode="decimal" value={drafts[`${row.id}-unitValue`] ?? toInput(row.unitValue)} onChange={(e) => updateNumber(row.id, 'unitValue', e.target.value)} onBlur={() => clearDraft(row.id, 'unitValue')} className="w-full rounded-xl border px-3 py-2 text-sm font-bold" placeholder="0" /></td>
-                    <td className="px-4 py-3"><input value={row.countingUnit ?? ''} onChange={(e) => updateText(row.id, 'countingUnit', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm font-bold" placeholder="ex : kg, sachet, pièce" /></td>
+                    <td className="px-4 py-3">
+                      <select value={row.countingUnit ?? ''} onChange={(e) => updateText(row.id, 'countingUnit', e.target.value)} className="w-full rounded-xl border bg-white px-3 py-2 text-sm font-bold">
+                        {getCountingUnitOptions(row.countingUnit).map((option) => (
+                          <option key={option || 'empty'} value={option}>{option || 'À choisir'}</option>
+                        ))}
+                      </select>
+                    </td>
                     <td className="px-4 py-3 text-right"><button type="button" onClick={() => removeRow(row.id)} className="rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-xs font-black uppercase text-red-700">Suppr.</button></td>
                   </tr>
                 ))}
