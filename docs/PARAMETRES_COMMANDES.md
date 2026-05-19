@@ -25,16 +25,33 @@ Regle importante :
 
 ## Unite de comptage
 
-La colonne `Unite de comptage` est un champ texte libre.
+La colonne `Unite de comptage` est une liste deroulante.
 
 Objectif metier : indiquer comment le produit doit etre compte en stock/inventaire pour eviter les erreurs d'unite.
 
-Exemples :
+Valeurs standards proposees :
 
-- `kg` ;
-- `sachet` ;
-- `piece` ;
-- `carton`.
+- `Piece` ;
+- `Bouteille` ;
+- `Kg` ;
+- `Litre` ;
+- `Carton` ;
+- `Sachet` ;
+- `Barquette` ;
+- `Seau` ;
+- `Bidon` ;
+- `Pack` ;
+- `Caisse` ;
+- `Boite` ;
+- `Bac` ;
+- `Fut`.
+
+Regle d'import :
+
+- si l'import contient une unite detectee, elle est conservee ;
+- si l'unite importee correspond a une valeur standard avec une orthographe proche, elle est normalisee ;
+- si l'unite importee n'est pas dans la liste standard, elle reste affichee dans la liste pour ne pas perdre l'information ;
+- si aucune unite n'est detectee, l'utilisateur choisit manuellement dans la liste.
 
 Cette colonne ne modifie pas encore les calculs. Elle sert d'information de parametre et de garde-fou operationnel.
 
