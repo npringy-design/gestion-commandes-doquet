@@ -23,6 +23,21 @@ Regle importante :
 - les anciennes lignes sans `supplierId` sont rattachees automatiquement au fournisseur actif au chargement de la page ;
 - l'import Excel remplace uniquement les lignes du fournisseur actif, pas celles des autres fournisseurs.
 
+## Source de verite Doquet
+
+Pour Doquet uniquement pour le moment, `Parametre commandes` devient la source de verite de la liste produits.
+
+Consequences :
+
+- la liste Doquet du `Calcul vente ratio` est creee/alignee depuis les lignes Doquet de `Parametre commandes` ;
+- le champ `Produit` de `Parametre commandes` devient le `Nom affiche dans les commandes` ;
+- si un produit Doquet n'existe pas encore dans le ratio, il est cree automatiquement ;
+- si un produit Doquet existe deja, son nom affiche et son colisage sont alignes sur `Parametre commandes` ;
+- le `searchName` sert toujours a chercher dans l'import inventaire et reste modifiable pour le mapping ;
+- l'ajout/suppression de produits Doquet doit se faire depuis `Parametre commandes`, pas depuis `Calcul vente ratio`.
+
+Cette regle est limitee a Doquet pour l'instant. Les autres fournisseurs conservent leur fonctionnement actuel.
+
 ## Colisage
 
 Le colisage renseigne dans `Parametre commandes` devient la source prioritaire pour les feuilles de commande.
@@ -105,3 +120,4 @@ Aucune nouvelle table Supabase n'est necessaire.
 - Ne pas remettre de scroll horizontal obligatoire sur mobile/tablette pour les commandes : ce n'est pas pratique en operationnel.
 - Si la colonne `Unite de comptage` devient plus tard une base de calcul, ajouter une validation stricte avant de l'utiliser dans les commandes.
 - Si un colisage est corrige, le faire en priorite dans `Parametre commandes` pour eviter deux sources de verite.
+- Pour Doquet, ne pas ajouter/supprimer les produits directement dans `Calcul vente ratio` : modifier la liste dans `Parametre commandes`.
