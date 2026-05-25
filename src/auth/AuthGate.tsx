@@ -18,7 +18,6 @@ function hasPasswordSetupParams(): boolean {
       const hashType = hp.get('type');
       if (hashType === 'recovery' || hashType === 'invite') return true;
       if (hp.get('code')) return true;
-      if (hp.get('access_token')) return true;
     }
   } catch {
     // ignore
@@ -29,30 +28,28 @@ function hasPasswordSetupParams(): boolean {
 const LoadingScreen: React.FC<{
   label?: string;
   message?: string;
+  onRetry?: () => void;
   onResetSite?: () => void;
   onSignOut?: () => void;
-}> = ({ label = 'Chargement…', message, onResetSite, onSignOut }) => (
+}> = ({ label = 'Chargement…', message, onRetry, onResetSite, onSignOut }) => (
   <div className="min-h-screen bg-[#1a0f0a] flex items-center justify-center p-6">
     <div className="w-full max-w-md bg-white rounded-3xl px-6 py-5 shadow-2xl border-4 border-red-600 text-center">
       <div className="text-slate-800 font-black uppercase tracking-widest text-sm">{label}</div>
       {message ? <p className="mt-3 text-sm font-semibold text-slate-600">{message}</p> : null}
-      {(onResetSite || onSignOut) ? (
+      {(onRetry || onResetSite || onSignOut) ? (
         <div className="mt-5 grid gap-3">
+          {onRetry ? (
+            <button type="button" onClick={onRetry} className="w-full rounded-2xl bg-red-600 py-3 text-sm font-black uppercase tracking-widest text-white">
+              Réessayer
+            </button>
+          ) : null}
           {onResetSite ? (
-            <button
-              type="button"
-              onClick={onResetSite}
-              className="w-full rounded-2xl bg-red-600 py-3 text-sm font-black uppercase tracking-widest text-white"
-            >
-              Réinitialiser le site
+            <button type="button" onClick={onResetSite} className="w-full rounded-2xl bg-white py-3 text-sm font-black uppercase tracking-widest text-slate-900 border border-slate-300">
+              Réinitialiser le site local
             </button>
           ) : null}
           {onSignOut ? (
-            <button
-              type="button"
-              onClick={onSignOut}
-              className="w-full rounded-2xl bg-slate-900 py-3 text-sm font-black uppercase tracking-widest text-white"
-            >
+            <button type="button" onClick={onSignOut} className="w-full rounded-2xl bg-slate-900 py-3 text-sm font-black uppercase tracking-widest text-white">
               Déconnexion forcée
             </button>
           ) : null}
@@ -74,19 +71,12 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
     setActiveSiteId,
   } = useAuth();
 
-  const siteMismatch = Boolean(
-    user
-    && isActive
-    && availableSiteIds.length > 0
-    && !availableSiteIds.includes(activeSiteId)
-  );
+  const siteMismatch = Boolean(user && isActive && availableSiteIds.length > 0 && !availableSiteIds.includes(activeSiteId));
+  const siteAccessBlocked = Boolean(user && isActive && profile && availableSiteIds.length === 0);
 
-  const siteAccessBlocked = Boolean(
-    user
-    && isActive
-    && profile
-    && availableSiteIds.length === 0
-  );
+  const retryAuth = React.useCallback(() => {
+    window.location.reload();
+  }, []);
 
   const resetStoredSite = React.useCallback(() => {
     const fallbackSite = availableSiteIds[0];
@@ -96,6 +86,7 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
       } else {
         window.sessionStorage.removeItem(ACTIVE_SITE_STORAGE_KEY);
       }
+      window.sessionStorage.removeItem(`${ACTIVE_SITE_STORAGE_KEY}:picker`);
     } catch {
       // ignore
     }
@@ -108,11 +99,8 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
   }, [resetStoredSite, siteMismatch]);
 
   if (!isSupabaseConfigured()) return <>{children}</>;
-
   if (hasPasswordSetupParams()) return <ResetPasswordPage />;
-
   if (loading) return <LoadingScreen />;
-
   if (!user) return <LoginPage />;
 
   if (!isActive) {
@@ -120,13 +108,8 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
       <div className="min-h-screen bg-[#1a0f0a] flex items-center justify-center p-6">
         <div className="max-w-md w-full bg-white rounded-3xl p-6 shadow-2xl border-4 border-red-600 text-center">
           <h2 className="text-2xl font-black uppercase tracking-tight text-slate-800 mb-2">Compte désactivé</h2>
-          <p className="text-slate-600 text-sm font-semibold">
-            Votre compte est actuellement inactif. Contactez un administrateur pour réactiver votre accès.
-          </p>
-          <button
-            onClick={() => void signOut()}
-            className="mt-5 w-full bg-red-600 text-white font-black uppercase tracking-widest text-sm py-3 rounded-2xl hover:opacity-95"
-          >
+          <p className="text-slate-600 text-sm font-semibold">Votre compte est actuellement inactif. Contactez un administrateur pour réactiver votre accès.</p>
+          <button onClick={() => void signOut()} className="mt-5 w-full bg-red-600 text-white font-black uppercase tracking-widest text-sm py-3 rounded-2xl hover:opacity-95">
             Se déconnecter
           </button>
         </div>
@@ -134,15 +117,27 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
     );
   }
 
-  if (profile?.must_change_password || user.user_metadata?.must_change_password) {
-    return <ForcePasswordChangePage />;
-  }
+  if (profile?.must_change_password || user.user_metadata?.must_change_password) return <ForcePasswordChangePage />;
 
-  if (!profile || siteAccessBlocked) {
+  if (!profile) {
     return (
       <LoadingScreen
-        label="Acces site bloque"
-        message="Aucun site autorise n'a pu etre confirme pour ce compte. Reconnectez-vous ou contactez un administrateur."
+        label="Connexion non confirmée"
+        message="Le compte est connecté, mais le profil ou les sites n'ont pas été confirmés. Cela peut venir d'un chargement Supabase trop long. Réessaie avant de forcer la déconnexion."
+        onRetry={retryAuth}
+        onResetSite={resetStoredSite}
+        onSignOut={() => void signOut()}
+      />
+    );
+  }
+
+  if (siteAccessBlocked) {
+    return (
+      <LoadingScreen
+        label="Accès site non confirmé"
+        message="Le profil est chargé, mais aucun site actif n'a été confirmé pour ce compte. Réessaie d'abord, puis contacte un administrateur si le message revient."
+        onRetry={retryAuth}
+        onResetSite={resetStoredSite}
         onSignOut={() => void signOut()}
       />
     );
@@ -150,14 +145,10 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   if (siteMismatch) {
     return (
-      <LoadingScreen
-        label="Correction du site…"
-        message="Si l'application reste bloquée, utilise un des boutons ci-dessous."
-        onResetSite={resetStoredSite}
-        onSignOut={() => void signOut()}
-      />
+      <LoadingScreen label="Correction du site…" message="Si l'application reste bloquée, utilise un des boutons ci-dessous." onRetry={retryAuth} onResetSite={resetStoredSite} onSignOut={() => void signOut()} />
     );
   }
+
   let hasChosenSite = true;
   try {
     hasChosenSite = Boolean(window.sessionStorage.getItem(ACTIVE_SITE_STORAGE_KEY));
@@ -177,22 +168,14 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
             {availableSiteIds.map((siteId) => {
               const site = SITES[siteId as SiteId];
               return (
-                <button
-                  key={siteId}
-                  type="button"
-                  onClick={() => setActiveSiteId(siteId as SiteId)}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-6 text-left shadow-sm transition hover:border-red-500 hover:bg-red-50"
-                >
+                <button key={siteId} type="button" onClick={() => setActiveSiteId(siteId as SiteId)} className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-6 text-left shadow-sm transition hover:border-red-500 hover:bg-red-50">
                   <span className="block text-lg font-black uppercase text-slate-900">{getDisplaySiteName(site.name)}</span>
                   <span className="mt-2 block text-xs font-bold text-slate-500">{site.id}</span>
                 </button>
               );
             })}
           </div>
-          <button
-            onClick={() => void signOut()}
-            className="mt-5 w-full rounded-2xl bg-slate-900 py-3 text-sm font-black uppercase tracking-widest text-white"
-          >
+          <button onClick={() => void signOut()} className="mt-5 w-full rounded-2xl bg-slate-900 py-3 text-sm font-black uppercase tracking-widest text-white">
             Se deconnecter
           </button>
         </div>
