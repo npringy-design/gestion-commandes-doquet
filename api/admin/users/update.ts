@@ -13,7 +13,10 @@ import {
   siteIdsForRole,
 } from '../../_lib/sites.js';
 
-const ALLOWED_ROLES = new Set(MANAGEABLE_ROLES);
+type ManageableRole = (typeof MANAGEABLE_ROLES)[number];
+
+const isManageableRole = (role: unknown): role is ManageableRole =>
+  typeof role === 'string' && (MANAGEABLE_ROLES as readonly string[]).includes(role);
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'PATCH') return methodNotAllowed(res, ['PATCH']);
@@ -57,19 +60,21 @@ export default async function handler(req: any, res: any) {
     }
 
     const patch: Record<string, unknown> = {};
-    const nextRole = role === undefined ? String(target.role) : String(role);
+    const targetRole = String(target.role);
+    const requestedRole = role === undefined ? targetRole : String(role);
 
     if (role !== undefined) {
-      if (!ALLOWED_ROLES.has(nextRole)) {
+      if (!isManageableRole(requestedRole)) {
         return badRequest(res, 'Role invalide. Valeurs autorisees: global_admin, director, manager_plus, manager, commande.');
       }
-      if (!canAssignRole(auth.profile.role, nextRole)) {
+      if (!canAssignRole(auth.profile.role, requestedRole)) {
         return forbidden(res, 'Vous ne pouvez pas attribuer ce role.');
       }
-      patch.role = nextRole;
-      patch.access_scope = isGlobalSiteRole(nextRole) ? 'all' : 'current_site';
+      patch.role = requestedRole;
+      patch.access_scope = isGlobalSiteRole(requestedRole) ? 'all' : 'current_site';
     }
 
+    const nextRole = requestedRole;
     const requestedSiteIds = hasSiteIdsPatch ? req.body?.siteIds : target.site_ids;
     const nextSiteIds = isGlobalSiteRole(nextRole)
       ? siteIdsForRole(nextRole, requestedSiteIds)
