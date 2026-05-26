@@ -65,6 +65,9 @@ Objectif : detecter automatiquement une regression future sur les commandes avan
   3. `SUPABASE_USER_SITE_ACCESS.sql`
   4. `SUPABASE_APP_STATE_RLS_LOCKDOWN.sql`
   5. `SUPABASE_ENABLE_REALTIME.sql`
+- Filtres Vercel `Ignored Build Step` configures manuellement dans les deux projets :
+  - production `gestion-commandes-doquet` : `[ "$VERCEL_GIT_COMMIT_REF" != "main" ]` ;
+  - test `gestion-commande-test` : `[ "$VERCEL_GIT_COMMIT_REF" != "codex-setup-staging-workflow" ]`.
 
 ## Changements Supabase SQL
 
@@ -105,3 +108,4 @@ Ne jamais mettre la `SUPABASE_SERVICE_ROLE_KEY` dans une variable commencant par
 - La production ne doit pas avoir `VITE_APP_ENV=staging`.
 - Les donnees de test ne doivent jamais apparaitre dans Supabase production.
 - `npm run verify` doit rester vert avant toute promotion vers production.
+- Un push sur `codex-setup-staging-workflow` doit etre ignore par le projet production Vercel et construit uniquement par le projet test.
