@@ -4,8 +4,8 @@
 // Extraites de App.tsx — aucune dépendance React
 // =============================================================
 
-import { SupplierConfig, DeliveryRule } from '../types';
-import { DailyCover } from '../data';
+import type { SupplierConfig, DeliveryRule } from '../types';
+import type { DailyCover } from '../data';
 import { MONTHS_ORDER } from '../constants';
 
 // Re-export pour que les autres fichiers importent depuis ici
@@ -25,12 +25,24 @@ export type DailyCoversState = Record<string, DailyCover[]>;
 // Plaine Maison (flexibleDelivery) : livraison = lendemain si avant 10h,
 // sinon surlendemain. Exception : lundi = cut-off vendredi avant 10h.
 
-const nextFlexDelivery = (now: Date): Date => {
-  // Plaine Maison : livraison tous les jours sauf dimanche (0)
-  // Cut-off = veille avant 10h, sauf lundi dont le cut-off est vendredi avant 10h
-  const [h] = ['10:00'].map(t => parseInt(t));
-  const nowDay  = now.getDay(); // 0=Dim, 1=Lun ... 6=Sam
-  const nowHour = now.getHours();
+const parseTimeToMinutes = (time: string): number => {
+  const [hoursRaw, minutesRaw = '0'] = time.split(':');
+  const hours = Number(hoursRaw) || 0;
+  const minutes = Number(minutesRaw) || 0;
+  return hours * 60 + minutes;
+};
+
+const startOfDay = (date: Date): Date => {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+};
+
+const nextFlexDelivery = (now: Date, cutoffTime: string): Date => {
+  // Livraison tous les jours sauf dimanche (0)
+  // Cut-off = veille avant cutoffTime, sauf lundi dont le cut-off est vendredi avant cutoffTime
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const cutoffMinutes = parseTimeToMinutes(cutoffTime);
 
   // Trouver la prochaine date de livraison possible
   for (let offset = 1; offset <= 7; offset++) {
@@ -42,22 +54,12 @@ const nextFlexDelivery = (now: Date): Date => {
     // Pas de livraison le dimanche
     if (candidateDay === 0) continue;
 
-    // Vérifier que le cut-off est respecté
-    // Pour lundi (1) : cut-off = vendredi (5) avant 10h
-    // Pour les autres : cut-off = veille avant 10h
-    let cutoffDay: number;
-    if (candidateDay === 1) {
-      cutoffDay = 5; // vendredi
-    } else {
-      cutoffDay = candidateDay - 1; // veille
-    }
-
-    // Est-on encore dans la fenêtre du cut-off ?
-    const daysToCandidate = offset;
-    const cutoffOffset    = daysToCandidate - 1; // veille de la livraison
+    // Pour lundi (1) : cut-off = vendredi (5) avant cutoffTime.
+    // Pour les autres : cut-off = veille avant cutoffTime.
+    const cutoffOffset = offset - 1;
     if (cutoffOffset === 0) {
-      // Cut-off = aujourd'hui → valide si avant 10h
-      if (nowHour < 10) return candidate;
+      // Cut-off = aujourd'hui → valide si avant cutoffTime
+      if (nowMinutes < cutoffMinutes) return candidate;
     } else if (cutoffOffset > 0) {
       // Cut-off dans le futur → toujours valide
       return candidate;
@@ -71,15 +73,15 @@ const nextFlexDelivery = (now: Date): Date => {
 };
 
 const nextRuleDelivery = (now: Date, rules: DeliveryRule[], cutoffTime: string): Date => {
-  const [cutoffHour] = cutoffTime.split(':').map(Number);
-  const nowDay  = now.getDay();
-  const nowHour = now.getHours();
+  const cutoffMinutes = parseTimeToMinutes(cutoffTime);
+  const nowDay = now.getDay();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
   let best: Date | null = null;
 
   for (const rule of rules) {
     // Jours jusqu'au cut-off (0 = aujourd'hui)
     let daysToCutoff = (rule.cutoffDay - nowDay + 7) % 7;
-    if (daysToCutoff === 0 && nowHour >= cutoffHour) {
+    if (daysToCutoff === 0 && nowMinutes >= cutoffMinutes) {
       // Cut-off dépassé aujourd'hui → semaine prochaine
       daysToCutoff = 7;
     }
@@ -100,28 +102,45 @@ const nextRuleDelivery = (now: Date, rules: DeliveryRule[], cutoffTime: string):
   return best!;
 };
 
-// Trouve la livraison suivante après une date de livraison donnée
+// Trouve la livraison physique suivante après une date de livraison donnée.
+// Important : cette fonction ne resimule pas un nouveau cut-off après livraison.
+// Elle sert à déterminer la fin de couverture entre deux livraisons planifiées.
 const nextDeliveryAfterDate = (delivery: Date, config: SupplierConfig): Date => {
-  // On simule "le lendemain de la livraison à 11h" (cut-offs passés)
-  const after = new Date(delivery);
-  after.setDate(delivery.getDate() + 1);
-  after.setHours(11, 0, 0, 0);
-  return getNextDelivery(after, config);
+  const deliveryStart = startOfDay(delivery);
+
+  if (config.flexibleDelivery) {
+    for (let offset = 1; offset <= 7; offset++) {
+      const candidate = new Date(deliveryStart);
+      candidate.setDate(deliveryStart.getDate() + offset);
+      if (candidate.getDay() !== 0) return candidate;
+    }
+  }
+
+  const rules = config.deliveryRules ?? [{ cutoffDay: config.cutoffDay, deliveryDay: config.deliveryDay }];
+  const deliveryDays = Array.from(new Set(rules.map(rule => rule.deliveryDay)));
+
+  for (let offset = 1; offset <= 14; offset++) {
+    const candidate = new Date(deliveryStart);
+    candidate.setDate(deliveryStart.getDate() + offset);
+    if (deliveryDays.includes(candidate.getDay())) return candidate;
+  }
+
+  const fallback = new Date(deliveryStart);
+  fallback.setDate(deliveryStart.getDate() + 7);
+  return fallback;
 };
 
 const getNextDelivery = (now: Date, config: SupplierConfig): Date => {
-  if (config.flexibleDelivery) return nextFlexDelivery(now);
+  if (config.flexibleDelivery) return nextFlexDelivery(now, config.cutoffTime);
   const rules = config.deliveryRules ?? [{ cutoffDay: config.cutoffDay, deliveryDay: config.deliveryDay }];
   return nextRuleDelivery(now, rules, config.cutoffTime);
 };
 
-export const getDeliveryDates = (config: SupplierConfig) => {
-  const now = new Date();
-
+export const getDeliveryDates = (config: SupplierConfig, now: Date = new Date()) => {
   // Cal 1 : prochaine livraison en respectant les cut-offs
   const delivery1 = getNextDelivery(now, config);
 
-  // Cal 2 : livraison suivante après delivery1
+  // Cal 2 : livraison physique suivante après delivery1
   const delivery2 = nextDeliveryAfterDate(delivery1, config);
 
   // Fin fenêtre couverts = veille de delivery2
@@ -149,9 +168,9 @@ export const getDeliveryDates = (config: SupplierConfig) => {
 // -----------------------------------------------------------
 export const getForecastForWindow = (
   endDate:     Date,
-  dailyCovers: DailyCoversState
+  dailyCovers: DailyCoversState,
+  now:         Date = new Date()
 ): { total: number; midi: number; soir: number } => {
-  const now    = new Date();
   let totalMidi = 0;
   let totalSoir = 0;
 
@@ -188,10 +207,9 @@ export const getForecastForWindow = (
 // -----------------------------------------------------------
 export const getConsumptionUntilDelivery = (
   deliveryDayIndex: number,
-  dailyCovers:      DailyCoversState
+  dailyCovers:      DailyCoversState,
+  now:              Date = new Date()
 ): { total: number } => {
-  const now = new Date();
-
   const deliveryDate = new Date(now);
   const day  = now.getDay();
   let diff   = (deliveryDayIndex - day + 7) % 7;
