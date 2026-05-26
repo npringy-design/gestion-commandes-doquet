@@ -49,6 +49,7 @@ Memo important pour Codex :
 - Correction des types TypeScript des routes `api/admin/users/create.ts` et `api/admin/users/update.ts`.
 - Correction de la livraison suivante utilisee pour la couverture commande : elle suit maintenant la prochaine livraison physique du fournisseur, sans resimuler un cut-off apres la premiere livraison.
 - `src/utils/dateHelpers.ts` accepte maintenant une date `now` optionnelle pour tester les cut-offs et les previsions sans dependre de l'heure reelle.
+- Ajout d'un avertissement securite dans `SUPABASE_SETUP.sql` : ce fichier est uniquement un script initial et ne doit jamais rester seul en production sans execution du verrouillage RLS.
 
 ## Tests de non-regression calculs commande
 
@@ -117,6 +118,7 @@ Objectif : proteger la source de verite du taux de prise avant les prochaines ev
   - `protected_user`
   - `must_change_password`
 - Les anciens roles `admin / manager / viewer` ne doivent plus etre utilises pour les nouveaux projets.
+- `SUPABASE_SETUP.sql` contient maintenant un avertissement clair : il ouvre un etat initial non securise et doit obligatoirement etre suivi par `SUPABASE_APP_STATE_RLS_LOCKDOWN.sql` avant tout usage production.
 
 ## Variables du projet Vercel test
 
@@ -145,3 +147,4 @@ Ne jamais mettre la `SUPABASE_SERVICE_ROLE_KEY` dans une variable commencant par
 - Un push sur `codex-setup-staging-workflow` doit etre ignore par le projet production Vercel et construit uniquement par le projet test.
 - Le deploiement Vercel test doit afficher `npm run verify` dans les logs, pas seulement `npm run build`.
 - Le deploiement Vercel test doit afficher `test:supplier-dates` dans les logs.
+- Ne jamais laisser Supabase production avec uniquement `SUPABASE_SETUP.sql` execute : le verrouillage RLS doit etre applique ensuite.
