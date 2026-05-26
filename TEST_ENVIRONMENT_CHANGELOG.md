@@ -33,6 +33,45 @@ Le workflow choisi :
 - Affichage d'un bandeau visible en haut de l'application quand `VITE_APP_ENV` vaut `staging`, `test` ou `development`.
 - Sur la page d'accueil, en environnement test, le nom du site est remplace par `TEST` pour eviter toute confusion visuelle.
 - Les invitations utilisateurs utilisent maintenant `APP_BASE_URL` ou `VERCEL_URL` quand disponible, avec fallback production.
+- Promotion production des garde-fous de regression commandes : tests calculs purs, dates fournisseurs/prevision couverts, parser marge renforce.
+- Correction ciblee de `src/utils/dateHelpers.ts` : la livraison suivante de couverture suit la prochaine livraison physique du fournisseur, sans resimuler un cut-off apres la premiere livraison.
+- `src/utils/dateHelpers.ts` accepte une date `now` optionnelle pour permettre des tests stables sans changer l'appel applicatif existant.
+
+## Tests de non-regression calculs commande
+
+Les tests couvrent :
+
+- `toNumber()` : champ vide, `undefined`, `null` et nombre valide ;
+- `calculateOrder()` : commande classique avec marge, absence de commande si stock + livraison couvrent le besoin, colisage vide ;
+- `calculateTargetOrder()` : stock courant vide, calcul normal vers stock cible, rupture prevue avec bonus maximum cible + 1 colis, forte consommation plafonnee.
+
+Objectif : detecter automatiquement une regression future sur les commandes avant promotion production.
+
+## Tests de non-regression dates fournisseurs / prevision couverts
+
+Les tests couvrent :
+
+- Doquet mardi avant 10h : livraison mercredi de la meme semaine ;
+- Doquet mardi apres 10h : bascule sur mercredi suivant ;
+- Doquet : couverture jusqu'au mardi soir avant la livraison physique suivante ;
+- Domafrais lundi avant 10h : livraison mercredi puis prochaine livraison physique vendredi ;
+- Domafrais mercredi avant 10h : livraison vendredi puis prochaine livraison physique mercredi suivant ;
+- prevision couverts a cheval sur deux mois avec exclusion du midi du jour apres 15h.
+
+Objectif : eviter qu'une regression de cut-off ou de livraison suivante fausse les quantites a commander.
+
+## Tests de non-regression import marge
+
+Les tests du parser marge couvrent :
+
+- conservation des variantes proches sans fusion automatique ;
+- lecture des colonnes essentielles Produit / Famille / CR / prix / marge ;
+- valeurs avec virgules, euros et pourcentages ;
+- en-tete decalee dans le fichier ;
+- onglet proche de `Produits` comme `Produits 2026` ;
+- erreurs claires si l'onglet ou la colonne produit est introuvable.
+
+Objectif : proteger la source de verite du taux de prise avant les prochaines evolutions.
 
 ## Changements configuration
 
@@ -44,6 +83,8 @@ Le workflow choisi :
   3. `SUPABASE_USER_SITE_ACCESS.sql`
   4. `SUPABASE_APP_STATE_RLS_LOCKDOWN.sql`
   5. `SUPABASE_ENABLE_REALTIME.sql`
+- `npm run verify` lance maintenant : typecheck, tests calculs, tests dates fournisseurs, tests parser marge, check multisite, build Vite, check secrets.
+- En production, `npm run build` reste un build Vite classique pour eviter une recursion ou un changement de comportement Vercel non souhaite.
 
 ## Changements Supabase SQL
 
@@ -83,3 +124,5 @@ Ne jamais mettre la `SUPABASE_SERVICE_ROLE_KEY` dans une variable commencant par
 - La version test utilise uniquement le Supabase test.
 - La production ne doit pas avoir `VITE_APP_ENV=staging`.
 - Les donnees de test ne doivent jamais apparaitre dans Supabase production.
+- `npm run verify` doit rester vert avant toute promotion vers production.
+- Les modifications du chantier Parametres commande ne doivent pas etre promues avec ce lot de securisation.
