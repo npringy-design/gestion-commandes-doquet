@@ -44,6 +44,8 @@ Memo important pour Codex :
 - Les invitations utilisateurs utilisent maintenant `APP_BASE_URL` ou `VERCEL_URL` quand disponible, avec fallback production.
 - Ajout du script `scripts/test-calculations.mjs` pour verrouiller les calculs metier purs des commandes sans modifier la mecanique applicative.
 - `npm run verify` lance maintenant `test:calculations` avant les autres checks.
+- Suppression du script `scripts/ignore-vercel-build.mjs`, devenu inutile car les filtres de branche sont configures directement dans Vercel.
+- Renforcement de `scripts/test-margin-parser.mjs` pour couvrir les en-tetes decalees, les noms d'onglets proches de Produits et les erreurs de fichier marge invalide.
 
 ## Tests de non-regression calculs commande
 
@@ -54,6 +56,19 @@ Les tests ajoutés couvrent :
 - `calculateTargetOrder()` : stock courant vide, calcul normal vers stock cible, rupture prevue avec bonus maximum cible + 1 colis, forte consommation plafonnee.
 
 Objectif : detecter automatiquement une regression future sur les commandes avant de deployer ou promouvoir vers production.
+
+## Tests de non-regression import marge
+
+Les tests du parser marge couvrent maintenant :
+
+- conservation des variantes proches sans fusion automatique ;
+- lecture des colonnes essentielles Produit / Famille / CR / prix / marge ;
+- valeurs avec virgules, euros et pourcentages ;
+- en-tete decalee dans le fichier ;
+- onglet proche de `Produits` comme `Produits 2026` ;
+- erreurs claires si l'onglet ou la colonne produit est introuvable.
+
+Objectif : proteger la source de verite du taux de prise avant les prochaines evolutions.
 
 ## Changements configuration
 
