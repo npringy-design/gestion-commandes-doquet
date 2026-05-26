@@ -47,6 +47,8 @@ Memo important pour Codex :
 - Suppression du script `scripts/ignore-vercel-build.mjs`, devenu inutile car les filtres de branche sont configures directement dans Vercel.
 - Renforcement de `scripts/test-margin-parser.mjs` pour couvrir les en-tetes decalees, les noms d'onglets proches de Produits et les erreurs de fichier marge invalide.
 - Correction des types TypeScript des routes `api/admin/users/create.ts` et `api/admin/users/update.ts`.
+- Correction de la livraison suivante utilisee pour la couverture commande : elle suit maintenant la prochaine livraison physique du fournisseur, sans resimuler un cut-off apres la premiere livraison.
+- `src/utils/dateHelpers.ts` accepte maintenant une date `now` optionnelle pour tester les cut-offs et les previsions sans dependre de l'heure reelle.
 
 ## Tests de non-regression calculs commande
 
@@ -57,6 +59,19 @@ Les tests ajoutés couvrent :
 - `calculateTargetOrder()` : stock courant vide, calcul normal vers stock cible, rupture prevue avec bonus maximum cible + 1 colis, forte consommation plafonnee.
 
 Objectif : detecter automatiquement une regression future sur les commandes avant de deployer ou promouvoir vers production.
+
+## Tests de non-regression dates fournisseurs / prevision couverts
+
+Les tests ajoutés couvrent :
+
+- Doquet mardi avant 10h : livraison mercredi de la meme semaine ;
+- Doquet mardi apres 10h : bascule sur mercredi suivant ;
+- Doquet : couverture jusqu'au mardi soir avant la livraison physique suivante ;
+- Domafrais lundi avant 10h : livraison mercredi puis prochaine livraison physique vendredi ;
+- Domafrais mercredi avant 10h : livraison vendredi puis prochaine livraison physique mercredi suivant ;
+- prevision couverts a cheval sur deux mois avec exclusion du midi du jour apres 15h.
+
+Objectif : eviter qu'une regression de cut-off ou de livraison suivante fausse les quantites a commander.
 
 ## Tests de non-regression import marge
 
@@ -86,7 +101,7 @@ Objectif : proteger la source de verite du taux de prise avant les prochaines ev
   - test `gestion-commande-test` : `[ "$VERCEL_GIT_COMMIT_REF" != "codex-setup-staging-workflow" ]`.
 - Le script `build` lance maintenant `npm run verify`.
 - Le vrai build Vite est conserve dans `build:vite`.
-- `verify` lance dans l'ordre : typecheck, tests calculs, tests parser marge, check multisite, build Vite, check secrets.
+- `verify` lance dans l'ordre : typecheck, tests calculs, tests dates fournisseurs, tests parser marge, check multisite, build Vite, check secrets.
 
 ## Changements Supabase SQL
 
@@ -129,3 +144,4 @@ Ne jamais mettre la `SUPABASE_SERVICE_ROLE_KEY` dans une variable commencant par
 - `npm run verify` doit rester vert avant toute promotion vers production.
 - Un push sur `codex-setup-staging-workflow` doit etre ignore par le projet production Vercel et construit uniquement par le projet test.
 - Le deploiement Vercel test doit afficher `npm run verify` dans les logs, pas seulement `npm run build`.
+- Le deploiement Vercel test doit afficher `test:supplier-dates` dans les logs.
