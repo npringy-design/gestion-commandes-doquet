@@ -42,6 +42,18 @@ Memo important pour Codex :
 - Affichage d'un bandeau visible en haut de l'application quand `VITE_APP_ENV` vaut `staging`, `test` ou `development`.
 - Sur la page d'accueil, en environnement test, le nom du site est remplace par `TEST` pour eviter toute confusion visuelle.
 - Les invitations utilisateurs utilisent maintenant `APP_BASE_URL` ou `VERCEL_URL` quand disponible, avec fallback production.
+- Ajout du script `scripts/test-calculations.mjs` pour verrouiller les calculs metier purs des commandes sans modifier la mecanique applicative.
+- `npm run verify` lance maintenant `test:calculations` avant les autres checks.
+
+## Tests de non-regression calculs commande
+
+Les tests ajoutés couvrent :
+
+- `toNumber()` : champ vide, `undefined`, `null` et nombre valide ;
+- `calculateOrder()` : commande classique avec marge, absence de commande si stock + livraison couvrent le besoin, colisage vide ;
+- `calculateTargetOrder()` : stock courant vide, calcul normal vers stock cible, rupture prevue avec bonus maximum cible + 1 colis, forte consommation plafonnee.
+
+Objectif : detecter automatiquement une regression future sur les commandes avant de deployer ou promouvoir vers production.
 
 ## Changements configuration
 
@@ -92,3 +104,4 @@ Ne jamais mettre la `SUPABASE_SERVICE_ROLE_KEY` dans une variable commencant par
 - La version test utilise uniquement le Supabase test.
 - La production ne doit pas avoir `VITE_APP_ENV=staging`.
 - Les donnees de test ne doivent jamais apparaitre dans Supabase production.
+- `npm run verify` doit rester vert avant toute promotion vers production.
