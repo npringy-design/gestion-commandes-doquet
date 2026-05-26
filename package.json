@@ -7,10 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
+    "test:calculations": "node scripts/test-calculations.mjs",
     "test:margin-parser": "node scripts/test-margin-parser.mjs",
     "check:multisite": "node scripts/check-app-state-multisite.mjs",
     "check:secrets": "node scripts/check-sensitive-env.mjs",
-    "verify": "npm run typecheck && npm run test:margin-parser && npm run check:multisite && npm run build && npm run check:secrets",
+    "verify": "npm run typecheck && npm run test:calculations && npm run test:margin-parser && npm run check:multisite && npm run build && npm run check:secrets",
     "preview": "vite preview"
   },
   "dependencies": {
