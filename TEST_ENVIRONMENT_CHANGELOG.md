@@ -46,6 +46,7 @@ Memo important pour Codex :
 - `npm run verify` lance maintenant `test:calculations` avant les autres checks.
 - Suppression du script `scripts/ignore-vercel-build.mjs`, devenu inutile car les filtres de branche sont configures directement dans Vercel.
 - Renforcement de `scripts/test-margin-parser.mjs` pour couvrir les en-tetes decalees, les noms d'onglets proches de Produits et les erreurs de fichier marge invalide.
+- Correction des types TypeScript des routes `api/admin/users/create.ts` et `api/admin/users/update.ts`.
 
 ## Tests de non-regression calculs commande
 
@@ -83,6 +84,9 @@ Objectif : proteger la source de verite du taux de prise avant les prochaines ev
 - Filtres Vercel `Ignored Build Step` configures manuellement dans les deux projets :
   - production `gestion-commandes-doquet` : `[ "$VERCEL_GIT_COMMIT_REF" != "main" ]` ;
   - test `gestion-commande-test` : `[ "$VERCEL_GIT_COMMIT_REF" != "codex-setup-staging-workflow" ]`.
+- Le script `build` lance maintenant `npm run verify`.
+- Le vrai build Vite est conserve dans `build:vite`.
+- `verify` lance dans l'ordre : typecheck, tests calculs, tests parser marge, check multisite, build Vite, check secrets.
 
 ## Changements Supabase SQL
 
@@ -124,3 +128,4 @@ Ne jamais mettre la `SUPABASE_SERVICE_ROLE_KEY` dans une variable commencant par
 - Les donnees de test ne doivent jamais apparaitre dans Supabase production.
 - `npm run verify` doit rester vert avant toute promotion vers production.
 - Un push sur `codex-setup-staging-workflow` doit etre ignore par le projet production Vercel et construit uniquement par le projet test.
+- Le deploiement Vercel test doit afficher `npm run verify` dans les logs, pas seulement `npm run build`.
