@@ -4,7 +4,17 @@ import { badRequest, forbidden, methodNotAllowed, sendJson, serverError, unautho
 import { canAssignRole, canCreateUsers, MANAGEABLE_ROLES } from '../../_lib/permissions.js';
 import { canUseSiteIds, isGlobalSiteRole, normalizeSiteIds, replaceUserSiteAccess, siteIdsForRole } from '../../_lib/sites.js';
 
-const ALLOWED_ROLES = new Set(MANAGEABLE_ROLES);
+type ManageableRole = (typeof MANAGEABLE_ROLES)[number];
+type AuthUserLookup = {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown> | null;
+  app_metadata?: Record<string, unknown> | null;
+};
+
+const isManageableRole = (role: unknown): role is ManageableRole =>
+  typeof role === 'string' && (MANAGEABLE_ROLES as readonly string[]).includes(role);
+
 const INVITE_REDIRECT_URL =
   process.env.APP_BASE_URL
   || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '')
@@ -15,13 +25,14 @@ const isMailLimitError = (message: string) => {
   return lowered.includes('rate') || lowered.includes('limit') || lowered.includes('too many');
 };
 
-const findAuthUserByEmail = async (email: string) => {
+const findAuthUserByEmail = async (email: string): Promise<AuthUserLookup | null> => {
   for (let page = 1; page <= 10; page += 1) {
     const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
     if (error) throw error;
-    const user = data.users.find((item) => item.email?.toLowerCase() === email);
+    const users = (data.users ?? []) as AuthUserLookup[];
+    const user = users.find((item) => item.email?.toLowerCase() === email);
     if (user) return user;
-    if (data.users.length < 1000) return null;
+    if (users.length < 1000) return null;
   }
   return null;
 };
@@ -40,8 +51,7 @@ export default async function handler(req: any, res: any) {
 
     const email = String(req.body?.email ?? '').trim().toLowerCase();
     const tempPassword = String(req.body?.tempPassword ?? '');
-    const role = String(req.body?.role ?? 'commande');
-    const siteIds = isGlobalSiteRole(role) ? siteIdsForRole(role, req.body?.siteIds) : normalizeSiteIds(req.body?.siteIds);
+    const requestedRole = String(req.body?.role ?? 'commande');
     const fullNameRaw = req.body?.fullName;
     const fullName = typeof fullNameRaw === 'string' ? fullNameRaw.trim() : null;
 
@@ -52,9 +62,13 @@ export default async function handler(req: any, res: any) {
     if (!canCreateUsers(auth.profile.role)) {
       return forbidden(res, 'Votre rôle peut uniquement consulter ou créer selon ses droits.');
     }
-    if (!ALLOWED_ROLES.has(role)) {
+    if (!isManageableRole(requestedRole)) {
       return badRequest(res, 'Rôle invalide. Valeurs autorisées: global_admin, director, manager_plus, manager, commande.');
     }
+
+    const role = requestedRole;
+    const siteIds = isGlobalSiteRole(role) ? siteIdsForRole(role, req.body?.siteIds) : normalizeSiteIds(req.body?.siteIds);
+
     if (!canAssignRole(auth.profile.role, role)) {
       return forbidden(res, 'Vous ne pouvez pas attribuer ce rôle.');
     }
