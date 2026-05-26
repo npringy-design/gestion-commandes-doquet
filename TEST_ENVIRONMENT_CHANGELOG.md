@@ -36,6 +36,7 @@ Le workflow choisi :
 - Promotion production des garde-fous de regression commandes : tests calculs purs, dates fournisseurs/prevision couverts, parser marge renforce.
 - Correction ciblee de `src/utils/dateHelpers.ts` : la livraison suivante de couverture suit la prochaine livraison physique du fournisseur, sans resimuler un cut-off apres la premiere livraison.
 - `src/utils/dateHelpers.ts` accepte une date `now` optionnelle pour permettre des tests stables sans changer l'appel applicatif existant.
+- Relance documentaire du deploiement production apres blocage Vercel `build-rate-limit`, sans changement applicatif.
 
 ## Tests de non-regression calculs commande
 
