@@ -9,10 +9,11 @@
     "build:vite": "vite build",
     "typecheck": "tsc --noEmit",
     "test:calculations": "node scripts/test-calculations.mjs",
+    "test:supplier-dates": "node scripts/test-supplier-forecast-dates.mjs",
     "test:margin-parser": "node scripts/test-margin-parser.mjs",
     "check:multisite": "node scripts/check-app-state-multisite.mjs",
     "check:secrets": "node scripts/check-sensitive-env.mjs",
-    "verify": "npm run typecheck && npm run test:calculations && npm run test:margin-parser && npm run check:multisite && npm run build:vite && npm run check:secrets",
+    "verify": "npm run typecheck && npm run test:calculations && npm run test:supplier-dates && npm run test:margin-parser && npm run check:multisite && npm run build:vite && npm run check:secrets",
     "preview": "vite preview"
   },
   "dependencies": {
