@@ -20,6 +20,22 @@
 - Les variables Vercel de test ne doivent jamais contenir les cles du Supabase production.
 - Toute modification doit etre testee sur le projet test avant validation production.
 
+## Ordre scripts Supabase
+
+`SUPABASE_SETUP.sql` est uniquement un script initial de creation. Il ne doit jamais etre considere comme l'etat final securise d'une base production.
+
+Ordre attendu :
+
+1. `SUPABASE_SETUP.sql`
+2. `SUPABASE_PROFILES_SETUP.sql`
+3. `SUPABASE_USER_SITE_ACCESS.sql`
+4. `SUPABASE_APP_STATE_RLS_LOCKDOWN.sql`
+5. `SUPABASE_ENABLE_REALTIME.sql` si necessaire
+
+Point critique : `SUPABASE_APP_STATE_RLS_LOCKDOWN.sql` doit etre execute apres le setup initial pour retirer l'acces `anon`, activer RLS/FORCE RLS et limiter `app_state` aux utilisateurs authentifies autorises par site.
+
+Ne jamais laisser Supabase production dans l'etat du seul `SUPABASE_SETUP.sql`.
+
 ## Regle de redeploy
 
 Apres chaque modification de variable d'environnement dans Vercel, lancer un redeploy.
@@ -55,7 +71,8 @@ Apres mise a jour de `main`, verifier Vercel production `gestion-commandes-doque
 ## Garde-fous
 
 - Ne pas toucher a Supabase production pendant les tests.
-- Valider sur l'application test avant passage vers `main`.
+- Valider sur l'application test avant passage sur `main`.
 - Garder les changements cibles et reversibles.
 - Realtime reste reserve aux commandes.
 - Documenter les validations importantes dans `docs/ETAT_PROJET.md`.
+- Ne jamais executer uniquement `SUPABASE_SETUP.sql` sur une base production sans appliquer ensuite le verrouillage RLS.
