@@ -148,3 +148,4 @@ Ne jamais mettre la `SUPABASE_SERVICE_ROLE_KEY` dans une variable commencant par
 - Le deploiement Vercel test doit afficher `npm run verify` dans les logs, pas seulement `npm run build`.
 - Le deploiement Vercel test doit afficher `test:supplier-dates` dans les logs.
 - Ne jamais laisser Supabase production avec uniquement `SUPABASE_SETUP.sql` execute : le verrouillage RLS doit etre applique ensuite.
+- Relance de deploiement test effectuee apres le blocage temporaire Vercel `build-rate-limit`.
