@@ -37,6 +37,7 @@ Le workflow choisi :
 - Correction ciblee de `src/utils/dateHelpers.ts` : la livraison suivante de couverture suit la prochaine livraison physique du fournisseur, sans resimuler un cut-off apres la premiere livraison.
 - `src/utils/dateHelpers.ts` accepte une date `now` optionnelle pour permettre des tests stables sans changer l'appel applicatif existant.
 - Relance documentaire du deploiement production apres blocage Vercel `build-rate-limit`, sans changement applicatif.
+- Stabilisation session commande en test : `src/auth/InactivityTimeout.tsx` passe de 15 minutes avant avertissement + 5 minutes avant deconnexion a 2 heures avant avertissement + 15 minutes avant deconnexion, pour eviter les deconnexions pendant une commande.
 
 ## Tests de non-regression calculs commande
 
@@ -127,3 +128,4 @@ Ne jamais mettre la `SUPABASE_SERVICE_ROLE_KEY` dans une variable commencant par
 - Les donnees de test ne doivent jamais apparaitre dans Supabase production.
 - `npm run verify` doit rester vert avant toute promotion vers production.
 - Les modifications du chantier Parametres commande ne doivent pas etre promues avec ce lot de securisation.
+- Sur la stabilisation session commande, tester une commande ouverte plus de 20 minutes sans action continue : elle ne doit plus etre deconnectee automatiquement.
