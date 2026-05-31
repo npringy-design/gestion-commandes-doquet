@@ -5,7 +5,6 @@ import LoginPage from '../pages/LoginPage';
 import ResetPasswordPage from '../pages/ResetPasswordPage';
 import ForcePasswordChangePage from '../pages/ForcePasswordChangePage';
 import { ACTIVE_SITE_STORAGE_KEY, SITES, getDisplaySiteName, type SiteId } from '../constants';
-import InactivityTimeout from './InactivityTimeout';
 
 function hasPasswordSetupParams(): boolean {
   try {
@@ -183,10 +182,5 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
     );
   }
 
-  return (
-    <>
-      <InactivityTimeout />
-      {children}
-    </>
-  );
+  return <>{children}</>;
 };
