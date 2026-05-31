@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from './AuthProvider';
 
-const INACTIVITY_WARNING_MS = 15 * 60 * 1000;
-const COUNTDOWN_MS = 5 * 60 * 1000;
+// Delai volontairement long : en service commande, l'application peut rester ouverte
+// sans action continue. Un delai trop court provoque des deconnexions operationnelles.
+const INACTIVITY_WARNING_MS = 2 * 60 * 60 * 1000;
+const COUNTDOWN_MS = 15 * 60 * 1000;
 const COUNTDOWN_TICK_MS = 1000;
 
 const formatCountdown = (ms: number) => {
