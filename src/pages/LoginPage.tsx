@@ -42,8 +42,7 @@ const LoginPage: React.FC = () => {
 
     setLoading(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      // On redirige vers la racine : AuthGate détecte le flow recovery et affiche l'écran reset
-      redirectTo: window.location.origin,
+      redirectTo: `${window.location.origin}?type=recovery`,
     });
     setLoading(false);
 
@@ -58,7 +57,6 @@ const LoginPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#1a0f0a] flex flex-col items-center justify-center p-6 relative overflow-hidden">
-      {/* Texture de fond */}
       <div
         className="absolute inset-0 z-0 opacity-20 pointer-events-none"
         style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/brick-wall.png')` }}
@@ -127,8 +125,6 @@ const LoginPage: React.FC = () => {
             >
               Mot de passe oublié ?
             </button>
-
-
           </form>
           )}
 
