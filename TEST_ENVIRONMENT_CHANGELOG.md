@@ -38,7 +38,7 @@ Le workflow choisi :
 - `src/utils/dateHelpers.ts` accepte une date `now` optionnelle pour permettre des tests stables sans changer l'appel applicatif existant.
 - Relance documentaire du deploiement production apres blocage Vercel `build-rate-limit`, sans changement applicatif.
 - Stabilisation session commande en test : la deconnexion automatique pour inactivite est supprimee cote application. `AuthGate` ne rend plus `InactivityTimeout` et `src/auth/InactivityTimeout.tsx` est neutralise. La session reste donc geree par Supabase/navigateur, sans timer applicatif qui force la deconnexion pendant une saisie.
-- Stabilisation du flow mot de passe compromis / reset Supabase : `AuthGate` memorise temporairement le flow `recovery` ou `invite` dans `sessionStorage` pour empecher l'application de quitter l'ecran nouveau mot de passe quand Supabase transforme le lien en session connectee. `ResetPasswordPage` nettoie cet etat uniquement apres validation du nouveau mot de passe, lien invalide ou retour manuel.
+- Stabilisation du flow mot de passe compromis / reset Supabase : `src/auth/passwordSetupFlow.ts` detecte et memorise temporairement le flow `recovery` ou `invite`; `src/auth/persistPasswordSetupFlow.ts` l'execute des le demarrage via `src/main.tsx`, avant que les providers auth ne traitent la session. `AuthGate` utilise ensuite cette memoire pour afficher `ResetPasswordPage`, et `ResetPasswordPage` nettoie cet etat uniquement apres validation du nouveau mot de passe, lien invalide ou retour manuel.
 
 ## Tests de non-regression calculs commande
 
