@@ -1,6 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 
+const PASSWORD_SETUP_FLOW_STORAGE_KEY = 'hippo_password_setup_flow';
+
+function clearPasswordSetupFlow(): void {
+  try {
+    window.sessionStorage.removeItem(PASSWORD_SETUP_FLOW_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 function getParamFromSearchOrHash(key: string): string | null {
   try {
     const url = new URL(window.location.href);
@@ -40,6 +50,7 @@ const ResetPasswordPage: React.FC = () => {
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) {
+          clearPasswordSetupFlow();
           setStatus('error');
           setMessage(error.message || 'Impossible de valider le lien de réinitialisation.');
           return;
@@ -48,7 +59,7 @@ const ResetPasswordPage: React.FC = () => {
 
       // Si on arrive ici via un lien recovery ou invite, on peut setter le mot de passe.
       if (type && type !== 'recovery' && type !== 'invite') {
-        // Pas un flow mot de passe, on laisse l'utilisateur revenir au login.
+        clearPasswordSetupFlow();
         setStatus('error');
         setMessage('Lien invalide ou expiré.');
         return;
@@ -113,6 +124,7 @@ const ResetPasswordPage: React.FC = () => {
 
     await supabase.auth.refreshSession().catch(() => null);
 
+    clearPasswordSetupFlow();
     setLoading(false);
 
     setStatus('done');
@@ -121,6 +133,7 @@ const ResetPasswordPage: React.FC = () => {
 
   const goHome = () => {
     // Nettoie les params de reset
+    clearPasswordSetupFlow();
     window.location.href = window.location.origin;
   };
 
