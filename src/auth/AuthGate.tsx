@@ -5,73 +5,7 @@ import LoginPage from '../pages/LoginPage';
 import ResetPasswordPage from '../pages/ResetPasswordPage';
 import ForcePasswordChangePage from '../pages/ForcePasswordChangePage';
 import { ACTIVE_SITE_STORAGE_KEY, SITES, getDisplaySiteName, type SiteId } from '../constants';
-
-const PASSWORD_SETUP_FLOW_STORAGE_KEY = 'hippo_password_setup_flow';
-const PASSWORD_SETUP_FLOW_MAX_AGE_MS = 15 * 60 * 1000;
-
-type PasswordSetupFlow = 'recovery' | 'invite';
-
-function rememberPasswordSetupFlow(flow: PasswordSetupFlow): void {
-  try {
-    window.sessionStorage.setItem(
-      PASSWORD_SETUP_FLOW_STORAGE_KEY,
-      JSON.stringify({ flow, createdAt: Date.now() })
-    );
-  } catch {
-    // ignore
-  }
-}
-
-function hasStoredPasswordSetupFlow(): boolean {
-  try {
-    const raw = window.sessionStorage.getItem(PASSWORD_SETUP_FLOW_STORAGE_KEY);
-    if (!raw) return false;
-    const parsed = JSON.parse(raw) as { flow?: string; createdAt?: number };
-    if (parsed.flow !== 'recovery' && parsed.flow !== 'invite') return false;
-    if (!parsed.createdAt || Date.now() - parsed.createdAt > PASSWORD_SETUP_FLOW_MAX_AGE_MS) {
-      window.sessionStorage.removeItem(PASSWORD_SETUP_FLOW_STORAGE_KEY);
-      return false;
-    }
-    return true;
-  } catch {
-    try {
-      window.sessionStorage.removeItem(PASSWORD_SETUP_FLOW_STORAGE_KEY);
-    } catch {
-      // ignore
-    }
-    return false;
-  }
-}
-
-function hasPasswordSetupParams(): boolean {
-  try {
-    const url = new URL(window.location.href);
-    const searchType = url.searchParams.get('type');
-    if (searchType === 'recovery' || searchType === 'invite') {
-      rememberPasswordSetupFlow(searchType);
-      return true;
-    }
-    if (url.searchParams.get('code')) {
-      rememberPasswordSetupFlow('recovery');
-      return true;
-    }
-    if (url.hash) {
-      const hp = new URLSearchParams(url.hash.replace(/^#/, ''));
-      const hashType = hp.get('type');
-      if (hashType === 'recovery' || hashType === 'invite') {
-        rememberPasswordSetupFlow(hashType);
-        return true;
-      }
-      if (hp.get('code')) {
-        rememberPasswordSetupFlow('recovery');
-        return true;
-      }
-    }
-  } catch {
-    // ignore
-  }
-  return hasStoredPasswordSetupFlow();
-}
+import { hasPasswordSetupFlow } from './passwordSetupFlow';
 
 const LoadingScreen: React.FC<{
   label?: string;
@@ -147,7 +81,7 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
   }, [resetStoredSite, siteMismatch]);
 
   if (!isSupabaseConfigured()) return <>{children}</>;
-  if (hasPasswordSetupParams()) return <ResetPasswordPage />;
+  if (hasPasswordSetupFlow()) return <ResetPasswordPage />;
   if (loading) return <LoadingScreen />;
   if (!user) return <LoginPage />;
 
