@@ -1,15 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
-
-const PASSWORD_SETUP_FLOW_STORAGE_KEY = 'hippo_password_setup_flow';
-
-function clearPasswordSetupFlow(): void {
-  try {
-    window.sessionStorage.removeItem(PASSWORD_SETUP_FLOW_STORAGE_KEY);
-  } catch {
-    // ignore
-  }
-}
+import { clearPasswordSetupFlow } from '../auth/passwordSetupFlow';
 
 function getParamFromSearchOrHash(key: string): string | null {
   try {
