@@ -38,6 +38,7 @@ Le workflow choisi :
 - `src/utils/dateHelpers.ts` accepte une date `now` optionnelle pour permettre des tests stables sans changer l'appel applicatif existant.
 - Relance documentaire du deploiement production apres blocage Vercel `build-rate-limit`, sans changement applicatif.
 - Stabilisation session commande en test : la deconnexion automatique pour inactivite est supprimee cote application. `AuthGate` ne rend plus `InactivityTimeout` et `src/auth/InactivityTimeout.tsx` est neutralise. La session reste donc geree par Supabase/navigateur, sans timer applicatif qui force la deconnexion pendant une saisie.
+- Stabilisation du flow mot de passe compromis / reset Supabase : `AuthGate` memorise temporairement le flow `recovery` ou `invite` dans `sessionStorage` pour empecher l'application de quitter l'ecran nouveau mot de passe quand Supabase transforme le lien en session connectee. `ResetPasswordPage` nettoie cet etat uniquement apres validation du nouveau mot de passe, lien invalide ou retour manuel.
 
 ## Tests de non-regression calculs commande
 
@@ -129,3 +130,4 @@ Ne jamais mettre la `SUPABASE_SERVICE_ROLE_KEY` dans une variable commencant par
 - `npm run verify` doit rester vert avant toute promotion vers production.
 - Les modifications du chantier Parametres commande ne doivent pas etre promues avec ce lot de securisation.
 - Sur la stabilisation session commande, tester une commande ouverte plus de 20 minutes avec saisie continue : elle ne doit plus etre deconnectee par le timer applicatif.
+- Sur la stabilisation reset mot de passe, tester un lien Supabase `Reset password` : l'ecran nouveau mot de passe doit rester visible le temps de saisir les deux champs, puis seulement revenir a l'application apres validation.
