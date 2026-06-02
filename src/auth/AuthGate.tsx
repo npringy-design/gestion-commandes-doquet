@@ -5,6 +5,7 @@ import LoginPage from '../pages/LoginPage';
 import ResetPasswordPage from '../pages/ResetPasswordPage';
 import ForcePasswordChangePage from '../pages/ForcePasswordChangePage';
 import { ACTIVE_SITE_STORAGE_KEY, SITES, getDisplaySiteName, type SiteId } from '../constants';
+import { hasStoredPasswordSetupFlow } from './passwordSetupFlow';
 
 function hasPasswordSetupParams(): boolean {
   try {
@@ -21,7 +22,7 @@ function hasPasswordSetupParams(): boolean {
   } catch {
     // ignore
   }
-  return false;
+  return hasStoredPasswordSetupFlow();
 }
 
 const LoadingScreen: React.FC<{
