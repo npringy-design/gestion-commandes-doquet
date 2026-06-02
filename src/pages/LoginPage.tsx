@@ -42,8 +42,7 @@ const LoginPage: React.FC = () => {
 
     setLoading(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      // On redirige vers la racine : AuthGate détecte le flow recovery et affiche l'écran reset
-      redirectTo: window.location.origin,
+      redirectTo: `${window.location.origin}?type=recovery`,
     });
     setLoading(false);
 
