@@ -38,7 +38,9 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-const AUTH_TIMEOUT_MS = 7000;
+const AUTH_TIMEOUT_MS = 12000;
+const PROFILE_RETRY_ATTEMPTS = 2;
+const PROFILE_RETRY_DELAY_MS = 1500;
 const ALL_SITE_IDS = Object.keys(SITES) as SiteId[];
 const isGlobalSiteRole = (role?: string | null) => role === 'super_admin' || role === 'global_admin';
 const getUserSiteStorageKey = (userId: string) => `${ACTIVE_SITE_STORAGE_KEY}:user:${userId}`;
@@ -87,13 +89,22 @@ const shouldOpenSitePicker = () => {
   }
 };
 
+const clearSupabaseStorage = (storage: Storage) => {
+  Object.keys(storage)
+    .filter((key) => key.startsWith('sb-'))
+    .forEach((key) => storage.removeItem(key));
+};
+
 const clearStoredAuthState = () => {
   clearUiSessionState();
   clearActiveSessionSite();
   try {
-    Object.keys(window.localStorage)
-      .filter((key) => key.startsWith('sb-') && key.endsWith('-auth-token'))
-      .forEach((key) => window.localStorage.removeItem(key));
+    clearSupabaseStorage(window.localStorage);
+  } catch {
+    // ignore
+  }
+  try {
+    clearSupabaseStorage(window.sessionStorage);
   } catch {
     // ignore
   }
@@ -111,6 +122,9 @@ async function withTimeout<T>(promise: PromiseLike<T>, label: string, timeoutMs 
     if (timeoutId) clearTimeout(timeoutId);
   }
 }
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const isTimeoutError = (error: unknown) => error instanceof Error && error.message.includes('a dépassé');
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
@@ -150,14 +164,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoadingProfile(true);
 
       try {
-        const { data, error } = await withTimeout(
-          supabase
-            .from('profiles')
-            .select('id, role, is_active, full_name, email, access_scope, protected_user')
-            .eq('id', userId)
-            .maybeSingle(),
-          'Chargement du profil'
-        );
+        let data: any = null;
+        let error: any = null;
+
+        for (let profileAttempt = 0; profileAttempt <= PROFILE_RETRY_ATTEMPTS; profileAttempt += 1) {
+          try {
+            const result = await withTimeout(
+              supabase
+                .from('profiles')
+                .select('id, role, is_active, full_name, email, access_scope, protected_user')
+                .eq('id', userId)
+                .maybeSingle(),
+              'Chargement du profil'
+            );
+            data = result.data;
+            error = result.error;
+            break;
+          } catch (profileError) {
+            if (isTimeoutError(profileError) && profileAttempt < PROFILE_RETRY_ATTEMPTS) {
+              console.warn(`[auth] Chargement profil timeout, nouvelle tentative ${profileAttempt + 2}/${PROFILE_RETRY_ATTEMPTS + 1}.`);
+              await delay(PROFILE_RETRY_DELAY_MS);
+              if (!mounted) return;
+              continue;
+            }
+            throw profileError;
+          }
+        }
 
         if (!mounted) return;
 
@@ -296,13 +328,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         window.location.reload();
       },
       signOut: async () => {
-        if (!supabase) return;
         clearStoredAuthState();
         setSession(null);
         setProfile(null);
-        await withTimeout(supabase.auth.signOut(), 'Deconnexion', 3000).catch((error) => {
-          console.warn('[auth] Deconnexion distante indisponible:', error);
-        });
+        if (supabase) {
+          await withTimeout(supabase.auth.signOut({ scope: 'local' }), 'Deconnexion', 3000).catch((error) => {
+            console.warn('[auth] Deconnexion locale indisponible:', error);
+          });
+        }
+        window.location.href = '/';
       },
     };
   }, [session, profile, loadingSession, loadingProfile]);
