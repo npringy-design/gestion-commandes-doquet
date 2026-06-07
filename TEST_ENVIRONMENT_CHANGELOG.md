@@ -38,6 +38,7 @@ Le workflow choisi :
 - `src/utils/dateHelpers.ts` accepte une date `now` optionnelle pour permettre des tests stables sans changer l'appel applicatif existant.
 - Relance documentaire du deploiement production apres blocage Vercel `build-rate-limit`, sans changement applicatif.
 - Stabilisation session commande en test : la deconnexion automatique pour inactivite est supprimee cote application. `AuthGate` ne rend plus `InactivityTimeout` et `src/auth/InactivityTimeout.tsx` est neutralise. La session reste donc geree par Supabase/navigateur, sans timer applicatif qui force la deconnexion pendant une saisie.
+- Promotion production du correctif `Connexion non confirmée` valide sur test : timeout profil porte a 12 s, retry automatique du profil apres timeout, purge de toutes les cles `sb-*` local/session storage a la deconnexion forcee, deconnexion Supabase locale, retour propre vers `/` et `autoRefreshToken` desactive.
 
 ## Tests de non-regression calculs commande
 
@@ -126,6 +127,7 @@ Ne jamais mettre la `SUPABASE_SERVICE_ROLE_KEY` dans une variable commencant par
 - La version test utilise uniquement le Supabase test.
 - La production ne doit pas avoir `VITE_APP_ENV=staging`.
 - Les donnees de test ne doivent jamais apparaitre dans Supabase production.
-- `npm run verify` doit rester vert avant toute promotion vers production.
+- `npm run verify` doit rester vert avant toute promotion production.
 - Les modifications du chantier Parametres commande ne doivent pas etre promues avec ce lot de securisation.
 - Sur la stabilisation session commande, tester une commande ouverte plus de 20 minutes avec saisie continue : elle ne doit plus etre deconnectee par le timer applicatif.
+- Sur le correctif `Connexion non confirmée`, tester la deconnexion forcee : elle doit revenir sur la page connexion sans reconstruire automatiquement l'ancienne session.
