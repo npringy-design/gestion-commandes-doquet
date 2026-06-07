@@ -286,14 +286,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     void bootstrap();
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
       if (!mounted) return;
+      if (event === 'TOKEN_REFRESHED') return;
       const nextUserId = newSession?.user?.id ?? null;
       if (lastUserIdRef.current && lastUserIdRef.current !== nextUserId) {
         clearActiveSessionSite();
       }
       lastUserIdRef.current = nextUserId;
-      if (!newSession) clearStoredAuthState();
+      if (event === 'SIGNED_OUT') clearStoredAuthState();
       setSession(newSession ?? null);
       setLoadingSession(false);
       void loadProfile(nextUserId);
