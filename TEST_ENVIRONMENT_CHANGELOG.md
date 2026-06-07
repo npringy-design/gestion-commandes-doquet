@@ -51,6 +51,7 @@ Memo important pour Codex :
 - `src/utils/dateHelpers.ts` accepte maintenant une date `now` optionnelle pour tester les cut-offs et les previsions sans dependre de l'heure reelle.
 - Ajout d'un avertissement securite dans `SUPABASE_SETUP.sql` : ce fichier est uniquement un script initial et ne doit jamais rester seul en production sans execution du verrouillage RLS.
 - Stabilisation du reset mot de passe Supabase sur la branche test officielle : `LoginPage` ajoute `type=recovery` dans le lien de retour, `passwordSetupFlow.ts` conserve temporairement le flow, `main.tsx` detecte ce flow avant les providers auth, `AuthGate` garde `ResetPasswordPage` affichee, et `ResetPasswordPage` nettoie l'etat apres validation, lien invalide ou retour manuel.
+- Correctif ciblé auth sur test : timeout profil porté à 12 s, retry automatique du profil après timeout, purge de toutes les clés `sb-*` local/session storage à la déconnexion forcée, déconnexion Supabase locale et rechargement propre vers `/`. Le client Supabase ne relance plus `autoRefreshToken` automatiquement.
 
 ## Tests de non-regression calculs commande
 
@@ -149,5 +150,6 @@ Ne jamais mettre la `SUPABASE_SERVICE_ROLE_KEY` dans une variable commencant par
 - Le deploiement Vercel test doit afficher `npm run verify` dans les logs, pas seulement `npm run build`.
 - Le deploiement Vercel test doit afficher `test:supplier-dates` dans les logs.
 - Le reset mot de passe doit ouvrir l'ecran `NOUVEAU MOT DE PASSE`, laisser saisir les deux champs, puis seulement revenir a l'application apres validation.
+- En cas de blocage `Connexion non confirmée`, le bouton de déconnexion forcée doit purger toutes les sessions Supabase locales et revenir sur `/` sans reconstruire automatiquement l'ancienne session.
 - Ne jamais laisser Supabase production avec uniquement `SUPABASE_SETUP.sql` execute : le verrouillage RLS doit etre applique ensuite.
 - Relance de deploiement test effectuee apres le blocage temporaire Vercel `build-rate-limit`.
