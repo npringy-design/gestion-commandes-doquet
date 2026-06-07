@@ -34,7 +34,7 @@ export const supabase: SupabaseClient | null =
     ? createClient(SUPABASE_URL as string, SUPABASE_ANON_KEY as string, {
         auth: {
           persistSession: true,
-          autoRefreshToken: false,
+          autoRefreshToken: true,
           detectSessionInUrl: true,
         },
         global: {
