@@ -22,16 +22,34 @@ const getAuthProxyUrl = (input: RequestInfo | URL): string | null => {
   return `/api/auth/supabase?target=${encodeURIComponent(target)}`;
 };
 
+const isJsonResponse = (response: Response): boolean => {
+  const contentType = response.headers.get('content-type') || '';
+  return contentType.includes('application/json');
+};
+
 const supabaseFetch: typeof fetch = async (input, init) => {
   const proxyUrl = getAuthProxyUrl(input);
   if (!proxyUrl) return fetch(input, init);
 
   try {
-    return await fetch(input, init);
+    const directResponse = await fetch(input, init);
+    if (isJsonResponse(directResponse)) return directResponse;
+    console.warn('[supabase] Réponse directe non-JSON (probable blocage réseau), repli proxy.');
   } catch (error) {
     console.warn('[supabase] Auth directe indisponible, repli proxy:', error);
-    return fetch(proxyUrl, init);
   }
+
+  try {
+    const proxyResponse = await fetch(proxyUrl, init);
+    if (isJsonResponse(proxyResponse)) return proxyResponse;
+    console.warn('[supabase] Réponse proxy également non-JSON.');
+  } catch (error) {
+    console.warn('[supabase] Repli proxy indisponible:', error);
+  }
+
+  throw new Error(
+    "Connexion au service d'authentification impossible pour le moment. Réessaie dans quelques instants ou contacte le support."
+  );
 };
 
 // Client unique (évite les doubles initialisations en dev)
