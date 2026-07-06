@@ -156,6 +156,9 @@ const isUserTyping = (): boolean => {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || Boolean((el as any).isContentEditable);
 };
 
+// Backoff de reconnexion du canal Realtime (2s, 5s, puis 10s max, plafonné).
+const REALTIME_RECONNECT_DELAYS_MS = [2000, 5000, 10000];
+
 export const useCloudSync = ({
   covers,
   dailyCovers,
@@ -202,6 +205,10 @@ export const useCloudSync = ({
   const localTsByKey = useRef<Record<string, string>>({});
   const lastPersistedSignatureByKey = useRef<Record<string, string>>({});
   const initialCloudLoadSucceededRef = useRef(false);
+  const channelRef = useRef<any>(null);
+  const channelStatusRef = useRef<'idle' | 'joined' | 'errored'>('idle');
+  const reconnectAttemptRef = useRef(0);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     CLOUD_ONLY_KEYS.forEach(removeState);
@@ -322,66 +329,72 @@ export const useCloudSync = ({
     applyCloudKey(key, cloudTs, value);
   }, [applyCloudKey]);
 
-  // ─── Chargement initial depuis Supabase ───────────────────────────────────
-  useEffect(() => {
-    let cancelled = false;
+  // ─── Chargement (initial ou rattrapage après reconnexion) depuis Supabase ─
+  // Réutilisé au montage ET lors d'un rattrapage de reconnexion Realtime
+  // (retour d'onglet avec canal perdu). En mode rattrapage, on ne doit pas
+  // écraser une saisie active sur les clés sensibles (orderStates) : on met
+  // alors la valeur cloud en file d'attente, comme pour un event Realtime.
+  const hydrateFromCloud = useCallback(async (options: { isReconnect?: boolean } = {}) => {
+    if (!isSupabaseConfigured()) {
+      setSupabaseLoaded(true);
+      return;
+    }
 
-    const run = async () => {
-      if (!isSupabaseConfigured()) {
-        setSupabaseLoaded(true);
-        return;
-      }
+    try {
+      const cloud = await loadAllFromSupabase();
+      initialCloudLoadSucceededRef.current = cloud !== null;
 
-      try {
-        const cloud = await loadAllFromSupabase();
-        if (cancelled) return;
-        initialCloudLoadSucceededRef.current = cloud !== null;
+      if (cloud && cloud.length > 0) {
+        isHydratingFromCloud.current = true;
+        const cloudMap: Record<string, unknown> = {};
 
-        if (cloud && cloud.length > 0) {
-          isHydratingFromCloud.current = true;
-          const cloudMap: Record<string, unknown> = {};
+        cloud.forEach((row: any) => {
+          const localTs = localTsByKey.current[row.key];
+          if (localTs && localTs > row.updated_at) return;
+          lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
+          lastPersistedSignatureByKey.current[row.key] = stableStringify(row.value);
+          cloudMap[row.key] = row.value;
+        });
 
-          cloud.forEach((row: any) => {
-            const localTs = localTsByKey.current[row.key];
-            if (localTs && localTs > row.updated_at) return;
-            lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
-            lastPersistedSignatureByKey.current[row.key] = stableStringify(row.value);
-            cloudMap[row.key] = row.value;
-          });
-
-          if (cloudMap.covers) setCovers(cloudMap.covers as Record<string, number>);
-          if (cloudMap.dailyCovers && hasDailyCoverData(cloudMap.dailyCovers as DailyCoversState)) {
-            setDailyCovers(cloudMap.dailyCovers as DailyCoversState);
-          }
-          if (cloudMap.orderStates) setOrderStates(cloudMap.orderStates as Record<string, OrderState>);
-          if (cloudMap.inventory) setDetailedInventory(cloudMap.inventory as Record<string, string>);
-          if (cloudMap.salesHtByMonth) setSalesHtByMonth(cloudMap.salesHtByMonth as Record<string, number>);
-          if (cloudMap.costMatterByMonth) setCostMatterByMonth(cloudMap.costMatterByMonth as Record<string, number>);
-          if (cloudMap.validatedMonths) setValidatedMonths(cloudMap.validatedMonths as Record<string, boolean>);
-          if (cloudMap.prepValidatedMonths) setPrepValidatedMonths(cloudMap.prepValidatedMonths as Record<string, boolean>);
-          if (cloudMap.supplierConfigs) {
-            setSupplierConfigs(mergeSupplierConfigsWithDefaults(cloudMap.supplierConfigs as Record<string, SupplierConfig>));
-          }
-          if (cloudMap.deliveryDateBySupplier) setDeliveryDateBySupplier(cloudMap.deliveryDateBySupplier as Record<string, string>);
-          if (cloudMap.nextDeliveryDateBySupplier) setNextDeliveryDateBySupplier(cloudMap.nextDeliveryDateBySupplier as Record<string, string>);
-          if (cloudMap.products) setProducts(mergeAndNormalizeProducts(cloudMap.products as ProductWithHistory[]));
-          if (cloudMap.prepItems) setPrepItems(cloudMap.prepItems as PrepItem[]);
-          if (cloudMap.prepImportsByMonth) setPrepImportsByMonth(cloudMap.prepImportsByMonth as PrepImportsByMonth);
-          if (cloudMap.prepSheetStocks) setPrepSheetStocks(cloudMap.prepSheetStocks as PrepSheetStocks);
-          if (cloudMap.prepBatches) setPrepBatches(cloudMap.prepBatches as PrepBatch[]);
-          if (cloudMap.prepForecasts) setPrepForecasts(cloudMap.prepForecasts as PrepForecastsByDate);
-
-          setTimeout(() => { isHydratingFromCloud.current = false; }, 600);
+        if (cloudMap.covers) setCovers(cloudMap.covers as Record<string, number>);
+        if (cloudMap.dailyCovers && hasDailyCoverData(cloudMap.dailyCovers as DailyCoversState)) {
+          setDailyCovers(cloudMap.dailyCovers as DailyCoversState);
         }
-      } catch (error) {
-        console.error('[Supabase load exception]', error);
-      } finally {
-        if (!cancelled) setSupabaseLoaded(true);
-      }
-    };
+        if (cloudMap.orderStates) {
+          if (options.isReconnect && isUserTyping()) {
+            const ts = lastCloudUpdatedAtByKey.current.orderStates ?? nowIso();
+            const existing = pendingRealtimeRef.current.get('orderStates');
+            if (!existing || ts > existing.ts) {
+              pendingRealtimeRef.current.set('orderStates', { ts, value: cloudMap.orderStates });
+            }
+          } else {
+            setOrderStates(cloudMap.orderStates as Record<string, OrderState>);
+          }
+        }
+        if (cloudMap.inventory) setDetailedInventory(cloudMap.inventory as Record<string, string>);
+        if (cloudMap.salesHtByMonth) setSalesHtByMonth(cloudMap.salesHtByMonth as Record<string, number>);
+        if (cloudMap.costMatterByMonth) setCostMatterByMonth(cloudMap.costMatterByMonth as Record<string, number>);
+        if (cloudMap.validatedMonths) setValidatedMonths(cloudMap.validatedMonths as Record<string, boolean>);
+        if (cloudMap.prepValidatedMonths) setPrepValidatedMonths(cloudMap.prepValidatedMonths as Record<string, boolean>);
+        if (cloudMap.supplierConfigs) {
+          setSupplierConfigs(mergeSupplierConfigsWithDefaults(cloudMap.supplierConfigs as Record<string, SupplierConfig>));
+        }
+        if (cloudMap.deliveryDateBySupplier) setDeliveryDateBySupplier(cloudMap.deliveryDateBySupplier as Record<string, string>);
+        if (cloudMap.nextDeliveryDateBySupplier) setNextDeliveryDateBySupplier(cloudMap.nextDeliveryDateBySupplier as Record<string, string>);
+        if (cloudMap.products) setProducts(mergeAndNormalizeProducts(cloudMap.products as ProductWithHistory[]));
+        if (cloudMap.prepItems) setPrepItems(cloudMap.prepItems as PrepItem[]);
+        if (cloudMap.prepImportsByMonth) setPrepImportsByMonth(cloudMap.prepImportsByMonth as PrepImportsByMonth);
+        if (cloudMap.prepSheetStocks) setPrepSheetStocks(cloudMap.prepSheetStocks as PrepSheetStocks);
+        if (cloudMap.prepBatches) setPrepBatches(cloudMap.prepBatches as PrepBatch[]);
+        if (cloudMap.prepForecasts) setPrepForecasts(cloudMap.prepForecasts as PrepForecastsByDate);
 
-    void run();
-    return () => { cancelled = true; };
+        setTimeout(() => { isHydratingFromCloud.current = false; }, 600);
+      }
+    } catch (error) {
+      console.error('[Supabase load exception]', error);
+    } finally {
+      setSupabaseLoaded(true);
+    }
   }, [
     setCostMatterByMonth, setCovers, setDailyCovers,
     setDeliveryDateBySupplier, setDetailedInventory,
@@ -389,38 +402,102 @@ export const useCloudSync = ({
     setProducts, setPrepItems, setPrepImportsByMonth, setPrepSheetStocks, setPrepBatches, setPrepForecasts, setSalesHtByMonth, setSupplierConfigs, setValidatedMonths, setPrepValidatedMonths,
   ]);
 
+  useEffect(() => {
+    void hydrateFromCloud();
+  }, [hydrateFromCloud]);
+
   // ─── Supabase Realtime — écoute les INSERT/UPDATE sur app_state ───────────
   useEffect(() => {
     if (!supabaseLoaded || !isSupabaseConfigured() || !supabase) return;
 
-    const channel = supabase
-      .channel(`app_state_sync:${CURRENT_SITE_ID}`)
-      .on(
-        'postgres_changes' as any,
-        { event: '*', schema: 'public', table: 'app_state', filter: `site_id=eq.${CURRENT_SITE_ID}` },
-        (payload: any) => {
-          const row = payload.new as { site_id?: string; key: string; value: unknown; updated_at: string } | null;
-          if (row?.site_id && row.site_id !== CURRENT_SITE_ID) return;
-          if (!row?.key || !row?.updated_at) return;
-          handleRealtimeEvent(row.key, row.updated_at, row.value);
-        }
-      )
-      .subscribe((status: string) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('[Realtime] ✅ Connecté — sync instantanée active');
-        } else if (status === 'CHANNEL_ERROR') {
-          console.warn('[Realtime] ⚠️ Erreur de canal, reconnexion automatique...');
-        }
-      });
+    let disposed = false;
+
+    const clearReconnectTimer = () => {
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+    };
+
+    const scheduleReconnect = () => {
+      if (disposed || reconnectTimerRef.current) return;
+      const attempt = reconnectAttemptRef.current;
+      const delayMs = REALTIME_RECONNECT_DELAYS_MS[Math.min(attempt, REALTIME_RECONNECT_DELAYS_MS.length - 1)];
+      reconnectAttemptRef.current = attempt + 1;
+      reconnectTimerRef.current = setTimeout(() => {
+        reconnectTimerRef.current = null;
+        if (!disposed) openChannel();
+      }, delayMs);
+    };
+
+    const openChannel = () => {
+      if (disposed) return;
+      if (channelRef.current) {
+        void supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+
+      channelStatusRef.current = 'idle';
+      const channel = supabase
+        .channel(`app_state_sync:${CURRENT_SITE_ID}`)
+        .on(
+          'postgres_changes' as any,
+          { event: '*', schema: 'public', table: 'app_state', filter: `site_id=eq.${CURRENT_SITE_ID}` },
+          (payload: any) => {
+            const row = payload.new as { site_id?: string; key: string; value: unknown; updated_at: string } | null;
+            if (row?.site_id && row.site_id !== CURRENT_SITE_ID) return;
+            if (!row?.key || !row?.updated_at) return;
+            handleRealtimeEvent(row.key, row.updated_at, row.value);
+          }
+        )
+        .subscribe((status: string) => {
+          if (disposed) return;
+          if (status === 'SUBSCRIBED') {
+            channelStatusRef.current = 'joined';
+            reconnectAttemptRef.current = 0;
+            clearReconnectTimer();
+            console.log('[Realtime] ✅ Connecté — sync instantanée active');
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            channelStatusRef.current = 'errored';
+            console.warn(`[Realtime] ⚠️ ${status}, reconnexion programmée...`);
+            scheduleReconnect();
+          } else if (status === 'CLOSED') {
+            channelStatusRef.current = 'idle';
+          }
+        });
+
+      channelRef.current = channel;
+    };
+
+    openChannel();
 
     // Flush la file d'attente quand l'utilisateur quitte un champ
     window.addEventListener('focusout', flushPending);
 
-    return () => {
-      void supabase.removeChannel(channel);
-      window.removeEventListener('focusout', flushPending);
+    // Retour d'onglet : si le canal n'est plus "joined", on le recrée puis on
+    // rattrape les événements manqués via une relecture complète de app_state.
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible' || disposed) return;
+      if (channelStatusRef.current !== 'joined') {
+        reconnectAttemptRef.current = 0;
+        clearReconnectTimer();
+        openChannel();
+        void hydrateFromCloud({ isReconnect: true });
+      }
     };
-  }, [supabaseLoaded, handleRealtimeEvent, flushPending]);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      disposed = true;
+      clearReconnectTimer();
+      if (channelRef.current) {
+        void supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+      window.removeEventListener('focusout', flushPending);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [supabaseLoaded, handleRealtimeEvent, flushPending, hydrateFromCloud]);
 
   // ─── Sauvegarde locale + cloud (debounced + anti-écriture inutile) ────────
   const persistEverywhere = useCallback((key: string, value: unknown, debounceMs?: number) => {
