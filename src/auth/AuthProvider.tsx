@@ -29,6 +29,7 @@ type AuthContextValue = {
   user: User | null;
   profile: AppProfile | null;
   loading: boolean;
+  profileSyncing: boolean;
   isAdmin: boolean;
   isActive: boolean;
   activeSiteId: SiteId;
@@ -89,6 +90,47 @@ const shouldOpenSitePicker = () => {
   }
 };
 
+// Cache "dernier profil valide" : garantit qu'une session valide peut
+// toujours afficher l'app immédiatement, même si le rafraîchissement
+// réseau du profil échoue ou traîne. Clé scoppée par site + utilisateur.
+const PROFILE_CACHE_STORAGE_KEY = 'hippo_profile_cache';
+const SITE_RELOAD_GUARD_KEY = 'hippo_site_reload_guard';
+
+const getProfileCacheKey = (userId: string) => `${PROFILE_CACHE_STORAGE_KEY}:${CURRENT_SITE_ID}:${userId}`;
+
+const readProfileCache = (userId: string): AppProfile | null => {
+  try {
+    const raw = window.sessionStorage.getItem(getProfileCacheKey(userId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as AppProfile;
+    return parsed && parsed.id === userId ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeProfileCache = (userId: string, profile: AppProfile) => {
+  try {
+    window.sessionStorage.setItem(getProfileCacheKey(userId), JSON.stringify(profile));
+  } catch {
+    // ignore
+  }
+};
+
+const clearProfileCache = (userId?: string | null) => {
+  try {
+    if (userId) {
+      window.sessionStorage.removeItem(getProfileCacheKey(userId));
+      return;
+    }
+    Object.keys(window.sessionStorage)
+      .filter((key) => key.startsWith(PROFILE_CACHE_STORAGE_KEY))
+      .forEach((key) => window.sessionStorage.removeItem(key));
+  } catch {
+    // ignore
+  }
+};
+
 const clearSupabaseStorage = (storage: Storage) => {
   Object.keys(storage)
     .filter((key) => key.startsWith('sb-'))
@@ -98,6 +140,12 @@ const clearSupabaseStorage = (storage: Storage) => {
 const clearStoredAuthState = () => {
   clearUiSessionState();
   clearActiveSessionSite();
+  clearProfileCache();
+  try {
+    window.sessionStorage.removeItem(SITE_RELOAD_GUARD_KEY);
+  } catch {
+    // ignore
+  }
   try {
     clearSupabaseStorage(window.localStorage);
   } catch {
@@ -131,7 +179,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<AppProfile | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [profileSyncing, setProfileSyncing] = useState(false);
   const lastUserIdRef = useRef<string | null>(null);
+  const profileRef = useRef<AppProfile | null>(null);
+  const profileRequestIdRef = useRef(0);
+
+  const applyProfile = (next: AppProfile | null) => {
+    profileRef.current = next;
+    setProfile(next);
+  };
 
   useEffect(() => {
     if (!isSupabaseConfigured() || !supabase) {
@@ -156,12 +212,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (!userId) {
         clearActiveSessionSite();
-        setProfile(null);
+        clearProfileCache();
+        applyProfile(null);
         setLoadingProfile(false);
+        setProfileSyncing(false);
         return;
       }
 
-      setLoadingProfile(true);
+      const requestId = ++profileRequestIdRef.current;
+      const isStale = () => !mounted || profileRequestIdRef.current !== requestId;
+
+      const cached = readProfileCache(userId);
+      if (cached && !profileRef.current) {
+        applyProfile(cached);
+      }
+      const hasVisibleProfile = Boolean(profileRef.current);
+
+      if (hasVisibleProfile) {
+        setProfileSyncing(true);
+      } else {
+        setLoadingProfile(true);
+      }
 
       try {
         let data: any = null;
@@ -191,63 +262,117 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
 
-        if (!mounted) return;
+        if (isStale()) return;
 
-        if (error || !data) {
-          if (error) console.warn('[auth] Profil indisponible:', error.message);
-          setProfile(null);
+        if (error) {
+          // Échec réseau/timeout : on garde le dernier profil valide connu
+          // et on retentera au prochain cycle (bootstrap, focus, realtime).
+          console.warn('[auth] Profil indisponible (réseau), profil précédent conservé:', error.message);
+          if (!hasVisibleProfile) applyProfile(null);
+          return;
+        }
+
+        if (!data) {
+          // Réponse explicite du serveur : le compte n'existe plus.
+          console.warn('[auth] Profil introuvable pour cet utilisateur.');
+          clearActiveSessionSite();
+          clearProfileCache(userId);
+          applyProfile(null);
+          return;
+        }
+
+        const baseProfile = data as AppProfile;
+
+        if (!baseProfile.is_active) {
+          // Réponse explicite du serveur : compte désactivé.
+          clearProfileCache(userId);
+          applyProfile({ ...baseProfile, site_ids: [] });
+          return;
+        }
+
+        let siteIds: SiteId[] = [];
+
+        if (isGlobalSiteRole(baseProfile.role) || baseProfile.access_scope === 'all') {
+          siteIds = ALL_SITE_IDS;
         } else {
-          const baseProfile = data as AppProfile;
-          let siteIds: SiteId[] = [];
+          let accessRows: any[] | null = null;
+          let accessError: any = null;
 
-          if (isGlobalSiteRole(baseProfile.role) || baseProfile.access_scope === 'all') {
-            siteIds = ALL_SITE_IDS;
-          } else {
-            const { data: accessRows, error: accessError } = await supabase
-              .from('user_site_access')
-              .select('site_id, is_active')
-              .eq('user_id', userId);
+          try {
+            const accessResult = await withTimeout(
+              supabase.from('user_site_access').select('site_id, is_active').eq('user_id', userId),
+              'Chargement des accès sites'
+            );
+            accessRows = accessResult.data;
+            accessError = accessResult.error;
+          } catch (accessException) {
+            accessError = accessException;
+          }
 
-            if (accessError) {
-              console.warn('[auth] Acces sites indisponibles:', accessError.message);
-              clearActiveSessionSite();
-              setProfile({ ...baseProfile, site_ids: [] });
-              return;
+          if (isStale()) return;
+
+          if (accessError) {
+            const message = accessError instanceof Error ? accessError.message : String(accessError);
+            console.warn('[auth] Acces sites indisponibles (réseau), profil précédent conservé:', message);
+            if (!hasVisibleProfile) applyProfile({ ...baseProfile, site_ids: [] });
+            return;
+          }
+
+          siteIds = (accessRows ?? [])
+            .filter((row: any) => row?.is_active && isSiteId(row.site_id))
+            .map((row: any) => row.site_id as SiteId);
+        }
+
+        if (siteIds.length === 0) {
+          clearActiveSessionSite();
+          clearProfileCache(userId);
+          applyProfile({ ...baseProfile, site_ids: [] });
+          return;
+        }
+
+        const nextProfile = { ...baseProfile, site_ids: siteIds };
+        if (siteIds.length > 1 && shouldOpenSitePicker()) {
+          writeProfileCache(userId, nextProfile);
+          applyProfile(nextProfile);
+          return;
+        }
+
+        const selectedSiteId = readUserSitePreference(userId, siteIds) ?? siteIds[0];
+        writeActiveSessionSite(selectedSiteId);
+
+        if (CURRENT_SITE_ID !== selectedSiteId) {
+          let alreadyReloaded = false;
+          try {
+            alreadyReloaded = window.sessionStorage.getItem(SITE_RELOAD_GUARD_KEY) === '1';
+          } catch {
+            alreadyReloaded = false;
+          }
+
+          if (!alreadyReloaded) {
+            try {
+              window.sessionStorage.setItem(SITE_RELOAD_GUARD_KEY, '1');
+            } catch {
+              // ignore
             }
-
-            siteIds = (accessRows ?? [])
-              .filter((row: any) => row?.is_active && isSiteId(row.site_id))
-              .map((row: any) => row.site_id as SiteId);
-          }
-
-          if (siteIds.length === 0) {
-            clearActiveSessionSite();
-            setProfile({ ...baseProfile, site_ids: [] });
-            return;
-          }
-
-          const nextProfile = { ...baseProfile, site_ids: siteIds };
-          if (siteIds.length > 1 && shouldOpenSitePicker()) {
-            setProfile(nextProfile);
-            return;
-          }
-
-          const selectedSiteId = readUserSitePreference(userId, siteIds) ?? siteIds[0];
-          writeActiveSessionSite(selectedSiteId);
-
-          if (CURRENT_SITE_ID !== selectedSiteId) {
             keepLoadingForReload = true;
             window.location.reload();
             return;
           }
 
-          setProfile(nextProfile);
+          console.warn('[auth] Site attendu différent du site courant ; reload déjà effectué pour cette page, poursuite sans reload.');
         }
+
+        writeProfileCache(userId, nextProfile);
+        applyProfile(nextProfile);
       } catch (error) {
-        console.warn('[auth] Erreur lors du chargement du profil:', error);
-        if (mounted) setProfile(null);
+        if (isStale()) return;
+        console.warn('[auth] Erreur lors du chargement du profil, profil précédent conservé si disponible:', error);
+        if (!hasVisibleProfile) applyProfile(null);
       } finally {
-        if (mounted && !keepLoadingForReload) setLoadingProfile(false);
+        if (mounted && !keepLoadingForReload && !isStale()) {
+          setLoadingProfile(false);
+          setProfileSyncing(false);
+        }
       }
     };
 
@@ -269,6 +394,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const nextUserId = nextSession?.user?.id ?? null;
         if (lastUserIdRef.current && lastUserIdRef.current !== nextUserId) {
           clearActiveSessionSite();
+          clearProfileCache(lastUserIdRef.current);
+          applyProfile(null);
         }
         lastUserIdRef.current = nextUserId;
         setSession(nextSession);
@@ -278,7 +405,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('[auth] Impossible de récupérer la session:', error);
         if (!mounted) return;
         setSession(null);
-        setProfile(null);
+        applyProfile(null);
         setLoadingSession(false);
         setLoadingProfile(false);
       }
@@ -286,12 +413,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     void bootstrap();
 
+    // SIGNED_IN est réémis par supabase-js pour le MEME utilisateur au retour
+    // d'onglet ; loadProfile() applique alors automatiquement un rafraîchissement
+    // silencieux (hasVisibleProfile) sans jamais repasser par l'écran de chargement.
     const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
       if (!mounted) return;
       if (event === 'TOKEN_REFRESHED') return;
       const nextUserId = newSession?.user?.id ?? null;
       if (lastUserIdRef.current && lastUserIdRef.current !== nextUserId) {
         clearActiveSessionSite();
+        clearProfileCache(lastUserIdRef.current);
+        applyProfile(null);
       }
       lastUserIdRef.current = nextUserId;
       if (event === 'SIGNED_OUT') clearStoredAuthState();
@@ -300,10 +432,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       void loadProfile(nextUserId);
     });
 
+    // Retour d'onglet silencieux : on revérifie la session et on rafraîchit
+    // le profil en tâche de fond, sans jamais afficher d'écran de chargement
+    // si un profil (frais ou en cache) est déjà visible.
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible' || !mounted || !supabase) return;
+
+      void (async () => {
+        try {
+          const { data, error } = await withTimeout(supabase.auth.getSession(), 'Vérification de session (retour onglet)');
+          if (!mounted) return;
+
+          if (error) {
+            console.warn('[auth] Vérification de session au retour onglet:', error.message);
+            return;
+          }
+
+          const nextSession = data.session ?? null;
+          const nextUserId = nextSession?.user?.id ?? null;
+          if (lastUserIdRef.current && lastUserIdRef.current !== nextUserId) {
+            clearActiveSessionSite();
+            clearProfileCache(lastUserIdRef.current);
+            applyProfile(null);
+          }
+          lastUserIdRef.current = nextUserId;
+          setSession(nextSession);
+
+          if (!nextSession) {
+            // Refresh token définitivement invalide pendant l'absence : fin de session réelle.
+            setLoadingSession(false);
+            void loadProfile(null);
+            return;
+          }
+
+          void loadProfile(nextUserId);
+        } catch (visibilityError) {
+          console.warn('[auth] Vérification de session au retour onglet a échoué:', visibilityError);
+        }
+      })();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       mounted = false;
       clearTimeout(releaseTimer);
       sub.subscription.unsubscribe();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
@@ -318,6 +493,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       user: session?.user ?? null,
       profile,
       loading: loadingSession || loadingProfile,
+      profileSyncing,
       isAdmin,
       isActive,
       activeSiteId: CURRENT_SITE_ID as SiteId,
@@ -331,7 +507,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       signOut: async () => {
         clearStoredAuthState();
         setSession(null);
-        setProfile(null);
+        applyProfile(null);
         if (supabase) {
           await withTimeout(supabase.auth.signOut({ scope: 'local' }), 'Deconnexion', 3000).catch((error) => {
             console.warn('[auth] Deconnexion locale indisponible:', error);
@@ -340,7 +516,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         window.location.href = '/';
       },
     };
-  }, [session, profile, loadingSession, loadingProfile]);
+  }, [session, profile, loadingSession, loadingProfile, profileSyncing]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
