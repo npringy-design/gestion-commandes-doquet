@@ -64,6 +64,7 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
     user,
     profile,
     loading,
+    profileSyncing,
     isActive,
     signOut,
     activeSiteId,
@@ -183,5 +184,16 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {profileSyncing ? (
+        <div className="fixed top-2 inset-x-0 z-50 flex justify-center pointer-events-none">
+          <div className="rounded-full bg-slate-900/90 px-4 py-1 text-[11px] font-bold uppercase tracking-widest text-white shadow-lg">
+            Reconnexion en cours…
+          </div>
+        </div>
+      ) : null}
+      {children}
+    </>
+  );
 };
