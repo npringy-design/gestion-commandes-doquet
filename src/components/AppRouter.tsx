@@ -21,6 +21,7 @@ const PrepRatiosPage = lazy(() => import('../pages/PrepRatiosPage'));
 const TakeRatePage = lazy(() => import('../pages/TakeRatePage'));
 const TakeRateResultsPage = lazy(() => import('../pages/TakeRateResultsPage'));
 const ProductMixPage = lazy(() => import('../pages/ProductMixPage'));
+const OrderTemplatePage = lazy(() => import('../pages/OrderTemplatePage'));
 
 type ScrollSyncSource = 'main' | 'bottom';
 
@@ -339,6 +340,24 @@ const AppRouter: React.FC<AppRouterProps> = ({
         validatedMonths={state.validatedMonths}
       />,
       'Chargement des paramètres…'
+    );
+  }
+
+  if (view === 'order_template' && isMobile) return renderWithShell(<MobileBlocked title="Trame commande" />);
+
+  if (view === 'order_template') {
+    if (!canAccessRatiosPage(profile)) {
+      return renderWithShell(<AccessDenied message="Cette section est réservée aux rôles autorisés pour ce module." />);
+    }
+    return renderLazyPage(
+      <OrderTemplatePage
+        setView={setView}
+        orderTemplateRows={state.orderTemplateRows}
+        setOrderTemplateRows={state.setOrderTemplateRows}
+        products={state.products}
+        setProducts={state.setProducts}
+      />,
+      'Chargement de la trame commande…'
     );
   }
 

@@ -1,0 +1,597 @@
+// =============================================================
+// pages/OrderTemplatePage.tsx
+// Import d'un PDF Adoria "Bon de préparation de commande" et extraction
+// d'un tableau Articles / Unité de stockage / Unité de conditionnement.
+//
+// Flux :
+//  1. Extraction texte via pdf.js (rapide, fiable sur PDF natif).
+//  2. Si le PDF est un scan vectorisé (aucun caractère extrait), repli
+//     sur un rendu canvas + OCR tesseract.js (langue française).
+// =============================================================
+
+import React, { useCallback, useRef, useState } from 'react';
+import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
+import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.mjs?url';
+import { SUPPLIER_LABELS, SupplierId, View } from '../constants';
+import AppNavTile from '../components/AppNavTile';
+import { useToast } from '../components/Toast';
+import { useAuth } from '../auth/AuthProvider';
+import { canAccessRatiosPage } from '../lib/permissions';
+import { OrderTemplateRow } from '../types';
+import { ProductWithHistory } from '../data';
+import { ExtractedWord, extractRowsFromDocumentWords } from '../utils/orderTemplateParser';
+
+GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
+
+interface OrderTemplatePageProps {
+  setView: (v: View) => void;
+  orderTemplateRows: OrderTemplateRow[];
+  setOrderTemplateRows: React.Dispatch<React.SetStateAction<OrderTemplateRow[]>>;
+  products: ProductWithHistory[];
+  setProducts: React.Dispatch<React.SetStateAction<ProductWithHistory[]>>;
+}
+
+const normalizeProductKey = (supplierId: string, name: string) => `${supplierId}::${name.trim().toLowerCase()}`;
+
+const normalizeProductName = (name: string) => name.replace(/\s+/g, ' ').trim();
+
+// Extrait le premier nombre trouvé dans l'unité de conditionnement
+// (ex: "carton x 24" -> 24), 1 par défaut si aucun nombre n'est présent.
+const parsePackagingQuantity = (packagingUnit: string): number => {
+  const match = packagingUnit.match(/(\d+)/);
+  return match ? parseInt(match[1], 10) : 1;
+};
+
+type ProcessingStep = 'idle' | 'reading' | 'ocr' | 'done' | 'error';
+
+const makeRowId = () => `row_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+const extractWordsFromTextItem = (item: any, viewportHeight: number): ExtractedWord | null => {
+  const text = typeof item.str === 'string' ? item.str.trim() : '';
+  if (!text) return null;
+  const x = item.transform[4];
+  const y = item.transform[5];
+  return { text, x, yTop: viewportHeight - y };
+};
+
+type RotationDegrees = 0 | 90 | 180 | 270;
+
+// Certains PDF "Print to PDF" (ex: export Adoria) dessinent le contenu
+// pivoté dans le flux, sans poser le flag /Rotate de la page : pdf.js les
+// rend donc "sur le côté". On détecte la rotation nécessaire une seule fois
+// (page 1) en comparant la confiance OCR sur les 4 orientations possibles.
+const rotateCanvas = (source: HTMLCanvasElement, degrees: RotationDegrees): HTMLCanvasElement => {
+  if (degrees === 0) return source;
+
+  const rotated = document.createElement('canvas');
+  const context = rotated.getContext('2d');
+  if (!context) throw new Error('Contexte 2D introuvable.');
+
+  if (degrees === 180) {
+    rotated.width = source.width;
+    rotated.height = source.height;
+    context.translate(rotated.width, rotated.height);
+    context.rotate(Math.PI);
+  } else if (degrees === 90) {
+    rotated.width = source.height;
+    rotated.height = source.width;
+    context.translate(rotated.width, 0);
+    context.rotate(Math.PI / 2);
+  } else {
+    rotated.width = source.height;
+    rotated.height = source.width;
+    context.translate(0, rotated.height);
+    context.rotate(-Math.PI / 2);
+  }
+
+  context.drawImage(source, 0, 0);
+  return rotated;
+};
+
+const ROTATION_CANDIDATES: RotationDegrees[] = [0, 90, 180, 270];
+const OCR_RENDER_SCALE = 3;
+const LANDSCAPE_USEFUL_TABLE_WIDTH_RATIO = 0.48;
+
+const detectBestRotation = async (worker: any, canvas: HTMLCanvasElement): Promise<RotationDegrees> => {
+  let best: { degrees: RotationDegrees; confidence: number } = { degrees: 0, confidence: -1 };
+
+  for (const degrees of ROTATION_CANDIDATES) {
+    const candidate = rotateCanvas(canvas, degrees);
+    const { data } = await worker.recognize(candidate, {}, {});
+    if (data.confidence > best.confidence) {
+      best = { degrees, confidence: data.confidence };
+    }
+  }
+
+  return best.degrees;
+};
+
+const cropCanvas = (source: HTMLCanvasElement, crop: { x: number; y: number; width: number; height: number }): HTMLCanvasElement => {
+  const cropped = document.createElement('canvas');
+  const context = cropped.getContext('2d');
+  if (!context) throw new Error('Contexte 2D introuvable.');
+
+  cropped.width = Math.max(1, Math.floor(crop.width));
+  cropped.height = Math.max(1, Math.floor(crop.height));
+  context.drawImage(source, crop.x, crop.y, crop.width, crop.height, 0, 0, cropped.width, cropped.height);
+  return cropped;
+};
+
+const cropOrderTemplateOcrArea = (source: HTMLCanvasElement): HTMLCanvasElement => {
+  if (source.width <= source.height) return source;
+
+  return cropCanvas(source, {
+    x: 0,
+    y: 0,
+    width: source.width * LANDSCAPE_USEFUL_TABLE_WIDTH_RATIO,
+    height: source.height,
+  });
+};
+
+const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
+  setView,
+  orderTemplateRows,
+  setOrderTemplateRows,
+  products,
+  setProducts,
+}) => {
+  const { profile } = useAuth();
+  const canImport = canAccessRatiosPage(profile);
+  const { showToast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [step, setStep] = useState<ProcessingStep>('idle');
+  const [statusLabel, setStatusLabel] = useState('');
+  const [ocrProgress, setOcrProgress] = useState(0);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<SupplierId | ''>('');
+
+  const isProcessing = step === 'reading' || step === 'ocr';
+
+  const handleCreateProducts = useCallback(() => {
+    if (!canImport) return;
+    if (!selectedSupplierId) {
+      showToast('Sélectionne un fournisseur avant de créer les produits.', 'warning');
+      return;
+    }
+
+    const existingKeys = new Set(
+      products.map((p) => normalizeProductKey(p.supplierId ?? '', p.name))
+    );
+    const seenKeys = new Set<string>();
+    const toCreate: ProductWithHistory[] = [];
+    let duplicateCount = 0;
+
+    orderTemplateRows.forEach((row, index) => {
+      const article = normalizeProductName(row.article);
+      if (!article) return;
+
+      const key = normalizeProductKey(selectedSupplierId, article);
+      if (existingKeys.has(key) || seenKeys.has(key)) {
+        duplicateCount += 1;
+        return;
+      }
+      seenKeys.add(key);
+
+      toCreate.push({
+        id: `custom-${Date.now()}-${index}`,
+        supplierId: selectedSupplierId,
+        name: article,
+        searchName: article,
+        storageUnit: row.storageUnit.trim() || undefined,
+        packaging: parsePackagingQuantity(row.packagingUnit),
+        defaultMargin: 0,
+        salesHistory: {},
+        stock: 0,
+        upcomingDelivery: 0,
+        targetStock: 0,
+      });
+    });
+
+    if (duplicateCount > 0) {
+      const proceed = window.confirm(
+        `${duplicateCount} doublon(s) détecté(s) (même nom + fournisseur) et seront ignorés. Créer les ${toCreate.length} autre(s) produit(s) ?`
+      );
+      if (!proceed) return;
+    }
+
+    if (toCreate.length === 0) {
+      showToast('Aucun produit à créer (lignes vides ou déjà existantes).', 'warning');
+      return;
+    }
+
+    setProducts((prev) => [...toCreate, ...prev]);
+    showToast(`✓ ${toCreate.length} produit(s) créé(s)`, 'success');
+  }, [canImport, orderTemplateRows, products, selectedSupplierId, setProducts, showToast]);
+
+  const extractViaText = useCallback(async (pdf: any) => {
+    const pagesWords: ExtractedWord[][] = [];
+    let totalChars = 0;
+
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      setStatusLabel(`Lecture du texte — page ${pageNum}/${pdf.numPages}`);
+      const page = await pdf.getPage(pageNum);
+      const viewport = page.getViewport({ scale: 1 });
+      const textContent = await page.getTextContent();
+      const words: ExtractedWord[] = [];
+
+      (textContent.items as any[]).forEach((item) => {
+        const word = extractWordsFromTextItem(item, viewport.height);
+        if (word) {
+          words.push(word);
+          totalChars += word.text.length;
+        }
+      });
+
+      pagesWords.push(words);
+    }
+
+    return { pagesWords, totalChars };
+  }, []);
+
+  const extractViaOcr = useCallback(async (pdf: any) => {
+    const { createWorker } = await import('tesseract.js');
+    setStatusLabel('Préparation de la reconnaissance de texte (OCR)…');
+    const worker = await createWorker('fra', undefined, {
+      logger: (m: { status: string; progress: number }) => {
+        if (m.status === 'recognizing text') {
+          setOcrProgress(Math.round(m.progress * 100));
+        }
+      },
+    });
+
+    const pagesWords: ExtractedWord[][] = [];
+    let rotationDegrees: RotationDegrees = 0;
+
+    try {
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        setOcrProgress(0);
+        setStatusLabel(`OCR — page ${pageNum}/${pdf.numPages}`);
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({ scale: OCR_RENDER_SCALE });
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+
+        const context = canvas.getContext('2d');
+        if (!context) throw new Error('Contexte 2D introuvable.');
+        await page.render({ canvasContext: context, canvas, viewport }).promise;
+
+        if (pageNum === 1) {
+          setStatusLabel('Détection de l’orientation du document…');
+          rotationDegrees = await detectBestRotation(worker, canvas);
+          console.info(`[OrderTemplatePage] Rotation détectée : ${rotationDegrees}°`);
+          setStatusLabel(`OCR — page ${pageNum}/${pdf.numPages}`);
+        }
+
+        const orientedCanvas = rotateCanvas(canvas, rotationDegrees);
+        const ocrCanvas = cropOrderTemplateOcrArea(orientedCanvas);
+        const { data } = await worker.recognize(ocrCanvas, {}, { blocks: true });
+        const words: ExtractedWord[] = [];
+
+        (data.blocks ?? []).forEach((block) => {
+          block.paragraphs.forEach((paragraph) => {
+            paragraph.lines.forEach((line) => {
+              line.words.forEach((word) => {
+                const text = word.text.trim();
+                if (!text) return;
+                words.push({ text, x: word.bbox.x0, yTop: word.bbox.y0 });
+              });
+            });
+          });
+        });
+
+        pagesWords.push(words);
+      }
+    } finally {
+      await worker.terminate();
+    }
+
+    return pagesWords;
+  }, []);
+
+  const handleFile = useCallback(async (file: File) => {
+    if (!canImport || isProcessing) return;
+
+    setStep('reading');
+    setOcrProgress(0);
+    setStatusLabel('Lecture du fichier PDF…');
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await getDocument({ data: arrayBuffer }).promise;
+
+      const { pagesWords, totalChars } = await extractViaText(pdf);
+      let finalPagesWords = pagesWords;
+      let usedOcr = false;
+
+      console.info(`[OrderTemplatePage] Extraction texte : ${pdf.numPages} page(s), ${totalChars} caractère(s) trouvé(s).`);
+
+      // Seuil > 0 pour tolérer un PDF "Print to PDF" contenant quelques
+      // caractères de métadonnées invisibles alors que le contenu visible
+      // est en réalité une image (aucun texte réellement exploitable).
+      if (totalChars < 20) {
+        setStep('ocr');
+        usedOcr = true;
+        finalPagesWords = await extractViaOcr(pdf);
+      }
+
+      finalPagesWords.forEach((words, idx) => {
+        console.info(`[OrderTemplatePage] Page ${idx + 1} (${usedOcr ? 'OCR' : 'texte'}) : ${words.length} mot(s) positionné(s).`);
+      });
+
+      const { rows: parsedRows, headerFound, pagesDebug } = extractRowsFromDocumentWords(finalPagesWords);
+      console.info('[OrderTemplatePage] En-tête détecté :', headerFound, pagesDebug);
+
+      if (parsedRows.length === 0) {
+        if (!headerFound) {
+          showToast(
+            "En-tête du tableau introuvable dans ce PDF (Articles / Unité de Stock / Conditionnement). Vérifiez le fichier ou saisissez manuellement.",
+            'warning'
+          );
+        } else {
+          showToast('En-tête trouvé mais aucune ligne exploitable en dessous. Vérifiez le fichier ou saisissez manuellement.', 'warning');
+        }
+      } else {
+        showToast(`✓ ${parsedRows.length} ligne(s) importée(s)`, 'success');
+      }
+
+      setOrderTemplateRows(parsedRows.map((row) => ({
+        id: makeRowId(),
+        article: row.article,
+        storageUnit: row.storageUnit,
+        packagingUnit: row.packagingUnit,
+      })));
+      setStep('done');
+    } catch (err) {
+      console.error('[OrderTemplatePage] Erreur import PDF', err);
+      showToast('Erreur lors de la lecture du PDF : ' + (err as Error).message, 'error');
+      setStep('error');
+    } finally {
+      setStatusLabel('');
+      setOcrProgress(0);
+    }
+  }, [canImport, isProcessing, extractViaText, extractViaOcr, setOrderTemplateRows, showToast]);
+
+  const onFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) void handleFile(file);
+    e.target.value = '';
+  };
+
+  const updateRow = (id: string, field: keyof Omit<OrderTemplateRow, 'id'>, value: string) => {
+    setOrderTemplateRows((prev) => prev.map((row) => (row.id === id ? { ...row, [field]: value } : row)));
+  };
+
+  const deleteRow = (id: string) => {
+    setOrderTemplateRows((prev) => prev.filter((row) => row.id !== id));
+  };
+
+  const addEmptyRow = () => {
+    setOrderTemplateRows((prev) => [...prev, { id: makeRowId(), article: '', storageUnit: '', packagingUnit: '' }]);
+  };
+
+  const clearAll = () => {
+    if (orderTemplateRows.length === 0) return;
+    if (!window.confirm('Vider entièrement la trame de commande ?')) return;
+    setOrderTemplateRows([]);
+  };
+
+  return (
+    <div className="min-h-screen bg-[radial-gradient(circle_at_20%_0%,rgba(245,166,58,0.28),transparent_30%),linear-gradient(180deg,#FFF7EA_0%,#F3DDC0_46%,#C97933_100%)] text-[#2F1D14]">
+      <div className="mx-auto max-w-7xl">
+        <main className="p-4 md:p-6">
+          {/* En-tête */}
+          <div className="mb-6 flex flex-col gap-4 rounded-[24px] border border-[#C89245]/55 bg-[linear-gradient(135deg,#3A2116_0%,#69331F_58%,#A85F2A_100%)] p-4 shadow-[0_18px_42px_rgba(54,24,12,0.18)] xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <h1 className="text-3xl font-black tracking-tight text-[#FFF7EA]">Trame commande</h1>
+              <AppNavTile
+                type="button"
+                onClick={() => setView('stats')}
+                eyebrow="Retour"
+                icon="back"
+                tone="dark"
+                size="md"
+              >
+                Paramètres
+              </AppNavTile>
+              <AppNavTile
+                type="button"
+                onClick={() => setView('home')}
+                eyebrow="Retour"
+                icon="home"
+                tone="dark"
+                size="md"
+              >
+                Accueil
+              </AppNavTile>
+            </div>
+          </div>
+
+          {/* Import PDF */}
+          <section className="mb-6 rounded-[24px] border border-[#D8AE77] bg-[#FFF7EA] p-6 shadow-[0_14px_30px_rgba(80,38,18,0.12)]">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-black text-[#2F1D14]">Import du bon de préparation (PDF)</h2>
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                  orderTemplateRows.length > 0 ? 'bg-[#E8F0DE] text-[#4D613C]' : 'bg-[#F6DEB1] text-[#7B4B2A]'
+                }`}
+              >
+                {orderTemplateRows.length > 0 ? `${orderTemplateRows.length} ligne(s)` : 'Aucune ligne'}
+              </span>
+            </div>
+
+            <p className="mb-4 text-sm text-[#6A432D]">
+              Importe le PDF Adoria « Bon de préparation de commande ». Les colonnes Articles, Unité de stockage et
+              Conditionnement sont extraites automatiquement. Corrige les éventuelles erreurs directement dans le
+              tableau ci-dessous.
+            </p>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf"
+              onChange={onFileInputChange}
+              className="hidden"
+            />
+
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => canImport && fileInputRef.current?.click()}
+                disabled={!canImport || isProcessing}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                  canImport && !isProcessing
+                    ? 'bg-[#C86F24] text-white shadow-[0_4px_0_#8B431C] hover:bg-[#B85F1D]'
+                    : 'cursor-not-allowed bg-[#F4E8D8] text-[#9A806A]'
+                }`}
+              >
+                {isProcessing ? 'Traitement en cours…' : 'Importer un PDF'}
+              </button>
+
+              <button
+                type="button"
+                onClick={clearAll}
+                disabled={!canImport || isProcessing || orderTemplateRows.length === 0}
+                className="rounded-lg border-2 border-[#E7B7A0] bg-[#FFF1EA] px-4 py-2 text-sm font-black text-[#9B3F21] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Vider le tableau
+              </button>
+            </div>
+
+            {isProcessing && (
+              <div className="mt-4 rounded-lg bg-white/60 p-3">
+                <p className="text-sm font-semibold text-[#6A432D]">{statusLabel || 'Traitement en cours…'}</p>
+                {step === 'ocr' && (
+                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[#F4E8D8]">
+                    <div
+                      className="h-full rounded-full bg-[#C86F24] transition-all"
+                      style={{ width: `${ocrProgress}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+
+          {/* Création des produits dans Vente calcul ratio */}
+          <section className="mb-6 rounded-[24px] border border-[#D8AE77] bg-[#FFF7EA] p-6 shadow-[0_14px_30px_rgba(80,38,18,0.12)]">
+            <h2 className="mb-4 text-lg font-black text-[#2F1D14]">Créer les produits (Vente calcul ratio)</h2>
+
+            <p className="mb-4 text-sm text-[#6A432D]">
+              Sélectionne le fournisseur associé à cette trame, puis crée les produits correspondants avec leur unité
+              de stockage et leur conditionnement. Les doublons (même nom + fournisseur) sont ignorés.
+            </p>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <select
+                value={selectedSupplierId}
+                onChange={(e) => setSelectedSupplierId(e.target.value as SupplierId)}
+                disabled={!canImport}
+                className="rounded-lg border-2 border-[#E2C39B] bg-[#FFFDF8] px-4 py-2 text-sm font-semibold text-[#2F1D14] focus:border-[#B66A2C] focus:outline-none disabled:cursor-not-allowed"
+              >
+                <option value="">Choisir un fournisseur…</option>
+                {Object.entries(SUPPLIER_LABELS).map(([id, label]) => (
+                  <option key={id} value={id}>
+                    {label.name}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                onClick={handleCreateProducts}
+                disabled={!canImport || !selectedSupplierId || orderTemplateRows.length === 0}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                  canImport && selectedSupplierId && orderTemplateRows.length > 0
+                    ? 'bg-[#C86F24] text-white shadow-[0_4px_0_#8B431C] hover:bg-[#B85F1D]'
+                    : 'cursor-not-allowed bg-[#F4E8D8] text-[#9A806A]'
+                }`}
+              >
+                Créer les produits
+              </button>
+            </div>
+          </section>
+
+          {/* Tableau éditable */}
+          <section className="rounded-[24px] border border-[#D8AE77] bg-[#FFF7EA] p-6 shadow-[0_14px_30px_rgba(80,38,18,0.12)]">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-black text-[#2F1D14]">Trame</h2>
+              <button
+                type="button"
+                onClick={addEmptyRow}
+                disabled={!canImport}
+                className="rounded-lg border-2 border-[#E2C39B] bg-[#FFFDF8] px-3 py-1.5 text-xs font-black uppercase tracking-wide text-[#6A432D] transition hover:border-[#C89245] hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                + Ajouter une ligne
+              </button>
+            </div>
+
+            {orderTemplateRows.length === 0 ? (
+              <p className="rounded-lg bg-white/60 p-4 text-sm text-[#9A806A]">
+                Aucune ligne pour le moment. Importe un PDF ou ajoute une ligne manuellement.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b-2 border-[#E2C39B]">
+                      <th className="pb-3 pr-4 font-black text-[#2F1D14]">Articles</th>
+                      <th className="pb-3 pr-4 font-black text-[#2F1D14]">Unité de stockage</th>
+                      <th className="pb-3 pr-4 font-black text-[#2F1D14]">Unité de conditionnement</th>
+                      <th className="pb-3 font-black text-[#2F1D14]" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orderTemplateRows.map((row) => (
+                      <tr key={row.id} className="border-b border-[#E8D8C8]">
+                        <td className="py-2 pr-4">
+                          <textarea
+                            value={row.article}
+                            onChange={(e) => updateRow(row.id, 'article', e.target.value)}
+                            disabled={!canImport}
+                            rows={Math.max(1, row.article.split('\n').length)}
+                            className="min-h-[42px] w-full resize-y rounded-lg border-2 border-[#E2C39B] bg-[#FFFDF8] px-3 py-2 font-semibold text-[#2F1D14] focus:border-[#B66A2C] focus:outline-none disabled:cursor-not-allowed"
+                          />
+                        </td>
+                        <td className="py-2 pr-4">
+                          <input
+                            type="text"
+                            value={row.storageUnit}
+                            onChange={(e) => updateRow(row.id, 'storageUnit', e.target.value)}
+                            disabled={!canImport}
+                            className="w-full rounded-lg border-2 border-[#E2C39B] bg-[#FFFDF8] px-3 py-2 font-semibold text-[#2F1D14] focus:border-[#B66A2C] focus:outline-none disabled:cursor-not-allowed"
+                          />
+                        </td>
+                        <td className="py-2 pr-4">
+                          <input
+                            type="text"
+                            value={row.packagingUnit}
+                            onChange={(e) => updateRow(row.id, 'packagingUnit', e.target.value)}
+                            disabled={!canImport}
+                            className="w-full rounded-lg border-2 border-[#E2C39B] bg-[#FFFDF8] px-3 py-2 font-semibold text-[#2F1D14] focus:border-[#B66A2C] focus:outline-none disabled:cursor-not-allowed"
+                          />
+                        </td>
+                        <td className="py-2">
+                          <button
+                            type="button"
+                            onClick={() => deleteRow(row.id)}
+                            disabled={!canImport}
+                            className="rounded-lg border-2 border-[#E7B7A0] bg-[#FFF1EA] px-3 py-2 text-xs font-black text-[#9B3F21] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Supprimer
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </main>
+      </div>
+    </div>
+  );
+};
+
+export default OrderTemplatePage;

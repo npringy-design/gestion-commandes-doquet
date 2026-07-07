@@ -163,6 +163,9 @@ const ProductCard: React.FC<{
                   disabled={!canEdit || isFrozenDisplay}
                 />
               </div>
+              {p.storageUnit && (
+                <div className="mt-1 text-[10px] font-semibold text-gray-400">{p.storageUnit}</div>
+              )}
             </div>
 
             <div className="shrink-0 w-20">

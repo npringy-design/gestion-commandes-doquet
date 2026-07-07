@@ -31,6 +31,7 @@ export interface Product {
   supplierId?:     string;        // 'doquet' | 'vins' | 'viandes' | 'domafrais' | 'domafrais_bof'
   // Diviseur pour convertir une unité importée en pièces (ex: kg → pièces)
   importDivisor?:  number | '';
+  storageUnit?:    string;        // Unité de stockage (ex: "au Kg", "carton") issue de la trame commande
 }
 
 export interface OrderState {
@@ -96,4 +97,11 @@ export interface PrepBatch {
   producedAt: string;
   expiresAt: string;
   note?: string;
+}
+
+export interface OrderTemplateRow {
+  id: string;
+  article: string;
+  storageUnit: string;
+  packagingUnit: string;
 }

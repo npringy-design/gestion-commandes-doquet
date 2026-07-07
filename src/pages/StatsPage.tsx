@@ -390,6 +390,16 @@ const StatsPage: React.FC<StatsPageProps> = ({
               >
                 Taux de prise
               </AppNavTile>
+
+              <AppNavTile
+                type="button"
+                onClick={() => canOpenRatios && setView('order_template')}
+                disabled={!canOpenRatios}
+                eyebrow="Import"
+                size="md"
+              >
+                Trame commande
+              </AppNavTile>
             </div>
           </div>
 
