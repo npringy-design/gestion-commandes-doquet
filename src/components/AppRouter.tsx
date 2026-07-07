@@ -356,6 +356,9 @@ const AppRouter: React.FC<AppRouterProps> = ({
         setOrderTemplateRows={state.setOrderTemplateRows}
         products={state.products}
         setProducts={state.setProducts}
+        supplierConfigs={state.supplierConfigs}
+        ratioTab={state.ratioTab}
+        setRatioTab={state.setRatioTab}
       />,
       'Chargement de la trame commande…'
     );
