@@ -25,6 +25,44 @@ const normalizeText = (value: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
+const WEAK_MATCH_TOKENS = new Set([
+  'au', 'aux', 'a', 'l', 'le', 'la', 'les', 'de', 'du', 'des', 'd', 'et',
+  'kg', 'g', 'gr', 'piece', 'pieces', 'carton', 'colis', 'sachet', 'sac',
+  'bac', 'boite', 'x',
+]);
+
+const getStrongTokens = (value: string): string[] =>
+  normalizeText(value)
+    .split(' ')
+    .filter((token) => token.length >= 3 && !WEAK_MATCH_TOKENS.has(token));
+
+const getImportMatchScore = (searchName: string, importName: string): number => {
+  const normalizedSearch = normalizeText(searchName);
+  const normalizedImport = normalizeText(importName);
+  if (!normalizedSearch || !normalizedImport) return 0;
+  if (normalizedSearch === normalizedImport) return 1000;
+
+  const searchTokens = getStrongTokens(searchName);
+  const importTokens = getStrongTokens(importName);
+  if (searchTokens.length < 2 || importTokens.length < 2) return 0;
+
+  const importTokenSet = new Set(importTokens);
+  const searchTokenSet = new Set(searchTokens);
+  const common = Array.from(searchTokenSet).filter((token) => importTokenSet.has(token));
+  const searchCoverage = common.length / searchTokenSet.size;
+  const importCoverage = common.length / new Set(importTokens).size;
+
+  if (common.length < 3) return 0;
+  if (searchCoverage < 0.45 || importCoverage < 0.45) return 0;
+
+  const lengthPenalty = Math.abs(searchTokens.length - importTokens.length) * 4;
+  const substringBonus = normalizedSearch.includes(normalizedImport) || normalizedImport.includes(normalizedSearch) ? 25 : 0;
+  return Math.round(common.length * 45 + searchCoverage * 55 + importCoverage * 45 + substringBonus - lengthPenalty);
+};
+
+const isConfidentImportMatch = (searchName: string, importName: string): boolean =>
+  getImportMatchScore(searchName, importName) >= 135;
+
 const findHeaderIndex = (header: string[], candidates: string[]) => {
   const normalizedCandidates = candidates.map(normalizeText);
   const normalizedHeader = header.map(normalizeText);
@@ -81,12 +119,12 @@ export const getImportedValueForProduct = (
   const nameIdx = findHeaderIndex(header, nameColumnCandidates);
   if (valueIdx === -1) return null;
 
-  const normalizedSearch = normalizeText(searchName);
   let hasMatch = false;
   const total = rows.slice(1).reduce((sum, row) => {
+    const rowName = nameIdx >= 0 ? String(row[nameIdx] || '') : '';
     const isMatch = nameIdx >= 0
-      ? normalizeText(String(row[nameIdx] || '')) === normalizedSearch
-      : row.some((cell) => normalizeText(cell) === normalizedSearch);
+      ? isConfidentImportMatch(searchName, rowName)
+      : row.some((cell) => isConfidentImportMatch(searchName, String(cell || '')));
 
     if (!isMatch || !row[valueIdx]) return sum;
 
@@ -113,14 +151,15 @@ export const hasImportedProductMatch = (
 
   const header = rows[0].map((h) => h.trim());
   const nameIdx = findHeaderIndex(header, nameColumnCandidates);
-  const normalizedSearch = normalizeText(searchName);
-
   return rows.slice(1).some((row) => (
     nameIdx >= 0
-      ? normalizeText(String(row[nameIdx] || '')) === normalizedSearch
-      : row.some((cell) => normalizeText(cell) === normalizedSearch)
+      ? isConfidentImportMatch(searchName, String(row[nameIdx] || ''))
+      : row.some((cell) => isConfidentImportMatch(searchName, String(cell || '')))
   ));
 };
+
+export const matchesImportedProductName = (searchName: string, importName: string): boolean =>
+  isConfidentImportMatch(searchName, importName);
 
 export const buildImportedValueLookup = (
   csvData: string | undefined,

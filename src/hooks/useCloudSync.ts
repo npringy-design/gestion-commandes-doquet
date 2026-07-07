@@ -22,7 +22,7 @@ import {
   loadAllFromSupabase,
   saveToSupabaseDebounced,
 } from '../utils/supabase';
-import { OrderState, SupplierConfig, PrepBatch, PrepItem, PrepImportsByMonth, PrepForecastsByDate, PrepSheetStocks } from '../types';
+import { OrderState, SupplierConfig, PrepBatch, PrepItem, PrepImportsByMonth, PrepForecastsByDate, PrepSheetStocks, OrderTemplateRow } from '../types';
 import { ProductWithHistory } from '../data';
 import { CURRENT_SITE_ID } from '../constants';
 import { DailyCoversState } from '../utils/dateHelpers';
@@ -53,6 +53,7 @@ type PersistedState = {
   prepSheetStocks: PrepSheetStocks;
   prepBatches: PrepBatch[];
   prepForecasts: PrepForecastsByDate;
+  orderTemplateRows: OrderTemplateRow[];
 };
 
 type StateSetters = {
@@ -73,6 +74,7 @@ type StateSetters = {
   setPrepSheetStocks: Dispatch<SetStateAction<PrepSheetStocks>>;
   setPrepBatches: Dispatch<SetStateAction<PrepBatch[]>>;
   setPrepForecasts: Dispatch<SetStateAction<PrepForecastsByDate>>;
+  setOrderTemplateRows: Dispatch<SetStateAction<OrderTemplateRow[]>>;
 };
 
 type UseCloudSyncParams = PersistedState &
@@ -119,6 +121,7 @@ const SAVE_DEBOUNCE_MS_BY_KEY: Record<string, number> = {
   prepBatches: 3500,
   prepImportsByMonth: 5000,
   inventory: 8000,
+  orderTemplateRows: 1500,
 };
 
 const stableStringify = (value: unknown): string => {
@@ -177,6 +180,7 @@ export const useCloudSync = ({
   prepSheetStocks,
   prepBatches,
   prepForecasts,
+  orderTemplateRows,
   setCovers,
   setDailyCovers,
   setOrderStates,
@@ -194,6 +198,7 @@ export const useCloudSync = ({
   setPrepSheetStocks,
   setPrepBatches,
   setPrepForecasts,
+  setOrderTemplateRows,
   onSaveError,
 }: UseCloudSyncParams) => {
   const [supabaseLoaded, setSupabaseLoaded] = useState(false);
@@ -279,6 +284,9 @@ export const useCloudSync = ({
       case 'prepForecasts':
         setPrepForecasts(value as PrepForecastsByDate);
         break;
+      case 'orderTemplateRows':
+        setOrderTemplateRows(value as OrderTemplateRow[]);
+        break;
       default:
         break;
     }
@@ -288,7 +296,7 @@ export const useCloudSync = ({
     setCostMatterByMonth, setCovers, setDailyCovers,
     setDeliveryDateBySupplier, setDetailedInventory,
     setNextDeliveryDateBySupplier, setOrderStates,
-    setProducts, setPrepItems, setPrepImportsByMonth, setPrepSheetStocks, setPrepBatches, setPrepForecasts, setSalesHtByMonth, setSupplierConfigs, setValidatedMonths, setPrepValidatedMonths,
+    setProducts, setPrepItems, setPrepImportsByMonth, setPrepSheetStocks, setPrepBatches, setPrepForecasts, setOrderTemplateRows, setSalesHtByMonth, setSupplierConfigs, setValidatedMonths, setPrepValidatedMonths,
   ]);
 
   // ─── Vide la file d'attente (appelé au focusout global) ───────────────────
@@ -387,6 +395,7 @@ export const useCloudSync = ({
         if (cloudMap.prepSheetStocks) setPrepSheetStocks(cloudMap.prepSheetStocks as PrepSheetStocks);
         if (cloudMap.prepBatches) setPrepBatches(cloudMap.prepBatches as PrepBatch[]);
         if (cloudMap.prepForecasts) setPrepForecasts(cloudMap.prepForecasts as PrepForecastsByDate);
+        if (cloudMap.orderTemplateRows) setOrderTemplateRows(cloudMap.orderTemplateRows as OrderTemplateRow[]);
 
         setTimeout(() => { isHydratingFromCloud.current = false; }, 600);
       }
@@ -399,7 +408,7 @@ export const useCloudSync = ({
     setCostMatterByMonth, setCovers, setDailyCovers,
     setDeliveryDateBySupplier, setDetailedInventory,
     setNextDeliveryDateBySupplier, setOrderStates,
-    setProducts, setPrepItems, setPrepImportsByMonth, setPrepSheetStocks, setPrepBatches, setPrepForecasts, setSalesHtByMonth, setSupplierConfigs, setValidatedMonths, setPrepValidatedMonths,
+    setProducts, setPrepItems, setPrepImportsByMonth, setPrepSheetStocks, setPrepBatches, setPrepForecasts, setOrderTemplateRows, setSalesHtByMonth, setSupplierConfigs, setValidatedMonths, setPrepValidatedMonths,
   ]);
 
   useEffect(() => {
@@ -551,6 +560,7 @@ export const useCloudSync = ({
   useEffect(() => { persistEverywhere('prepSheetStocks', prepSheetStocks); }, [persistEverywhere, prepSheetStocks]);
   useEffect(() => { persistEverywhere('prepBatches', prepBatches); }, [persistEverywhere, prepBatches]);
   useEffect(() => { persistEverywhere('prepForecasts', prepForecasts); }, [persistEverywhere, prepForecasts]);
+  useEffect(() => { persistEverywhere('orderTemplateRows', orderTemplateRows); }, [persistEverywhere, orderTemplateRows]);
 
   return {
     supabaseLoaded,

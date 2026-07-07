@@ -513,6 +513,9 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                     <td className="px-3 lg:px-6 py-3 font-['Roboto_Slab'] font-bold text-slate-800 text-xs lg:text-sm border-r-2 border-slate-100 bg-white overflow-hidden"
                         style={{ position: 'sticky', left: 0, zIndex: 10 }}>
                       <span className="block truncate">{capitalizeFirstLetter(p.name)}</span>
+                      {p.storageUnit && (
+                        <span className="block truncate text-[10px] font-semibold text-gray-400">{p.storageUnit}</span>
+                      )}
                     </td>
 
                     {calculationMode === 'margin' ? (<>

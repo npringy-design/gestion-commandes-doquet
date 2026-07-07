@@ -16,10 +16,10 @@ import {
   ProductWithHistory,
   DAILY_COVERS_INITIAL,
 } from '../data';
-import { OrderState, SupplierConfig, PrepBatch, PrepItem, PrepImportsByMonth, PrepForecastsByDate, PrepSheetStocks } from '../types';
+import { OrderState, SupplierConfig, PrepBatch, PrepItem, PrepImportsByMonth, PrepForecastsByDate, PrepSheetStocks, OrderTemplateRow } from '../types';
 import { MONTHS_ORDER, View, SupplierId } from '../constants';
 import { DailyCoversState } from '../utils/dateHelpers';
-import { getImportedValueForProduct, extractAllNamesFromCsvs } from '../utils/csvHelpers';
+import { getImportedValueForProduct, extractAllNamesFromCsvs, matchesImportedProductName } from '../utils/csvHelpers';
 import {
   createInitialProducts,
   loadUiState,
@@ -178,6 +178,9 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
   const [prepForecasts, setPrepForecasts] =
     useState<PrepForecastsByDate>({});
 
+  const [orderTemplateRows, setOrderTemplateRows] =
+    useState<OrderTemplateRow[]>([]);
+
   useEffect(() => {
     try {
       window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -212,6 +215,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     prepSheetStocks,
     prepBatches,
     prepForecasts,
+    orderTemplateRows,
     setCovers,
     setDailyCovers,
     setOrderStates,
@@ -229,6 +233,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     setPrepSheetStocks,
     setPrepBatches,
     setPrepForecasts,
+    setOrderTemplateRows,
     onSaveError,
   });
 
@@ -342,9 +347,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
       const importNamesForMonth = extractAllNamesFromCsvs(
         detailedInventory[m] ? { [m]: detailedInventory[m] } : {}
       );
-      const normalizedImportNamesForMonth = new Set(
-        Array.from(importNamesForMonth).map(normalizeRatioMappingId)
-      );
+      const importNamesForMonthList = Array.from(importNamesForMonth);
 
       setProducts(prev => prev.map(p => {
         const importedValue = getImportedValueForProduct(detailedInventory[m], p.searchName, p.importDivisor);
@@ -353,7 +356,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
         const ratio = salesValue / monthCovers;
         const searchName = String(p.searchName || '');
         const mappingId = normalizeRatioMappingId(searchName);
-        const isLinked = mappingId.length > 0 && normalizedImportNamesForMonth.has(mappingId) && salesValue > 0;
+        const isLinked = mappingId.length > 0 && importNamesForMonthList.some((name) => matchesImportedProductName(searchName, name)) && salesValue > 0;
         const previousSnapshots = (p as ProductWithRatioSnapshots).ratioSnapshots || {};
 
         return {
@@ -479,6 +482,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     prepSheetStocks, setPrepSheetStocks,
     prepBatches, setPrepBatches,
     prepForecasts, setPrepForecasts,
+    orderTemplateRows, setOrderTemplateRows,
 
     // Valeurs calculées
     totalForecast,
