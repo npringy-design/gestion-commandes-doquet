@@ -9,15 +9,15 @@
 //     sur un rendu canvas + OCR tesseract.js (langue française).
 // =============================================================
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
 import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.mjs?url';
-import { SUPPLIER_LABELS, SupplierId, View } from '../constants';
+import { SupplierId, View } from '../constants';
 import AppNavTile from '../components/AppNavTile';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../auth/AuthProvider';
 import { canAccessRatiosPage } from '../lib/permissions';
-import { OrderTemplateRow } from '../types';
+import { OrderTemplateRow, SupplierConfig } from '../types';
 import { ProductWithHistory } from '../data';
 import { ExtractedWord, extractRowsFromDocumentWords } from '../utils/orderTemplateParser';
 
@@ -29,6 +29,9 @@ interface OrderTemplatePageProps {
   setOrderTemplateRows: React.Dispatch<React.SetStateAction<OrderTemplateRow[]>>;
   products: ProductWithHistory[];
   setProducts: React.Dispatch<React.SetStateAction<ProductWithHistory[]>>;
+  supplierConfigs: Record<string, SupplierConfig>;
+  ratioTab: SupplierId;
+  setRatioTab: React.Dispatch<React.SetStateAction<SupplierId>>;
 }
 
 const normalizeProductKey = (supplierId: string, name: string) => `${supplierId}::${name.trim().toLowerCase()}`;
@@ -134,6 +137,9 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
   setOrderTemplateRows,
   products,
   setProducts,
+  supplierConfigs,
+  ratioTab,
+  setRatioTab,
 }) => {
   const { profile } = useAuth();
   const canImport = canAccessRatiosPage(profile);
@@ -143,7 +149,11 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
   const [step, setStep] = useState<ProcessingStep>('idle');
   const [statusLabel, setStatusLabel] = useState('');
   const [ocrProgress, setOcrProgress] = useState(0);
-  const [selectedSupplierId, setSelectedSupplierId] = useState<SupplierId | ''>('');
+  const supplierOptions = useMemo(
+    () => (Object.values(supplierConfigs) as SupplierConfig[]).filter((config) => !config.isArchived),
+    [supplierConfigs]
+  );
+  const selectedSupplierId: SupplierId | '' = supplierOptions.some((config) => config.id === ratioTab) ? ratioTab : '';
 
   const isProcessing = step === 'reading' || step === 'ocr';
 
@@ -485,14 +495,14 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
             <div className="flex flex-wrap items-center gap-3">
               <select
                 value={selectedSupplierId}
-                onChange={(e) => setSelectedSupplierId(e.target.value as SupplierId)}
+                onChange={(e) => setRatioTab(e.target.value as SupplierId)}
                 disabled={!canImport}
                 className="rounded-lg border-2 border-[#E2C39B] bg-[#FFFDF8] px-4 py-2 text-sm font-semibold text-[#2F1D14] focus:border-[#B66A2C] focus:outline-none disabled:cursor-not-allowed"
               >
                 <option value="">Choisir un fournisseur…</option>
-                {Object.entries(SUPPLIER_LABELS).map(([id, label]) => (
-                  <option key={id} value={id}>
-                    {label.name}
+                {supplierOptions.map((config) => (
+                  <option key={config.id} value={config.id}>
+                    {config.name}
                   </option>
                 ))}
               </select>
