@@ -40,6 +40,30 @@ const hasFrozenLinkedValue = (snapshot: any) =>
 const hasFrozenMonthData = (product: any, month: string) =>
   !!product.ratioSnapshots?.[month] || Number(product.salesHistory?.[month] || 0) > 0;
 
+// Source unique de vérité pour le statut lié/non lié d'un produit,
+// utilisée à la fois par ProductCard et par la page (filtrage, comptages, contexte IA).
+const isProductLinked = (p: any, monthFreezeMap: Record<string, boolean>, displayMonthKey: string, detailedInventory: any): boolean => {
+  const isFrozenDisplay = !!monthFreezeMap[displayMonthKey];
+  const frozenSnapshot = isFrozenDisplay ? p.ratioSnapshots?.[displayMonthKey] : undefined;
+  if (frozenSnapshot) return hasFrozenLinkedValue(frozenSnapshot);
+
+  const hasLegacyFrozenValue = isFrozenDisplay && Number(p.salesHistory?.[displayMonthKey] || 0) > 0;
+  if (hasLegacyFrozenValue) return true;
+
+  const liveImportedValue = isFrozenDisplay
+    ? null
+    : getImportedValueForProduct(detailedInventory[displayMonthKey], p.searchName, p.importDivisor);
+  return hasUsableAmount(liveImportedValue);
+};
+
+type LinkState = 'linked' | 'unlinked';
+
+// Palette partagée : bordure, fond de carte et bouton rond dérivent tous du même état.
+const LINK_STATE_STYLES: Record<LinkState, { border: string; bg: string; dot: string }> = {
+  linked:   { border: 'border-l-[#6D8F4E]', bg: 'bg-[#F2F7EC]', dot: 'bg-[#6D8F4E]' },
+  unlinked: { border: 'border-l-[#D4922F]', bg: 'bg-[#FDF3E1]', dot: 'bg-[#D4922F]' },
+};
+
 const formatWholeVisual = (value: unknown) => {
   const numeric = Number(value || 0);
   if (!Number.isFinite(numeric) || numeric <= 0) return '–';
@@ -71,20 +95,19 @@ const ProductCard: React.FC<{
   const { avgRatio, mR, mS } = getProductStats(p);
   const isFrozenDisplay = !!monthFreezeMap[displayMonthKey];
   const frozenSnapshot = isFrozenDisplay ? p.ratioSnapshots?.[displayMonthKey] : undefined;
-  const hasLegacyFrozenValue = isFrozenDisplay && !frozenSnapshot && Number(p.salesHistory?.[displayMonthKey] || 0) > 0;
   const displaySearchName = frozenSnapshot?.searchName ?? p.searchName;
   const displayProductName = frozenSnapshot?.productName ?? p.name;
-  const liveImportedValue = isFrozenDisplay
-    ? null
-    : getImportedValueForProduct(detailedInventory[displayMonthKey], p.searchName, p.importDivisor);
-  const isMapped = frozenSnapshot
-    ? hasFrozenLinkedValue(frozenSnapshot)
-    : hasLegacyFrozenValue || hasUsableAmount(liveImportedValue);
-  const alert    = !isMapped;
-  const selected = selectedProductIds.has(p.id);
+  const isMapped = isProductLinked(p, monthFreezeMap, displayMonthKey, detailedInventory);
+  const alert      = !isMapped;
+  const linkState: LinkState = alert ? 'unlinked' : 'linked';
+  const stateStyle = LINK_STATE_STYLES[linkState];
+  const selected   = selectedProductIds.has(p.id);
+  const cardStateClasses = selected
+    ? 'border-l-[#B85B2B] border-y-[#D8AE77] border-r-[#D8AE77] bg-[#FFF4E4]'
+    : `${stateStyle.border} border-y-[#D8CAB8] border-r-[#D8CAB8] ${stateStyle.bg}`;
 
   return (
-    <div className={`relative rounded-[22px] border-l-[6px] border-y border-r transition-all shadow-[0_10px_22px_rgba(66,42,24,0.07)] ${selected ? 'border-l-[#B85B2B] border-y-[#D8AE77] border-r-[#D8AE77] bg-[#FFF4E4]' : alert ? 'border-l-[#D4922F] border-y-[#D8CAB8] border-r-[#D8CAB8] bg-[#FFFCF6]' : 'border-l-[#6D8F4E] border-y-[#D8CAB8] border-r-[#D8CAB8] bg-[#FFFCF6]'}`}>
+    <div className={`relative rounded-[22px] border-l-[6px] border-y border-r transition-all shadow-[0_10px_22px_rgba(66,42,24,0.07)] ${cardStateClasses}`}>
       <div className="flex items-center gap-2 p-3">
         <input
           type="checkbox"
@@ -110,7 +133,7 @@ const ProductCard: React.FC<{
               setMappingAnchorRect(nextOpen ? mappingButtonRef.current?.getBoundingClientRect() ?? null : null);
             }}
             disabled={!canEdit || isFrozenDisplay}
-            className={`flex h-9 w-9 items-center justify-center rounded-xl ${alert ? 'bg-amber-100 text-amber-700' : 'bg-[#F3DDC0] text-[#6A432D] hover:bg-[#FFE8C2]'} disabled:opacity-50`}
+            className={`flex h-9 w-9 items-center justify-center rounded-full ${stateStyle.dot} text-white shadow-sm transition hover:opacity-90 disabled:opacity-50`}
             title="Rechercher un mapping"
           >
             <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
@@ -289,16 +312,10 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
 
   const isSelectedFreezeMonthValidated = !!monthFreezeMap[freezeMonthKey];
 
-  const isLinkedProduct = React.useCallback((p: any) => {
-    const frozenSnapshot = monthFreezeMap[displayMonthKey] ? p.ratioSnapshots?.[displayMonthKey] : undefined;
-    if (frozenSnapshot) return hasFrozenLinkedValue(frozenSnapshot);
-
-    const hasLegacyFrozenValue = monthFreezeMap[displayMonthKey] && Number(p.salesHistory?.[displayMonthKey] || 0) > 0;
-    if (hasLegacyFrozenValue) return true;
-
-    const importedValue = getImportedValueForProduct(state.detailedInventory[displayMonthKey], p.searchName, p.importDivisor);
-    return hasUsableAmount(importedValue);
-  }, [displayMonthKey, monthFreezeMap, state.detailedInventory]);
+  const isLinkedProduct = React.useCallback(
+    (p: any) => isProductLinked(p, monthFreezeMap, displayMonthKey, state.detailedInventory),
+    [displayMonthKey, monthFreezeMap, state.detailedInventory],
+  );
 
   const displaySourceProducts = React.useMemo(() => {
     if (!monthFreezeMap[displayMonthKey]) return supplierRatioProducts;
