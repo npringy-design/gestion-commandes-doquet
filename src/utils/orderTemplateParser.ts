@@ -98,7 +98,9 @@ const cleanImportedStorageUnit = (text: string): string => {
   if (/\btranche\b/.test(loose)) return 'tranche';
   if (/\bpieces?\b|\bpiece\b|\bpi\s*ce\b/.test(loose)) return 'pièce';
   if (/\bunite?\b|\bunit\b/.test(loose)) return "à l'unité";
-  if (/\bkg\b|\bka\b|\bfe\b|\bra\b|\bau\b|\baux\b/.test(loose) || loose === 'a') return 'au Kg';
+  if (/\bkg\b|\bka\b|\bfe\b|\bra\b/.test(loose)) return 'au Kg';
+  if (/\bl\b/.test(loose)) return 'au L';
+  if (/\bau\b|\baux\b/.test(loose) || loose === 'a') return 'au Kg';
 
   return text
     .replace(/[;:,?]+/g, ' ')
