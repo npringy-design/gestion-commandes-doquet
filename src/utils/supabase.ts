@@ -213,6 +213,33 @@ export const saveToSupabase = async (
 
 const debounceTimers: Record<string, ReturnType<typeof setTimeout>> = {};
 
+type PendingSave = {
+  value:      unknown;
+  localTs:    string;
+  getCloudTs: (key: string) => string | undefined;
+  onSaved:    (key: string, confirmedTs: string) => void;
+};
+
+const pendingSaves: Record<string, PendingSave> = {};
+
+const commitSave = async (key: string): Promise<void> => {
+  const pending = pendingSaves[key];
+  delete pendingSaves[key];
+  if (!pending) return;
+  const { value, localTs, getCloudTs, onSaved } = pending;
+
+  // Vérifier last-write-wins avant d'envoyer
+  const cloudTs = getCloudTs(key);
+  if (cloudTs && cloudTs > localTs) {
+    // Le cloud est plus récent → ne pas écraser
+    // (un autre device a écrit après nous, le polling va appliquer sa valeur)
+    console.error('[Supabase save skipped by LWW]', { siteId: CURRENT_SITE_ID, key, cloudTs, localTs });
+    return;
+  }
+  const confirmedTs = await saveToSupabase(key, value, localTs);
+  if (confirmedTs) onSaved(key, confirmedTs);
+};
+
 export const saveToSupabaseDebounced = (
   key:          string,
   value:        unknown,
@@ -223,16 +250,24 @@ export const saveToSupabaseDebounced = (
 ): void => {
   if (!isSupabaseConfigured()) return;
   if (debounceTimers[key]) clearTimeout(debounceTimers[key]);
-  debounceTimers[key] = setTimeout(async () => {
-    // Vérifier last-write-wins avant d'envoyer
-    const cloudTs = getCloudTs(key);
-    if (cloudTs && cloudTs > localTs) {
-      // Le cloud est plus récent → ne pas écraser
-      // (un autre device a écrit après nous, le polling va appliquer sa valeur)
-      console.error('[Supabase save skipped by LWW]', { siteId: CURRENT_SITE_ID, key, cloudTs, localTs });
-      return;
-    }
-    const confirmedTs = await saveToSupabase(key, value, localTs);
-    if (confirmedTs) onSaved(key, confirmedTs);
+  pendingSaves[key] = { value, localTs, getCloudTs, onSaved };
+  debounceTimers[key] = setTimeout(() => {
+    delete debounceTimers[key];
+    void commitSave(key);
   }, ms);
+};
+
+// ── Flush immédiat de toutes les sauvegardes en attente ──────
+// Appelé quand l'onglet passe en arrière-plan ou se ferme
+// (visibilitychange / pagehide) : sur mobile, le navigateur peut
+// suspendre les timers ou décharger la page avant la fin du debounce,
+// ce qui perdait silencieusement la dernière saisie.
+export const flushAllPendingSaves = (): void => {
+  Object.keys(debounceTimers).forEach(key => {
+    clearTimeout(debounceTimers[key]);
+    delete debounceTimers[key];
+  });
+  Object.keys(pendingSaves).forEach(key => {
+    void commitSave(key);
+  });
 };
