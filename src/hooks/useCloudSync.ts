@@ -21,6 +21,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import {
   loadAllFromSupabase,
   saveToSupabaseDebounced,
+  flushAllPendingSaves,
 } from '../utils/supabase';
 import { OrderState, SupplierConfig, PrepBatch, PrepItem, PrepImportsByMonth, PrepForecastsByDate, PrepSheetStocks, OrderTemplateRow } from '../types';
 import { ProductWithHistory } from '../data';
@@ -217,6 +218,23 @@ export const useCloudSync = ({
 
   useEffect(() => {
     CLOUD_ONLY_KEYS.forEach(removeState);
+  }, []);
+
+  // ─── Flush des sauvegardes en attente avant mise en arrière-plan ──────────
+  // Sur mobile, l'OS peut suspendre les timers ou décharger la page dès que
+  // l'utilisateur change d'app ou verrouille l'écran, avant la fin du debounce
+  // (jusqu'à 8s pour l'inventaire). Sans ce flush, la dernière saisie n'était
+  // jamais envoyée à Supabase.
+  useEffect(() => {
+    const handleHidden = () => {
+      if (document.visibilityState === 'hidden') flushAllPendingSaves();
+    };
+    document.addEventListener('visibilitychange', handleHidden);
+    window.addEventListener('pagehide', flushAllPendingSaves);
+    return () => {
+      document.removeEventListener('visibilitychange', handleHidden);
+      window.removeEventListener('pagehide', flushAllPendingSaves);
+    };
   }, []);
 
   // File d'attente des updates Realtime reçues pendant une saisie active
