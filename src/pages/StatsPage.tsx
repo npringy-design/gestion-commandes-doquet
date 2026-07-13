@@ -400,6 +400,15 @@ const StatsPage: React.FC<StatsPageProps> = ({
               >
                 Trame commande
               </AppNavTile>
+
+              <AppNavTile
+                type="button"
+                onClick={() => setView('tutorials')}
+                eyebrow="Aide"
+                size="md"
+              >
+                Tutoriels
+              </AppNavTile>
             </div>
           </div>
 

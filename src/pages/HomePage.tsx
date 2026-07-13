@@ -453,6 +453,21 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
       ) : null}
 
       <button
+        type="button"
+        onClick={() => setView('tutorials')}
+        className={actionButtonClass}
+        title="Besoin d'aide ?"
+        aria-label="Ouvrir l'aide et les tutoriels"
+      >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M9.5 9a2.5 2.5 0 115 .5c0 1.5-2.5 1.5-2.5 3.5" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 17h.01" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M7 19.5A7.5 7.5 0 1119.5 7 7.5 7.5 0 017 19.5z" />
+        </svg>
+        Besoin d'aide ?
+      </button>
+
+      <button
         onClick={() => {
           if (canOpenAdmin) {
             setView('admin_dashboard');

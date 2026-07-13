@@ -22,6 +22,7 @@ const TakeRatePage = lazy(() => import('../pages/TakeRatePage'));
 const TakeRateResultsPage = lazy(() => import('../pages/TakeRateResultsPage'));
 const ProductMixPage = lazy(() => import('../pages/ProductMixPage'));
 const OrderTemplatePage = lazy(() => import('../pages/OrderTemplatePage'));
+const TutorialsPage = lazy(() => import('../pages/TutorialsPage'));
 
 type ScrollSyncSource = 'main' | 'bottom';
 
@@ -363,6 +364,10 @@ const AppRouter: React.FC<AppRouterProps> = ({
       />,
       'Chargement de la trame commande…'
     );
+  }
+
+  if (view === 'tutorials') {
+    return renderLazyPage(<TutorialsPage setView={setView} />, 'Chargement de l’aide…');
   }
 
   if (view === 'daily_forecast') {
