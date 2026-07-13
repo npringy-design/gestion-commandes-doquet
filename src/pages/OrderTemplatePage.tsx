@@ -17,7 +17,7 @@ import AppNavTile from '../components/AppNavTile';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../auth/AuthProvider';
 import { canAccessRatiosPage } from '../lib/permissions';
-import { OrderTemplateRow, SupplierConfig } from '../types';
+import { OrderLineField, OrderTemplateRow, SupplierConfig } from '../types';
 import { ProductWithHistory } from '../data';
 import { ExtractedWord, extractRowsFromDocumentWords } from '../utils/orderTemplateParser';
 
@@ -29,6 +29,7 @@ interface OrderTemplatePageProps {
   setOrderTemplateRows: React.Dispatch<React.SetStateAction<OrderTemplateRow[]>>;
   products: ProductWithHistory[];
   setProducts: React.Dispatch<React.SetStateAction<ProductWithHistory[]>>;
+  updateOrderLineField: (productId: string, field: OrderLineField, value: number | '') => void;
   supplierConfigs: Record<string, SupplierConfig>;
   ratioTab: SupplierId;
   setRatioTab: React.Dispatch<React.SetStateAction<SupplierId>>;
@@ -137,6 +138,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
   setOrderTemplateRows,
   products,
   setProducts,
+  updateOrderLineField,
   supplierConfigs,
   ratioTab,
   setRatioTab,
@@ -169,6 +171,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     );
     const seenKeys = new Set<string>();
     const toCreate: ProductWithHistory[] = [];
+    const packagingByProductId: Record<string, number> = {};
     let duplicateCount = 0;
 
     orderTemplateRows.forEach((row, index) => {
@@ -182,18 +185,19 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
       }
       seenKeys.add(key);
 
+      const id = `custom-${Date.now()}-${index}`;
+      const packaging = parsePackagingQuantity(row.packagingUnit);
+      packagingByProductId[id] = packaging;
+
       toCreate.push({
-        id: `custom-${Date.now()}-${index}`,
+        id,
         supplierId: selectedSupplierId,
         name: article,
         searchName: article,
         storageUnit: row.storageUnit.trim() || undefined,
-        packaging: parsePackagingQuantity(row.packagingUnit),
+        packaging,
         defaultMargin: 0,
         salesHistory: {},
-        stock: 0,
-        upcomingDelivery: 0,
-        targetStock: 0,
       });
     });
 
@@ -210,8 +214,16 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     }
 
     setProducts((prev) => [...toCreate, ...prev]);
+    // Champs opérationnels (stock/livraison/cible/conditionnement) vivent
+    // dans order_line_states : on seed la ligne de chaque nouveau produit.
+    toCreate.forEach((p) => {
+      updateOrderLineField(p.id, 'stock', 0);
+      updateOrderLineField(p.id, 'upcomingDelivery', 0);
+      updateOrderLineField(p.id, 'targetStock', 0);
+      updateOrderLineField(p.id, 'packaging', packagingByProductId[p.id]);
+    });
     showToast(`✓ ${toCreate.length} produit(s) créé(s)`, 'success');
-  }, [canImport, orderTemplateRows, products, selectedSupplierId, setProducts, showToast]);
+  }, [canImport, orderTemplateRows, products, selectedSupplierId, setProducts, showToast, updateOrderLineField]);
 
   const extractViaText = useCallback(async (pdf: any) => {
     const pagesWords: ExtractedWord[][] = [];

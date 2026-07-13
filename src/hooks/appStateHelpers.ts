@@ -18,7 +18,7 @@ import {
   VINS_PRODUCTS,
 } from '../data';
 import { RESERVED_VIEWS, STORAGE_PREFIX, SupplierId } from '../constants';
-import { SupplierConfig } from '../types';
+import { OrderLineState, SupplierConfig } from '../types';
 
 export const nowIso = () => new Date().toISOString();
 
@@ -152,6 +152,31 @@ const normalizeProducts = (incoming: ProductWithHistory[]): ProductWithHistory[]
 
 export const mergeAndNormalizeProducts = (incoming: ProductWithHistory[]): ProductWithHistory[] =>
   normalizeProducts(incoming);
+
+// ── Sélecteur centralisé : fusion produit + état opérationnel ─
+// Les champs stock/upcomingDelivery/targetStock/packaging sont désormais
+// pilotés par order_line_states (une ligne par produit, synchro temps réel).
+// Le blob `products` ne garde ces champs que pour compat/valeurs par défaut :
+// on ne les lit ici QUE si order_line_states n'a pas encore de ligne pour
+// ce produit (produit tout juste créé, ou filet de sécurité premier chargement).
+// Tout le reste du code doit lire les produits via ce sélecteur, jamais
+// directement product.stock / product.packaging / etc.
+export const mergeProductWithOrderLine = (
+  product: ProductWithHistory,
+  orderLine: OrderLineState | undefined,
+): ProductWithHistory => ({
+  ...product,
+  stock: orderLine?.stock ?? product.stock,
+  upcomingDelivery: orderLine?.upcomingDelivery ?? product.upcomingDelivery,
+  targetStock: orderLine?.targetStock ?? product.targetStock,
+  packaging: orderLine?.packaging ?? product.packaging,
+});
+
+export const mergeProductsWithOrderLines = (
+  products: ProductWithHistory[],
+  orderLineStates: Record<string, OrderLineState>,
+): ProductWithHistory[] =>
+  products.map(p => mergeProductWithOrderLine(p, orderLineStates[p.id]));
 
 export const createInitialProducts = (savedProducts: ProductWithHistory[]): ProductWithHistory[] =>
   normalizeProducts(savedProducts.length > 0 ? savedProducts : DEFAULT_PRODUCTS);
