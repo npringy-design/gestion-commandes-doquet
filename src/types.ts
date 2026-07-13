@@ -41,6 +41,21 @@ export interface OrderState {
   upcomingDelivery: number | '';
 }
 
+// État opérationnel par produit, une ligne par produit dans Supabase
+// (table order_line_states), synchronisé en temps réel indépendamment
+// pour chaque produit — évite qu'une session périmée n'écrase en bloc
+// les modifications faites depuis un autre appareil.
+export type OrderLineField = 'stock' | 'upcomingDelivery' | 'targetStock' | 'packaging' | 'margin';
+
+export interface OrderLineState {
+  stock?:            number | '';
+  upcomingDelivery?: number | '';
+  targetStock?:      number | '';
+  packaging?:        number | '';
+  margin?:           number;
+  updatedAt?:        string;
+}
+
 export interface Calculations {
   net:            number;
   needWithMargin: number;

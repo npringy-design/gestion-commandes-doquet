@@ -61,7 +61,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
     calendarAnchorRectBySupplier, setCalendarAnchorRectBySupplier,
     deliveryDateBySupplier, setDeliveryDateBySupplier,
     nextDeliveryDateBySupplier, setNextDeliveryDateBySupplier,
-    orderStates, setOrderStates,
+    orderLineStates, updateOrderLineField,
     supplierConfigs, products, dailyCovers,
     performReset, updateProductValue, getProductStats,
   } = state;
@@ -494,7 +494,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
 
                 if (calculationMode === 'margin') {
                   const dynamicTheo   = Math.ceil(avgRatio * windowForecast.total);
-                  const currentMargin = orderStates[p.id]?.margin ?? 30;
+                  const currentMargin = orderLineStates[p.id]?.margin ?? 30;
                   const res           = calculateOrder(dynamicTheo, upcomingInUnit, stockSafe, currentMargin, p.packaging);
                   toOrder      = res.toOrder;
                   displayInfo1 = dynamicTheo;
@@ -561,9 +561,9 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
 
                       <td className="hidden lg:table-cell p-2 text-center bg-[#FFE8CC]">
                         <select
-                          value={orderStates[p.id]?.margin ?? 30}
+                          value={orderLineStates[p.id]?.margin ?? 30}
                           disabled={commandeOnly}
-                          onChange={e => setOrderStates(pv => ({ ...pv, [p.id]: { ...pv[p.id], margin: Number(e.target.value) } }))}
+                          onChange={e => updateOrderLineField(p.id, 'margin', Number(e.target.value))}
                           className={`border border-slate-300 font-bold text-xs py-1 px-1 rounded-lg outline-none shadow-sm ${commandeOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/80 text-slate-700 cursor-pointer'}`}
                         >
                           {[0,5,10,15,20,25,30,35,40,45,50].map(o => <option key={o} value={o}>{o}%</option>)}

@@ -198,7 +198,60 @@ export const saveToSupabase = async (
   }
 };
 
-// ── Debounce avec last-write-wins ────────────────────────────
+// ── Debounce générique par clé, avec flush immédiat ──────────
+//
+// Factory réutilisée pour tous les debounces "par clé" de ce module
+// (blob app_state par clé, ligne order_line_states par product_id).
+// - Chaque `schedule` annule le timer précédent pour cette clé et en
+//   reprogramme un nouveau (dernier arrivé gagne sur le délai).
+// - `merge` contrôle comment un payload en attente est combiné avec
+//   le nouveau (par défaut : remplacement complet, adapté à un blob
+//   qui contient toujours l'état complet).
+// - `flushAll` vide tous les timers et déclenche immédiatement les
+//   commits en attente (utilisé au passage en arrière-plan/fermeture,
+//   car mobile peut suspendre les timers avant la fin du debounce).
+type Debouncer<TPayload> = {
+  schedule: (key: string, payload: TPayload, ms: number) => void;
+  flushAll: () => void;
+};
+
+const createDebouncer = <TPayload>(
+  commit: (key: string, payload: TPayload) => Promise<void>,
+  merge: (prev: TPayload, next: TPayload) => TPayload = (_prev, next) => next,
+): Debouncer<TPayload> => {
+  const timers: Record<string, ReturnType<typeof setTimeout>> = {};
+  const pending: Record<string, TPayload> = {};
+
+  const commitKey = async (key: string): Promise<void> => {
+    if (!(key in pending)) return;
+    const payload = pending[key];
+    delete pending[key];
+    await commit(key, payload);
+  };
+
+  const schedule = (key: string, payload: TPayload, ms: number): void => {
+    if (timers[key]) clearTimeout(timers[key]);
+    pending[key] = key in pending ? merge(pending[key], payload) : payload;
+    timers[key] = setTimeout(() => {
+      delete timers[key];
+      void commitKey(key);
+    }, ms);
+  };
+
+  const flushAll = (): void => {
+    Object.keys(timers).forEach(key => {
+      clearTimeout(timers[key]);
+      delete timers[key];
+    });
+    Object.keys(pending).forEach(key => {
+      void commitKey(key);
+    });
+  };
+
+  return { schedule, flushAll };
+};
+
+// ── Debounce app_state avec last-write-wins ──────────────────
 //
 // Principe :
 // - Chaque frappe génère un timestamp local (localTs).
@@ -211,8 +264,6 @@ export const saveToSupabase = async (
 //   plus récemment, on doit accepter sa valeur à la prochaine tick poll).
 // - onSaved(key, confirmedTs) est appelé si Supabase accepte.
 
-const debounceTimers: Record<string, ReturnType<typeof setTimeout>> = {};
-
 type PendingSave = {
   value:      unknown;
   localTs:    string;
@@ -220,12 +271,7 @@ type PendingSave = {
   onSaved:    (key: string, confirmedTs: string) => void;
 };
 
-const pendingSaves: Record<string, PendingSave> = {};
-
-const commitSave = async (key: string): Promise<void> => {
-  const pending = pendingSaves[key];
-  delete pendingSaves[key];
-  if (!pending) return;
+const appStateDebouncer = createDebouncer<PendingSave>(async (key, pending) => {
   const { value, localTs, getCloudTs, onSaved } = pending;
 
   // Vérifier last-write-wins avant d'envoyer
@@ -238,7 +284,7 @@ const commitSave = async (key: string): Promise<void> => {
   }
   const confirmedTs = await saveToSupabase(key, value, localTs);
   if (confirmedTs) onSaved(key, confirmedTs);
-};
+});
 
 export const saveToSupabaseDebounced = (
   key:          string,
@@ -249,12 +295,136 @@ export const saveToSupabaseDebounced = (
   ms           = 1500
 ): void => {
   if (!isSupabaseConfigured()) return;
-  if (debounceTimers[key]) clearTimeout(debounceTimers[key]);
-  pendingSaves[key] = { value, localTs, getCloudTs, onSaved };
-  debounceTimers[key] = setTimeout(() => {
-    delete debounceTimers[key];
-    void commitSave(key);
-  }, ms);
+  appStateDebouncer.schedule(key, { value, localTs, getCloudTs, onSaved }, ms);
+};
+
+// ── order_line_states : une ligne par produit ────────────────
+// Table dédiée aux champs opérationnels de commande (stock, livraison
+// à venir, stock cible, conditionnement, marge), en granularité par
+// produit plutôt qu'en blob complet, pour éviter qu'une session restée
+// ouverte n'écrase les modifications faites depuis un autre appareil.
+
+const ORDER_LINE_TABLE      = 'order_line_states';
+const ORDER_LINE_CONFLICT   = 'site_id,product_id';
+
+export interface OrderLineStateFields {
+  stock?:             number | null;
+  upcoming_delivery?: number | null;
+  target_stock?:      number | null;
+  packaging?:         number | null;
+  margin?:            number | null;
+}
+
+export interface OrderLineStateRow extends OrderLineStateFields {
+  product_id: string;
+  updated_at: string;
+}
+
+// ── Chargement de toutes les lignes order_line_states du site courant ─
+export const loadOrderLineStates = async (): Promise<OrderLineStateRow[] | null> => {
+  if (!isSupabaseConfigured()) return null;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/${ORDER_LINE_TABLE}?select=product_id,stock,upcoming_delivery,target_stock,packaging,margin,updated_at&site_id=eq.${SITE_ID_QUERY}`,
+      { headers: await headers() }
+    );
+    if (!res.ok) {
+      let body = '';
+      try { body = await res.text(); } catch {}
+      console.error('[Supabase loadOrderLineStates error]', { siteId: CURRENT_SITE_ID, status: res.status, body });
+      return null;
+    }
+    return await res.json() as OrderLineStateRow[];
+  } catch (err) {
+    console.error('[Supabase loadOrderLineStates exception]', { siteId: CURRENT_SITE_ID, err });
+    return null;
+  }
+};
+
+// ── Upsert immédiat d'une ligne (site_id, product_id) ────────
+export const upsertOrderLineState = async (
+  productId: string,
+  fields:    OrderLineStateFields,
+  ts:        string,
+): Promise<string | null> => {
+  if (!isSupabaseConfigured()) return null;
+  const payload = { site_id: CURRENT_SITE_ID, product_id: productId, ...fields, updated_at: ts };
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/${ORDER_LINE_TABLE}?on_conflict=${ORDER_LINE_CONFLICT}`,
+      {
+        method:  'POST',
+        headers: { ...(await headers()), 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+        body:    JSON.stringify([payload]),
+      }
+    );
+    if (res.ok) return ts;
+
+    let body = '';
+    try { body = await res.text(); } catch {}
+    console.error('[Supabase order_line_states upsert error]', {
+      siteId: CURRENT_SITE_ID, productId, status: res.status, body,
+    });
+    return null;
+  } catch (err) {
+    console.error('[Supabase order_line_states upsert exception]', { siteId: CURRENT_SITE_ID, productId, err });
+    return null;
+  }
+};
+
+// ── Suppression d'une ligne (produit supprimé) ───────────────
+export const deleteOrderLineState = async (productId: string): Promise<boolean> => {
+  if (!isSupabaseConfigured()) return false;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/${ORDER_LINE_TABLE}?site_id=eq.${SITE_ID_QUERY}&product_id=eq.${encodeURIComponent(productId)}`,
+      { method: 'DELETE', headers: { ...(await headers()), 'Prefer': 'return=minimal' } }
+    );
+    if (res.ok) return true;
+
+    let body = '';
+    try { body = await res.text(); } catch {}
+    console.error('[Supabase order_line_states delete error]', {
+      siteId: CURRENT_SITE_ID, productId, status: res.status, body,
+    });
+    return false;
+  } catch (err) {
+    console.error('[Supabase order_line_states delete exception]', { siteId: CURRENT_SITE_ID, productId, err });
+    return false;
+  }
+};
+
+// ── Debounce par produit (Map keyed par product_id), 400ms ───
+// Contrairement à l'ancien blob `products`/`orderStates` sauvegardé en
+// entier, chaque produit a son propre timer : deux produits édités
+// simultanément se sauvegardent indépendamment, sans collision.
+type PendingOrderLineSave = {
+  fields:   OrderLineStateFields;
+  ts:       string;
+  onSaved?: (productId: string, confirmedTs: string) => void;
+};
+
+const orderLineDebouncer = createDebouncer<PendingOrderLineSave>(
+  async (productId, pending) => {
+    const confirmedTs = await upsertOrderLineState(productId, pending.fields, pending.ts);
+    if (confirmedTs) pending.onSaved?.(productId, confirmedTs);
+  },
+  (prev, next) => ({
+    fields:  { ...prev.fields, ...next.fields },
+    ts:      next.ts,
+    onSaved: next.onSaved ?? prev.onSaved,
+  }),
+);
+
+export const upsertOrderLineStateDebounced = (
+  productId: string,
+  fields:    OrderLineStateFields,
+  ts:        string,
+  onSaved?:  (productId: string, confirmedTs: string) => void,
+  ms        = 400,
+): void => {
+  if (!isSupabaseConfigured()) return;
+  orderLineDebouncer.schedule(productId, { fields, ts, onSaved }, ms);
 };
 
 // ── Flush immédiat de toutes les sauvegardes en attente ──────
@@ -263,11 +433,6 @@ export const saveToSupabaseDebounced = (
 // suspendre les timers ou décharger la page avant la fin du debounce,
 // ce qui perdait silencieusement la dernière saisie.
 export const flushAllPendingSaves = (): void => {
-  Object.keys(debounceTimers).forEach(key => {
-    clearTimeout(debounceTimers[key]);
-    delete debounceTimers[key];
-  });
-  Object.keys(pendingSaves).forEach(key => {
-    void commitSave(key);
-  });
+  appStateDebouncer.flushAll();
+  orderLineDebouncer.flushAll();
 };

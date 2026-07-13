@@ -356,6 +356,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
         setOrderTemplateRows={state.setOrderTemplateRows}
         products={state.products}
         setProducts={state.setProducts}
+        updateOrderLineField={state.updateOrderLineField}
         supplierConfigs={state.supplierConfigs}
         ratioTab={state.ratioTab}
         setRatioTab={state.setRatioTab}

@@ -1,6 +1,7 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import { ProductWithHistory } from '../data';
 import { SupplierId } from '../constants';
+import { OrderLineField } from '../types';
 import { getSupplierIdForResetView, getSupplierIdForView } from './appStateHelpers';
 
 type Setter<T> = Dispatch<SetStateAction<T>>;
@@ -14,6 +15,8 @@ interface UseProductActionsParams {
   setSelectedProductIds: Setter<Set<string>>;
   setShowResetConfirm: Setter<boolean>;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  updateOrderLineField: (productId: string, field: OrderLineField, value: number | '') => void;
+  deleteOrderLineForProduct: (productId: string) => void;
 }
 
 export const useProductActions = ({
@@ -25,24 +28,33 @@ export const useProductActions = ({
   setSelectedProductIds,
   setShowResetConfirm,
   showToast,
+  updateOrderLineField,
+  deleteOrderLineForProduct,
 }: UseProductActionsParams) => {
+  // stock/upcomingDelivery/targetStock/packaging vivent désormais dans
+  // order_line_states (une ligne par produit) : plus d'écriture dans le
+  // blob `products`, pour éviter qu'une session périmée n'écrase en bloc
+  // les modifications faites depuis un autre appareil.
   const updateProductValue = useCallback((
     id: string,
     field: 'stock' | 'upcomingDelivery' | 'targetStock' | 'packaging',
     value: string,
   ) => {
     const val: number | '' = value === '' ? '' : Number(value);
-    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, [field]: val } : p)));
-  }, [setProducts]);
+    updateOrderLineField(id, field, val);
+  }, [updateOrderLineField]);
 
   const performReset = useCallback(() => {
     const supplierId = getSupplierIdForResetView(view);
     if (!supplierId) return;
-    setProducts((prev) => prev.map((p) => (
-      p.supplierId === supplierId ? { ...p, stock: '', upcomingDelivery: '' } : p
-    )));
+    products
+      .filter((p) => p.supplierId === supplierId)
+      .forEach((p) => {
+        updateOrderLineField(p.id, 'stock', '');
+        updateOrderLineField(p.id, 'upcomingDelivery', '');
+      });
     setShowResetConfirm(false);
-  }, [setProducts, setShowResetConfirm, view]);
+  }, [products, setShowResetConfirm, updateOrderLineField, view]);
 
   const addNewProduct = useCallback(() => {
     const supplierId = getSupplierIdForView(view, ratioTab);
@@ -54,9 +66,6 @@ export const useProductActions = ({
       packaging: 1,
       defaultMargin: 0,
       salesHistory: {},
-      stock: 0,
-      upcomingDelivery: 0,
-      targetStock: 0,
     };
     setProducts((prev) => [newProd, ...prev]);
     setSelectedProductIds(new Set());
@@ -66,11 +75,12 @@ export const useProductActions = ({
     if (selectedProductIds.size === 0) return;
     const n = selectedProductIds.size;
     if (window.confirm(`Confirmer la suppression de ${n} produit(s) ?`)) {
+      selectedProductIds.forEach((id) => deleteOrderLineForProduct(id));
       setProducts((prev) => prev.filter((p) => !selectedProductIds.has(p.id)));
       setSelectedProductIds(new Set());
       showToast(`${n} produit${n > 1 ? 's supprimés' : ' supprimé'} ✓`, 'success');
     }
-  }, [selectedProductIds, setProducts, setSelectedProductIds, showToast]);
+  }, [deleteOrderLineForProduct, selectedProductIds, setProducts, setSelectedProductIds, showToast]);
 
   const toggleProductSelection = useCallback((id: string) => {
     setSelectedProductIds((prev) => {

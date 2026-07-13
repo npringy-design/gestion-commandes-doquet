@@ -16,7 +16,7 @@ import {
   ProductWithHistory,
   DAILY_COVERS_INITIAL,
 } from '../data';
-import { OrderState, SupplierConfig, PrepBatch, PrepItem, PrepImportsByMonth, PrepForecastsByDate, PrepSheetStocks, OrderTemplateRow } from '../types';
+import { SupplierConfig, PrepBatch, PrepItem, PrepImportsByMonth, PrepForecastsByDate, PrepSheetStocks, OrderTemplateRow } from '../types';
 import { MONTHS_ORDER, View, SupplierId } from '../constants';
 import { DailyCoversState } from '../utils/dateHelpers';
 import { getImportedValueForProduct, extractAllNamesFromCsvs, matchesImportedProductName } from '../utils/csvHelpers';
@@ -24,6 +24,7 @@ import {
   createInitialProducts,
   loadUiState,
   loadState,
+  mergeProductsWithOrderLines,
   mergeSupplierConfigsWithDefaults,
   saveState,
   saveUiState,
@@ -105,9 +106,6 @@ export const useAppState = () => {
 
   const [dailyCovers, setDailyCovers] =
     useState<DailyCoversState>(DAILY_COVERS_INITIAL);
-
-  const [orderStates, setOrderStates] =
-    useState<Record<string, OrderState>>({});
 
   const [detailedInventory, setDetailedInventory] =
     useState<Record<string, string>>({});
@@ -197,10 +195,9 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     saveState('ratioTab', ratioTab, onSaveError);
   }, [ratioTab]);
 
-  const { supabaseLoaded, syncStatus } = useCloudSync({
+  const { supabaseLoaded, syncStatus, orderLineStates, updateOrderLineField, deleteOrderLineForProduct } = useCloudSync({
     covers,
     dailyCovers,
-    orderStates,
     detailedInventory,
     salesHtByMonth,
     costMatterByMonth,
@@ -218,7 +215,6 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     orderTemplateRows,
     setCovers,
     setDailyCovers,
-    setOrderStates,
     setDetailedInventory,
     setSalesHtByMonth,
     setCostMatterByMonth,
@@ -236,6 +232,16 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     setOrderTemplateRows,
     onSaveError,
   });
+
+  // Vue produits fusionnée : les champs opérationnels (stock/upcomingDelivery/
+  // targetStock/packaging) viennent de order_line_states (une ligne par
+  // produit, synchro temps réel), pas du blob `products`. Sélecteur unique
+  // (mergeProductsWithOrderLines) réutilisé partout où les produits sont lus,
+  // pour ne jamais lire product.stock/etc. directement.
+  const mergedProducts = useMemo(
+    () => mergeProductsWithOrderLines(visibleProducts, orderLineStates),
+    [visibleProducts, orderLineStates]
+  );
 
   useEffect(() => {
     if (!deletedRatioProductIdSet.size) return;
@@ -429,7 +435,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     updateSearchName,
     updateImportDivisor,
   } = useProductActions({
-    products: visibleProducts,
+    products: mergedProducts,
     view,
     ratioTab,
     selectedProductIds,
@@ -437,6 +443,8 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     setSelectedProductIds,
     setShowResetConfirm,
     showToast,
+    updateOrderLineField,
+    deleteOrderLineForProduct,
   });
 
   const deleteSelectedProducts = useCallback(() => {
@@ -466,7 +474,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     nextDeliveryDateBySupplier, setNextDeliveryDateBySupplier,
     covers, setCovers,
     dailyCovers, setDailyCovers,
-    orderStates, setOrderStates,
+    orderLineStates,
     detailedInventory, setDetailedInventory,
     salesHtByMonth, setSalesHtByMonth,
     costMatterByMonth, setCostMatterByMonth,
@@ -476,7 +484,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     importTargetMonth,
     prepImportTargetMonth,
     supplierConfigs, setSupplierConfigs,
-    products: visibleProducts, setProducts: setProductsWithoutDeleted,
+    products: mergedProducts, setProducts: setProductsWithoutDeleted,
     prepItems, setPrepItems,
     prepImportsByMonth, setPrepImportsByMonth,
     prepSheetStocks, setPrepSheetStocks,
@@ -493,6 +501,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     toggleValidateMonth,
     togglePrepValidateMonth,
     updateProductValue,
+    updateOrderLineField,
     syncStatus,
     supabaseLoaded,
     updateSearchName,
