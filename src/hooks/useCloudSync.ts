@@ -1,36 +1,27 @@
 // =============================================================
 // hooks/useCloudSync.ts
 //
-// Sync temps réel via Supabase Realtime (WebSocket).
-// Remplace l'ancien polling par un channel postgres_changes.
-//
-// ANTI-CLIGNOTEMENT :
-//   Mécanisme disponible pour toute clé ajoutée à DEFER_WHILE_TYPING :
-//   une update externe arrivant pendant une saisie active sur cette clé
-//   est mise en file d'attente (pendingRealtimeRef) plutôt qu'appliquée
-//   immédiatement. Dès que l'utilisateur quitte le champ (focusout
-//   global), on applique la file. DEFER_WHILE_TYPING est vide depuis le
-//   passage de orderStates à order_line_states (une ligne par produit :
-//   éditer un produit n'affecte plus le rendu des autres).
-//
-// LAST-WRITE-WINS :
-//   Basé sur updated_at ISO. Si notre timestamp local est plus
-//   récent que celui reçu, on ignore l'update entrante. Appliqué à la
-//   fois par clé (app_state) et par produit (order_line_states).
+// Synchronisation Supabase : chargement initial, sauvegardes fiables,
+// rattrapage des écritures en attente et Realtime limité aux commandes.
 // =============================================================
 
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import {
   loadAllFromSupabase,
-  saveToSupabaseDebounced,
-  flushAllPendingSaves,
   loadOrderLineStates,
-  upsertOrderLineStateDebounced,
   deleteOrderLineState,
   OrderLineStateFields,
   OrderLineStateRow,
 } from '../utils/supabase';
+import {
+  flushReliablePendingSaves,
+  getReliablePendingSaveCount,
+  retryReliablePendingSaves,
+  scheduleReliableAppStateSave,
+  scheduleReliableOrderLineSave,
+  type ReliableSaveFailureReason,
+} from '../utils/reliableSaveQueue';
 import { OrderState, OrderLineState, OrderLineField, SupplierConfig, PrepBatch, PrepItem, PrepImportsByMonth, PrepForecastsByDate, PrepSheetStocks, OrderTemplateRow } from '../types';
 import { ProductWithHistory } from '../data';
 import { CURRENT_SITE_ID } from '../constants';
@@ -42,7 +33,7 @@ import {
   removeState,
 } from './appStateHelpers';
 
-type SyncStatus = 'idle' | 'saving' | 'saved' | 'error';
+type SyncStatus = 'idle' | 'saving' | 'saved' | 'pending' | 'error';
 
 type PersistedState = {
   covers: Record<string, number>;
@@ -89,16 +80,8 @@ type UseCloudSyncParams = PersistedState &
     onSaveError: (message: string) => void;
   };
 
-// Clés dont les updates doivent attendre que l'utilisateur
-// ait fini de saisir avant d'être appliquées (anti-clignotement)
-// orderStates a été remplacé par order_line_states (une ligne par
-// produit, synchro dédiée), donc ce set est vide pour l'instant.
 const DEFER_WHILE_TYPING = new Set<string>([]);
 
-// Le Realtime reste volontairement limité au flux commande.
-// Tout le reste reste sauvegardé dans Supabase, mais n'est relu
-// qu'au chargement de l'application pour éviter du trafic WebSocket
-// inutile et des re-renders sur des écrans non opérationnels.
 const REALTIME_KEYS = new Set<string>([
   'deliveryDateBySupplier',
   'nextDeliveryDateBySupplier',
@@ -109,7 +92,6 @@ const CLOUD_ONLY_KEYS = new Set<string>([
   'prepImportsByMonth',
 ]);
 
-// Champ (camelCase, côté UI) → colonne order_line_states (snake_case, côté DB)
 const ORDER_LINE_FIELD_TO_COLUMN: Record<OrderLineField, keyof OrderLineStateFields> = {
   stock: 'stock',
   upcomingDelivery: 'upcoming_delivery',
@@ -173,7 +155,6 @@ const isUserTyping = (): boolean => {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || Boolean((el as any).isContentEditable);
 };
 
-// Backoff de reconnexion du canal Realtime (2s, 5s, puis 10s max, plafonné).
 const REALTIME_RECONNECT_DELAYS_MS = [2000, 5000, 10000];
 
 export const useCloudSync = ({
@@ -215,6 +196,7 @@ export const useCloudSync = ({
 }: UseCloudSyncParams) => {
   const [supabaseLoaded, setSupabaseLoaded] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
+  const [pendingSaveCount, setPendingSaveCount] = useState(() => getReliablePendingSaveCount());
 
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isHydratingFromCloud = useRef(false);
@@ -226,11 +208,84 @@ export const useCloudSync = ({
   const channelStatusRef = useRef<'idle' | 'joined' | 'errored'>('idle');
   const reconnectAttemptRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeSaveIdsRef = useRef<Set<string>>(new Set());
+  const latestSaveTsByIdRef = useRef<Record<string, string>>({});
+  const lastSaveToastAtRef = useRef(0);
+  const retryInFlightRef = useRef(false);
 
-  // ─── order_line_states : état opérationnel par produit ────────────────────
-  // Une ligne par produit (stock/upcomingDelivery/targetStock/packaging/margin),
-  // synchronisée en temps réel indépendamment pour chaque produit — un event
-  // = une ligne = un merge cible, jamais un remplacement d'objet global.
+  const clearSyncTimer = useCallback(() => {
+    if (syncTimerRef.current) {
+      clearTimeout(syncTimerRef.current);
+      syncTimerRef.current = null;
+    }
+  }, []);
+
+  const notifySaveProblem = useCallback((message: string) => {
+    const now = Date.now();
+    if (now - lastSaveToastAtRef.current < 5000) return;
+    lastSaveToastAtRef.current = now;
+    onSaveError(message);
+  }, [onSaveError]);
+
+  const markSaveStarted = useCallback((id: string, ts: string) => {
+    latestSaveTsByIdRef.current[id] = ts;
+    activeSaveIdsRef.current.add(id);
+    clearSyncTimer();
+    setSyncStatus('saving');
+  }, [clearSyncTimer]);
+
+  const markSaveConfirmed = useCallback((id: string, confirmedTs: string) => {
+    const latestTs = latestSaveTsByIdRef.current[id];
+    if (latestTs && confirmedTs < latestTs) return;
+
+    activeSaveIdsRef.current.delete(id);
+    const pending = getReliablePendingSaveCount();
+    setPendingSaveCount(pending);
+
+    if (pending > 0) {
+      setSyncStatus('pending');
+      return;
+    }
+    if (activeSaveIdsRef.current.size > 0) {
+      setSyncStatus('saving');
+      return;
+    }
+
+    setSyncStatus('saved');
+    clearSyncTimer();
+    syncTimerRef.current = setTimeout(() => {
+      syncTimerRef.current = null;
+      setSyncStatus('idle');
+    }, 1800);
+  }, [clearSyncTimer]);
+
+  const markSavePending = useCallback((id: string, localTs: string, pending: number, persistedLocally: boolean) => {
+    const latestTs = latestSaveTsByIdRef.current[id];
+    if (!latestTs || localTs >= latestTs) activeSaveIdsRef.current.delete(id);
+    setPendingSaveCount(pending);
+    setSyncStatus(persistedLocally ? 'pending' : 'error');
+    notifySaveProblem(
+      persistedLocally
+        ? 'Sauvegarde non confirmée. La modification est conservée sur cet appareil et sera renvoyée automatiquement.'
+        : 'Sauvegarde impossible et stockage local indisponible. Ne fermez pas la page avant le retour de la connexion.'
+    );
+  }, [notifySaveProblem]);
+
+  const markSaveError = useCallback((id: string, localTs: string, reason: ReliableSaveFailureReason, pending: number) => {
+    const latestTs = latestSaveTsByIdRef.current[id];
+    if (!latestTs || localTs >= latestTs) activeSaveIdsRef.current.delete(id);
+    setPendingSaveCount(pending);
+    setSyncStatus(pending > 0 ? 'pending' : 'error');
+
+    if (reason === 'conflict') {
+      notifySaveProblem('Une modification plus récente existe déjà. Les données du serveur ont été conservées.');
+    } else if (reason === 'storage') {
+      notifySaveProblem('La modification ne peut pas être sécurisée localement. Gardez cette page ouverte.');
+    } else {
+      notifySaveProblem('Erreur de sauvegarde. Une nouvelle tentative sera effectuée automatiquement.');
+    }
+  }, [notifySaveProblem]);
+
   const [orderLineStates, setOrderLineStates] = useState<Record<string, OrderLineState>>({});
   const orderLineLocalTsByProductId = useRef<Record<string, string>>({});
   const orderLineCloudTsByProductId = useRef<Record<string, string>>({});
@@ -267,9 +322,9 @@ export const useCloudSync = ({
     delete orderLineCloudTsByProductId.current[productId];
   }, []);
 
-  // Écriture optimiste locale + sauvegarde debounced (400ms) par produit.
   const updateOrderLineField = useCallback((productId: string, field: OrderLineField, value: number | '') => {
     const ts = nowIso();
+    const saveId = `order:${productId}`;
     orderLineLocalTsByProductId.current[productId] = ts;
     setOrderLineStates(prev => ({
       ...prev,
@@ -277,14 +332,22 @@ export const useCloudSync = ({
     }));
 
     if (!isSupabaseConfigured()) return;
+    markSaveStarted(saveId, ts);
     const column = ORDER_LINE_FIELD_TO_COLUMN[field];
-    upsertOrderLineStateDebounced(
+    scheduleReliableOrderLineSave(
       productId,
       { [column]: value === '' ? null : Number(value) } as OrderLineStateFields,
       ts,
-      (pid, confirmedTs) => { orderLineCloudTsByProductId.current[pid] = confirmedTs; },
+      {
+        onSaved: (_id, confirmedTs) => {
+          orderLineCloudTsByProductId.current[productId] = confirmedTs;
+          markSaveConfirmed(saveId, confirmedTs);
+        },
+        onPending: markSavePending,
+        onError: markSaveError,
+      },
     );
-  }, []);
+  }, [markSaveConfirmed, markSaveError, markSavePending, markSaveStarted]);
 
   const deleteOrderLineForProduct = useCallback((productId: string) => {
     removeOrderLineRowLocally(productId);
@@ -295,29 +358,21 @@ export const useCloudSync = ({
     CLOUD_ONLY_KEYS.forEach(removeState);
   }, []);
 
-  // ─── Flush des sauvegardes en attente avant mise en arrière-plan ──────────
-  // Sur mobile, l'OS peut suspendre les timers ou décharger la page dès que
-  // l'utilisateur change d'app ou verrouille l'écran, avant la fin du debounce
-  // (jusqu'à 8s pour l'inventaire). Sans ce flush, la dernière saisie n'était
-  // jamais envoyée à Supabase.
   useEffect(() => {
     const handleHidden = () => {
-      if (document.visibilityState === 'hidden') flushAllPendingSaves();
+      if (document.visibilityState === 'hidden') flushReliablePendingSaves();
     };
     document.addEventListener('visibilitychange', handleHidden);
-    window.addEventListener('pagehide', flushAllPendingSaves);
+    window.addEventListener('pagehide', flushReliablePendingSaves);
     return () => {
       document.removeEventListener('visibilitychange', handleHidden);
-      window.removeEventListener('pagehide', flushAllPendingSaves);
+      window.removeEventListener('pagehide', flushReliablePendingSaves);
     };
   }, []);
 
-  // File d'attente des updates Realtime reçues pendant une saisie active
   const pendingRealtimeRef = useRef<Map<string, { ts: string; value: unknown }>>(new Map());
 
-  // ─── Application d'une clé reçue du cloud ─────────────────────────────────
   const applyCloudKey = useCallback((key: string, cloudTs: string, value: unknown) => {
-    // Last-write-wins : si notre saisie locale est plus récente, on ignore
     const localTs = localTsByKey.current[key];
     if (localTs && localTs > cloudTs) return;
 
@@ -386,15 +441,15 @@ export const useCloudSync = ({
     setCostMatterByMonth, setCovers, setDailyCovers,
     setDeliveryDateBySupplier, setDetailedInventory,
     setNextDeliveryDateBySupplier,
-    setProducts, setPrepItems, setPrepImportsByMonth, setPrepSheetStocks, setPrepBatches, setPrepForecasts, setOrderTemplateRows, setSalesHtByMonth, setSupplierConfigs, setValidatedMonths, setPrepValidatedMonths,
+    setProducts, setPrepItems, setPrepImportsByMonth, setPrepSheetStocks, setPrepBatches,
+    setPrepForecasts, setOrderTemplateRows, setSalesHtByMonth, setSupplierConfigs,
+    setValidatedMonths, setPrepValidatedMonths,
   ]);
 
-  // ─── Vide la file d'attente (appelé au focusout global) ───────────────────
   const flushPending = useCallback(() => {
     if (pendingRealtimeRef.current.size === 0) return;
-    // Petit délai pour laisser le focus se déplacer vers le prochain champ
     setTimeout(() => {
-      if (isUserTyping()) return; // l'utilisateur a changé de champ, on attend encore
+      if (isUserTyping()) return;
       pendingRealtimeRef.current.forEach(({ ts, value }, key) => {
         lastCloudUpdatedAtByKey.current[key] = ts;
         applyCloudKey(key, ts, value);
@@ -403,19 +458,13 @@ export const useCloudSync = ({
     }, 150);
   }, [applyCloudKey]);
 
-  // ─── Réception d'un event Realtime ────────────────────────────────────────
   const handleRealtimeEvent = useCallback((key: string, cloudTs: string, value: unknown) => {
-    // Realtime strictement limité au flux commande
     if (!REALTIME_KEYS.has(key)) return;
 
-    // Ignorer nos propres écritures (timestamp local >= cloud)
     const localTs = localTsByKey.current[key];
     if (localTs && localTs >= cloudTs) return;
-
-    // Mettre à jour le curseur cloud
     lastCloudUpdatedAtByKey.current[key] = cloudTs;
 
-    // Si l'utilisateur est en train de taper ET que la clé est sensible → différer
     if (DEFER_WHILE_TYPING.has(key) && isUserTyping()) {
       const existing = pendingRealtimeRef.current.get(key);
       if (!existing || cloudTs > existing.ts) {
@@ -427,9 +476,6 @@ export const useCloudSync = ({
     applyCloudKey(key, cloudTs, value);
   }, [applyCloudKey]);
 
-  // ─── Chargement (initial ou rattrapage après reconnexion) depuis Supabase ─
-  // Réutilisé au montage ET lors d'un rattrapage de reconnexion Realtime
-  // (retour d'onglet avec canal perdu).
   const hydrateFromCloud = useCallback(async (options: { isReconnect?: boolean } = {}) => {
     if (!isSupabaseConfigured()) {
       setSupabaseLoaded(true);
@@ -477,16 +523,10 @@ export const useCloudSync = ({
         setTimeout(() => { isHydratingFromCloud.current = false; }, 600);
       }
 
-      // ─── order_line_states : chargement dédié (table à part, réutilisé
-      // au montage ET au rattrapage de reconnexion pour récupérer les
-      // écritures manquées pendant que le canal était fermé) ──────────────
       const orderLineRows = await loadOrderLineStates();
       if (orderLineRows && orderLineRows.length > 0) {
         applyOrderLineRows(orderLineRows);
       } else if (!options.isReconnect) {
-        // Filet de sécurité premier chargement post-migration : order_line_states
-        // est vide pour ce site → reconstruire depuis l'ancien blob products/
-        // orderStates (à retirer une fois validé en prod).
         const legacyProducts = cloud?.find(row => row.key === 'products')?.value as ProductWithHistory[] | undefined;
         const legacyOrderStates = cloud?.find(row => row.key === 'orderStates')?.value as Record<string, OrderState> | undefined;
         if (legacyProducts && legacyProducts.length > 0) {
@@ -512,14 +552,59 @@ export const useCloudSync = ({
     setCostMatterByMonth, setCovers, setDailyCovers,
     setDeliveryDateBySupplier, setDetailedInventory,
     setNextDeliveryDateBySupplier, applyOrderLineRows,
-    setProducts, setPrepItems, setPrepImportsByMonth, setPrepSheetStocks, setPrepBatches, setPrepForecasts, setOrderTemplateRows, setSalesHtByMonth, setSupplierConfigs, setValidatedMonths, setPrepValidatedMonths,
+    setProducts, setPrepItems, setPrepImportsByMonth, setPrepSheetStocks, setPrepBatches,
+    setPrepForecasts, setOrderTemplateRows, setSalesHtByMonth, setSupplierConfigs,
+    setValidatedMonths, setPrepValidatedMonths,
   ]);
 
   useEffect(() => {
     void hydrateFromCloud();
   }, [hydrateFromCloud]);
 
-  // ─── Supabase Realtime — écoute les INSERT/UPDATE sur app_state + order_line_states ─
+  const retryQueuedSaves = useCallback(async () => {
+    if (retryInFlightRef.current || !isSupabaseConfigured()) return;
+    const queuedBeforeRetry = getReliablePendingSaveCount();
+    setPendingSaveCount(queuedBeforeRetry);
+    if (queuedBeforeRetry === 0) return;
+
+    retryInFlightRef.current = true;
+    clearSyncTimer();
+    setSyncStatus('saving');
+
+    try {
+      const result = await retryReliablePendingSaves({
+        onSaved: (id, confirmedTs) => {
+          if (id.startsWith('order:')) {
+            orderLineCloudTsByProductId.current[id.slice('order:'.length)] = confirmedTs;
+          } else if (id.startsWith('app:')) {
+            const key = id.slice('app:'.length);
+            lastCloudUpdatedAtByKey.current[key] = confirmedTs;
+            localTsByKey.current[key] = confirmedTs;
+          }
+          markSaveConfirmed(id, confirmedTs);
+        },
+        onPending: markSavePending,
+        onError: markSaveError,
+      });
+
+      setPendingSaveCount(result.pending);
+      if (result.saved > 0 || result.discarded > 0) {
+        await hydrateFromCloud({ isReconnect: true });
+      }
+      if (result.pending > 0) setSyncStatus('pending');
+    } finally {
+      retryInFlightRef.current = false;
+    }
+  }, [clearSyncTimer, hydrateFromCloud, markSaveConfirmed, markSaveError, markSavePending]);
+
+  useEffect(() => {
+    if (!supabaseLoaded || !isSupabaseConfigured()) return;
+    void retryQueuedSaves();
+    const handleOnline = () => { void retryQueuedSaves(); };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [retryQueuedSaves, supabaseLoaded]);
+
   useEffect(() => {
     if (!supabaseLoaded || !isSupabaseConfigured() || !supabase) return;
 
@@ -599,12 +684,8 @@ export const useCloudSync = ({
     };
 
     openChannel();
-
-    // Flush la file d'attente quand l'utilisateur quitte un champ
     window.addEventListener('focusout', flushPending);
 
-    // Retour d'onglet : si le canal n'est plus "joined", on le recrée puis on
-    // rattrape les événements manqués via une relecture complète de app_state.
     const handleVisibilityChange = () => {
       if (document.visibilityState !== 'visible' || disposed) return;
       if (channelStatusRef.current !== 'joined') {
@@ -613,6 +694,7 @@ export const useCloudSync = ({
         openChannel();
         void hydrateFromCloud({ isReconnect: true });
       }
+      if (getReliablePendingSaveCount() > 0) void retryQueuedSaves();
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
@@ -626,9 +708,11 @@ export const useCloudSync = ({
       window.removeEventListener('focusout', flushPending);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [supabaseLoaded, handleRealtimeEvent, flushPending, hydrateFromCloud, applyOrderLineRows, removeOrderLineRowLocally]);
+  }, [
+    supabaseLoaded, handleRealtimeEvent, flushPending, hydrateFromCloud, applyOrderLineRows,
+    removeOrderLineRowLocally, retryQueuedSaves,
+  ]);
 
-  // ─── Sauvegarde locale + cloud (debounced + anti-écriture inutile) ────────
   const persistEverywhere = useCallback((key: string, value: unknown, debounceMs?: number) => {
     const signature = stableStringify(value);
     if (lastPersistedSignatureByKey.current[key] === signature) return;
@@ -640,29 +724,34 @@ export const useCloudSync = ({
     }
 
     const ts = nowIso();
+    const saveId = `app:${key}`;
     localTsByKey.current[key] = ts;
-    setSyncStatus('saving');
+    markSaveStarted(saveId, ts);
 
-    saveToSupabaseDebounced(
+    scheduleReliableAppStateSave(
       key,
       value,
       ts,
       currentKey => lastCloudUpdatedAtByKey.current[currentKey],
-      (confirmedKey, confirmedTs) => {
-        lastCloudUpdatedAtByKey.current[confirmedKey] = confirmedTs;
-        localTsByKey.current[confirmedKey] = confirmedTs;
-        lastPersistedSignatureByKey.current[confirmedKey] = signature;
+      {
+        onSaved: (_id, confirmedTs) => {
+          const currentLocalTs = localTsByKey.current[key];
+          if (!currentLocalTs || confirmedTs >= currentLocalTs) {
+            lastCloudUpdatedAtByKey.current[key] = confirmedTs;
+            localTsByKey.current[key] = confirmedTs;
+            lastPersistedSignatureByKey.current[key] = signature;
+          }
+          markSaveConfirmed(saveId, confirmedTs);
+        },
+        onPending: markSavePending,
+        onError: markSaveError,
       },
       debounceMs ?? SAVE_DEBOUNCE_MS_BY_KEY[key] ?? 1500,
     );
-
-    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
-    syncTimerRef.current = setTimeout(() => setSyncStatus('saved'), Math.max(1700, (debounceMs ?? SAVE_DEBOUNCE_MS_BY_KEY[key] ?? 1500) + 250));
-  }, [onSaveError, supabaseLoaded]);
+  }, [markSaveConfirmed, markSaveError, markSavePending, markSaveStarted, supabaseLoaded]);
 
   useEffect(() => { persistEverywhere('covers', covers); }, [covers, persistEverywhere]);
   useEffect(() => { persistEverywhere('dailyCovers', dailyCovers); }, [dailyCovers, persistEverywhere]);
-  // inventory = CSV bruts → debounce très long pour limiter la bande passante
   useEffect(() => {
     persistEverywhere('inventory', detailedInventory, SAVE_DEBOUNCE_MS_BY_KEY.inventory);
   }, [detailedInventory, persistEverywhere]);
@@ -681,9 +770,12 @@ export const useCloudSync = ({
   useEffect(() => { persistEverywhere('prepForecasts', prepForecasts); }, [persistEverywhere, prepForecasts]);
   useEffect(() => { persistEverywhere('orderTemplateRows', orderTemplateRows); }, [persistEverywhere, orderTemplateRows]);
 
+  useEffect(() => () => clearSyncTimer(), [clearSyncTimer]);
+
   return {
     supabaseLoaded,
     syncStatus,
+    pendingSaveCount,
     orderLineStates,
     updateOrderLineField,
     deleteOrderLineForProduct,
