@@ -8,7 +8,6 @@
 import React, { useState } from 'react';
 
 export interface TutorialStep {
-  title: string;
   text: string;
   image?: string;
 }
@@ -48,17 +47,16 @@ const TutorialSection: React.FC<TutorialSectionProps> = ({ title, description, s
       {isOpen && (
         <div className="mt-6 space-y-6 border-t border-[#E8D8C8] pt-6">
           {steps.map((step, index) => (
-            <div key={step.title} className="flex gap-4">
+            <div key={step.text} className="flex gap-4">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#C86F24] text-sm font-black text-white shadow-[0_4px_0_#8B431C]">
                 {index + 1}
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="font-black text-[#2F1D14]">{step.title}</h3>
-                <p className="mt-1 text-sm text-[#6A432D]">{step.text}</p>
+                <p className="text-sm text-[#6A432D]">{step.text}</p>
                 {step.image && (
                   <img
                     src={step.image}
-                    alt={step.title}
+                    alt={step.text}
                     className="mt-3 w-full rounded-[16px] border border-[#E2C39B] object-contain"
                   />
                 )}

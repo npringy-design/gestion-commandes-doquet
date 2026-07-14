@@ -29,27 +29,22 @@ const TUTORIAL_SECTIONS: TutorialConfig[] = [
       "Importer un bon de préparation Adoria pour générer automatiquement les articles, unités de stockage et de conditionnement.",
     steps: [
       {
-        title: 'Ouvrir la page Paramètres dans Accueil',
         text: 'Dans Paramètres, cliquez sur la carte « Import / Trame commande ».',
         image: '/tutorials/trame-commande/step1-parametres.png',
       },
       {
-        title: 'Cliquer sur Importer un PDF',
         text: 'Cliquez sur « Importer un PDF ».',
         image: '/tutorials/trame-commande/step2-importer-pdf.png',
       },
       {
-        title: 'Choisir le fichier',
         text: 'Choisissez le fichier à importer et validez.',
         image: '/tutorials/trame-commande/step3-select-file.png',
       },
       {
-        title: 'Vérifier et corriger',
         text: 'Contrôlez les colonnes Articles / Unité de stockage / Unité de conditionnement. Corrigez directement dans le tableau si besoin.',
         image: '/tutorials/trame-commande/step4-import-result.png',
       },
       {
-        title: 'Créer les produits',
         text: "Une fois que tout est validé, sélectionner le fournisseur souhaité et cliquez sur « Créer les produits » afin de créer la liste des produits dans la page Calcul ventes ratio.",
         image: '/tutorials/trame-commande/step5-creer-produits.png',
       },
