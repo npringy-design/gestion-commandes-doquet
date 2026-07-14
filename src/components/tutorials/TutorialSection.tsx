@@ -52,7 +52,7 @@ const TutorialSection: React.FC<TutorialSectionProps> = ({ title, description, s
                 {index + 1}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm text-[#6A432D]">{step.text}</p>
+                <p className="text-base font-bold text-[#6A432D]">{step.text}</p>
                 {step.image && (
                   <img
                     src={step.image}
