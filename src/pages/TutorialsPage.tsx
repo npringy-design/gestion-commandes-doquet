@@ -31,22 +31,27 @@ const TUTORIAL_SECTIONS: TutorialConfig[] = [
       {
         title: "Ouvrir l'écran d'import",
         text: 'Dans Paramètres, cliquez sur la carte « Import / Trame commande ».',
-        image: '/tutorials/trame-commande/step1-import-pdf.png',
+        image: '/tutorials/trame-commande/step1-parametres.png',
+      },
+      {
+        title: 'Cliquer sur Importer un PDF',
+        text: 'Cliquez sur « Importer un PDF ».',
+        image: '/tutorials/trame-commande/step2-importer-pdf.png',
       },
       {
         title: 'Choisir le fichier',
         text: 'Choisissez le fichier à importer et validez.',
-        image: '/tutorials/trame-commande/step2-select-file.png',
-      },
-      {
-        title: 'Importer le PDF',
-        text: "Cliquez sur « Importer un PDF ». Le nombre de lignes extraites s'affiche en haut à droite (ex : « 117 ligne(s) »).",
-        image: '/tutorials/trame-commande/step3-import-result.png',
+        image: '/tutorials/trame-commande/step3-select-file.png',
       },
       {
         title: 'Vérifier et corriger',
         text: 'Contrôlez les colonnes Articles / Unité de stockage / Unité de conditionnement. Corrigez directement dans le tableau si besoin.',
-        image: '/tutorials/trame-commande/step4-tableau.png',
+        image: '/tutorials/trame-commande/step4-import-result.png',
+      },
+      {
+        title: 'Créer les produits',
+        text: "Une fois que tout est validé, cliquez sur « Créer les produits » afin de créer la liste des produits dans la page Calcul ventes ratio.",
+        image: '/tutorials/trame-commande/step5-creer-produits.png',
       },
     ],
   },
