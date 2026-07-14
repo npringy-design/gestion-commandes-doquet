@@ -15,10 +15,11 @@ export interface TutorialStep {
 interface TutorialSectionProps {
   title: string;
   description?: string;
+  video?: string;
   steps: TutorialStep[];
 }
 
-const TutorialSection: React.FC<TutorialSectionProps> = ({ title, description, steps }) => {
+const TutorialSection: React.FC<TutorialSectionProps> = ({ title, description, video, steps }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -46,6 +47,17 @@ const TutorialSection: React.FC<TutorialSectionProps> = ({ title, description, s
 
       {isOpen && (
         <div className="mt-6 space-y-6 border-t border-[#E8D8C8] pt-6">
+          {video && (
+            <video
+              src={video}
+              controls
+              playsInline
+              preload="metadata"
+              className="w-full rounded-[16px] border border-[#E2C39B]"
+            >
+              Votre navigateur ne supporte pas la lecture vidéo.
+            </video>
+          )}
           {steps.map((step, index) => (
             <div key={step.text} className="flex gap-4">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#C86F24] text-sm font-black text-white shadow-[0_4px_0_#8B431C]">

@@ -18,6 +18,7 @@ interface TutorialConfig {
   key: string;
   title: string;
   description?: string;
+  video?: string;
   steps: TutorialStep[];
 }
 
@@ -27,6 +28,7 @@ const TUTORIAL_SECTIONS: TutorialConfig[] = [
     title: 'Trame commande',
     description:
       "Importer un bon de préparation Adoria pour générer automatiquement les articles, unités de stockage et de conditionnement.",
+    video: '/tutorials/trame-commande/video.mp4',
     steps: [
       {
         text: 'Dans Paramètres, cliquez sur la carte « Import / Trame commande ».',
@@ -89,6 +91,7 @@ const TutorialsPage: React.FC<TutorialsPageProps> = ({ setView }) => (
               key={section.key}
               title={section.title}
               description={section.description}
+              video={section.video}
               steps={section.steps}
             />
           ))}
