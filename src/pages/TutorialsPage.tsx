@@ -34,14 +34,19 @@ const TUTORIAL_SECTIONS: TutorialConfig[] = [
         image: '/tutorials/trame-commande/step1-import-pdf.png',
       },
       {
+        title: 'Choisir le fichier',
+        text: 'Choisissez le fichier à importer et validez.',
+        image: '/tutorials/trame-commande/step2-select-file.png',
+      },
+      {
         title: 'Importer le PDF',
-        text: "Cliquez sur « Importer un PDF » et sélectionnez votre bon de préparation Adoria. Le nombre de lignes extraites s'affiche en haut à droite (ex : « 117 ligne(s) »).",
-        image: '/tutorials/trame-commande/step2-import-result.png',
+        text: "Cliquez sur « Importer un PDF ». Le nombre de lignes extraites s'affiche en haut à droite (ex : « 117 ligne(s) »).",
+        image: '/tutorials/trame-commande/step3-import-result.png',
       },
       {
         title: 'Vérifier et corriger',
         text: 'Contrôlez les colonnes Articles / Unité de stockage / Unité de conditionnement. Corrigez directement dans le tableau si besoin.',
-        image: '/tutorials/trame-commande/step3-tableau.png',
+        image: '/tutorials/trame-commande/step4-tableau.png',
       },
     ],
   },
