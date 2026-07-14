@@ -77,39 +77,52 @@ const TutorialSection: React.FC<TutorialSectionProps> = ({ title, description, v
         </div>
       </div>
 
-      {mode === 'video' && video && (
+      {mode !== null && (
         <div className="mt-6 border-t border-[#E8D8C8] pt-6">
-          <video
-            src={video}
-            controls
-            playsInline
-            preload="metadata"
-            className="w-full rounded-[16px] border border-[#E2C39B]"
+          <button
+            type="button"
+            onClick={() => setMode(null)}
+            className="mb-4 inline-flex items-center gap-2 rounded-full border-2 border-[#E2C39B] bg-[#FFFDF8] px-4 py-2 text-xs font-black uppercase tracking-wide text-[#6A432D] transition-colors hover:border-[#C86F24] hover:text-[#C86F24]"
           >
-            Votre navigateur ne supporte pas la lecture vidéo.
-          </video>
-        </div>
-      )}
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Fermer
+          </button>
 
-      {mode === 'steps' && (
-        <div className="mt-6 space-y-6 border-t border-[#E8D8C8] pt-6">
-          {steps.map((step, index) => (
-            <div key={step.text} className="flex gap-4">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#C86F24] text-sm font-black text-white shadow-[0_4px_0_#8B431C]">
-                {index + 1}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-base font-bold text-[#6A432D]">{step.text}</p>
-                {step.image && (
-                  <img
-                    src={step.image}
-                    alt={step.text}
-                    className="mt-3 w-full rounded-[16px] border border-[#E2C39B] object-contain"
-                  />
-                )}
-              </div>
+          {mode === 'video' && video && (
+            <video
+              src={video}
+              controls
+              playsInline
+              preload="metadata"
+              className="w-full rounded-[16px] border border-[#E2C39B]"
+            >
+              Votre navigateur ne supporte pas la lecture vidéo.
+            </video>
+          )}
+
+          {mode === 'steps' && (
+            <div className="space-y-6">
+              {steps.map((step, index) => (
+                <div key={step.text} className="flex gap-4">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#C86F24] text-sm font-black text-white shadow-[0_4px_0_#8B431C]">
+                    {index + 1}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-base font-bold text-[#6A432D]">{step.text}</p>
+                    {step.image && (
+                      <img
+                        src={step.image}
+                        alt={step.text}
+                        className="mt-3 w-full rounded-[16px] border border-[#E2C39B] object-contain"
+                      />
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       )}
     </section>
