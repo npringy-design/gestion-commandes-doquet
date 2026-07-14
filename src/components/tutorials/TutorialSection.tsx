@@ -23,10 +23,10 @@ interface TutorialSectionProps {
 type TutorialMode = 'video' | 'steps' | null;
 
 const modeButtonClass = (active: boolean) =>
-  `flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-[3px] shadow-[0_4px_0_#8B431C] transition-all ${
+  `inline-flex shrink-0 items-center gap-2 rounded-2xl border-2 border-[#8B431C] px-5 py-3.5 text-sm font-black uppercase tracking-wide text-white transition-all ${
     active
-      ? 'border-[#8B431C] bg-[#C86F24] text-white'
-      : 'border-[#C86F24] bg-[#FFE8C2] text-[#8B431C] hover:bg-[#FFDBA3] hover:-translate-y-0.5'
+      ? 'translate-y-0.5 bg-[#8B431C] shadow-inner shadow-black/30'
+      : 'bg-[#C86F24] shadow-[0_5px_0_#8B431C] hover:bg-[#B85F1D] hover:-translate-y-0.5'
   }`;
 
 const TutorialSection: React.FC<TutorialSectionProps> = ({ title, description, video, steps }) => {
@@ -54,10 +54,11 @@ const TutorialSection: React.FC<TutorialSectionProps> = ({ title, description, v
               aria-label="Voir la vidéo"
               className={modeButtonClass(mode === 'video')}
             >
-              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-6 w-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M15 10l4.55-2.28A1 1 0 0121 8.62v6.76a1 1 0 01-1.45.9L15 14" />
                 <rect x="3" y="6" width="12" height="12" rx="2" strokeWidth={2.4} />
               </svg>
+              Vidéo
             </button>
           )}
           <button
@@ -68,9 +69,10 @@ const TutorialSection: React.FC<TutorialSectionProps> = ({ title, description, v
             aria-label="Voir les étapes (texte et images)"
             className={modeButtonClass(mode === 'steps')}
           >
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-6 w-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" />
             </svg>
+            Étapes
           </button>
         </div>
       </div>
