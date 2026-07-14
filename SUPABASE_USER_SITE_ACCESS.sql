@@ -5,12 +5,13 @@
 -- Règle applicative :
 -- - super_admin et global_admin gardent access_scope = 'all'
 -- - les autres rôles ont access_scope = 'current_site' et au moins une ligne ici
+-- - le navigateur lit uniquement ses propres affectations
+-- - les écritures passent par /api/admin/users/* avec service_role
 -- =============================================================
 
 BEGIN;
 
--- Helpers RLS autonomes. Certains projets ont encore l'ancien
--- SUPABASE_PROFILES_SETUP.sql sans ces fonctions.
+-- Helpers historiques conservés pour compatibilité avec d'anciens scripts.
 CREATE OR REPLACE FUNCTION public.is_current_user_admin()
 RETURNS boolean
 LANGUAGE sql
@@ -91,30 +92,31 @@ ON CONFLICT (user_id, site_id) DO NOTHING;
 ALTER TABLE public.user_site_access ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_site_access FORCE ROW LEVEL SECURITY;
 
+-- Nettoyage complet des anciennes policies (idempotent).
 DROP POLICY IF EXISTS "user_site_access_select_admin_all" ON public.user_site_access;
 DROP POLICY IF EXISTS "user_site_access_select_own" ON public.user_site_access;
 DROP POLICY IF EXISTS "user_site_access_write_admin" ON public.user_site_access;
 
-CREATE POLICY "user_site_access_select_admin_all"
-ON public.user_site_access
-FOR SELECT
-TO authenticated
-USING (public.can_manage_users());
-
+-- Le navigateur authentifié lit uniquement ses propres affectations.
 CREATE POLICY "user_site_access_select_own"
 ON public.user_site_access
 FOR SELECT
 TO authenticated
 USING (user_id = auth.uid());
 
-CREATE POLICY "user_site_access_write_admin"
-ON public.user_site_access
-FOR ALL
-TO authenticated
-USING (public.is_current_user_admin())
-WITH CHECK (public.is_current_user_admin());
+-- Aucun accès anonyme et aucune écriture directe depuis le navigateur.
+REVOKE ALL ON TABLE public.user_site_access FROM anon;
+REVOKE ALL ON TABLE public.user_site_access FROM authenticated;
+GRANT SELECT ON TABLE public.user_site_access TO authenticated;
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.user_site_access TO authenticated;
+-- Les helpers SECURITY DEFINER ne sont jamais exposés aux visiteurs anonymes.
+REVOKE ALL ON FUNCTION public.is_current_user_admin() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.is_current_user_admin() FROM anon;
+GRANT EXECUTE ON FUNCTION public.is_current_user_admin() TO authenticated;
+
+REVOKE ALL ON FUNCTION public.can_manage_users() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.can_manage_users() FROM anon;
+GRANT EXECUTE ON FUNCTION public.can_manage_users() TO authenticated;
 
 COMMENT ON TABLE public.user_site_access IS 'Sites autorisés par utilisateur pour le mode multisite';
 COMMENT ON COLUMN public.user_site_access.site_id IS 'Identifiant site : hippo_thillois | hippo_st_thibault | au_bureau_montevrain';
