@@ -12,6 +12,7 @@ import { useAppState } from './hooks/useAppState';
 import { useSyncedHorizontalScroll } from './hooks/useSyncedHorizontalScroll';
 import AppRouter from './components/AppRouter';
 import EnvironmentBanner from './components/EnvironmentBanner';
+import SyncStatusIndicator from './components/SyncStatusIndicator';
 
 const App: React.FC = () => {
   const state = useAppState();
@@ -34,6 +35,7 @@ const App: React.FC = () => {
         ratiosScrollWidth={scrollWidth}
         syncRatiosScroll={syncScroll}
       />
+      <SyncStatusIndicator status={state.syncStatus} />
     </>
   );
 };
