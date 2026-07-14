@@ -2,7 +2,7 @@
 
 ## Objectif
 
-Les rôles et les accès fonctionnels sont déjà définis dans l'application. Cet audit vérifie que Supabase applique réellement les mêmes limites, même si une requête contourne l'interface.
+Les rôles et les accès fonctionnels sont déjà définis dans l'application. Cet audit vérifie que Supabase applique réellement des limites cohérentes, même si une requête contourne l'interface.
 
 Ce chantier ne modifie pas les commandes, les stocks, les calculs ou les données métier.
 
@@ -17,46 +17,71 @@ Rôles :
 - `manager`
 - `commande`
 
-La hiérarchie de gestion est définie dans `src/lib/permissions.ts` :
+La hiérarchie de gestion est définie côté interface dans `src/lib/permissions.ts` et répétée côté serveur dans `api/_lib/permissions.ts` :
 
 - un manager crée et gère uniquement des comptes `commande` ;
 - un manager+ gère `manager` et `commande` ;
 - un directeur gère `manager_plus`, `manager` et `commande` ;
 - un global admin gère tous les rôles inférieurs ;
 - les comptes protégés et super-admin sont bloqués pour les rôles non super-admin ;
-- les droits sont limités aux sites auxquels l'utilisateur a accès.
+- les droits sont limités aux sites auxquels l'utilisateur a accès ;
+- un utilisateur ne peut pas modifier son propre compte par la page de gestion.
 
-## Constat sur les scripts SQL du dépôt
+La page `UserManagementPage` appelle exclusivement les routes `/api/admin/users/*`. Les écritures sur `profiles` et `user_site_access` sont donc réalisées côté serveur avec `supabaseAdmin`, après contrôle du rôle, du compte ciblé et des sites.
 
-Les scripts SQL de base contiennent bien :
+## Résultat de l'audit réel sur Supabase TEST
 
-- l'enum complet des rôles ;
-- l'activation et le forçage de RLS sur `profiles`, `user_site_access` et `app_state` ;
-- la suppression des droits directs de la clé `anon` sur `app_state` dans le script de verrouillage ;
-- le filtrage de `app_state` par site.
+Audit effectué le 14 juillet 2026 avec `SUPABASE_SECURITY_AUDIT_READ_ONLY.sql`.
 
-Ils utilisent cependant encore des fonctions générales comme `is_current_user_admin()` pour certaines modifications de profils et d'accès aux sites. Ces fonctions vérifient le rôle de l'utilisateur connecté, mais pas toujours précisément le rôle, le statut protégé et les sites du compte ciblé.
+### RLS
 
-Cela ne prouve pas que la base actuellement déployée est mal configurée : les politiques réelles peuvent avoir été modifiées après l'exécution de ces fichiers. Il faut donc auditer le projet Supabase test avant de préparer un durcissement.
+- `app_state` : RLS activée et forcée ;
+- `profiles` : RLS activée et forcée ;
+- `user_site_access` : RLS activée et forcée ;
+- `order_line_states` : RLS activée mais non forcée.
 
-## Fichier d'audit en lecture seule
+### Politiques installées
 
-`SUPABASE_SECURITY_AUDIT_READ_ONLY.sql` affiche :
+- `app_state` : politiques `authenticated` filtrées par `can_access_app_state_site(site_id)` ;
+- `order_line_states` : politiques `authenticated` filtrées par `can_access_app_state_site(site_id)` ;
+- `profiles` : lecture de son propre profil, mais aussi anciennes politiques générales basées sur `is_current_user_admin()` pour lire, modifier, insérer ou supprimer ;
+- `user_site_access` : aucune politique installée malgré RLS forcée.
 
-- l'état réel de RLS et de `FORCE ROW LEVEL SECURITY` ;
-- toutes les politiques installées avec leurs conditions `USING` et `WITH CHECK` ;
-- les privilèges accordés à `anon` et `authenticated` ;
-- les fonctions de sécurité réellement présentes ;
-- les rôles de l'enum SQL ;
-- les comptes ayant un périmètre incohérent ;
-- les comptes actifs sans site actif ;
-- la répartition des accès par site, sans afficher d'adresse e-mail.
+L'absence de politique de lecture sur `user_site_access` peut empêcher les comptes non globaux de charger leurs sites, car `AuthProvider` lit directement leurs propres affectations à la connexion.
 
-Le fichier est strictement en lecture seule : il ne contient aucun `CREATE`, `ALTER`, `DROP`, `INSERT`, `UPDATE` ou `DELETE` applicatif.
+### Fonctions installées
+
+Seulement deux fonctions de sécurité ont été trouvées :
+
+- `can_access_app_state_site(text)` ;
+- `is_current_user_admin()`.
+
+Les fonctions plus précises envisagées dans les anciens scripts ne sont pas installées.
+
+### Privilèges SQL
+
+Le rôle `anon` possédait encore des privilèges directs très larges sur `profiles`, `user_site_access` et `order_line_states`, notamment `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `TRUNCATE`, `TRIGGER` et `REFERENCES`.
+
+La RLS protégeait les lignes, mais ces privilèges sont inutiles et doivent être révoqués. `TRUNCATE` n'est notamment pas filtré par les politiques de lignes.
+
+## Correctif préparé
+
+Le fichier `SUPABASE_SECURITY_RLS_HARDENING.sql` applique un durcissement ciblé :
+
+- force RLS sur les quatre tables critiques ;
+- révoque tous les privilèges directs de `anon` ;
+- limite `authenticated` au strict nécessaire ;
+- autorise le navigateur à lire uniquement son propre profil ;
+- autorise le navigateur à lire uniquement ses propres affectations de sites ;
+- retire toutes les écritures directes frontend sur `profiles` et `user_site_access` ;
+- conserve les lectures/écritures par site nécessaires à `app_state` et `order_line_states` ;
+- conserve la gestion des utilisateurs par les routes serveur protégées.
+
+Le script se termine par trois requêtes de contrôle en lecture seule.
 
 ## Contrôle automatique du dépôt
 
-La commande suivante vérifie que le contrat de sécurité ne régresse pas dans le code et les scripts SQL :
+La commande suivante vérifie que le contrat de sécurité ne régresse pas :
 
 ```text
 npm run check:security-contract
@@ -70,21 +95,24 @@ npm run verify
 
 Le contrôle vérifie notamment :
 
-- la présence des six rôles côté application et SQL ;
+- les six rôles côté interface, serveur et SQL ;
 - la hiérarchie manager / manager+ ;
-- le blocage des comptes protégés dans l'interface ;
-- l'activation et le forçage de RLS ;
-- la révocation de `anon` sur `app_state` ;
-- la présence des quatre tables critiques dans l'audit.
+- le blocage de son propre compte, des comptes protégés et du super-admin ;
+- le passage obligatoire par les routes serveur pour gérer les utilisateurs ;
+- RLS forcée sur les quatre tables ;
+- la révocation de `anon` ;
+- l'absence de droit d'écriture frontend sur `profiles` et `user_site_access` ;
+- la lecture limitée au compte connecté sur ces deux tables.
 
-## Étapes suivantes
+## Procédure de validation
 
-1. Exécuter `SUPABASE_SECURITY_AUDIT_READ_ONLY.sql` sur Supabase test.
-2. Comparer les politiques réellement actives avec le contrat applicatif.
-3. Préparer une migration SQL ciblée uniquement pour les écarts confirmés.
-4. Tester avec au moins un compte de chaque rôle sur la base test.
-5. Ne toucher à Supabase production qu'après validation explicite de la version test.
+1. Exécuter `SUPABASE_SECURITY_RLS_HARDENING.sql` sur Supabase TEST uniquement.
+2. Contrôler les trois tableaux retournés à la fin du script.
+3. Tester une connexion avec un compte non global pour vérifier le chargement de son site.
+4. Tester la page Utilisateurs avec les rôles disponibles : création, changement de rôle, changement de sites, activation et suppression selon leurs droits.
+5. Vérifier une saisie de commande et sa synchronisation.
+6. Ne toucher à Supabase production qu'après validation explicite de la version test.
 
-## Limite actuelle
+## Limite d'accès
 
-L'accès GitHub et Vercel permet de préparer et de vérifier le code, mais aucun connecteur Supabase direct n'est disponible dans cette session. L'audit réel de la base doit donc être exécuté dans le SQL Editor du projet Supabase test avant tout durcissement.
+L'accès GitHub et Vercel permet de préparer et vérifier le code. L'exécution SQL reste réalisée manuellement dans le SQL Editor Supabase par le propriétaire du projet.
