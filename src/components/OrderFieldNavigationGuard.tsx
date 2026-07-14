@@ -1,4 +1,5 @@
 import React from 'react';
+import { buildColumnMajorTabIndexes } from '../utils/orderFieldNavigation';
 
 const ORDER_HEADER_MARKER = 'À Cmd';
 const INDEXED_INPUT_SELECTOR = 'tbody tr input[tabindex]';
@@ -29,11 +30,13 @@ const normalizeOrderTableTabIndexes = (): void => {
   document.querySelectorAll<HTMLTableElement>('table').forEach(table => {
     if (!isOrderTable(table)) return;
 
-    let nextTabIndex = 1;
-    getIndexedInputsByColumn(table).forEach(columnInputs => {
-      columnInputs.forEach(input => {
-        if (input.tabIndex !== nextTabIndex) input.tabIndex = nextTabIndex;
-        nextTabIndex += 1;
+    const columns = getIndexedInputsByColumn(table);
+    const tabIndexes = buildColumnMajorTabIndexes(columns.map(column => column.length));
+
+    columns.forEach((columnInputs, columnIndex) => {
+      columnInputs.forEach((input, rowIndex) => {
+        const nextTabIndex = tabIndexes[columnIndex]?.[rowIndex];
+        if (nextTabIndex && input.tabIndex !== nextTabIndex) input.tabIndex = nextTabIndex;
       });
     });
   });
