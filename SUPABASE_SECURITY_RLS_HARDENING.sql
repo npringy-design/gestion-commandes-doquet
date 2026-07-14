@@ -1,8 +1,9 @@
 -- =============================================================
 -- SUPABASE_SECURITY_RLS_HARDENING.sql
 --
--- Durcissement ciblé après audit du projet Supabase TEST.
--- À exécuter d'abord et uniquement sur Supabase TEST.
+-- Durcissement ciblé après audit Supabase.
+-- À exécuter d'abord sur Supabase TEST, puis en production uniquement
+-- après validation explicite de la version test.
 --
 -- Principes :
 -- - le navigateur lit uniquement son propre profil et ses propres sites ;
@@ -31,6 +32,7 @@ ALTER TABLE public.order_line_states FORCE ROW LEVEL SECURITY;
 
 -- 2) Suppression des politiques trop larges de gestion directe des profils.
 DROP POLICY IF EXISTS "profiles_select_admin_all" ON public.profiles;
+DROP POLICY IF EXISTS "profiles_update_own" ON public.profiles;
 DROP POLICY IF EXISTS "profiles_update_admin_all" ON public.profiles;
 DROP POLICY IF EXISTS "profiles_insert_admin_only" ON public.profiles;
 DROP POLICY IF EXISTS "profiles_delete_admin_only" ON public.profiles;
@@ -132,7 +134,7 @@ REVOKE ALL ON FUNCTION public.can_access_app_state_site(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.can_access_app_state_site(text) FROM anon;
 GRANT EXECUTE ON FUNCTION public.can_access_app_state_site(text) TO authenticated;
 
--- La fonction historique peut être utilisée par d'autres politiques du projet,
+-- La fonction historique peut être utilisée par d'autres scripts du projet,
 -- mais elle ne doit jamais être exposée à anon.
 REVOKE ALL ON FUNCTION public.is_current_user_admin() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.is_current_user_admin() FROM anon;
@@ -146,7 +148,8 @@ COMMIT;
 -- - 4 tables avec rls_enabled = true et rls_forced = true ;
 -- - aucune ligne anon dans les privilèges ;
 -- - profiles/user_site_access : SELECT uniquement pour authenticated ;
--- - aucune politique INSERT/UPDATE/DELETE sur profiles/user_site_access.
+-- - aucune politique INSERT/UPDATE/DELETE sur profiles/user_site_access ;
+-- - le dernier tableau affiche trois colonnes à true.
 -- =============================================================
 
 SELECT
@@ -180,3 +183,37 @@ WHERE table_schema = 'public'
   AND table_name IN ('profiles', 'user_site_access', 'app_state', 'order_line_states')
   AND grantee IN ('anon', 'authenticated')
 ORDER BY table_name, grantee, privilege_type;
+
+WITH rls_status AS (
+  SELECT
+    c.relname,
+    c.relrowsecurity,
+    c.relforcerowsecurity
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname = 'public'
+    AND c.relname IN ('profiles', 'user_site_access', 'app_state', 'order_line_states')
+),
+anon_privileges AS (
+  SELECT 1
+  FROM information_schema.role_table_grants
+  WHERE table_schema = 'public'
+    AND table_name IN ('profiles', 'user_site_access', 'app_state', 'order_line_states')
+    AND grantee = 'anon'
+),
+forbidden_write_policies AS (
+  SELECT 1
+  FROM pg_policies
+  WHERE schemaname = 'public'
+    AND tablename IN ('profiles', 'user_site_access')
+    AND cmd IN ('INSERT', 'UPDATE', 'DELETE', 'ALL')
+)
+SELECT
+  (
+    SELECT COUNT(*) = 4
+       AND BOOL_AND(relrowsecurity)
+       AND BOOL_AND(relforcerowsecurity)
+    FROM rls_status
+  ) AS rls_ok,
+  NOT EXISTS (SELECT 1 FROM anon_privileges) AS aucun_droit_anon,
+  NOT EXISTS (SELECT 1 FROM forbidden_write_policies) AS aucune_ecriture_directe_utilisateurs;
