@@ -157,7 +157,8 @@ ON CONFLICT (id) DO UPDATE
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles FORCE ROW LEVEL SECURITY;
 
--- helper: vérifier si l'utilisateur courant est admin actif
+-- Helper historique conservé pour compatibilité avec d'anciens scripts.
+-- La gestion des utilisateurs passe par /api/admin/users/* avec service_role.
 CREATE OR REPLACE FUNCTION public.is_current_user_admin()
 RETURNS boolean
 LANGUAGE sql
@@ -174,51 +175,30 @@ AS $$
   );
 $$;
 
--- Nettoyage policies (idempotent)
+-- Nettoyage complet des anciennes policies (idempotent).
 DROP POLICY IF EXISTS "profiles_select_admin_all" ON public.profiles;
 DROP POLICY IF EXISTS "profiles_select_own" ON public.profiles;
+DROP POLICY IF EXISTS "profiles_update_own" ON public.profiles;
 DROP POLICY IF EXISTS "profiles_update_admin_all" ON public.profiles;
 DROP POLICY IF EXISTS "profiles_insert_admin_only" ON public.profiles;
 DROP POLICY IF EXISTS "profiles_delete_admin_only" ON public.profiles;
 
--- Lecture: admin lit tout
-CREATE POLICY "profiles_select_admin_all"
-ON public.profiles
-FOR SELECT
-TO authenticated
-USING (public.is_current_user_admin());
-
--- Lecture: utilisateur lit son propre profil
+-- Le navigateur authentifié lit uniquement son propre profil.
 CREATE POLICY "profiles_select_own"
 ON public.profiles
 FOR SELECT
 TO authenticated
 USING (id = auth.uid());
 
--- Modification: admin uniquement
-CREATE POLICY "profiles_update_admin_all"
-ON public.profiles
-FOR UPDATE
-TO authenticated
-USING (public.is_current_user_admin())
-WITH CHECK (public.is_current_user_admin());
+-- Aucun accès anonyme et aucune écriture directe depuis le navigateur.
+REVOKE ALL ON TABLE public.profiles FROM anon;
+REVOKE ALL ON TABLE public.profiles FROM authenticated;
+GRANT SELECT ON TABLE public.profiles TO authenticated;
 
--- Insertion: admin uniquement (hors trigger SECURITY DEFINER)
-CREATE POLICY "profiles_insert_admin_only"
-ON public.profiles
-FOR INSERT
-TO authenticated
-WITH CHECK (public.is_current_user_admin());
-
--- Suppression: admin uniquement
-CREATE POLICY "profiles_delete_admin_only"
-ON public.profiles
-FOR DELETE
-TO authenticated
-USING (public.is_current_user_admin());
-
--- Permissions SQL minimales (RLS filtre ensuite)
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.profiles TO authenticated;
+-- Le helper SECURITY DEFINER n'est jamais exposé aux visiteurs anonymes.
+REVOKE ALL ON FUNCTION public.is_current_user_admin() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.is_current_user_admin() FROM anon;
+GRANT EXECUTE ON FUNCTION public.is_current_user_admin() TO authenticated;
 
 COMMENT ON TABLE public.profiles IS 'Profils applicatifs liés à auth.users pour la gestion des rôles et statuts';
 COMMENT ON COLUMN public.profiles.role IS 'Rôle applicatif: super_admin | global_admin | director | manager_plus | manager | commande';
