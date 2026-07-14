@@ -117,6 +117,74 @@ for (const [label, sql, table] of [
   );
 }
 
+// Les scripts d'installation doivent être sûrs sans dépendre d'une migration ultérieure.
+assert.match(
+  profilesSql,
+  /DROP POLICY IF EXISTS "profiles_update_own" ON public\.profiles/,
+  'Le setup profiles doit nettoyer l’ancienne modification de son propre profil'
+);
+assert.match(
+  profilesSql,
+  /CREATE POLICY "profiles_select_own"[\s\S]*USING \(id = auth\.uid\(\)\)/,
+  'Le setup profiles doit limiter la lecture au profil connecté'
+);
+assert.doesNotMatch(
+  profilesSql,
+  /CREATE POLICY "profiles_(select_admin_all|update_own|update_admin_all|insert_admin_only|delete_admin_only)"/i,
+  'Le setup profiles ne doit recréer aucune policy large ou d’écriture frontend'
+);
+assert.match(
+  profilesSql,
+  /REVOKE ALL ON TABLE public\.profiles FROM anon/i,
+  'Le setup profiles doit retirer tous les privilèges de anon'
+);
+assert.match(
+  profilesSql,
+  /REVOKE ALL ON TABLE public\.profiles FROM authenticated/i,
+  'Le setup profiles doit repartir de privilèges authenticated vides'
+);
+assert.match(
+  profilesSql,
+  /GRANT SELECT ON TABLE public\.profiles TO authenticated/i,
+  'Le setup profiles doit accorder uniquement la lecture au frontend'
+);
+assert.doesNotMatch(
+  profilesSql,
+  /GRANT[^;]*(INSERT|UPDATE|DELETE)[^;]*public\.profiles[^;]*TO authenticated/i,
+  'Le setup profiles ne doit accorder aucune écriture directe au frontend'
+);
+
+assert.match(
+  userSiteSql,
+  /CREATE POLICY "user_site_access_select_own"[\s\S]*USING \(user_id = auth\.uid\(\)\)/,
+  'Le setup des sites doit limiter la lecture aux affectations du compte connecté'
+);
+assert.doesNotMatch(
+  userSiteSql,
+  /CREATE POLICY "user_site_access_(select_admin_all|write_admin)"/i,
+  'Le setup des sites ne doit recréer aucune policy large ou d’écriture frontend'
+);
+assert.match(
+  userSiteSql,
+  /REVOKE ALL ON TABLE public\.user_site_access FROM anon/i,
+  'Le setup des sites doit retirer tous les privilèges de anon'
+);
+assert.match(
+  userSiteSql,
+  /REVOKE ALL ON TABLE public\.user_site_access FROM authenticated/i,
+  'Le setup des sites doit repartir de privilèges authenticated vides'
+);
+assert.match(
+  userSiteSql,
+  /GRANT SELECT ON TABLE public\.user_site_access TO authenticated/i,
+  'Le setup des sites doit accorder uniquement la lecture au frontend'
+);
+assert.doesNotMatch(
+  userSiteSql,
+  /GRANT[^;]*(INSERT|UPDATE|DELETE)[^;]*public\.user_site_access[^;]*TO authenticated/i,
+  'Le setup des sites ne doit accorder aucune écriture directe au frontend'
+);
+
 for (const table of ['profiles', 'user_site_access', 'app_state', 'order_line_states']) {
   assert.match(
     hardeningSql,
@@ -135,6 +203,11 @@ for (const table of ['profiles', 'user_site_access', 'app_state', 'order_line_st
   );
 }
 
+assert.match(
+  hardeningSql,
+  /DROP POLICY IF EXISTS "profiles_update_own" ON public\.profiles/,
+  'La migration doit supprimer l’ancienne modification de son propre profil'
+);
 assert.match(
   hardeningSql,
   /DROP POLICY IF EXISTS "profiles_update_admin_all" ON public\.profiles/,
@@ -170,6 +243,16 @@ assert.doesNotMatch(
   /GRANT[^;]*(INSERT|UPDATE|DELETE)[^;]*public\.(profiles|user_site_access)[^;]*TO authenticated/i,
   'Le frontend ne doit pas obtenir de droit d’écriture direct sur profiles ou user_site_access'
 );
+assert.match(
+  hardeningSql,
+  /forbidden_write_policies[\s\S]*cmd IN \('INSERT', 'UPDATE', 'DELETE', 'ALL'\)/,
+  'Le contrôle final doit détecter toute policy d’écriture frontend interdite'
+);
+assert.match(
+  hardeningSql,
+  /AS rls_ok[\s\S]*AS aucun_droit_anon[\s\S]*AS aucune_ecriture_directe_utilisateurs/,
+  'Le script doit terminer par les trois indicateurs de validation'
+);
 
 assert.match(
   appStateRlsSql,
@@ -194,5 +277,5 @@ assert.match(
 );
 
 console.log(
-  'Contrat sécurité OK : hiérarchie contrôlée côté serveur, écritures utilisateurs fermées au frontend, RLS forcée et anon révoqué.'
+  'Contrat sécurité OK : setups sécurisés par défaut, hiérarchie contrôlée côté serveur, écritures utilisateurs fermées au frontend, RLS forcée et anon révoqué.'
 );
