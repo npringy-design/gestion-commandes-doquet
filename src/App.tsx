@@ -13,6 +13,7 @@ import { useSyncedHorizontalScroll } from './hooks/useSyncedHorizontalScroll';
 import AppRouter from './components/AppRouter';
 import EnvironmentBanner from './components/EnvironmentBanner';
 import SyncStatusIndicator from './components/SyncStatusIndicator';
+import OrderFieldNavigationGuard from './components/OrderFieldNavigationGuard';
 
 const App: React.FC = () => {
   const state = useAppState();
@@ -28,6 +29,7 @@ const App: React.FC = () => {
   return (
     <>
       <EnvironmentBanner />
+      <OrderFieldNavigationGuard />
       <AppRouter
         state={state}
         ratiosScrollRef={mainScrollRef}
