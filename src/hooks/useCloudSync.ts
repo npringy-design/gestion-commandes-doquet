@@ -3,9 +3,18 @@
 //
 // Synchronisation Supabase de l'état global de l'application.
 // La synchronisation des lignes de commande est isolée dans useOrderLineSync.
+// Le chargement et l'application de app_state sont isolés dans useAppStateHydration.
 // =============================================================
 
-import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { loadAllFromSupabase } from '../utils/supabase';
 import {
@@ -28,12 +37,12 @@ import type {
 import type { ProductWithHistory } from '../data';
 import { CURRENT_SITE_ID } from '../constants';
 import type { DailyCoversState } from '../utils/dateHelpers';
+import { nowIso, removeState } from './appStateHelpers';
 import {
-  mergeAndNormalizeProducts,
-  mergeSupplierConfigsWithDefaults,
-  nowIso,
-  removeState,
-} from './appStateHelpers';
+  stableStringify,
+  type AppStateSetterRegistry,
+} from './appStateSyncModel';
+import { useAppStateHydration } from './useAppStateHydration';
 import { useOrderLineSync } from './useOrderLineSync';
 
 type SyncStatus = 'idle' | 'saving' | 'saved' | 'pending' | 'error';
@@ -114,34 +123,6 @@ const SAVE_DEBOUNCE_MS_BY_KEY: Record<string, number> = {
   orderTemplateRows: 1500,
 };
 
-const stableStringify = (value: unknown): string => {
-  const seen = new WeakSet<object>();
-  const normalize = (input: unknown): unknown => {
-    if (input === null || typeof input !== 'object') return input;
-    if (input instanceof Date) return input.toISOString();
-    if (Array.isArray(input)) return input.map(normalize);
-    if (seen.has(input as object)) return '[Circular]';
-    seen.add(input as object);
-    return Object.keys(input as Record<string, unknown>)
-      .sort()
-      .reduce<Record<string, unknown>>((acc, key) => {
-        acc[key] = normalize((input as Record<string, unknown>)[key]);
-        return acc;
-      }, {});
-  };
-
-  try {
-    return JSON.stringify(normalize(value));
-  } catch {
-    return String(value);
-  }
-};
-
-const hasDailyCoverData = (state: DailyCoversState): boolean =>
-  Object.values(state).some(
-    month => Array.isArray(month) && month.some(day => day.midi !== '' && day.midi !== 0),
-  );
-
 const isUserTyping = (): boolean => {
   const element = document?.activeElement as HTMLElement | null;
   if (!element) return false;
@@ -209,6 +190,55 @@ export const useCloudSync = ({
   const latestSaveTsByIdRef = useRef<Record<string, string>>({});
   const lastSaveToastAtRef = useRef(0);
   const retryInFlightRef = useRef(false);
+
+  const appStateSetters = useMemo<AppStateSetterRegistry>(() => ({
+    covers: value => setCovers(value as Record<string, number>),
+    dailyCovers: value => setDailyCovers(value as DailyCoversState),
+    inventory: value => setDetailedInventory(value as Record<string, string>),
+    salesHtByMonth: value => setSalesHtByMonth(value as Record<string, number>),
+    costMatterByMonth: value => setCostMatterByMonth(value as Record<string, number>),
+    validatedMonths: value => setValidatedMonths(value as Record<string, boolean>),
+    prepValidatedMonths: value => setPrepValidatedMonths(value as Record<string, boolean>),
+    supplierConfigs: value => setSupplierConfigs(value as Record<string, SupplierConfig>),
+    deliveryDateBySupplier: value => setDeliveryDateBySupplier(value as Record<string, string>),
+    nextDeliveryDateBySupplier: value => setNextDeliveryDateBySupplier(value as Record<string, string>),
+    products: value => setProducts(value as ProductWithHistory[]),
+    prepItems: value => setPrepItems(value as PrepItem[]),
+    prepImportsByMonth: value => setPrepImportsByMonth(value as PrepImportsByMonth),
+    prepSheetStocks: value => setPrepSheetStocks(value as PrepSheetStocks),
+    prepBatches: value => setPrepBatches(value as PrepBatch[]),
+    prepForecasts: value => setPrepForecasts(value as PrepForecastsByDate),
+    orderTemplateRows: value => setOrderTemplateRows(value as OrderTemplateRow[]),
+  }), [
+    setCostMatterByMonth,
+    setCovers,
+    setDailyCovers,
+    setDeliveryDateBySupplier,
+    setDetailedInventory,
+    setNextDeliveryDateBySupplier,
+    setOrderTemplateRows,
+    setPrepBatches,
+    setPrepForecasts,
+    setPrepImportsByMonth,
+    setPrepItems,
+    setPrepSheetStocks,
+    setPrepValidatedMonths,
+    setProducts,
+    setSalesHtByMonth,
+    setSupplierConfigs,
+    setValidatedMonths,
+  ]);
+
+  const {
+    applyCloudAppStateValue,
+    hydrateAppStateRows,
+  } = useAppStateHydration({
+    setters: appStateSetters,
+    isHydratingFromCloud,
+    lastCloudUpdatedAtByKey,
+    localTsByKey,
+    lastPersistedSignatureByKey,
+  });
 
   const clearSyncTimer = useCallback(() => {
     if (syncTimerRef.current) {
@@ -325,102 +355,16 @@ export const useCloudSync = ({
 
   const pendingRealtimeRef = useRef<Map<string, { ts: string; value: unknown }>>(new Map());
 
-  const applyCloudKey = useCallback((key: string, cloudTs: string, value: unknown) => {
-    const localTs = localTsByKey.current[key];
-    if (localTs && localTs > cloudTs) return;
-
-    isHydratingFromCloud.current = true;
-
-    switch (key) {
-      case 'covers':
-        setCovers(value as Record<string, number>);
-        break;
-      case 'dailyCovers': {
-        const next = value as DailyCoversState;
-        if (hasDailyCoverData(next)) setDailyCovers(next);
-        break;
-      }
-      case 'inventory':
-        setDetailedInventory(value as Record<string, string>);
-        break;
-      case 'salesHtByMonth':
-        setSalesHtByMonth(value as Record<string, number>);
-        break;
-      case 'costMatterByMonth':
-        setCostMatterByMonth(value as Record<string, number>);
-        break;
-      case 'validatedMonths':
-        setValidatedMonths(value as Record<string, boolean>);
-        break;
-      case 'prepValidatedMonths':
-        setPrepValidatedMonths(value as Record<string, boolean>);
-        break;
-      case 'supplierConfigs':
-        setSupplierConfigs(mergeSupplierConfigsWithDefaults(value as Record<string, SupplierConfig>));
-        break;
-      case 'deliveryDateBySupplier':
-        setDeliveryDateBySupplier(value as Record<string, string>);
-        break;
-      case 'nextDeliveryDateBySupplier':
-        setNextDeliveryDateBySupplier(value as Record<string, string>);
-        break;
-      case 'products':
-        setProducts(mergeAndNormalizeProducts(value as ProductWithHistory[]));
-        break;
-      case 'prepItems':
-        setPrepItems(value as PrepItem[]);
-        break;
-      case 'prepImportsByMonth':
-        setPrepImportsByMonth(value as PrepImportsByMonth);
-        break;
-      case 'prepSheetStocks':
-        setPrepSheetStocks(value as PrepSheetStocks);
-        break;
-      case 'prepBatches':
-        setPrepBatches(value as PrepBatch[]);
-        break;
-      case 'prepForecasts':
-        setPrepForecasts(value as PrepForecastsByDate);
-        break;
-      case 'orderTemplateRows':
-        setOrderTemplateRows(value as OrderTemplateRow[]);
-        break;
-      default:
-        break;
-    }
-
-    setTimeout(() => { isHydratingFromCloud.current = false; }, 200);
-  }, [
-    setCostMatterByMonth,
-    setCovers,
-    setDailyCovers,
-    setDeliveryDateBySupplier,
-    setDetailedInventory,
-    setNextDeliveryDateBySupplier,
-    setProducts,
-    setPrepItems,
-    setPrepImportsByMonth,
-    setPrepSheetStocks,
-    setPrepBatches,
-    setPrepForecasts,
-    setOrderTemplateRows,
-    setSalesHtByMonth,
-    setSupplierConfigs,
-    setValidatedMonths,
-    setPrepValidatedMonths,
-  ]);
-
   const flushPending = useCallback(() => {
     if (pendingRealtimeRef.current.size === 0) return;
     setTimeout(() => {
       if (isUserTyping()) return;
       pendingRealtimeRef.current.forEach(({ ts, value }, key) => {
-        lastCloudUpdatedAtByKey.current[key] = ts;
-        applyCloudKey(key, ts, value);
+        applyCloudAppStateValue(key, ts, value);
       });
       pendingRealtimeRef.current.clear();
     }, 150);
-  }, [applyCloudKey]);
+  }, [applyCloudAppStateValue]);
 
   const handleRealtimeEvent = useCallback((key: string, cloudTs: string, value: unknown) => {
     if (!REALTIME_KEYS.has(key)) return;
@@ -437,8 +381,8 @@ export const useCloudSync = ({
       return;
     }
 
-    applyCloudKey(key, cloudTs, value);
-  }, [applyCloudKey]);
+    applyCloudAppStateValue(key, cloudTs, value);
+  }, [applyCloudAppStateValue]);
 
   const hydrateFromCloud = useCallback(async (options: { isReconnect?: boolean } = {}) => {
     if (!isSupabaseConfigured()) {
@@ -449,78 +393,19 @@ export const useCloudSync = ({
     try {
       const cloud = await loadAllFromSupabase();
       initialCloudLoadSucceededRef.current = cloud !== null;
-      const cloudMap: Record<string, unknown> = {};
-
-      if (cloud?.length) {
-        isHydratingFromCloud.current = true;
-
-        cloud.forEach(row => {
-          const localTs = localTsByKey.current[row.key];
-          if (localTs && localTs > row.updated_at) return;
-          lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
-          lastPersistedSignatureByKey.current[row.key] = stableStringify(row.value);
-          cloudMap[row.key] = row.value;
-        });
-
-        if (cloudMap.covers) setCovers(cloudMap.covers as Record<string, number>);
-        if (cloudMap.dailyCovers && hasDailyCoverData(cloudMap.dailyCovers as DailyCoversState)) {
-          setDailyCovers(cloudMap.dailyCovers as DailyCoversState);
-        }
-        if (cloudMap.inventory) setDetailedInventory(cloudMap.inventory as Record<string, string>);
-        if (cloudMap.salesHtByMonth) setSalesHtByMonth(cloudMap.salesHtByMonth as Record<string, number>);
-        if (cloudMap.costMatterByMonth) setCostMatterByMonth(cloudMap.costMatterByMonth as Record<string, number>);
-        if (cloudMap.validatedMonths) setValidatedMonths(cloudMap.validatedMonths as Record<string, boolean>);
-        if (cloudMap.prepValidatedMonths) setPrepValidatedMonths(cloudMap.prepValidatedMonths as Record<string, boolean>);
-        if (cloudMap.supplierConfigs) {
-          setSupplierConfigs(mergeSupplierConfigsWithDefaults(cloudMap.supplierConfigs as Record<string, SupplierConfig>));
-        }
-        if (cloudMap.deliveryDateBySupplier) {
-          setDeliveryDateBySupplier(cloudMap.deliveryDateBySupplier as Record<string, string>);
-        }
-        if (cloudMap.nextDeliveryDateBySupplier) {
-          setNextDeliveryDateBySupplier(cloudMap.nextDeliveryDateBySupplier as Record<string, string>);
-        }
-        if (cloudMap.products) setProducts(mergeAndNormalizeProducts(cloudMap.products as ProductWithHistory[]));
-        if (cloudMap.prepItems) setPrepItems(cloudMap.prepItems as PrepItem[]);
-        if (cloudMap.prepImportsByMonth) setPrepImportsByMonth(cloudMap.prepImportsByMonth as PrepImportsByMonth);
-        if (cloudMap.prepSheetStocks) setPrepSheetStocks(cloudMap.prepSheetStocks as PrepSheetStocks);
-        if (cloudMap.prepBatches) setPrepBatches(cloudMap.prepBatches as PrepBatch[]);
-        if (cloudMap.prepForecasts) setPrepForecasts(cloudMap.prepForecasts as PrepForecastsByDate);
-        if (cloudMap.orderTemplateRows) setOrderTemplateRows(cloudMap.orderTemplateRows as OrderTemplateRow[]);
-
-        setTimeout(() => { isHydratingFromCloud.current = false; }, 600);
-      }
+      const cloudValues = hydrateAppStateRows(cloud);
 
       await hydrateOrderLineStates({
         isReconnect: options.isReconnect,
-        legacyProducts: cloudMap.products as ProductWithHistory[] | undefined,
-        legacyOrderStates: cloudMap.orderStates as Record<string, OrderState> | undefined,
+        legacyProducts: cloudValues.products as ProductWithHistory[] | undefined,
+        legacyOrderStates: cloudValues.orderStates as Record<string, OrderState> | undefined,
       });
     } catch (error) {
       console.error('[Supabase load exception]', error);
     } finally {
       setSupabaseLoaded(true);
     }
-  }, [
-    hydrateOrderLineStates,
-    setCostMatterByMonth,
-    setCovers,
-    setDailyCovers,
-    setDeliveryDateBySupplier,
-    setDetailedInventory,
-    setNextDeliveryDateBySupplier,
-    setProducts,
-    setPrepItems,
-    setPrepImportsByMonth,
-    setPrepSheetStocks,
-    setPrepBatches,
-    setPrepForecasts,
-    setOrderTemplateRows,
-    setSalesHtByMonth,
-    setSupplierConfigs,
-    setValidatedMonths,
-    setPrepValidatedMonths,
-  ]);
+  }, [hydrateAppStateRows, hydrateOrderLineStates]);
 
   useEffect(() => {
     void hydrateFromCloud();
@@ -538,7 +423,7 @@ export const useCloudSync = ({
 
     try {
       const result = await retryReliablePendingSaves({
-        onSaved: (id, confirmedTs) => {
+        onSaved: (id: string, confirmedTs: string) => {
           if (!confirmRetriedOrderLineSave(id, confirmedTs) && id.startsWith('app:')) {
             const key = id.slice('app:'.length);
             lastCloudUpdatedAtByKey.current[key] = confirmedTs;
@@ -708,9 +593,9 @@ export const useCloudSync = ({
       key,
       value,
       ts,
-      currentKey => lastCloudUpdatedAtByKey.current[currentKey],
+      (currentKey: string) => lastCloudUpdatedAtByKey.current[currentKey],
       {
-        onSaved: (_id, confirmedTs) => {
+        onSaved: (_id: string, confirmedTs: string) => {
           const currentLocalTs = localTsByKey.current[key];
           if (!currentLocalTs || confirmedTs >= currentLocalTs) {
             lastCloudUpdatedAtByKey.current[key] = confirmedTs;
