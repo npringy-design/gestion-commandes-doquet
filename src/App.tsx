@@ -15,6 +15,7 @@ import EnvironmentBanner from './components/EnvironmentBanner';
 import SyncStatusIndicator from './components/SyncStatusIndicator';
 import OrderFieldNavigationGuard from './components/OrderFieldNavigationGuard';
 import OrderAnomalyGuard from './components/OrderAnomalyGuard';
+import NetworkConnectionGuard from './components/NetworkConnectionGuard';
 
 const App: React.FC = () => {
   const state = useAppState();
@@ -30,6 +31,7 @@ const App: React.FC = () => {
   return (
     <>
       <EnvironmentBanner />
+      <NetworkConnectionGuard onQuit={() => state.setView('home')} />
       <OrderFieldNavigationGuard />
       <OrderAnomalyGuard state={state} />
       <AppRouter
