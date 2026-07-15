@@ -38,6 +38,7 @@ try {
     buildOrderProductNameCounts,
     getOrderAnomalies,
     normalizeOrderProductName,
+    resolveOrderRatioLinkStatus,
   } = await import(pathToFileURL(compiledPath).href);
 
   assert.equal(
@@ -52,6 +53,63 @@ try {
     { name: 'Orangina' },
   ]);
   assert.equal(nameCounts.get('coca cola'), 2, 'Deux libellés équivalents doivent être détectés comme doublons');
+
+  assert.equal(
+    resolveOrderRatioLinkStatus({
+      currentMonthValidated: true,
+      currentSnapshotLinked: true,
+      hasCurrentImportSource: true,
+      currentImportMatched: false,
+      historicalSnapshotLinks: [true],
+    }),
+    'linked',
+    'Un produit vert sur un mois figé doit rester lié même si l’ancien fichier importé ne le retrouve plus'
+  );
+
+  assert.equal(
+    resolveOrderRatioLinkStatus({
+      currentMonthValidated: true,
+      currentSnapshotLinked: false,
+      hasCurrentImportSource: true,
+      currentImportMatched: true,
+      historicalSnapshotLinks: [false],
+    }),
+    'unlinked',
+    'Sur un mois figé, le snapshot enregistré doit rester prioritaire dans les deux sens'
+  );
+
+  assert.equal(
+    resolveOrderRatioLinkStatus({
+      currentMonthValidated: false,
+      hasCurrentImportSource: true,
+      currentImportMatched: false,
+      historicalSnapshotLinks: [true],
+    }),
+    'unlinked',
+    'Sur un mois en cours, la liaison du fichier actuel doit rester la source de vérité'
+  );
+
+  assert.equal(
+    resolveOrderRatioLinkStatus({
+      currentMonthValidated: false,
+      hasCurrentImportSource: false,
+      currentImportMatched: false,
+      historicalSnapshotLinks: [true],
+    }),
+    'linked',
+    'Sans fichier courant, un ancien snapshot lié doit éviter un faux positif'
+  );
+
+  assert.equal(
+    resolveOrderRatioLinkStatus({
+      currentMonthValidated: false,
+      hasCurrentImportSource: false,
+      currentImportMatched: false,
+      historicalSnapshotLinks: [],
+    }),
+    'unknown',
+    'Sans aucune preuve de liaison, le statut doit rester inconnu et non accusatoire'
+  );
 
   assert.deepEqual(
     getOrderAnomalies({
@@ -209,7 +267,7 @@ try {
     'Une proposition de commande disproportionnée doit être signalée'
   );
 
-  console.log('Alertes commandes OK : paramétrage, liaisons ratio, doublons et saisies disproportionnées couverts sans alerte sur stock vide.');
+  console.log('Alertes commandes OK : snapshots figés prioritaires, liaisons courantes, paramétrage et saisies disproportionnées couverts.');
 } finally {
   rmSync(tempDir, { recursive: true, force: true });
 }
