@@ -9,6 +9,7 @@ import {
   getOrderAnomalies,
   normalizeOrderProductName,
   type OrderAnomaly,
+  type OrderRatioLinkStatus,
 } from '../utils/orderAnomalies';
 
 const ORDER_HEADER_MARKER = 'À Cmd';
@@ -29,6 +30,23 @@ const findOrderProductCells = (): HTMLElement[] => {
 
 const sameElements = (left: HTMLElement[], right: HTMLElement[]): boolean =>
   left.length === right.length && left.every((element, index) => element === right[index]);
+
+type ProductWithRatioSnapshots = {
+  ratioSnapshots?: Record<string, { isLinked?: boolean }>;
+};
+
+const getRatioLinkStatus = (
+  product: ProductWithRatioSnapshots,
+  hasCurrentImportSource: boolean,
+  currentImportMatched: boolean
+): OrderRatioLinkStatus => {
+  if (hasCurrentImportSource) return currentImportMatched ? 'linked' : 'unlinked';
+
+  const snapshots = Object.values(product.ratioSnapshots ?? {});
+  if (snapshots.some(snapshot => snapshot?.isLinked === true)) return 'linked';
+  if (snapshots.some(snapshot => snapshot?.isLinked === false)) return 'unlinked';
+  return 'unknown';
+};
 
 interface OrderAnomalyIndicatorProps {
   productName: string;
@@ -181,9 +199,17 @@ const OrderAnomalyGuard: React.FC<OrderAnomalyGuardProps> = ({ state }) => {
     forecastEnd.setDate(forecastEnd.getDate() - 1);
     const forecastTotal = getForecastForWindow(forecastEnd, state.dailyCovers).total;
     const duplicateNameCounts = buildOrderProductNameCounts(displayedProducts);
+    const hasCurrentImportSource = Boolean(state.detailedInventory[state.importTargetMonth]);
 
     displayedProducts.forEach(product => {
-      const { avgRatio } = state.getProductStats(product);
+      const stats = state.getProductStats(product);
+      const avgRatio = stats.avgRatio;
+      const currentImportMatched = Boolean(stats.mS[state.importTargetMonth]?.isImported);
+      const ratioLinkStatus = getRatioLinkStatus(
+        product as ProductWithRatioSnapshots,
+        hasCurrentImportSource,
+        currentImportMatched
+      );
       const packaging = Math.max(1, Math.floor(toNumber(product.packaging) || 1));
       const stock = Math.max(0, Math.floor(toNumber(product.stock)));
       const upcomingUnits = Math.max(0, Math.floor(toNumber(product.upcomingDelivery))) * packaging;
@@ -216,6 +242,7 @@ const OrderAnomalyGuard: React.FC<OrderAnomalyGuardProps> = ({ state }) => {
         forecastTotal,
         toOrder,
         duplicateNameCount: normalizedName ? duplicateNameCounts.get(normalizedName) ?? 1 : 1,
+        ratioLinkStatus,
       });
 
       if (anomalies.length > 0) result.set(product.id, anomalies);
@@ -228,7 +255,9 @@ const OrderAnomalyGuard: React.FC<OrderAnomalyGuardProps> = ({ state }) => {
     state.calculationMode,
     state.dailyCovers,
     state.deliveryDateBySupplier,
+    state.detailedInventory,
     state.getProductStats,
+    state.importTargetMonth,
     state.nextDeliveryDateBySupplier,
     state.orderLineStates,
     state.supplierConfigs,
