@@ -42,6 +42,14 @@ export interface OrderAnomalyInput {
   ratioLinkStatus?: OrderRatioLinkStatus;
 }
 
+export interface OrderRatioLinkEvidence {
+  currentMonthValidated: boolean;
+  currentSnapshotLinked?: boolean;
+  hasCurrentImportSource: boolean;
+  currentImportMatched: boolean;
+  historicalSnapshotLinks?: Array<boolean | undefined>;
+}
+
 const STOCK_EXCESS_MULTIPLIER = 4; // stock >= 4 x besoin = au moins +300 %
 const ORDER_EXCESS_MULTIPLIER = 2;
 
@@ -78,6 +86,32 @@ export const buildOrderProductNameCounts = (
   });
 
   return counts;
+};
+
+export const resolveOrderRatioLinkStatus = ({
+  currentMonthValidated,
+  currentSnapshotLinked,
+  hasCurrentImportSource,
+  currentImportMatched,
+  historicalSnapshotLinks = [],
+}: OrderRatioLinkEvidence): OrderRatioLinkStatus => {
+  // Un mois figé doit utiliser exactement le statut enregistré lors du figeage.
+  // Le fichier d'import encore présent ne doit jamais écraser ce statut.
+  if (currentMonthValidated && currentSnapshotLinked !== undefined) {
+    return currentSnapshotLinked ? 'linked' : 'unlinked';
+  }
+
+  // Pour un mois encore en cours de travail, le fichier actuel est la source de vérité.
+  if (!currentMonthValidated && hasCurrentImportSource) {
+    return currentImportMatched ? 'linked' : 'unlinked';
+  }
+
+  // En l'absence de source courante exploitable, les snapshots historiques évitent
+  // d'annoncer à tort qu'un article déjà lié est non lié.
+  if (historicalSnapshotLinks.some(isLinked => isLinked === true)) return 'linked';
+  if (historicalSnapshotLinks.some(isLinked => isLinked === false)) return 'unlinked';
+
+  return 'unknown';
 };
 
 const pushNegativeValueAlert = (
