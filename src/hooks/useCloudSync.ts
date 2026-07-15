@@ -4,6 +4,7 @@
 // Synchronisation Supabase de l'état global de l'application.
 // La synchronisation des lignes de commande est isolée dans useOrderLineSync.
 // Le chargement et l'application de app_state sont isolés dans useAppStateHydration.
+// La connexion Supabase Realtime est isolée dans useCloudRealtime.
 // =============================================================
 
 import {
@@ -15,7 +16,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react';
-import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { loadAllFromSupabase } from '../utils/supabase';
 import {
   flushReliablePendingSaves,
@@ -35,7 +36,6 @@ import type {
   OrderTemplateRow,
 } from '../types';
 import type { ProductWithHistory } from '../data';
-import { CURRENT_SITE_ID } from '../constants';
 import type { DailyCoversState } from '../utils/dateHelpers';
 import { nowIso, removeState } from './appStateHelpers';
 import {
@@ -43,6 +43,7 @@ import {
   type AppStateSetterRegistry,
 } from './appStateSyncModel';
 import { useAppStateHydration } from './useAppStateHydration';
+import { useCloudRealtime } from './useCloudRealtime';
 import { useOrderLineSync } from './useOrderLineSync';
 
 type SyncStatus = 'idle' | 'saving' | 'saved' | 'pending' | 'error';
@@ -133,8 +134,6 @@ const isUserTyping = (): boolean => {
     || Boolean((element as HTMLElement & { isContentEditable?: boolean }).isContentEditable);
 };
 
-const REALTIME_RECONNECT_DELAYS_MS = [2000, 5000, 10000];
-
 export const useCloudSync = ({
   covers,
   dailyCovers,
@@ -182,10 +181,6 @@ export const useCloudSync = ({
   const localTsByKey = useRef<Record<string, string>>({});
   const lastPersistedSignatureByKey = useRef<Record<string, string>>({});
   const initialCloudLoadSucceededRef = useRef(false);
-  const channelRef = useRef<any>(null);
-  const channelStatusRef = useRef<'idle' | 'joined' | 'errored'>('idle');
-  const reconnectAttemptRef = useRef(0);
-  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeSaveIdsRef = useRef<Set<string>>(new Set());
   const latestSaveTsByIdRef = useRef<Record<string, string>>({});
   const lastSaveToastAtRef = useRef(0);
@@ -460,119 +455,14 @@ export const useCloudSync = ({
     return () => window.removeEventListener('online', handleOnline);
   }, [retryQueuedSaves, supabaseLoaded]);
 
-  useEffect(() => {
-    const client = supabase;
-    if (!supabaseLoaded || !isSupabaseConfigured() || !client) return;
-
-    let disposed = false;
-
-    const clearReconnectTimer = () => {
-      if (reconnectTimerRef.current) {
-        clearTimeout(reconnectTimerRef.current);
-        reconnectTimerRef.current = null;
-      }
-    };
-
-    const scheduleReconnect = () => {
-      if (disposed || reconnectTimerRef.current) return;
-      const attempt = reconnectAttemptRef.current;
-      const delayMs = REALTIME_RECONNECT_DELAYS_MS[
-        Math.min(attempt, REALTIME_RECONNECT_DELAYS_MS.length - 1)
-      ];
-      reconnectAttemptRef.current = attempt + 1;
-      reconnectTimerRef.current = setTimeout(() => {
-        reconnectTimerRef.current = null;
-        if (!disposed) openChannel();
-      }, delayMs);
-    };
-
-    const openChannel = () => {
-      if (disposed) return;
-      if (channelRef.current) {
-        void client.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
-
-      channelStatusRef.current = 'idle';
-      const channel = client
-        .channel(`app_state_sync:${CURRENT_SITE_ID}`)
-        .on(
-          'postgres_changes' as any,
-          { event: '*', schema: 'public', table: 'app_state', filter: `site_id=eq.${CURRENT_SITE_ID}` },
-          (payload: any) => {
-            const row = payload.new as {
-              site_id?: string;
-              key: string;
-              value: unknown;
-              updated_at: string;
-            } | null;
-            if (row?.site_id && row.site_id !== CURRENT_SITE_ID) return;
-            if (!row?.key || !row?.updated_at) return;
-            handleRealtimeEvent(row.key, row.updated_at, row.value);
-          },
-        )
-        .on(
-          'postgres_changes' as any,
-          {
-            event: '*',
-            schema: 'public',
-            table: 'order_line_states',
-            filter: `site_id=eq.${CURRENT_SITE_ID}`,
-          },
-          (payload: any) => handleOrderLineRealtimePayload(payload),
-        )
-        .subscribe((status: string) => {
-          if (disposed) return;
-          if (status === 'SUBSCRIBED') {
-            channelStatusRef.current = 'joined';
-            reconnectAttemptRef.current = 0;
-            clearReconnectTimer();
-            console.log('[Realtime] ✅ Connecté — sync instantanée active');
-          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            channelStatusRef.current = 'errored';
-            console.warn(`[Realtime] ⚠️ ${status}, reconnexion programmée...`);
-            scheduleReconnect();
-          } else if (status === 'CLOSED') {
-            channelStatusRef.current = 'idle';
-          }
-        });
-
-      channelRef.current = channel;
-    };
-
-    openChannel();
-    window.addEventListener('focusout', flushPending);
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState !== 'visible' || disposed) return;
-      if (channelStatusRef.current !== 'joined') {
-        reconnectAttemptRef.current = 0;
-        clearReconnectTimer();
-        openChannel();
-        void hydrateFromCloud({ isReconnect: true });
-      }
-      if (getReliablePendingSaveCount() > 0) void retryQueuedSaves();
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      disposed = true;
-      clearReconnectTimer();
-      if (channelRef.current) {
-        void client.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
-      window.removeEventListener('focusout', flushPending);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [
-    supabaseLoaded,
-    handleRealtimeEvent,
-    handleOrderLineRealtimePayload,
-    flushPending,
+  useCloudRealtime({
+    enabled: supabaseLoaded,
+    onAppStateChange: handleRealtimeEvent,
+    onOrderLineChange: handleOrderLineRealtimePayload,
+    flushPendingAppState: flushPending,
     hydrateFromCloud,
     retryQueuedSaves,
-  ]);
+  });
 
   const persistEverywhere = useCallback((key: string, value: unknown, debounceMs?: number) => {
     const signature = stableStringify(value);
