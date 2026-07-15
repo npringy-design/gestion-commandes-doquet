@@ -49,3 +49,7 @@ Le choix `Quitter` signifie uniquement « revenir à l'accueil ». Il ne ferme p
 5. Rétablir la connexion et confirmer la disparition du bandeau ainsi que la synchronisation des valeurs.
 6. Refaire une coupure puis choisir `Quitter` et vérifier le retour à la page d'accueil sans déconnexion.
 7. Rétablir la connexion et confirmer qu'aucune donnée n'a été effacée.
+
+## Mise en production
+
+La version a été validée fonctionnellement sur l'application TEST puis promue sur `main`. Ce paragraphe documentaire sert également à relancer le pipeline Vercel après une limite temporaire de fréquence de builds ; il ne modifie aucun comportement applicatif.
