@@ -14,6 +14,7 @@ import AppRouter from './components/AppRouter';
 import EnvironmentBanner from './components/EnvironmentBanner';
 import SyncStatusIndicator from './components/SyncStatusIndicator';
 import OrderFieldNavigationGuard from './components/OrderFieldNavigationGuard';
+import OrderAnomalyGuard from './components/OrderAnomalyGuard';
 
 const App: React.FC = () => {
   const state = useAppState();
@@ -30,6 +31,7 @@ const App: React.FC = () => {
     <>
       <EnvironmentBanner />
       <OrderFieldNavigationGuard />
+      <OrderAnomalyGuard state={state} />
       <AppRouter
         state={state}
         ratiosScrollRef={mainScrollRef}
