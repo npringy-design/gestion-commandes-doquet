@@ -293,8 +293,8 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                   minDate={minDelivery1}
                   onSelect={d => {
                     setDeliveryDateBySupplier(prev => ({ ...prev, [currentSupplierId]: d.toISOString() }));
-                    const next = new Date(d); next.setDate(d.getDate() + 7);
-                    setNextDeliveryDateBySupplier(prev => ({ ...prev, [currentSupplierId]: next.toISOString() }));
+                    // Une premiere livraison exceptionnelle ne decale pas le rythme habituel du fournisseur.
+                    setNextDeliveryDateBySupplier(prev => { const n = { ...prev }; delete n[currentSupplierId]; return n; });
                     setActiveCalendarSupplier(null);
                   }}
                   onClose={() => setActiveCalendarSupplier(null)}
