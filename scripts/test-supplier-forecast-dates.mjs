@@ -57,7 +57,13 @@ try {
     ],
   };
 
-  const dateKey = (date) => date.toISOString().slice(0, 10);
+  // Les calculs métier manipulent des jours calendaires locaux. Une conversion
+  // en UTC peut reculer la date à la veille pour une livraison à minuit.
+  const dateKey = (date) => [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
 
   const doquetBeforeCutoff = getDeliveryDates(doquet, new Date(2026, 5, 2, 9, 30));
   assert.equal(dateKey(doquetBeforeCutoff.delivery), '2026-06-03', 'Doquet mardi avant 10h doit livrer mercredi de la même semaine');
