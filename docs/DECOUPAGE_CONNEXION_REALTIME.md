@@ -43,6 +43,7 @@ Gère uniquement :
 - la fermeture de l'ancien canal avant toute nouvelle souscription ;
 - la reconnexion après `CHANNEL_ERROR` ou `TIMED_OUT` ;
 - la reprise au retour sur l'application ;
+- la détection du retour réseau avec l'événement navigateur `online` ;
 - le rechargement de sécurité après reconnexion ;
 - le renvoi des sauvegardes restées en attente.
 
@@ -67,6 +68,27 @@ Contient les règles pures et testables :
 - Le retour sur l'application déclenche un rechargement avec `{ isReconnect: true }`, qui conserve les protections des lots précédents contre les réponses vides ou partielles.
 - Une perte temporaire de Realtime ne supprime aucune donnée et ne déclenche aucune remise à zéro.
 - Les sauvegardes locales en attente sont renvoyées automatiquement lorsque l'application redevient visible.
+- Le retour du réseau recrée volontairement le canal puis recharge l'état final du site, même si le navigateur croyait encore l'ancien canal connecté.
+- Les saisies effectuées hors connexion sont renvoyées avant ce rechargement final afin de conserver le mécanisme de sauvegarde fiable et de conflit existant.
+
+## Correction du retour réseau sur mobile
+
+Un test réel a montré le cas suivant :
+
+1. le téléphone reste ouvert sur une commande ;
+2. le mode avion est activé ;
+3. des valeurs sont modifiées depuis un autre appareil ;
+4. le mode avion est désactivé sans mettre l'application en arrière-plan ;
+5. le téléphone ne recevait pas automatiquement les événements manqués.
+
+La cause était l'absence d'écoute de l'événement navigateur `online`. Le canal pouvait rester marqué `joined` en mémoire alors que la connexion avait été interrompue.
+
+Le correctif ajoute deux filets de sécurité :
+
+- au retour du réseau, l'ancien canal est fermé, un canal neuf est ouvert et un rechargement sécurisé est effectué ;
+- à chaque retour au premier plan, un rechargement sécurisé est effectué même si le canal indique encore `joined`.
+
+Ces rechargements utilisent les protections déjà validées : une réponse vide, partielle ou plus ancienne qu'une saisie locale ne peut pas remettre les données à zéro.
 
 ## Contrôle automatique
 
@@ -85,6 +107,9 @@ Le test vérifie notamment :
 - la présence des filtres par site sur les deux tables ;
 - la fermeture de l'ancien canal avant une nouvelle souscription ;
 - le rechargement de sécurité au retour sur l'application ;
+- la détection du retour réseau lorsque la page reste visible ;
+- la recréation du canal et la récupération des données manquées ;
+- le renvoi des saisies locales avant le rechargement final ;
 - la reprise des sauvegardes en attente ;
 - l'absence de fonction de suppression ou de remise à zéro dans le hook Realtime ;
 - la délégation effective depuis `useCloudSync`.
@@ -95,8 +120,10 @@ Ce test est intégré à `npm run verify`.
 
 1. Ouvrir une commande sur l'application TEST avec des valeurs déjà présentes.
 2. Ouvrir la même commande dans un second navigateur ou sur un second appareil.
-3. Modifier un stock et vérifier que l'autre écran reçoit la modification sans actualisation manuelle.
-4. Mettre l'application en arrière-plan, puis revenir dessus : les valeurs doivent rester présentes.
-5. Couper brièvement la connexion réseau, saisir une valeur, puis rétablir la connexion.
-6. Vérifier que l'indicateur revient à « Sauvegardé » et que la valeur reste présente après actualisation.
-7. Naviguer entre plusieurs fournisseurs pour confirmer qu'aucune donnée ne disparaît ou ne se mélange.
+3. Activer le mode avion sur le téléphone en laissant la commande affichée.
+4. Modifier plusieurs stocks depuis le PC.
+5. Désactiver le mode avion sans actualiser ni changer de page sur le téléphone.
+6. Vérifier que les nouvelles valeurs apparaissent automatiquement sur le téléphone.
+7. Faire ensuite le test inverse : saisir hors connexion sur le téléphone, rétablir le réseau et vérifier la mise à jour du PC.
+8. Actualiser les deux appareils et confirmer que les mêmes valeurs restent présentes.
+9. Naviguer entre plusieurs fournisseurs pour confirmer qu'aucune donnée ne disparaît ou ne se mélange.
