@@ -107,14 +107,29 @@ try {
     'L’ancien canal doit être fermé avant chaque nouvelle souscription');
   assert.match(realtimeHookSource, /canScheduleRealtimeReconnect\(disposed, Boolean\(reconnectTimerRef\.current\)\)/,
     'Un seul timer de reconnexion doit pouvoir être actif');
-  assert.match(realtimeHookSource, /hydrateFromCloud\(\{ isReconnect: true \}\)/,
-    'Le retour sur l’application doit recharger les données sans remise à zéro');
-  assert.match(realtimeHookSource, /getReliablePendingSaveCount\(\) > 0/,
-    'Les sauvegardes en attente doivent être renvoyées au retour sur l’application');
+  assert.match(realtimeHookSource, /window\.addEventListener\('online', handleNetworkOnline\)/,
+    'Le retour du réseau doit être détecté même si la page reste visible');
+  assert.match(realtimeHookSource, /window\.removeEventListener\('online', handleNetworkOnline\)/,
+    'L’écouteur réseau doit être retiré à la destruction du hook');
+  assert.match(
+    realtimeHookSource,
+    /const handleNetworkOnline[\s\S]*?openChannel\(\);[\s\S]*?recoverLatestCloudState\(\)/,
+    'Le retour du réseau doit recréer le canal puis récupérer les données manquées',
+  );
+  assert.match(
+    realtimeHookSource,
+    /if \(getReliablePendingSaveCount\(\) > 0\) await retryQueuedSaves\(\);[\s\S]*?await hydrateFromCloud\(\{ isReconnect: true \}\)/,
+    'Les saisies locales doivent être renvoyées avant le rechargement final du site',
+  );
+  assert.match(
+    realtimeHookSource,
+    /const handleVisibilityChange[\s\S]*?recoverLatestCloudState\(\)/,
+    'Le retour au premier plan doit également vérifier les données même si le canal se croit connecté',
+  );
   assert.doesNotMatch(realtimeHookSource, /deleteOrderLineState|saveToSupabase|removeState|set[A-Z][A-Za-z]+\(\{\}\)/,
     'Le hook Realtime ne doit ni supprimer ni remettre à zéro des données');
 
-  console.log('Realtime OK : filtres site, canal unique, reconnexion 2/5/10 s et reprise sans effacement.');
+  console.log('Realtime OK : filtres site, canal unique, reconnexion 2/5/10 s et resynchronisation au retour réseau.');
 } finally {
   rmSync(tempDir, { recursive: true, force: true });
 }
