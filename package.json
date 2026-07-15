@@ -12,12 +12,13 @@
     "test:margin-parser": "node scripts/test-margin-parser.mjs",
     "test:sync": "node scripts/test-reliable-sync.mjs",
     "test:order-line-sync": "node scripts/test-order-line-sync.mjs",
+    "test:app-state-sync": "node scripts/test-app-state-sync.mjs",
     "test:order-navigation": "node scripts/test-order-navigation.mjs",
     "test:order-anomalies": "node scripts/test-order-anomalies.mjs",
     "check:multisite": "node scripts/check-app-state-multisite.mjs",
     "check:security-contract": "node scripts/check-security-contract.mjs",
     "check:secrets": "node scripts/check-sensitive-env.mjs",
-    "verify": "npm run typecheck && npm run test:calculations && npm run test:supplier-dates && npm run test:margin-parser && npm run test:sync && npm run test:order-line-sync && npm run test:order-navigation && npm run test:order-anomalies && npm run check:multisite && npm run check:security-contract && npm run build && npm run check:secrets",
+    "verify": "npm run typecheck && npm run test:calculations && npm run test:supplier-dates && npm run test:margin-parser && npm run test:sync && npm run test:order-line-sync && npm run test:app-state-sync && npm run test:order-navigation && npm run test:order-anomalies && npm run check:multisite && npm run check:security-contract && npm run build && npm run check:secrets",
     "preview": "vite preview"
   },
   "dependencies": {
