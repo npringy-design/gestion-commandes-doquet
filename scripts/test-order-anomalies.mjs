@@ -60,9 +60,10 @@ try {
       averageRatio: 0.1,
       forecastTotal: 200,
       toOrder: 0,
+      ratioLinkStatus: 'linked',
     }),
     [],
-    'Une ligne cohérente ne doit afficher aucune alerte'
+    'Une ligne cohérente et liée ne doit afficher aucune alerte'
   );
 
   assert.ok(
@@ -72,30 +73,46 @@ try {
       averageRatio: 0.1,
       forecastTotal: 200,
       toOrder: 0,
+      ratioLinkStatus: 'linked',
     })).includes('invalid_packaging'),
     'Un conditionnement vide doit être signalé'
   );
 
-  assert.ok(
-    codes(getOrderAnomalies({
+  assert.deepEqual(
+    getOrderAnomalies({
       product: { ...baseProduct, stock: '' },
       calculationMode: 'margin',
       averageRatio: 0.1,
       forecastTotal: 200,
       toOrder: 2,
-    })).includes('missing_stock'),
-    'Un stock vide avec besoin prévu doit être signalé'
+      ratioLinkStatus: 'linked',
+    }),
+    [],
+    'Un stock vide pendant l’inventaire ne doit pas générer une fausse alerte'
+  );
+
+  assert.ok(
+    codes(getOrderAnomalies({
+      product: baseProduct,
+      calculationMode: 'margin',
+      averageRatio: 0.1,
+      forecastTotal: 200,
+      toOrder: 0,
+      ratioLinkStatus: 'unlinked',
+    })).includes('unlinked_ratio'),
+    'Un produit non lié dans Calcul vente ratio doit être signalé'
   );
 
   assert.ok(
     !codes(getOrderAnomalies({
-      product: { ...baseProduct, stock: 0 },
+      product: baseProduct,
       calculationMode: 'margin',
       averageRatio: 0.1,
       forecastTotal: 200,
-      toOrder: 2,
-    })).includes('missing_stock'),
-    'Un stock explicitement saisi à zéro ne doit pas être considéré comme vide'
+      toOrder: 0,
+      ratioLinkStatus: 'unknown',
+    })).includes('unlinked_ratio'),
+    'L’absence de fichier permettant de contrôler la liaison ne doit pas produire de faux positif'
   );
 
   assert.ok(
@@ -105,6 +122,7 @@ try {
       averageRatio: 0.1,
       forecastTotal: 200,
       toOrder: 0,
+      ratioLinkStatus: 'linked',
     })).includes('missing_target'),
     'Le mode Cible doit signaler un stock cible vide'
   );
@@ -116,6 +134,7 @@ try {
       averageRatio: 0.1,
       forecastTotal: 200,
       toOrder: 0,
+      ratioLinkStatus: 'linked',
     })).includes('negative_value'),
     'Une livraison négative doit être signalée'
   );
@@ -128,19 +147,42 @@ try {
       forecastTotal: 200,
       toOrder: 0,
       duplicateNameCount: 2,
+      ratioLinkStatus: 'linked',
     })).includes('duplicate_product'),
     'Un nom de produit en doublon doit être signalé'
   );
 
   assert.ok(
     codes(getOrderAnomalies({
-      product: { ...baseProduct, stock: 240 },
+      product: {
+        ...baseProduct,
+        name: 'Sirop citron',
+        packaging: 6,
+        stock: 10,
+      },
       calculationMode: 'margin',
-      averageRatio: 0.1,
-      forecastTotal: 200,
+      averageRatio: 0.01,
+      forecastTotal: 100,
       toOrder: 0,
+      ratioLinkStatus: 'linked',
     })).includes('unusual_stock'),
-    'Un stock très supérieur au besoin doit être signalé'
+    'Une saisie de stock très supérieure au besoin, comme 10 pour un besoin de 1, doit être signalée'
+  );
+
+  assert.ok(
+    !codes(getOrderAnomalies({
+      product: {
+        ...baseProduct,
+        packaging: 6,
+        stock: 6,
+      },
+      calculationMode: 'margin',
+      averageRatio: 0.01,
+      forecastTotal: 100,
+      toOrder: 0,
+      ratioLinkStatus: 'linked',
+    })).includes('unusual_stock'),
+    'Un écart faible lié au conditionnement ne doit pas déclencher l’alerte de mauvaise saisie'
   );
 
   assert.ok(
@@ -150,6 +192,7 @@ try {
       averageRatio: 0.1,
       forecastTotal: 200,
       toOrder: 0,
+      ratioLinkStatus: 'linked',
     })).includes('unusual_upcoming_delivery'),
     'Une livraison à venir très supérieure au besoin doit être signalée'
   );
@@ -161,11 +204,12 @@ try {
       averageRatio: 0.05,
       forecastTotal: 200,
       toOrder: 12,
+      ratioLinkStatus: 'linked',
     })).includes('unusual_order_quantity'),
     'Une proposition de commande disproportionnée doit être signalée'
   );
 
-  console.log('Alertes commandes OK : champs manquants, doublons, valeurs négatives et quantités inhabituelles couvertes.');
+  console.log('Alertes commandes OK : paramétrage, liaisons ratio, doublons et saisies disproportionnées couverts sans alerte sur stock vide.');
 } finally {
   rmSync(tempDir, { recursive: true, force: true });
 }
