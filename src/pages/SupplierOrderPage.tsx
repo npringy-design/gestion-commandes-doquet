@@ -231,7 +231,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
           Mobile  : 2 rangées compactes (nom+nav | mode+infos)
           Desktop : 1 ligne flex-row
       ================================================================ */}
-      <div className="max-w-[1600px] mx-auto mb-4">
+      <div className="max-w-[1600px] mx-auto mb-4 relative z-30 lg:z-auto">
         <div className="bg-white/90 backdrop-blur-xl rounded-2xl lg:rounded-[32px] p-3 lg:p-6 shadow border border-white">
 
           {/* ══════════════════════════════════════════════
