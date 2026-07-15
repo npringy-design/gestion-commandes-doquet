@@ -13,22 +13,35 @@ Ces alertes sont uniquement informatives :
 
 Un clic sur le triangle ouvre le détail des raisons détectées. Sur ordinateur, le survol affiche aussi un résumé natif.
 
+## Principe opérationnel
+
+L'absence de stock pendant un inventaire normal ne doit pas créer d'alerte.
+
+La personne peut ouvrir une page de commande, aller compter les produits en réserve puis saisir les valeurs progressivement. Un stock vide est donc un état normal de travail et non une anomalie.
+
+Les alertes se concentrent sur :
+
+- le paramétrage des articles ;
+- les liaisons avec Calcul vente ratio ;
+- les doublons ;
+- les valeurs impossibles ;
+- les saisies ou propositions manifestement disproportionnées.
+
 ## Alertes activées
 
 ### Conditionnement absent ou invalide
 
 Déclenchée lorsque le conditionnement est vide, égal à zéro ou négatif.
 
-Le calcul de commande retourne volontairement zéro colis lorsque le conditionnement n'est pas valide.
+Le message demande de vérifier le paramétrage de l'article.
 
-### Stock non saisi avec besoin prévu
+### Produit non lié dans Calcul vente ratio
 
-Déclenchée lorsque :
+Déclenchée lorsque le fichier du mois de travail est disponible et que le produit n'est pas reconnu comme lié à une ligne importée.
 
-- le ratio produit génère un besoin supérieur à zéro ;
-- le champ stock est encore vide.
+Lorsque aucun fichier ne permet de vérifier la liaison, aucune alerte n'est affichée afin d'éviter un faux positif.
 
-Une valeur explicitement saisie à `0` est considérée comme valide et retire l'alerte.
+Les anciens snapshots validés peuvent également confirmer qu'un produit a déjà été correctement lié.
 
 ### Stock cible manquant
 
@@ -57,35 +70,48 @@ Déclenchée lorsque deux lignes du même fournisseur ont le même nom après no
 
 Exemple : `Coca Cola` et `coca-cola` sont considérés comme équivalents.
 
-### Stock anormalement élevé
+### Stock saisi anormalement élevé
 
-Déclenchée lorsque le stock saisi est très supérieur au besoin de référence.
+Cette alerte cherche principalement une erreur de frappe ou d'unité.
 
-Le seuil retient la valeur la plus élevée entre :
+Elle est déclenchée lorsque le stock saisi atteint au moins :
 
-- quatre fois le besoin ;
-- le besoin augmenté de cinq colis ;
-- huit colis complets.
+- quatre fois le besoin estimé, soit au minimum `+300 %` ;
+- et un écart minimal de cinq unités ou d'un conditionnement complet.
 
-En mode Cible, le besoin de référence tient également compte du stock cible.
+Le second critère évite de signaler de petites différences normales liées au colisage.
+
+Exemple initial :
+
+- besoin estimé : `1` bouteille ;
+- stock saisi : `10` bouteilles ;
+- l'alerte est affichée.
+
+Le message indique le stock, le besoin et le pourcentage d'écart calculé.
 
 ### Livraison à venir anormalement élevée
 
 Même logique que le stock anormalement élevé, après conversion du nombre de colis livrés en unités.
 
+Le message rappelle le nombre d'unités correspondant à la saisie.
+
 ### Quantité proposée disproportionnée
 
-Déclenchée uniquement lorsque :
+Déclenchée lorsque :
 
-- la proposition atteint au moins dix colis ;
-- les unités proposées dépassent nettement le besoin de référence.
+- la proposition atteint au moins cinq colis ;
+- les unités proposées dépassent au moins deux fois le besoin ;
+- ou dépassent le besoin de quatre conditionnements complets.
 
-Le seuil retient la valeur la plus élevée entre :
+Cette règle vise une erreur de ratio, de conditionnement ou une donnée de stock incohérente ayant produit une proposition excessive.
 
-- deux fois le besoin ;
-- le besoin augmenté de huit colis.
+## Alertes volontairement exclues
 
-Cette règle vise surtout les erreurs de conditionnement ou les zéros ajoutés accidentellement.
+### Stock simplement vide
+
+Aucune alerte n'est affichée parce que le stock n'est pas encore saisi.
+
+Cet état correspond au déroulement normal d'un inventaire opérationnel.
 
 ## Emplacement technique
 
@@ -110,14 +136,23 @@ Elle est incluse dans :
 npm run verify
 ```
 
-Les tests couvrent les champs manquants, la distinction entre vide et zéro, les doublons, les valeurs négatives et les seuils de quantité inhabituelle.
+Les tests couvrent :
+
+- l'absence d'alerte sur un stock vide ;
+- les produits liés, non liés et non vérifiables ;
+- le conditionnement manquant ;
+- le stock cible manquant ;
+- les doublons ;
+- les valeurs négatives ;
+- une saisie de `10` unités pour un besoin de `1` ;
+- les propositions et livraisons disproportionnées.
 
 ## Validation fonctionnelle attendue
 
 Sur l'application TEST :
 
-1. ouvrir une page fournisseur ;
-2. vérifier qu'un stock vide avec besoin prévu affiche un triangle ;
-3. saisir `0` dans le stock et vérifier que cette raison disparaît ;
-4. cliquer sur le triangle et vérifier la lisibilité de la fenêtre ;
+1. ouvrir une page fournisseur avec des stocks encore vides et vérifier qu'aucun triangle n'apparaît pour cette seule raison ;
+2. vérifier qu'un produit non lié dans Calcul vente ratio affiche une alerte lorsque le fichier du mois est présent ;
+3. saisir un stock très supérieur au besoin et vérifier que le triangle apparaît ;
+4. cliquer sur le triangle et vérifier que le stock, le besoin et l'écart sont compréhensibles ;
 5. confirmer que la saisie et le calcul continuent de fonctionner normalement.
