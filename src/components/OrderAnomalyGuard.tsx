@@ -8,8 +8,8 @@ import {
   buildOrderProductNameCounts,
   getOrderAnomalies,
   normalizeOrderProductName,
+  resolveOrderRatioLinkStatus,
   type OrderAnomaly,
-  type OrderRatioLinkStatus,
 } from '../utils/orderAnomalies';
 
 const ORDER_HEADER_MARKER = 'À Cmd';
@@ -33,19 +33,6 @@ const sameElements = (left: HTMLElement[], right: HTMLElement[]): boolean =>
 
 type ProductWithRatioSnapshots = {
   ratioSnapshots?: Record<string, { isLinked?: boolean }>;
-};
-
-const getRatioLinkStatus = (
-  product: ProductWithRatioSnapshots,
-  hasCurrentImportSource: boolean,
-  currentImportMatched: boolean
-): OrderRatioLinkStatus => {
-  if (hasCurrentImportSource) return currentImportMatched ? 'linked' : 'unlinked';
-
-  const snapshots = Object.values(product.ratioSnapshots ?? {});
-  if (snapshots.some(snapshot => snapshot?.isLinked === true)) return 'linked';
-  if (snapshots.some(snapshot => snapshot?.isLinked === false)) return 'unlinked';
-  return 'unknown';
 };
 
 interface OrderAnomalyIndicatorProps {
@@ -204,12 +191,16 @@ const OrderAnomalyGuard: React.FC<OrderAnomalyGuardProps> = ({ state }) => {
     displayedProducts.forEach(product => {
       const stats = state.getProductStats(product);
       const avgRatio = stats.avgRatio;
-      const currentImportMatched = Boolean(stats.mS[state.importTargetMonth]?.isImported);
-      const ratioLinkStatus = getRatioLinkStatus(
-        product as ProductWithRatioSnapshots,
+      const currentMonthStats = stats.mS[state.importTargetMonth];
+      const currentImportMatched = Boolean(currentMonthStats?.isImported);
+      const ratioSnapshots = (product as ProductWithRatioSnapshots).ratioSnapshots ?? {};
+      const ratioLinkStatus = resolveOrderRatioLinkStatus({
+        currentMonthValidated: Boolean(currentMonthStats?.isValidated),
+        currentSnapshotLinked: ratioSnapshots[state.importTargetMonth]?.isLinked,
         hasCurrentImportSource,
-        currentImportMatched
-      );
+        currentImportMatched,
+        historicalSnapshotLinks: Object.values(ratioSnapshots).map(snapshot => snapshot?.isLinked),
+      });
       const packaging = Math.max(1, Math.floor(toNumber(product.packaging) || 1));
       const stock = Math.max(0, Math.floor(toNumber(product.stock)));
       const upcomingUnits = Math.max(0, Math.floor(toNumber(product.upcomingDelivery))) * packaging;
