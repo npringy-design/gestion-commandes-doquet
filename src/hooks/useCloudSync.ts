@@ -6,6 +6,7 @@
 // Le chargement et l'application de app_state sont isolés dans useAppStateHydration.
 // La sauvegarde de app_state est isolée dans useAppStatePersistence.
 // La connexion Supabase Realtime est isolée dans useCloudRealtime.
+// Le cycle commun des sauvegardes fiables est isolé dans useReliableSaveLifecycle.
 // =============================================================
 
 import {
@@ -19,12 +20,6 @@ import {
 } from 'react';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { loadAllFromSupabase } from '../utils/supabase';
-import {
-  flushReliablePendingSaves,
-  getReliablePendingSaveCount,
-  retryReliablePendingSaves,
-  type ReliableSaveFailureReason,
-} from '../utils/reliableSaveQueue';
 import type {
   OrderState,
   SupplierConfig,
@@ -45,8 +40,7 @@ import {
 } from './useAppStatePersistence';
 import { useCloudRealtime } from './useCloudRealtime';
 import { useOrderLineSync } from './useOrderLineSync';
-
-type SyncStatus = 'idle' | 'saving' | 'saved' | 'pending' | 'error';
+import { useReliableSaveLifecycle } from './useReliableSaveLifecycle';
 
 type StateSetters = {
   setCovers: Dispatch<SetStateAction<Record<string, number>>>;
@@ -127,19 +121,25 @@ export const useCloudSync = ({
   onSaveError,
 }: UseCloudSyncParams) => {
   const [supabaseLoaded, setSupabaseLoaded] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
-  const [pendingSaveCount, setPendingSaveCount] = useState(() => getReliablePendingSaveCount());
-
-  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isHydratingFromCloud = useRef(false);
   const lastCloudUpdatedAtByKey = useRef<Record<string, string>>({});
   const localTsByKey = useRef<Record<string, string>>({});
   const lastPersistedSignatureByKey = useRef<Record<string, string>>({});
   const initialCloudLoadSucceededRef = useRef(false);
-  const activeSaveIdsRef = useRef<Set<string>>(new Set());
-  const latestSaveTsByIdRef = useRef<Record<string, string>>({});
-  const lastSaveToastAtRef = useRef(0);
-  const retryInFlightRef = useRef(false);
+
+  const {
+    syncStatus,
+    pendingSaveCount,
+    markSaveStarted,
+    markSaveConfirmed,
+    markSavePending,
+    markSaveError,
+    retryReliableSaves,
+  } = useReliableSaveLifecycle({
+    onSaveError,
+    lastCloudUpdatedAtByKey,
+    localTsByKey,
+  });
 
   const appStateSetters = useMemo<AppStateSetterRegistry>(() => ({
     covers: value => setCovers(value as Record<string, number>),
@@ -190,89 +190,6 @@ export const useCloudSync = ({
     lastPersistedSignatureByKey,
   });
 
-  const clearSyncTimer = useCallback(() => {
-    if (syncTimerRef.current) {
-      clearTimeout(syncTimerRef.current);
-      syncTimerRef.current = null;
-    }
-  }, []);
-
-  const notifySaveProblem = useCallback((message: string) => {
-    const now = Date.now();
-    if (now - lastSaveToastAtRef.current < 5000) return;
-    lastSaveToastAtRef.current = now;
-    onSaveError(message);
-  }, [onSaveError]);
-
-  const markSaveStarted = useCallback((id: string, ts: string) => {
-    latestSaveTsByIdRef.current[id] = ts;
-    activeSaveIdsRef.current.add(id);
-    clearSyncTimer();
-    setSyncStatus('saving');
-  }, [clearSyncTimer]);
-
-  const markSaveConfirmed = useCallback((id: string, confirmedTs: string) => {
-    const latestTs = latestSaveTsByIdRef.current[id];
-    if (latestTs && confirmedTs < latestTs) return;
-
-    activeSaveIdsRef.current.delete(id);
-    const pending = getReliablePendingSaveCount();
-    setPendingSaveCount(pending);
-
-    if (pending > 0) {
-      setSyncStatus('pending');
-      return;
-    }
-    if (activeSaveIdsRef.current.size > 0) {
-      setSyncStatus('saving');
-      return;
-    }
-
-    setSyncStatus('saved');
-    clearSyncTimer();
-    syncTimerRef.current = setTimeout(() => {
-      syncTimerRef.current = null;
-      setSyncStatus('idle');
-    }, 1800);
-  }, [clearSyncTimer]);
-
-  const markSavePending = useCallback((
-    id: string,
-    localTs: string,
-    pending: number,
-    persistedLocally: boolean,
-  ) => {
-    const latestTs = latestSaveTsByIdRef.current[id];
-    if (!latestTs || localTs >= latestTs) activeSaveIdsRef.current.delete(id);
-    setPendingSaveCount(pending);
-    setSyncStatus(persistedLocally ? 'pending' : 'error');
-    notifySaveProblem(
-      persistedLocally
-        ? 'Sauvegarde non confirmée. La modification est conservée sur cet appareil et sera renvoyée automatiquement.'
-        : 'Sauvegarde impossible et stockage local indisponible. Ne fermez pas la page avant le retour de la connexion.',
-    );
-  }, [notifySaveProblem]);
-
-  const markSaveError = useCallback((
-    id: string,
-    localTs: string,
-    reason: ReliableSaveFailureReason,
-    pending: number,
-  ) => {
-    const latestTs = latestSaveTsByIdRef.current[id];
-    if (!latestTs || localTs >= latestTs) activeSaveIdsRef.current.delete(id);
-    setPendingSaveCount(pending);
-    setSyncStatus(pending > 0 ? 'pending' : 'error');
-
-    if (reason === 'conflict') {
-      notifySaveProblem('Une modification plus récente existe déjà. Les données du serveur ont été conservées.');
-    } else if (reason === 'storage') {
-      notifySaveProblem('La modification ne peut pas être sécurisée localement. Gardez cette page ouverte.');
-    } else {
-      notifySaveProblem('Erreur de sauvegarde. Une nouvelle tentative sera effectuée automatiquement.');
-    }
-  }, [notifySaveProblem]);
-
   const {
     orderLineStates,
     updateOrderLineField,
@@ -286,18 +203,6 @@ export const useCloudSync = ({
     markSavePending,
     markSaveError,
   });
-
-  useEffect(() => {
-    const handleHidden = () => {
-      if (document.visibilityState === 'hidden') flushReliablePendingSaves();
-    };
-    document.addEventListener('visibilitychange', handleHidden);
-    window.addEventListener('pagehide', flushReliablePendingSaves);
-    return () => {
-      document.removeEventListener('visibilitychange', handleHidden);
-      window.removeEventListener('pagehide', flushReliablePendingSaves);
-    };
-  }, []);
 
   const pendingRealtimeRef = useRef<Map<string, { ts: string; value: unknown }>>(new Map());
 
@@ -358,44 +263,14 @@ export const useCloudSync = ({
   }, [hydrateFromCloud]);
 
   const retryQueuedSaves = useCallback(async () => {
-    if (retryInFlightRef.current || !isSupabaseConfigured()) return;
-    const queuedBeforeRetry = getReliablePendingSaveCount();
-    setPendingSaveCount(queuedBeforeRetry);
-    if (queuedBeforeRetry === 0) return;
-
-    retryInFlightRef.current = true;
-    clearSyncTimer();
-    setSyncStatus('saving');
-
-    try {
-      const result = await retryReliablePendingSaves({
-        onSaved: (id: string, confirmedTs: string) => {
-          if (!confirmRetriedOrderLineSave(id, confirmedTs) && id.startsWith('app:')) {
-            const key = id.slice('app:'.length);
-            lastCloudUpdatedAtByKey.current[key] = confirmedTs;
-            localTsByKey.current[key] = confirmedTs;
-          }
-          markSaveConfirmed(id, confirmedTs);
-        },
-        onPending: markSavePending,
-        onError: markSaveError,
-      });
-
-      setPendingSaveCount(result.pending);
-      if (result.saved > 0 || result.discarded > 0) {
-        await hydrateFromCloud({ isReconnect: true });
-      }
-      if (result.pending > 0) setSyncStatus('pending');
-    } finally {
-      retryInFlightRef.current = false;
-    }
+    await retryReliableSaves({
+      confirmRetriedOrderLineSave,
+      hydrateFromCloud,
+    });
   }, [
-    clearSyncTimer,
     confirmRetriedOrderLineSave,
     hydrateFromCloud,
-    markSaveConfirmed,
-    markSaveError,
-    markSavePending,
+    retryReliableSaves,
   ]);
 
   useEffect(() => {
@@ -444,8 +319,6 @@ export const useCloudSync = ({
     markSavePending,
     markSaveError,
   });
-
-  useEffect(() => () => clearSyncTimer(), [clearSyncTimer]);
 
   return {
     supabaseLoaded,

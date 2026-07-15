@@ -40,6 +40,7 @@ Le workflow choisi :
 - La sauvegarde des cles `app_state` est extraite de `useCloudSync` vers `useAppStatePersistence`, avec ses delais, signatures, protections cloud-only et controle LWW conserves a l'identique.
 - Sur mobile, le bandeau de commande passe maintenant devant le tableau lorsque le calendrier de livraison est ouvert ; la version desktop conserve son empilement precedent.
 - Sur mobile, le changement exceptionnel de la premiere livraison ne decale plus automatiquement la livraison suivante de sept jours ; celle-ci conserve le rythme habituel du fournisseur, comme sur desktop.
+- Le cycle commun des sauvegardes fiables est extrait de `useCloudSync` vers `useReliableSaveLifecycle` : statuts, messages, compteurs, reprise de file et delais sont conserves et testes sans changement Supabase.
 - Relance documentaire du deploiement production apres blocage Vercel `build-rate-limit`, sans changement applicatif.
 - Stabilisation session commande en test : la deconnexion automatique pour inactivite est supprimee cote application. `AuthGate` ne rend plus `InactivityTimeout` et `src/auth/InactivityTimeout.tsx` est neutralise. La session reste donc geree par Supabase/navigateur, sans timer applicatif qui force la deconnexion pendant une saisie.
 - Promotion production du correctif `Connexion non confirmée` valide sur test : timeout profil porte a 12 s, retry automatique du profil apres timeout, purge de toutes les cles `sb-*` local/session storage a la deconnexion forcee, deconnexion Supabase locale, retour propre vers `/` et `autoRefreshToken` desactive.

@@ -27,6 +27,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const sourcePath = join(process.cwd(), 'src', 'utils', 'reliableSaveQueue.ts');
 const rawSource = readFileSync(sourcePath, 'utf8');
 const cloudSyncSource = readFileSync(join(process.cwd(), 'src', 'hooks', 'useCloudSync.ts'), 'utf8');
+const lifecycleSource = readFileSync(join(process.cwd(), 'src', 'hooks', 'useReliableSaveLifecycle.ts'), 'utf8');
 const tempDir = mkdtempSync(join(tmpdir(), 'gestion-reliable-sync-'));
 const storage = new MemoryStorage();
 globalThis.window = { localStorage: storage };
@@ -92,14 +93,19 @@ const createHarness = () => ({
 
 try {
   assert.doesNotMatch(
-    cloudSyncSource,
+    lifecycleSource,
     /setTimeout\(\(\) => setSyncStatus\('saved'\)/,
     'Le statut Sauvegardé ne doit jamais dépendre d’un simple délai'
   );
   assert.match(
-    cloudSyncSource,
-    /markSaveConfirmed[\s\S]*setSyncStatus\('saved'\)/,
+    lifecycleSource,
+    /markSaveConfirmed[\s\S]*getConfirmedSyncStatus/,
     'Le statut Sauvegardé doit rester lié à la confirmation Supabase'
+  );
+  assert.match(
+    cloudSyncSource,
+    /useReliableSaveLifecycle/,
+    'useCloudSync doit déléguer le statut des sauvegardes au hook dédié'
   );
 
   const successHarness = createHarness();
