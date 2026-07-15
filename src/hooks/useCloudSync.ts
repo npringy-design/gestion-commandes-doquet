@@ -1,37 +1,40 @@
 // =============================================================
 // hooks/useCloudSync.ts
 //
-// Synchronisation Supabase : chargement initial, sauvegardes fiables,
-// rattrapage des écritures en attente et Realtime limité aux commandes.
+// Synchronisation Supabase de l'état global de l'application.
+// La synchronisation des lignes de commande est isolée dans useOrderLineSync.
 // =============================================================
 
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
-import {
-  loadAllFromSupabase,
-  loadOrderLineStates,
-  deleteOrderLineState,
-  OrderLineStateFields,
-  OrderLineStateRow,
-} from '../utils/supabase';
+import { loadAllFromSupabase } from '../utils/supabase';
 import {
   flushReliablePendingSaves,
   getReliablePendingSaveCount,
   retryReliablePendingSaves,
   scheduleReliableAppStateSave,
-  scheduleReliableOrderLineSave,
   type ReliableSaveFailureReason,
 } from '../utils/reliableSaveQueue';
-import { OrderState, OrderLineState, OrderLineField, SupplierConfig, PrepBatch, PrepItem, PrepImportsByMonth, PrepForecastsByDate, PrepSheetStocks, OrderTemplateRow } from '../types';
-import { ProductWithHistory } from '../data';
+import type {
+  OrderState,
+  SupplierConfig,
+  PrepBatch,
+  PrepItem,
+  PrepImportsByMonth,
+  PrepForecastsByDate,
+  PrepSheetStocks,
+  OrderTemplateRow,
+} from '../types';
+import type { ProductWithHistory } from '../data';
 import { CURRENT_SITE_ID } from '../constants';
-import { DailyCoversState } from '../utils/dateHelpers';
+import type { DailyCoversState } from '../utils/dateHelpers';
 import {
   mergeAndNormalizeProducts,
   mergeSupplierConfigsWithDefaults,
   nowIso,
   removeState,
 } from './appStateHelpers';
+import { useOrderLineSync } from './useOrderLineSync';
 
 type SyncStatus = 'idle' | 'saving' | 'saved' | 'pending' | 'error';
 
@@ -75,10 +78,9 @@ type StateSetters = {
   setOrderTemplateRows: Dispatch<SetStateAction<OrderTemplateRow[]>>;
 };
 
-type UseCloudSyncParams = PersistedState &
-  StateSetters & {
-    onSaveError: (message: string) => void;
-  };
+type UseCloudSyncParams = PersistedState & StateSetters & {
+  onSaveError: (message: string) => void;
+};
 
 const DEFER_WHILE_TYPING = new Set<string>([]);
 
@@ -91,14 +93,6 @@ const CLOUD_ONLY_KEYS = new Set<string>([
   'inventory',
   'prepImportsByMonth',
 ]);
-
-const ORDER_LINE_FIELD_TO_COLUMN: Record<OrderLineField, keyof OrderLineStateFields> = {
-  stock: 'stock',
-  upcomingDelivery: 'upcoming_delivery',
-  targetStock: 'target_stock',
-  packaging: 'packaging',
-  margin: 'margin',
-};
 
 const SAVE_DEBOUNCE_MS_BY_KEY: Record<string, number> = {
   products: 0,
@@ -145,14 +139,17 @@ const stableStringify = (value: unknown): string => {
 
 const hasDailyCoverData = (state: DailyCoversState): boolean =>
   Object.values(state).some(
-    month => Array.isArray(month) && month.some(day => day.midi !== '' && day.midi !== 0)
+    month => Array.isArray(month) && month.some(day => day.midi !== '' && day.midi !== 0),
   );
 
 const isUserTyping = (): boolean => {
-  const el = document?.activeElement as HTMLElement | null;
-  if (!el) return false;
-  const tag = el.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || Boolean((el as any).isContentEditable);
+  const element = document?.activeElement as HTMLElement | null;
+  if (!element) return false;
+  const tag = element.tagName;
+  return tag === 'INPUT'
+    || tag === 'TEXTAREA'
+    || tag === 'SELECT'
+    || Boolean((element as HTMLElement & { isContentEditable?: boolean }).isContentEditable);
 };
 
 const REALTIME_RECONNECT_DELAYS_MS = [2000, 5000, 10000];
@@ -259,7 +256,12 @@ export const useCloudSync = ({
     }, 1800);
   }, [clearSyncTimer]);
 
-  const markSavePending = useCallback((id: string, localTs: string, pending: number, persistedLocally: boolean) => {
+  const markSavePending = useCallback((
+    id: string,
+    localTs: string,
+    pending: number,
+    persistedLocally: boolean,
+  ) => {
     const latestTs = latestSaveTsByIdRef.current[id];
     if (!latestTs || localTs >= latestTs) activeSaveIdsRef.current.delete(id);
     setPendingSaveCount(pending);
@@ -267,11 +269,16 @@ export const useCloudSync = ({
     notifySaveProblem(
       persistedLocally
         ? 'Sauvegarde non confirmée. La modification est conservée sur cet appareil et sera renvoyée automatiquement.'
-        : 'Sauvegarde impossible et stockage local indisponible. Ne fermez pas la page avant le retour de la connexion.'
+        : 'Sauvegarde impossible et stockage local indisponible. Ne fermez pas la page avant le retour de la connexion.',
     );
   }, [notifySaveProblem]);
 
-  const markSaveError = useCallback((id: string, localTs: string, reason: ReliableSaveFailureReason, pending: number) => {
+  const markSaveError = useCallback((
+    id: string,
+    localTs: string,
+    reason: ReliableSaveFailureReason,
+    pending: number,
+  ) => {
     const latestTs = latestSaveTsByIdRef.current[id];
     if (!latestTs || localTs >= latestTs) activeSaveIdsRef.current.delete(id);
     setPendingSaveCount(pending);
@@ -286,73 +293,19 @@ export const useCloudSync = ({
     }
   }, [notifySaveProblem]);
 
-  const [orderLineStates, setOrderLineStates] = useState<Record<string, OrderLineState>>({});
-  const orderLineLocalTsByProductId = useRef<Record<string, string>>({});
-  const orderLineCloudTsByProductId = useRef<Record<string, string>>({});
-
-  const applyOrderLineRows = useCallback((rows: OrderLineStateRow[]) => {
-    if (rows.length === 0) return;
-    setOrderLineStates(prev => {
-      const next = { ...prev };
-      rows.forEach(row => {
-        const localTs = orderLineLocalTsByProductId.current[row.product_id];
-        if (localTs && localTs > row.updated_at) return;
-        orderLineCloudTsByProductId.current[row.product_id] = row.updated_at;
-        next[row.product_id] = {
-          stock: row.stock ?? '',
-          upcomingDelivery: row.upcoming_delivery ?? '',
-          targetStock: row.target_stock ?? '',
-          packaging: row.packaging ?? '',
-          margin: row.margin ?? undefined,
-          updatedAt: row.updated_at,
-        };
-      });
-      return next;
-    });
-  }, []);
-
-  const removeOrderLineRowLocally = useCallback((productId: string) => {
-    setOrderLineStates(prev => {
-      if (!(productId in prev)) return prev;
-      const next = { ...prev };
-      delete next[productId];
-      return next;
-    });
-    delete orderLineLocalTsByProductId.current[productId];
-    delete orderLineCloudTsByProductId.current[productId];
-  }, []);
-
-  const updateOrderLineField = useCallback((productId: string, field: OrderLineField, value: number | '') => {
-    const ts = nowIso();
-    const saveId = `order:${productId}`;
-    orderLineLocalTsByProductId.current[productId] = ts;
-    setOrderLineStates(prev => ({
-      ...prev,
-      [productId]: { ...prev[productId], [field]: value, updatedAt: ts },
-    }));
-
-    if (!isSupabaseConfigured()) return;
-    markSaveStarted(saveId, ts);
-    const column = ORDER_LINE_FIELD_TO_COLUMN[field];
-    scheduleReliableOrderLineSave(
-      productId,
-      { [column]: value === '' ? null : Number(value) } as OrderLineStateFields,
-      ts,
-      {
-        onSaved: (_id, confirmedTs) => {
-          orderLineCloudTsByProductId.current[productId] = confirmedTs;
-          markSaveConfirmed(saveId, confirmedTs);
-        },
-        onPending: markSavePending,
-        onError: markSaveError,
-      },
-    );
-  }, [markSaveConfirmed, markSaveError, markSavePending, markSaveStarted]);
-
-  const deleteOrderLineForProduct = useCallback((productId: string) => {
-    removeOrderLineRowLocally(productId);
-    if (isSupabaseConfigured()) void deleteOrderLineState(productId);
-  }, [removeOrderLineRowLocally]);
+  const {
+    orderLineStates,
+    updateOrderLineField,
+    deleteOrderLineForProduct,
+    hydrateOrderLineStates,
+    confirmRetriedOrderLineSave,
+    handleOrderLineRealtimePayload,
+  } = useOrderLineSync({
+    markSaveStarted,
+    markSaveConfirmed,
+    markSavePending,
+    markSaveError,
+  });
 
   useEffect(() => {
     CLOUD_ONLY_KEYS.forEach(removeState);
@@ -438,12 +391,23 @@ export const useCloudSync = ({
 
     setTimeout(() => { isHydratingFromCloud.current = false; }, 200);
   }, [
-    setCostMatterByMonth, setCovers, setDailyCovers,
-    setDeliveryDateBySupplier, setDetailedInventory,
+    setCostMatterByMonth,
+    setCovers,
+    setDailyCovers,
+    setDeliveryDateBySupplier,
+    setDetailedInventory,
     setNextDeliveryDateBySupplier,
-    setProducts, setPrepItems, setPrepImportsByMonth, setPrepSheetStocks, setPrepBatches,
-    setPrepForecasts, setOrderTemplateRows, setSalesHtByMonth, setSupplierConfigs,
-    setValidatedMonths, setPrepValidatedMonths,
+    setProducts,
+    setPrepItems,
+    setPrepImportsByMonth,
+    setPrepSheetStocks,
+    setPrepBatches,
+    setPrepForecasts,
+    setOrderTemplateRows,
+    setSalesHtByMonth,
+    setSupplierConfigs,
+    setValidatedMonths,
+    setPrepValidatedMonths,
   ]);
 
   const flushPending = useCallback(() => {
@@ -485,12 +449,12 @@ export const useCloudSync = ({
     try {
       const cloud = await loadAllFromSupabase();
       initialCloudLoadSucceededRef.current = cloud !== null;
+      const cloudMap: Record<string, unknown> = {};
 
-      if (cloud && cloud.length > 0) {
+      if (cloud?.length) {
         isHydratingFromCloud.current = true;
-        const cloudMap: Record<string, unknown> = {};
 
-        cloud.forEach((row: any) => {
+        cloud.forEach(row => {
           const localTs = localTsByKey.current[row.key];
           if (localTs && localTs > row.updated_at) return;
           lastCloudUpdatedAtByKey.current[row.key] = row.updated_at;
@@ -510,8 +474,12 @@ export const useCloudSync = ({
         if (cloudMap.supplierConfigs) {
           setSupplierConfigs(mergeSupplierConfigsWithDefaults(cloudMap.supplierConfigs as Record<string, SupplierConfig>));
         }
-        if (cloudMap.deliveryDateBySupplier) setDeliveryDateBySupplier(cloudMap.deliveryDateBySupplier as Record<string, string>);
-        if (cloudMap.nextDeliveryDateBySupplier) setNextDeliveryDateBySupplier(cloudMap.nextDeliveryDateBySupplier as Record<string, string>);
+        if (cloudMap.deliveryDateBySupplier) {
+          setDeliveryDateBySupplier(cloudMap.deliveryDateBySupplier as Record<string, string>);
+        }
+        if (cloudMap.nextDeliveryDateBySupplier) {
+          setNextDeliveryDateBySupplier(cloudMap.nextDeliveryDateBySupplier as Record<string, string>);
+        }
         if (cloudMap.products) setProducts(mergeAndNormalizeProducts(cloudMap.products as ProductWithHistory[]));
         if (cloudMap.prepItems) setPrepItems(cloudMap.prepItems as PrepItem[]);
         if (cloudMap.prepImportsByMonth) setPrepImportsByMonth(cloudMap.prepImportsByMonth as PrepImportsByMonth);
@@ -523,38 +491,35 @@ export const useCloudSync = ({
         setTimeout(() => { isHydratingFromCloud.current = false; }, 600);
       }
 
-      const orderLineRows = await loadOrderLineStates();
-      if (orderLineRows && orderLineRows.length > 0) {
-        applyOrderLineRows(orderLineRows);
-      } else if (!options.isReconnect) {
-        const legacyProducts = cloud?.find(row => row.key === 'products')?.value as ProductWithHistory[] | undefined;
-        const legacyOrderStates = cloud?.find(row => row.key === 'orderStates')?.value as Record<string, OrderState> | undefined;
-        if (legacyProducts && legacyProducts.length > 0) {
-          const legacyMap: Record<string, OrderLineState> = {};
-          legacyProducts.forEach(p => {
-            legacyMap[p.id] = {
-              stock: p.stock ?? '',
-              upcomingDelivery: p.upcomingDelivery ?? '',
-              targetStock: p.targetStock ?? '',
-              packaging: p.packaging ?? '',
-              margin: legacyOrderStates?.[p.id]?.margin,
-            };
-          });
-          setOrderLineStates(legacyMap);
-        }
-      }
+      await hydrateOrderLineStates({
+        isReconnect: options.isReconnect,
+        legacyProducts: cloudMap.products as ProductWithHistory[] | undefined,
+        legacyOrderStates: cloudMap.orderStates as Record<string, OrderState> | undefined,
+      });
     } catch (error) {
       console.error('[Supabase load exception]', error);
     } finally {
       setSupabaseLoaded(true);
     }
   }, [
-    setCostMatterByMonth, setCovers, setDailyCovers,
-    setDeliveryDateBySupplier, setDetailedInventory,
-    setNextDeliveryDateBySupplier, applyOrderLineRows,
-    setProducts, setPrepItems, setPrepImportsByMonth, setPrepSheetStocks, setPrepBatches,
-    setPrepForecasts, setOrderTemplateRows, setSalesHtByMonth, setSupplierConfigs,
-    setValidatedMonths, setPrepValidatedMonths,
+    hydrateOrderLineStates,
+    setCostMatterByMonth,
+    setCovers,
+    setDailyCovers,
+    setDeliveryDateBySupplier,
+    setDetailedInventory,
+    setNextDeliveryDateBySupplier,
+    setProducts,
+    setPrepItems,
+    setPrepImportsByMonth,
+    setPrepSheetStocks,
+    setPrepBatches,
+    setPrepForecasts,
+    setOrderTemplateRows,
+    setSalesHtByMonth,
+    setSupplierConfigs,
+    setValidatedMonths,
+    setPrepValidatedMonths,
   ]);
 
   useEffect(() => {
@@ -574,9 +539,7 @@ export const useCloudSync = ({
     try {
       const result = await retryReliablePendingSaves({
         onSaved: (id, confirmedTs) => {
-          if (id.startsWith('order:')) {
-            orderLineCloudTsByProductId.current[id.slice('order:'.length)] = confirmedTs;
-          } else if (id.startsWith('app:')) {
+          if (!confirmRetriedOrderLineSave(id, confirmedTs) && id.startsWith('app:')) {
             const key = id.slice('app:'.length);
             lastCloudUpdatedAtByKey.current[key] = confirmedTs;
             localTsByKey.current[key] = confirmedTs;
@@ -595,7 +558,14 @@ export const useCloudSync = ({
     } finally {
       retryInFlightRef.current = false;
     }
-  }, [clearSyncTimer, hydrateFromCloud, markSaveConfirmed, markSaveError, markSavePending]);
+  }, [
+    clearSyncTimer,
+    confirmRetriedOrderLineSave,
+    hydrateFromCloud,
+    markSaveConfirmed,
+    markSaveError,
+    markSavePending,
+  ]);
 
   useEffect(() => {
     if (!supabaseLoaded || !isSupabaseConfigured()) return;
@@ -606,7 +576,8 @@ export const useCloudSync = ({
   }, [retryQueuedSaves, supabaseLoaded]);
 
   useEffect(() => {
-    if (!supabaseLoaded || !isSupabaseConfigured() || !supabase) return;
+    const client = supabase;
+    if (!supabaseLoaded || !isSupabaseConfigured() || !client) return;
 
     let disposed = false;
 
@@ -620,7 +591,9 @@ export const useCloudSync = ({
     const scheduleReconnect = () => {
       if (disposed || reconnectTimerRef.current) return;
       const attempt = reconnectAttemptRef.current;
-      const delayMs = REALTIME_RECONNECT_DELAYS_MS[Math.min(attempt, REALTIME_RECONNECT_DELAYS_MS.length - 1)];
+      const delayMs = REALTIME_RECONNECT_DELAYS_MS[
+        Math.min(attempt, REALTIME_RECONNECT_DELAYS_MS.length - 1)
+      ];
       reconnectAttemptRef.current = attempt + 1;
       reconnectTimerRef.current = setTimeout(() => {
         reconnectTimerRef.current = null;
@@ -631,38 +604,37 @@ export const useCloudSync = ({
     const openChannel = () => {
       if (disposed) return;
       if (channelRef.current) {
-        void supabase.removeChannel(channelRef.current);
+        void client.removeChannel(channelRef.current);
         channelRef.current = null;
       }
 
       channelStatusRef.current = 'idle';
-      const channel = supabase
+      const channel = client
         .channel(`app_state_sync:${CURRENT_SITE_ID}`)
         .on(
           'postgres_changes' as any,
           { event: '*', schema: 'public', table: 'app_state', filter: `site_id=eq.${CURRENT_SITE_ID}` },
           (payload: any) => {
-            const row = payload.new as { site_id?: string; key: string; value: unknown; updated_at: string } | null;
+            const row = payload.new as {
+              site_id?: string;
+              key: string;
+              value: unknown;
+              updated_at: string;
+            } | null;
             if (row?.site_id && row.site_id !== CURRENT_SITE_ID) return;
             if (!row?.key || !row?.updated_at) return;
             handleRealtimeEvent(row.key, row.updated_at, row.value);
-          }
+          },
         )
         .on(
           'postgres_changes' as any,
-          { event: '*', schema: 'public', table: 'order_line_states', filter: `site_id=eq.${CURRENT_SITE_ID}` },
-          (payload: any) => {
-            if (payload.eventType === 'DELETE') {
-              const oldRow = payload.old as { site_id?: string; product_id?: string } | null;
-              if (oldRow?.site_id && oldRow.site_id !== CURRENT_SITE_ID) return;
-              if (oldRow?.product_id) removeOrderLineRowLocally(oldRow.product_id);
-              return;
-            }
-            const row = payload.new as OrderLineStateRow & { site_id?: string } | null;
-            if (row?.site_id && row.site_id !== CURRENT_SITE_ID) return;
-            if (!row?.product_id || !row?.updated_at) return;
-            applyOrderLineRows([row]);
-          }
+          {
+            event: '*',
+            schema: 'public',
+            table: 'order_line_states',
+            filter: `site_id=eq.${CURRENT_SITE_ID}`,
+          },
+          (payload: any) => handleOrderLineRealtimePayload(payload),
         )
         .subscribe((status: string) => {
           if (disposed) return;
@@ -702,15 +674,19 @@ export const useCloudSync = ({
       disposed = true;
       clearReconnectTimer();
       if (channelRef.current) {
-        void supabase.removeChannel(channelRef.current);
+        void client.removeChannel(channelRef.current);
         channelRef.current = null;
       }
       window.removeEventListener('focusout', flushPending);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [
-    supabaseLoaded, handleRealtimeEvent, flushPending, hydrateFromCloud, applyOrderLineRows,
-    removeOrderLineRowLocally, retryQueuedSaves,
+    supabaseLoaded,
+    handleRealtimeEvent,
+    handleOrderLineRealtimePayload,
+    flushPending,
+    hydrateFromCloud,
+    retryQueuedSaves,
   ]);
 
   const persistEverywhere = useCallback((key: string, value: unknown, debounceMs?: number) => {
@@ -760,15 +736,23 @@ export const useCloudSync = ({
   useEffect(() => { persistEverywhere('validatedMonths', validatedMonths); }, [persistEverywhere, validatedMonths]);
   useEffect(() => { persistEverywhere('prepValidatedMonths', prepValidatedMonths); }, [persistEverywhere, prepValidatedMonths]);
   useEffect(() => { persistEverywhere('supplierConfigs', supplierConfigs); }, [persistEverywhere, supplierConfigs]);
-  useEffect(() => { persistEverywhere('deliveryDateBySupplier', deliveryDateBySupplier); }, [deliveryDateBySupplier, persistEverywhere]);
-  useEffect(() => { persistEverywhere('nextDeliveryDateBySupplier', nextDeliveryDateBySupplier); }, [nextDeliveryDateBySupplier, persistEverywhere]);
+  useEffect(() => {
+    persistEverywhere('deliveryDateBySupplier', deliveryDateBySupplier);
+  }, [deliveryDateBySupplier, persistEverywhere]);
+  useEffect(() => {
+    persistEverywhere('nextDeliveryDateBySupplier', nextDeliveryDateBySupplier);
+  }, [nextDeliveryDateBySupplier, persistEverywhere]);
   useEffect(() => { persistEverywhere('products', products); }, [persistEverywhere, products]);
   useEffect(() => { persistEverywhere('prepItems', prepItems); }, [persistEverywhere, prepItems]);
-  useEffect(() => { persistEverywhere('prepImportsByMonth', prepImportsByMonth); }, [persistEverywhere, prepImportsByMonth]);
+  useEffect(() => {
+    persistEverywhere('prepImportsByMonth', prepImportsByMonth);
+  }, [persistEverywhere, prepImportsByMonth]);
   useEffect(() => { persistEverywhere('prepSheetStocks', prepSheetStocks); }, [persistEverywhere, prepSheetStocks]);
   useEffect(() => { persistEverywhere('prepBatches', prepBatches); }, [persistEverywhere, prepBatches]);
   useEffect(() => { persistEverywhere('prepForecasts', prepForecasts); }, [persistEverywhere, prepForecasts]);
-  useEffect(() => { persistEverywhere('orderTemplateRows', orderTemplateRows); }, [persistEverywhere, orderTemplateRows]);
+  useEffect(() => {
+    persistEverywhere('orderTemplateRows', orderTemplateRows);
+  }, [persistEverywhere, orderTemplateRows]);
 
   useEffect(() => () => clearSyncTimer(), [clearSyncTimer]);
 
