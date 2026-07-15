@@ -6,13 +6,14 @@
 // =============================================================
 
 export type OrderCalculationMode = 'margin' | 'target';
+export type OrderRatioLinkStatus = 'linked' | 'unlinked' | 'unknown';
 
 export type OrderAnomalyCode =
   | 'invalid_packaging'
-  | 'missing_stock'
   | 'missing_target'
   | 'negative_value'
   | 'duplicate_product'
+  | 'unlinked_ratio'
   | 'unusual_stock'
   | 'unusual_upcoming_delivery'
   | 'unusual_order_quantity';
@@ -38,7 +39,11 @@ export interface OrderAnomalyInput {
   forecastTotal: number;
   toOrder: number;
   duplicateNameCount?: number;
+  ratioLinkStatus?: OrderRatioLinkStatus;
 }
+
+const STOCK_EXCESS_MULTIPLIER = 4; // stock >= 4 x besoin = au moins +300 %
+const ORDER_EXCESS_MULTIPLIER = 2;
 
 const toFiniteNumber = (value: number | '' | undefined): number => {
   if (value === '' || value === undefined) return 0;
@@ -48,6 +53,9 @@ const toFiniteNumber = (value: number | '' | undefined): number => {
 
 const isBlank = (value: number | '' | undefined): boolean =>
   value === '' || value === undefined;
+
+const formatExcessPercent = (value: number, reference: number): number =>
+  reference > 0 ? Math.round(((value - reference) / reference) * 100) : 0;
 
 export const normalizeOrderProductName = (value: string): string =>
   String(value || '')
@@ -92,6 +100,7 @@ export const getOrderAnomalies = ({
   forecastTotal,
   toOrder,
   duplicateNameCount = 1,
+  ratioLinkStatus = 'unknown',
 }: OrderAnomalyInput): OrderAnomaly[] => {
   const anomalies: OrderAnomaly[] = [];
   const packaging = toFiniteNumber(product.packaging);
@@ -105,21 +114,21 @@ export const getOrderAnomalies = ({
   if (packaging <= 0) {
     anomalies.push({
       code: 'invalid_packaging',
-      message: 'Conditionnement absent ou égal à 0 : le calcul de commande ne peut pas être fiable.',
-    });
-  }
-
-  if (forecastNeed > 0 && isBlank(product.stock)) {
-    anomalies.push({
-      code: 'missing_stock',
-      message: 'Stock non saisi alors qu’un besoin est prévu : la proposition peut être surévaluée.',
+      message: 'Conditionnement absent ou égal à 0 : vérifier le paramétrage de l’article.',
     });
   }
 
   if (calculationMode === 'target' && forecastNeed > 0 && isBlank(product.targetStock)) {
     anomalies.push({
       code: 'missing_target',
-      message: 'Stock cible non renseigné : le mode Cible ne peut pas proposer une quantité fiable.',
+      message: 'Stock cible non renseigné : vérifier le paramétrage du mode Cible.',
+    });
+  }
+
+  if (ratioLinkStatus === 'unlinked') {
+    anomalies.push({
+      code: 'unlinked_ratio',
+      message: 'Produit non lié dans Calcul vente ratio : vérifier l’article associé avant d’utiliser la proposition.',
     });
   }
 
@@ -137,41 +146,43 @@ export const getOrderAnomalies = ({
   const stockUnits = Math.max(0, toFiniteNumber(product.stock));
   const upcomingCases = Math.max(0, toFiniteNumber(product.upcomingDelivery));
   const upcomingUnits = upcomingCases * safePackaging;
-  const unusualLevel = Math.max(
-    referenceNeed * 4,
-    referenceNeed + safePackaging * 5,
-    safePackaging * 8
+  const minimumManualGap = Math.max(5, safePackaging);
+  const unusualManualLevel = Math.max(
+    referenceNeed * STOCK_EXCESS_MULTIPLIER,
+    referenceNeed + minimumManualGap
   );
 
-  if (!isBlank(product.stock) && referenceNeed > 0 && stockUnits >= unusualLevel) {
+  if (!isBlank(product.stock) && referenceNeed > 0 && stockUnits >= unusualManualLevel) {
+    const excessPercent = formatExcessPercent(stockUnits, referenceNeed);
     anomalies.push({
       code: 'unusual_stock',
-      message: 'Stock très supérieur au besoin estimé : vérifier qu’un zéro ou une unité n’a pas été ajouté par erreur.',
+      message: `Stock saisi très supérieur au besoin estimé (${stockUnits} pour ${referenceNeed}, soit +${excessPercent} %) : vérifier une erreur de frappe ou d’unité.`,
     });
   }
 
-  if (!isBlank(product.upcomingDelivery) && referenceNeed > 0 && upcomingUnits >= unusualLevel) {
+  if (!isBlank(product.upcomingDelivery) && referenceNeed > 0 && upcomingUnits >= unusualManualLevel) {
+    const excessPercent = formatExcessPercent(upcomingUnits, referenceNeed);
     anomalies.push({
       code: 'unusual_upcoming_delivery',
-      message: 'Livraison à venir très supérieure au besoin estimé : vérifier le nombre de colis saisi.',
+      message: `Livraison saisie très supérieure au besoin estimé (${upcomingUnits} unités pour ${referenceNeed}, soit +${excessPercent} %) : vérifier le nombre de colis.`,
     });
   }
 
   const orderedUnits = Math.max(0, toOrder) * safePackaging;
   const unusualOrderLevel = Math.max(
-    referenceNeed * 2,
-    referenceNeed + safePackaging * 8
+    referenceNeed * ORDER_EXCESS_MULTIPLIER,
+    referenceNeed + safePackaging * 4
   );
 
   if (
     packaging > 0
     && referenceNeed > 0
-    && toOrder >= 10
-    && orderedUnits > unusualOrderLevel
+    && toOrder >= 5
+    && orderedUnits >= unusualOrderLevel
   ) {
     anomalies.push({
       code: 'unusual_order_quantity',
-      message: 'Quantité à commander nettement supérieure au besoin estimé : contrôler les stocks, la livraison et le conditionnement.',
+      message: `Proposition de commande disproportionnée (${toOrder} colis, soit ${orderedUnits} unités, pour un besoin estimé à ${referenceNeed}) : contrôler le ratio, les stocks et le conditionnement.`,
     });
   }
 
