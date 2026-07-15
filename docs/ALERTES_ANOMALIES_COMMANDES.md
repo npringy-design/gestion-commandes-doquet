@@ -37,11 +37,18 @@ Le message demande de vérifier le paramétrage de l'article.
 
 ### Produit non lié dans Calcul vente ratio
 
-Déclenchée lorsque le fichier du mois de travail est disponible et que le produit n'est pas reconnu comme lié à une ligne importée.
+Cette alerte doit reproduire le statut réellement affiché dans la page Calcul vente ratio.
 
-Lorsque aucun fichier ne permet de vérifier la liaison, aucune alerte n'est affichée afin d'éviter un faux positif.
+Ordre des sources de vérité :
 
-Les anciens snapshots validés peuvent également confirmer qu'un produit a déjà été correctement lié.
+1. si le mois contrôlé est figé, utiliser exclusivement le statut de liaison enregistré dans le snapshot de ce mois ;
+2. si le mois n'est pas figé et qu'un fichier de travail est disponible, utiliser la liaison calculée depuis ce fichier ;
+3. en l'absence de fichier courant exploitable, utiliser les snapshots historiques disponibles ;
+4. sans aucune preuve exploitable, conserver un statut inconnu et ne pas afficher d'alerte accusatoire.
+
+Un ancien fichier d'import encore stocké ne doit donc jamais transformer en « non lié » un produit vert sur un mois figé.
+
+Lorsque le fichier d'un mois en cours de travail est disponible et que le produit n'est réellement pas reconnu, l'alerte reste affichée.
 
 ### Stock cible manquant
 
@@ -113,6 +120,17 @@ Aucune alerte n'est affichée parce que le stock n'est pas encore saisi.
 
 Cet état correspond au déroulement normal d'un inventaire opérationnel.
 
+## Correction du faux positif sur les mois figés
+
+Le premier raccord de l'alerte « produit non lié » donnait la priorité au fichier d'import encore présent, même lorsque le mois avait déjà été figé.
+
+Conséquence observée :
+
+- tous les produits apparaissaient verts et liés dans Calcul vente ratio ;
+- la page de commande affichait malgré tout un triangle « produit non lié ».
+
+La correction donne maintenant la priorité au snapshot du mois figé. Le cas exact est couvert par un test automatique.
+
 ## Emplacement technique
 
 - règles pures : `src/utils/orderAnomalies.ts` ;
@@ -139,7 +157,9 @@ npm run verify
 Les tests couvrent :
 
 - l'absence d'alerte sur un stock vide ;
-- les produits liés, non liés et non vérifiables ;
+- un produit vert sur un mois figé malgré la présence d'un ancien fichier qui ne le retrouve plus ;
+- la priorité inverse : un snapshot figé non lié ne doit pas être remplacé par un nouveau résultat ;
+- les produits liés, non liés et non vérifiables sur un mois en cours ;
 - le conditionnement manquant ;
 - le stock cible manquant ;
 - les doublons ;
@@ -151,8 +171,8 @@ Les tests couvrent :
 
 Sur l'application TEST :
 
-1. ouvrir une page fournisseur avec des stocks encore vides et vérifier qu'aucun triangle n'apparaît pour cette seule raison ;
-2. vérifier qu'un produit non lié dans Calcul vente ratio affiche une alerte lorsque le fichier du mois est présent ;
-3. saisir un stock très supérieur au besoin et vérifier que le triangle apparaît ;
-4. cliquer sur le triangle et vérifier que le stock, le besoin et l'écart sont compréhensibles ;
+1. ouvrir Calcul vente ratio sur un fournisseur dont le mois est figé et vérifier que les produits liés sont verts ;
+2. ouvrir la page de commande du même fournisseur et vérifier que ces produits n'affichent plus l'alerte « non lié » ;
+3. vérifier qu'un véritable produit non lié sur un mois non figé continue d'afficher l'alerte ;
+4. saisir un stock très supérieur au besoin et vérifier que le triangle apparaît ;
 5. confirmer que la saisie et le calcul continuent de fonctionner normalement.
