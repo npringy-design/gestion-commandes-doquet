@@ -40,6 +40,7 @@ export const useCloudRealtime = ({
     if (!enabled || !isSupabaseConfigured() || !client) return;
 
     let disposed = false;
+    let networkRecoveryInFlight = false;
 
     function clearReconnectTimer(): void {
       if (!reconnectTimerRef.current) return;
@@ -117,8 +118,35 @@ export const useCloudRealtime = ({
       channelRef.current = channel;
     }
 
+    const recoverLatestCloudState = async (): Promise<void> => {
+      if (disposed || networkRecoveryInFlight) return;
+      networkRecoveryInFlight = true;
+
+      try {
+        // Les saisies locales hors connexion sont renvoyées en premier. Le
+        // rechargement suivant récupère ensuite l'état final confirmé du site.
+        if (getReliablePendingSaveCount() > 0) await retryQueuedSaves();
+        await hydrateFromCloud({ isReconnect: true });
+      } finally {
+        networkRecoveryInFlight = false;
+      }
+    };
+
+    const handleNetworkOnline = (): void => {
+      if (disposed) return;
+
+      // Le navigateur peut encore considérer l'ancien canal comme « joined »
+      // après un mode avion. On le recrée volontairement, puis on recharge les
+      // données manquées pendant la coupure.
+      reconnectAttemptRef.current = 0;
+      clearReconnectTimer();
+      openChannel();
+      void recoverLatestCloudState();
+    };
+
     openChannel();
     window.addEventListener('focusout', flushPendingAppState);
+    window.addEventListener('online', handleNetworkOnline);
 
     const handleVisibilityChange = (): void => {
       const visible = document.visibilityState === 'visible' && !disposed;
@@ -132,10 +160,11 @@ export const useCloudRealtime = ({
         reconnectAttemptRef.current = 0;
         clearReconnectTimer();
         openChannel();
-        void hydrateFromCloud({ isReconnect: true });
       }
 
-      if (getReliablePendingSaveCount() > 0) void retryQueuedSaves();
+      // Même si le canal se croit encore connecté, un mobile peut avoir raté
+      // des événements pendant l'arrière-plan ou une coupure réseau.
+      void recoverLatestCloudState();
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -145,6 +174,7 @@ export const useCloudRealtime = ({
       clearReconnectTimer();
       closeCurrentChannel();
       window.removeEventListener('focusout', flushPendingAppState);
+      window.removeEventListener('online', handleNetworkOnline);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [
