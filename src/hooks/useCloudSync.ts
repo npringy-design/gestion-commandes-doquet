@@ -4,6 +4,7 @@
 // Synchronisation Supabase de l'état global de l'application.
 // La synchronisation des lignes de commande est isolée dans useOrderLineSync.
 // Le chargement et l'application de app_state sont isolés dans useAppStateHydration.
+// La sauvegarde de app_state est isolée dans useAppStatePersistence.
 // La connexion Supabase Realtime est isolée dans useCloudRealtime.
 // =============================================================
 
@@ -22,7 +23,6 @@ import {
   flushReliablePendingSaves,
   getReliablePendingSaveCount,
   retryReliablePendingSaves,
-  scheduleReliableAppStateSave,
   type ReliableSaveFailureReason,
 } from '../utils/reliableSaveQueue';
 import type {
@@ -37,36 +37,16 @@ import type {
 } from '../types';
 import type { ProductWithHistory } from '../data';
 import type { DailyCoversState } from '../utils/dateHelpers';
-import { nowIso, removeState } from './appStateHelpers';
-import {
-  stableStringify,
-  type AppStateSetterRegistry,
-} from './appStateSyncModel';
+import type { AppStateSetterRegistry } from './appStateSyncModel';
 import { useAppStateHydration } from './useAppStateHydration';
+import {
+  useAppStatePersistence,
+  type PersistedAppState,
+} from './useAppStatePersistence';
 import { useCloudRealtime } from './useCloudRealtime';
 import { useOrderLineSync } from './useOrderLineSync';
 
 type SyncStatus = 'idle' | 'saving' | 'saved' | 'pending' | 'error';
-
-type PersistedState = {
-  covers: Record<string, number>;
-  dailyCovers: DailyCoversState;
-  detailedInventory: Record<string, string>;
-  salesHtByMonth: Record<string, number>;
-  costMatterByMonth: Record<string, number>;
-  validatedMonths: Record<string, boolean>;
-  prepValidatedMonths: Record<string, boolean>;
-  supplierConfigs: Record<string, SupplierConfig>;
-  deliveryDateBySupplier: Record<string, string>;
-  nextDeliveryDateBySupplier: Record<string, string>;
-  products: ProductWithHistory[];
-  prepItems: PrepItem[];
-  prepImportsByMonth: PrepImportsByMonth;
-  prepSheetStocks: PrepSheetStocks;
-  prepBatches: PrepBatch[];
-  prepForecasts: PrepForecastsByDate;
-  orderTemplateRows: OrderTemplateRow[];
-};
 
 type StateSetters = {
   setCovers: Dispatch<SetStateAction<Record<string, number>>>;
@@ -88,7 +68,7 @@ type StateSetters = {
   setOrderTemplateRows: Dispatch<SetStateAction<OrderTemplateRow[]>>;
 };
 
-type UseCloudSyncParams = PersistedState & StateSetters & {
+type UseCloudSyncParams = PersistedAppState & StateSetters & {
   onSaveError: (message: string) => void;
 };
 
@@ -98,31 +78,6 @@ const REALTIME_KEYS = new Set<string>([
   'deliveryDateBySupplier',
   'nextDeliveryDateBySupplier',
 ]);
-
-const CLOUD_ONLY_KEYS = new Set<string>([
-  'inventory',
-  'prepImportsByMonth',
-]);
-
-const SAVE_DEBOUNCE_MS_BY_KEY: Record<string, number> = {
-  products: 0,
-  deliveryDateBySupplier: 1200,
-  nextDeliveryDateBySupplier: 1200,
-  covers: 2000,
-  dailyCovers: 2500,
-  salesHtByMonth: 2500,
-  costMatterByMonth: 2500,
-  validatedMonths: 2000,
-  prepValidatedMonths: 2000,
-  supplierConfigs: 2500,
-  prepItems: 3000,
-  prepForecasts: 3000,
-  prepSheetStocks: 1200,
-  prepBatches: 3500,
-  prepImportsByMonth: 5000,
-  inventory: 8000,
-  orderTemplateRows: 1500,
-};
 
 const isUserTyping = (): boolean => {
   const element = document?.activeElement as HTMLElement | null;
@@ -333,10 +288,6 @@ export const useCloudSync = ({
   });
 
   useEffect(() => {
-    CLOUD_ONLY_KEYS.forEach(removeState);
-  }, []);
-
-  useEffect(() => {
     const handleHidden = () => {
       if (document.visibilityState === 'hidden') flushReliablePendingSaves();
     };
@@ -464,70 +415,35 @@ export const useCloudSync = ({
     retryQueuedSaves,
   });
 
-  const persistEverywhere = useCallback((key: string, value: unknown, debounceMs?: number) => {
-    const signature = stableStringify(value);
-    if (lastPersistedSignatureByKey.current[key] === signature) return;
-    if (CLOUD_ONLY_KEYS.has(key) && !initialCloudLoadSucceededRef.current && signature === '{}') return;
-
-    if (isHydratingFromCloud.current || !supabaseLoaded || !isSupabaseConfigured()) {
-      lastPersistedSignatureByKey.current[key] = signature;
-      return;
-    }
-
-    const ts = nowIso();
-    const saveId = `app:${key}`;
-    localTsByKey.current[key] = ts;
-    markSaveStarted(saveId, ts);
-
-    scheduleReliableAppStateSave(
-      key,
-      value,
-      ts,
-      (currentKey: string) => lastCloudUpdatedAtByKey.current[currentKey],
-      {
-        onSaved: (_id: string, confirmedTs: string) => {
-          const currentLocalTs = localTsByKey.current[key];
-          if (!currentLocalTs || confirmedTs >= currentLocalTs) {
-            lastCloudUpdatedAtByKey.current[key] = confirmedTs;
-            localTsByKey.current[key] = confirmedTs;
-            lastPersistedSignatureByKey.current[key] = signature;
-          }
-          markSaveConfirmed(saveId, confirmedTs);
-        },
-        onPending: markSavePending,
-        onError: markSaveError,
-      },
-      debounceMs ?? SAVE_DEBOUNCE_MS_BY_KEY[key] ?? 1500,
-    );
-  }, [markSaveConfirmed, markSaveError, markSavePending, markSaveStarted, supabaseLoaded]);
-
-  useEffect(() => { persistEverywhere('covers', covers); }, [covers, persistEverywhere]);
-  useEffect(() => { persistEverywhere('dailyCovers', dailyCovers); }, [dailyCovers, persistEverywhere]);
-  useEffect(() => {
-    persistEverywhere('inventory', detailedInventory, SAVE_DEBOUNCE_MS_BY_KEY.inventory);
-  }, [detailedInventory, persistEverywhere]);
-  useEffect(() => { persistEverywhere('salesHtByMonth', salesHtByMonth); }, [persistEverywhere, salesHtByMonth]);
-  useEffect(() => { persistEverywhere('costMatterByMonth', costMatterByMonth); }, [costMatterByMonth, persistEverywhere]);
-  useEffect(() => { persistEverywhere('validatedMonths', validatedMonths); }, [persistEverywhere, validatedMonths]);
-  useEffect(() => { persistEverywhere('prepValidatedMonths', prepValidatedMonths); }, [persistEverywhere, prepValidatedMonths]);
-  useEffect(() => { persistEverywhere('supplierConfigs', supplierConfigs); }, [persistEverywhere, supplierConfigs]);
-  useEffect(() => {
-    persistEverywhere('deliveryDateBySupplier', deliveryDateBySupplier);
-  }, [deliveryDateBySupplier, persistEverywhere]);
-  useEffect(() => {
-    persistEverywhere('nextDeliveryDateBySupplier', nextDeliveryDateBySupplier);
-  }, [nextDeliveryDateBySupplier, persistEverywhere]);
-  useEffect(() => { persistEverywhere('products', products); }, [persistEverywhere, products]);
-  useEffect(() => { persistEverywhere('prepItems', prepItems); }, [persistEverywhere, prepItems]);
-  useEffect(() => {
-    persistEverywhere('prepImportsByMonth', prepImportsByMonth);
-  }, [persistEverywhere, prepImportsByMonth]);
-  useEffect(() => { persistEverywhere('prepSheetStocks', prepSheetStocks); }, [persistEverywhere, prepSheetStocks]);
-  useEffect(() => { persistEverywhere('prepBatches', prepBatches); }, [persistEverywhere, prepBatches]);
-  useEffect(() => { persistEverywhere('prepForecasts', prepForecasts); }, [persistEverywhere, prepForecasts]);
-  useEffect(() => {
-    persistEverywhere('orderTemplateRows', orderTemplateRows);
-  }, [persistEverywhere, orderTemplateRows]);
+  useAppStatePersistence({
+    covers,
+    dailyCovers,
+    detailedInventory,
+    salesHtByMonth,
+    costMatterByMonth,
+    validatedMonths,
+    prepValidatedMonths,
+    supplierConfigs,
+    deliveryDateBySupplier,
+    nextDeliveryDateBySupplier,
+    products,
+    prepItems,
+    prepImportsByMonth,
+    prepSheetStocks,
+    prepBatches,
+    prepForecasts,
+    orderTemplateRows,
+    supabaseLoaded,
+    isHydratingFromCloud,
+    initialCloudLoadSucceededRef,
+    lastCloudUpdatedAtByKey,
+    localTsByKey,
+    lastPersistedSignatureByKey,
+    markSaveStarted,
+    markSaveConfirmed,
+    markSavePending,
+    markSaveError,
+  });
 
   useEffect(() => () => clearSyncTimer(), [clearSyncTimer]);
 
