@@ -5,7 +5,12 @@ import AiAssistantDrawer from '../components/AiAssistantDrawer';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { loadAllFromSupabase, saveToSupabaseDebounced } from '../utils/supabase';
 import { buildMarginCatalogFromWorkbook } from '../utils/takeRateMarginParser.js';
-import { resolveTakeRateMonthCovers } from '../utils/takeRateSnapshot';
+import {
+  createTakeRateMonthSnapshot,
+  removeFrozenTakeRateMonth,
+  resolveTakeRateMonthCovers,
+  setFrozenTakeRateMonth,
+} from '../utils/takeRateSnapshot';
 import { normalizeTakeRateKey as normalize } from '../utils/takeRateResultsModel';
 import { buildTakeRateImportRows, buildTakeRateSalesObject } from '../utils/takeRateSalesParser';
 import {
@@ -469,24 +474,22 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const toggleFreezeSelectedMonth = () => {
     if (isMonthFrozen) {
       setFrozenMonths((prev) => {
-        const next = { ...prev };
-        delete next[selectedMonth];
+        const next = removeFrozenTakeRateMonth<TakeRateMonthSnapshot>(prev, selectedMonth);
         persistTakeRateCollection(TAKE_RATE_FROZEN_CLOUD_KEY, next);
         return next;
       });
       return;
     }
 
-    const snapshot: TakeRateMonthSnapshot = {
+    const snapshot: TakeRateMonthSnapshot = createTakeRateMonthSnapshot({
       rows,
       marginCatalog,
       marginFileName,
       salesByImport: buildTakeRateSalesObject(importRows),
-      covers: resolveTakeRateMonthCovers(undefined, covers[selectedMonth]),
-      frozenAt: new Date().toISOString(),
-    };
+      covers: covers[selectedMonth],
+    });
     setFrozenMonths((prev) => {
-      const next = { ...prev, [selectedMonth]: snapshot };
+      const next = setFrozenTakeRateMonth(prev, selectedMonth, snapshot);
       persistTakeRateCollection(TAKE_RATE_FROZEN_CLOUD_KEY, next);
       return next;
     });
@@ -676,8 +679,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                         const snapshot = frozenMonths[month.key];
                         if (snapshot) {
                           setFrozenMonths((prev) => {
-                            const next = { ...prev };
-                            delete next[month.key];
+                            const next = removeFrozenTakeRateMonth<TakeRateMonthSnapshot>(prev, month.key);
                             persistTakeRateCollection(TAKE_RATE_FROZEN_CLOUD_KEY, next);
                             return next;
                           });
@@ -685,16 +687,15 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                         }
                         const rowsToFreeze = month.key === selectedMonth ? rows : baseRows;
                         const monthImportRows = buildTakeRateImportRows(prepImportsByMonth[month.key] ?? '');
-                        const nextSnapshot: TakeRateMonthSnapshot = {
+                        const nextSnapshot: TakeRateMonthSnapshot = createTakeRateMonthSnapshot({
                           rows: rowsToFreeze,
                           marginCatalog,
                           marginFileName,
                           salesByImport: buildTakeRateSalesObject(monthImportRows),
-                          covers: resolveTakeRateMonthCovers(undefined, covers[month.key]),
-                          frozenAt: new Date().toISOString(),
-                        };
+                          covers: covers[month.key],
+                        });
                         setFrozenMonths((prev) => {
-                          const next = { ...prev, [month.key]: nextSnapshot };
+                          const next = setFrozenTakeRateMonth(prev, month.key, nextSnapshot);
                           persistTakeRateCollection(TAKE_RATE_FROZEN_CLOUD_KEY, next);
                           return next;
                         });

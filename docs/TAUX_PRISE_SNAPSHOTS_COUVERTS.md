@@ -18,6 +18,12 @@ Les anciens snapshots restent compatibles : lorsqu'ils ne possèdent pas encore
 la propriété `covers`, l'application conserve le comportement historique et lit
 les couverts courants.
 
+La création et le défigeage sont maintenant centralisés dans
+`src/utils/takeRateSnapshot.ts`. Chaque nouveau snapshot possède ses propres
+copies des lignes, des liaisons, du catalogue marge et des ventes. Une
+modification ultérieure du mois ouvert ne peut donc pas modifier indirectement
+un mois déjà figé.
+
 ## Éléments inchangés
 
 - aucune table ou colonne Supabase ajoutée ;
@@ -36,4 +42,5 @@ les couverts courants.
 6. Défiger le mois : le calcul doit alors reprendre les couverts courants.
 
 Le test automatique `npm run test:take-rate-snapshots` protège aussi les anciens
-snapshots dépourvus de couverts.
+snapshots dépourvus de couverts, les copies isolées et les opérations de gel et
+de défigeage sans mutation.
