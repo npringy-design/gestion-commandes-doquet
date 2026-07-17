@@ -7,21 +7,17 @@
 // La sauvegarde de app_state est isolée dans useAppStatePersistence.
 // La connexion Supabase Realtime est isolée dans useCloudRealtime.
 // Le cycle commun des sauvegardes fiables est isolé dans useReliableSaveLifecycle.
+// Le chargement initial et les reprises cloud sont isolés dans useCloudHydrationCoordinator.
 // =============================================================
 
 import {
   useCallback,
-  useEffect,
   useMemo,
   useRef,
-  useState,
   type Dispatch,
   type SetStateAction,
 } from 'react';
-import { isSupabaseConfigured } from '../lib/supabaseClient';
-import { loadAllFromSupabase } from '../utils/supabase';
 import type {
-  OrderState,
   SupplierConfig,
   PrepBatch,
   PrepItem,
@@ -38,6 +34,7 @@ import {
   useAppStatePersistence,
   type PersistedAppState,
 } from './useAppStatePersistence';
+import { useCloudHydrationCoordinator } from './useCloudHydrationCoordinator';
 import { useCloudRealtime } from './useCloudRealtime';
 import { useOrderLineSync } from './useOrderLineSync';
 import { useReliableSaveLifecycle } from './useReliableSaveLifecycle';
@@ -120,12 +117,10 @@ export const useCloudSync = ({
   setOrderTemplateRows,
   onSaveError,
 }: UseCloudSyncParams) => {
-  const [supabaseLoaded, setSupabaseLoaded] = useState(false);
   const isHydratingFromCloud = useRef(false);
   const lastCloudUpdatedAtByKey = useRef<Record<string, string>>({});
   const localTsByKey = useRef<Record<string, string>>({});
   const lastPersistedSignatureByKey = useRef<Record<string, string>>({});
-  const initialCloudLoadSucceededRef = useRef(false);
 
   const {
     syncStatus,
@@ -235,51 +230,17 @@ export const useCloudSync = ({
     applyCloudAppStateValue(key, cloudTs, value);
   }, [applyCloudAppStateValue]);
 
-  const hydrateFromCloud = useCallback(async (options: { isReconnect?: boolean } = {}) => {
-    if (!isSupabaseConfigured()) {
-      setSupabaseLoaded(true);
-      return;
-    }
-
-    try {
-      const cloud = await loadAllFromSupabase();
-      initialCloudLoadSucceededRef.current = cloud !== null;
-      const cloudValues = hydrateAppStateRows(cloud);
-
-      await hydrateOrderLineStates({
-        isReconnect: options.isReconnect,
-        legacyProducts: cloudValues.products as ProductWithHistory[] | undefined,
-        legacyOrderStates: cloudValues.orderStates as Record<string, OrderState> | undefined,
-      });
-    } catch (error) {
-      console.error('[Supabase load exception]', error);
-    } finally {
-      setSupabaseLoaded(true);
-    }
-  }, [hydrateAppStateRows, hydrateOrderLineStates]);
-
-  useEffect(() => {
-    void hydrateFromCloud();
-  }, [hydrateFromCloud]);
-
-  const retryQueuedSaves = useCallback(async () => {
-    await retryReliableSaves({
-      confirmRetriedOrderLineSave,
-      hydrateFromCloud,
-    });
-  }, [
-    confirmRetriedOrderLineSave,
+  const {
+    supabaseLoaded,
+    initialCloudLoadSucceededRef,
     hydrateFromCloud,
+    retryQueuedSaves,
+  } = useCloudHydrationCoordinator({
+    hydrateAppStateRows,
+    hydrateOrderLineStates,
+    confirmRetriedOrderLineSave,
     retryReliableSaves,
-  ]);
-
-  useEffect(() => {
-    if (!supabaseLoaded || !isSupabaseConfigured()) return;
-    void retryQueuedSaves();
-    const handleOnline = () => { void retryQueuedSaves(); };
-    window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
-  }, [retryQueuedSaves, supabaseLoaded]);
+  });
 
   useCloudRealtime({
     enabled: supabaseLoaded,

@@ -8,9 +8,11 @@ import ts from 'typescript';
 const modelPath = join(process.cwd(), 'src', 'hooks', 'appStateSyncModel.ts');
 const cloudSyncPath = join(process.cwd(), 'src', 'hooks', 'useCloudSync.ts');
 const hydrationHookPath = join(process.cwd(), 'src', 'hooks', 'useAppStateHydration.ts');
+const coordinatorPath = join(process.cwd(), 'src', 'hooks', 'useCloudHydrationCoordinator.ts');
 const rawModelSource = readFileSync(modelPath, 'utf8');
 const cloudSyncSource = readFileSync(cloudSyncPath, 'utf8');
 const hydrationHookSource = readFileSync(hydrationHookPath, 'utf8');
+const coordinatorSource = readFileSync(coordinatorPath, 'utf8');
 const tempDir = mkdtempSync(join(tmpdir(), 'gestion-app-state-sync-'));
 
 try {
@@ -115,9 +117,9 @@ try {
     'useCloudSync doit déléguer le chargement app_state au hook dédié',
   );
   assert.match(
-    cloudSyncSource,
+    coordinatorSource,
     /const cloudValues = hydrateAppStateRows\(cloud\)/,
-    'Le chargement initial doit utiliser le module centralisé',
+    'Le coordinateur de chargement doit utiliser le module app_state centralisé',
   );
   assert.doesNotMatch(
     cloudSyncSource,
