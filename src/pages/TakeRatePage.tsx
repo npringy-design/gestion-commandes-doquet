@@ -20,6 +20,13 @@ import {
   type TakeRateMappingStatus as RowStatus,
 } from '../utils/takeRateMappingModel';
 import { buildTakeRateRowsFromMarginCatalog } from '../utils/takeRateMarginRowsModel';
+import {
+  hydrateTakeRateCloudRows,
+  TAKE_RATE_BASE_ROWS_CLOUD_KEY,
+  TAKE_RATE_FROZEN_CLOUD_KEY,
+  TAKE_RATE_MARGIN_CATALOG_CLOUD_KEY,
+  TAKE_RATE_MARGIN_FILE_NAME_CLOUD_KEY,
+} from '../utils/takeRateCloudModel';
 
 interface MarginCatalogItem {
   label: string;
@@ -61,11 +68,6 @@ interface TakeRateMonthSnapshot {
   frozenAt?: string;
 }
 
-const TAKE_RATE_BASE_ROWS_CLOUD_KEY = 'takeRateBaseRows';
-const TAKE_RATE_MARGIN_CATALOG_CLOUD_KEY = 'takeRateMarginCatalog';
-const TAKE_RATE_MARGIN_FILE_NAME_CLOUD_KEY = 'takeRateMarginFileName';
-const TAKE_RATE_FROZEN_CLOUD_KEY = 'takeRateFrozenMonths';
-
 const createEmptyRow = (): TakeRateMappingRow => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
   label: '',
@@ -106,17 +108,6 @@ const normalizeRow = (row: any): TakeRateMappingRow => ({
 const readStoredBaseRows = () => {
   return [];
 };
-
-const isMarginBaseRow = (row: TakeRateMappingRow) =>
-  Boolean(
-    row.matchedMarginLabel ||
-      row.matchedMarginSheet ||
-      row.marginSource ||
-      row.costHt ||
-      row.sellPriceHt ||
-      row.marginEuro ||
-      row.marginPercent
-  );
 
 const readStoredMarginCatalog = () => {
   return [];
@@ -215,24 +206,20 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
         try {
           const cloud = await loadAllFromSupabase();
           if (!cancelled && Array.isArray(cloud)) {
-            cloud.forEach((row: any) => {
-              if (row?.key === TAKE_RATE_BASE_ROWS_CLOUD_KEY && Array.isArray(row.value)) {
-                nextBaseRows = row.value.map(normalizeRow).filter(isMarginBaseRow);
-                cloudTsRef.current[TAKE_RATE_BASE_ROWS_CLOUD_KEY] = row.updated_at;
-              }
-              if (row?.key === TAKE_RATE_MARGIN_CATALOG_CLOUD_KEY && Array.isArray(row.value)) {
-                nextMarginCatalog = row.value as MarginCatalogItem[];
-                cloudTsRef.current[TAKE_RATE_MARGIN_CATALOG_CLOUD_KEY] = row.updated_at;
-              }
-              if (row?.key === TAKE_RATE_MARGIN_FILE_NAME_CLOUD_KEY && typeof row.value === 'string') {
-                nextMarginFileName = row.value;
-                cloudTsRef.current[TAKE_RATE_MARGIN_FILE_NAME_CLOUD_KEY] = row.updated_at;
-              }
-              if (row?.key === TAKE_RATE_FROZEN_CLOUD_KEY && row.value && typeof row.value === 'object') {
-                nextFrozen = row.value as Record<string, TakeRateMonthSnapshot>;
-                cloudTsRef.current[TAKE_RATE_FROZEN_CLOUD_KEY] = row.updated_at;
-              }
-            });
+            const hydrated = hydrateTakeRateCloudRows(cloud);
+            if (hydrated.acceptedKeys[TAKE_RATE_BASE_ROWS_CLOUD_KEY]) {
+              nextBaseRows = hydrated.baseRows.map(normalizeRow);
+            }
+            if (hydrated.acceptedKeys[TAKE_RATE_MARGIN_CATALOG_CLOUD_KEY]) {
+              nextMarginCatalog = hydrated.marginCatalog as MarginCatalogItem[];
+            }
+            if (hydrated.acceptedKeys[TAKE_RATE_MARGIN_FILE_NAME_CLOUD_KEY]) {
+              nextMarginFileName = hydrated.marginFileName;
+            }
+            if (hydrated.acceptedKeys[TAKE_RATE_FROZEN_CLOUD_KEY]) {
+              nextFrozen = hydrated.frozenMonths as Record<string, TakeRateMonthSnapshot>;
+            }
+            Object.assign(cloudTsRef.current, hydrated.updatedAtByKey);
           }
         } catch (error) {
           console.error('[TakeRate Supabase load exception]', error);

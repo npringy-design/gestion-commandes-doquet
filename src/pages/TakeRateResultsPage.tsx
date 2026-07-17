@@ -13,6 +13,11 @@ import {
   type TakeRateSortKey,
 } from '../utils/takeRateResultsModel';
 import { buildTakeRateSalesMap } from '../utils/takeRateSalesParser';
+import {
+  hydrateTakeRateCloudRows,
+  TAKE_RATE_BASE_ROWS_CLOUD_KEY,
+  TAKE_RATE_FROZEN_CLOUD_KEY,
+} from '../utils/takeRateCloudModel';
 
 interface TakeRateResultsPageProps {
   setView: (view: View) => void;
@@ -20,25 +25,11 @@ interface TakeRateResultsPageProps {
   covers: Record<string, number>;
 }
 
-const TAKE_RATE_FROZEN_CLOUD_KEY = 'takeRateFrozenMonths';
-const TAKE_RATE_BASE_ROWS_CLOUD_KEY = 'takeRateBaseRows';
-
 interface TakeRateMonthSnapshot {
   rows?: TakeRateMappingRow[];
   salesByImport?: Record<string, number>;
   covers?: number;
 }
-
-const isMarginBaseRow = (row: TakeRateMappingRow) =>
-  Boolean(
-    (row as any).matchedMarginLabel ||
-      (row as any).matchedMarginSheet ||
-      (row as any).marginSource ||
-      (row as any).costHt ||
-      (row as any).sellPriceHt ||
-      (row as any).marginEuro ||
-      (row as any).marginPercent
-  );
 
 const formatInt = (value: number) =>
   new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value);
@@ -115,10 +106,13 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
         if (isSupabaseConfigured()) {
           const cloud = await loadAllFromSupabase();
           if (Array.isArray(cloud)) {
-            cloud.forEach((entry: any) => {
-              if (entry?.key === TAKE_RATE_FROZEN_CLOUD_KEY && entry.value && typeof entry.value === 'object') nextFrozen = entry.value;
-              if (entry?.key === TAKE_RATE_BASE_ROWS_CLOUD_KEY && Array.isArray(entry.value)) nextBaseRows = entry.value.filter(isMarginBaseRow);
-            });
+            const hydrated = hydrateTakeRateCloudRows(cloud);
+            if (hydrated.acceptedKeys[TAKE_RATE_FROZEN_CLOUD_KEY]) {
+              nextFrozen = hydrated.frozenMonths;
+            }
+            if (hydrated.acceptedKeys[TAKE_RATE_BASE_ROWS_CLOUD_KEY]) {
+              nextBaseRows = hydrated.baseRows as TakeRateMappingRow[];
+            }
           }
         }
 
