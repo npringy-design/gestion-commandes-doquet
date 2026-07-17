@@ -14,6 +14,7 @@ import {
   getTakeRateMappingStatus,
   type TakeRateMappingStatus as RowStatus,
 } from '../utils/takeRateMappingModel';
+import { buildTakeRateRowsFromMarginCatalog } from '../utils/takeRateMarginRowsModel';
 
 interface MarginCatalogItem {
   label: string;
@@ -83,13 +84,6 @@ const toNumber = (value: unknown): number | null => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-const formatDecimal = (value: number | null) => (value === null || !Number.isFinite(value) ? '' : value.toFixed(2).replace('.', ','));
-const formatPercent = (value: number | null) => {
-  if (value === null || !Number.isFinite(value)) return '';
-  const ratio = value <= 1 ? value * 100 : value;
-  return ratio.toFixed(1).replace('.', ',');
-};
-
 const normalizeRow = (row: any): TakeRateMappingRow => ({
   id: String(row.id ?? `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`),
   label: String(row.label ?? ''),
@@ -125,26 +119,6 @@ const readStoredMarginCatalog = () => {
 
 const readStoredMarginFileName = () => {
   return '';
-};
-
-const generateRowsFromMarginCatalog = (catalog: MarginCatalogItem[], existingRows: TakeRateMappingRow[]) => {
-  void existingRows;
-
-  return catalog.map((item, index) =>
-    normalizeRow({
-      id: `margin-${index + 1}-${item.normalized}`,
-      label: item.label,
-      family: item.section,
-      linkedImports: [],
-      costHt: formatDecimal(item.costHt),
-      sellPriceHt: formatDecimal(item.sellPriceHt),
-      marginPercent: formatPercent(item.marginPercent),
-      marginEuro: formatDecimal(item.marginEuro),
-      marginSource: 'auto',
-      matchedMarginLabel: item.label,
-      matchedMarginSheet: item.sourceSheet,
-    })
-  );
 };
 
 const statusMeta: Record<RowStatus, { label: string; pill: string; rowRing: string }> = {
@@ -261,7 +235,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       }
 
       if (nextBaseRows.length === 0 && Array.isArray(nextMarginCatalog) && nextMarginCatalog.length > 0) {
-        nextBaseRows = generateRowsFromMarginCatalog(nextMarginCatalog, []).map((row) => ({ ...row, linkedImports: [] }));
+        nextBaseRows = buildTakeRateRowsFromMarginCatalog(nextMarginCatalog, []);
       }
 
       if (cancelled) return;
@@ -541,7 +515,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
 
     try {
       const catalog = await buildMarginCatalogFromWorkbook(file);
-      const generatedBase = generateRowsFromMarginCatalog(catalog, []).map((row) => ({ ...row, linkedImports: [] }));
+      const generatedBase = buildTakeRateRowsFromMarginCatalog(catalog, baseRowsRef.current);
       const sectionCount = new Set(catalog.map((item) => item.section.trim()).filter(Boolean)).size;
 
       setBaseRows(generatedBase);
