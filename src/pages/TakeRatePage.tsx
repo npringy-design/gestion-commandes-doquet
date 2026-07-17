@@ -5,6 +5,7 @@ import AiAssistantDrawer from '../components/AiAssistantDrawer';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { loadAllFromSupabase, saveToSupabaseDebounced } from '../utils/supabase';
 import { buildMarginCatalogFromWorkbook } from '../utils/takeRateMarginParser.js';
+import { resolveTakeRateMonthCovers } from '../utils/takeRateSnapshot';
 
 interface MarginCatalogItem {
   label: string;
@@ -44,6 +45,7 @@ interface TakeRateMonthSnapshot {
   marginCatalog: MarginCatalogItem[];
   marginFileName: string;
   salesByImport?: Record<string, number>;
+  covers?: number;
   frozenAt?: string;
 }
 
@@ -420,7 +422,10 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     return buildSalesObject(importRows);
   }, [frozenMonths, importRows, selectedMonth]);
   const isMonthFrozen = Boolean(frozenMonths[selectedMonth]);
-  const monthCovers = Number(covers[selectedMonth] ?? 0);
+  const monthCovers = resolveTakeRateMonthCovers(
+    frozenMonths[selectedMonth]?.covers,
+    covers[selectedMonth],
+  );
 
   useEffect(() => {
     const snapshot = frozenMonths[selectedMonth];
@@ -634,6 +639,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       marginCatalog,
       marginFileName,
       salesByImport: buildSalesObject(importRows),
+      covers: resolveTakeRateMonthCovers(undefined, covers[selectedMonth]),
       frozenAt: new Date().toISOString(),
     };
     setFrozenMonths((prev) => {
@@ -841,6 +847,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                           marginCatalog,
                           marginFileName,
                           salesByImport: buildSalesObject(monthImportRows),
+                          covers: resolveTakeRateMonthCovers(undefined, covers[month.key]),
                           frozenAt: new Date().toISOString(),
                         };
                         setFrozenMonths((prev) => {
@@ -1206,7 +1213,6 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
 };
 
 export default TakeRatePage;
-
 
 
 

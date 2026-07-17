@@ -5,6 +5,7 @@ import AiAssistantDrawer from '../components/AiAssistantDrawer';
 import type { TakeRateMappingRow } from './TakeRatePage';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { loadAllFromSupabase } from '../utils/supabase';
+import { resolveTakeRateMonthCovers } from '../utils/takeRateSnapshot';
 
 interface TakeRateResultsPageProps {
   setView: (view: View) => void;
@@ -20,6 +21,7 @@ const TAKE_RATE_BASE_ROWS_CLOUD_KEY = 'takeRateBaseRows';
 interface TakeRateMonthSnapshot {
   rows?: TakeRateMappingRow[];
   salesByImport?: Record<string, number>;
+  covers?: number;
 }
 
 const isMarginBaseRow = (row: TakeRateMappingRow) =>
@@ -271,7 +273,10 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
     },
     [frozenMonths, prepImportsByMonth, selectedMonth]
   );
-  const monthCovers = Number(covers[selectedMonth] ?? 0);
+  const monthCovers = resolveTakeRateMonthCovers(
+    frozenMonths[selectedMonth]?.covers,
+    covers[selectedMonth],
+  );
 
   const computedRows = useMemo(() => {
     const query = normalize(search);
