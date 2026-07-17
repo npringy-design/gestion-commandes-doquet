@@ -8,10 +8,10 @@
 // La connexion Supabase Realtime est isolée dans useCloudRealtime.
 // Le cycle commun des sauvegardes fiables est isolé dans useReliableSaveLifecycle.
 // Le chargement initial et les reprises cloud sont isolés dans useCloudHydrationCoordinator.
+// Les événements Realtime app_state sont isolés dans useAppStateRealtimeEvents.
 // =============================================================
 
 import {
-  useCallback,
   useMemo,
   useRef,
   type Dispatch,
@@ -30,6 +30,7 @@ import type { ProductWithHistory } from '../data';
 import type { DailyCoversState } from '../utils/dateHelpers';
 import type { AppStateSetterRegistry } from './appStateSyncModel';
 import { useAppStateHydration } from './useAppStateHydration';
+import { useAppStateRealtimeEvents } from './useAppStateRealtimeEvents';
 import {
   useAppStatePersistence,
   type PersistedAppState,
@@ -61,23 +62,6 @@ type StateSetters = {
 
 type UseCloudSyncParams = PersistedAppState & StateSetters & {
   onSaveError: (message: string) => void;
-};
-
-const DEFER_WHILE_TYPING = new Set<string>([]);
-
-const REALTIME_KEYS = new Set<string>([
-  'deliveryDateBySupplier',
-  'nextDeliveryDateBySupplier',
-]);
-
-const isUserTyping = (): boolean => {
-  const element = document?.activeElement as HTMLElement | null;
-  if (!element) return false;
-  const tag = element.tagName;
-  return tag === 'INPUT'
-    || tag === 'TEXTAREA'
-    || tag === 'SELECT'
-    || Boolean((element as HTMLElement & { isContentEditable?: boolean }).isContentEditable);
 };
 
 export const useCloudSync = ({
@@ -199,36 +183,14 @@ export const useCloudSync = ({
     markSaveError,
   });
 
-  const pendingRealtimeRef = useRef<Map<string, { ts: string; value: unknown }>>(new Map());
-
-  const flushPending = useCallback(() => {
-    if (pendingRealtimeRef.current.size === 0) return;
-    setTimeout(() => {
-      if (isUserTyping()) return;
-      pendingRealtimeRef.current.forEach(({ ts, value }, key) => {
-        applyCloudAppStateValue(key, ts, value);
-      });
-      pendingRealtimeRef.current.clear();
-    }, 150);
-  }, [applyCloudAppStateValue]);
-
-  const handleRealtimeEvent = useCallback((key: string, cloudTs: string, value: unknown) => {
-    if (!REALTIME_KEYS.has(key)) return;
-
-    const localTs = localTsByKey.current[key];
-    if (localTs && localTs >= cloudTs) return;
-    lastCloudUpdatedAtByKey.current[key] = cloudTs;
-
-    if (DEFER_WHILE_TYPING.has(key) && isUserTyping()) {
-      const existing = pendingRealtimeRef.current.get(key);
-      if (!existing || cloudTs > existing.ts) {
-        pendingRealtimeRef.current.set(key, { ts: cloudTs, value });
-      }
-      return;
-    }
-
-    applyCloudAppStateValue(key, cloudTs, value);
-  }, [applyCloudAppStateValue]);
+  const {
+    flushPendingAppState,
+    handleAppStateRealtimeEvent,
+  } = useAppStateRealtimeEvents({
+    applyCloudAppStateValue,
+    lastCloudUpdatedAtByKey,
+    localTsByKey,
+  });
 
   const {
     supabaseLoaded,
@@ -244,9 +206,9 @@ export const useCloudSync = ({
 
   useCloudRealtime({
     enabled: supabaseLoaded,
-    onAppStateChange: handleRealtimeEvent,
+    onAppStateChange: handleAppStateRealtimeEvent,
     onOrderLineChange: handleOrderLineRealtimePayload,
-    flushPendingAppState: flushPending,
+    flushPendingAppState,
     hydrateFromCloud,
     retryQueuedSaves,
   });
