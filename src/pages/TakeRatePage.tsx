@@ -22,6 +22,17 @@ import {
 } from '../utils/takeRateMappingModel';
 import { buildTakeRateRowsFromMarginCatalog } from '../utils/takeRateMarginRowsModel';
 import {
+  addTakeRateImportLinks,
+  appendTakeRateRow,
+  createEmptyTakeRateRow,
+  removeTakeRateImportLink,
+  removeTakeRateRows,
+  toggleAllVisibleTakeRateRows,
+  togglePendingTakeRateImport,
+  toggleTakeRateRowSelection,
+  updateTakeRateRow,
+} from '../utils/takeRateRowEditingModel';
+import {
   hydrateTakeRateCloudRows,
   TAKE_RATE_BASE_ROWS_CLOUD_KEY,
   TAKE_RATE_FROZEN_CLOUD_KEY,
@@ -68,20 +79,6 @@ interface TakeRateMonthSnapshot {
   covers?: number;
   frozenAt?: string;
 }
-
-const createEmptyRow = (): TakeRateMappingRow => ({
-  id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-  label: '',
-  family: '',
-  linkedImports: [],
-  costHt: '',
-  sellPriceHt: '',
-  marginPercent: '',
-  marginEuro: '',
-  marginSource: '',
-  matchedMarginLabel: '',
-  matchedMarginSheet: '',
-});
 
 const toNumber = (value: unknown): number | null => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
@@ -295,39 +292,29 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   }, [rows]);
 
   const addRow = () => {
-    const row = createEmptyRow();
+    const row = createEmptyTakeRateRow(`${Date.now()}-${Math.random().toString(36).slice(2, 9)}`) as TakeRateMappingRow;
     setBaseRows((prev) => {
-      const next = [...prev, row];
+      const next = appendTakeRateRow(prev, row);
       persistBaseRows(next);
       return next;
     });
-    setRows((prev) => [...prev, row]);
+    setRows((prev) => appendTakeRateRow(prev, row));
   };
 
   const toggleRowSelection = (rowId: string) => {
-    setSelectedRowIds((prev) => (prev.includes(rowId) ? prev.filter((id) => id !== rowId) : [...prev, rowId]));
+    setSelectedRowIds((prev) => toggleTakeRateRowSelection(prev, rowId));
   };
 
   const toggleSelectAllVisibleRows = () => {
     const visibleIds = filteredRows.map((row) => row.id);
-    if (visibleIds.length === 0) return;
-
-    setSelectedRowIds((prev) => {
-      const allVisibleSelected = visibleIds.every((id) => prev.includes(id));
-      if (allVisibleSelected) {
-        return prev.filter((id) => !visibleIds.includes(id));
-      }
-      return Array.from(new Set([...prev, ...visibleIds]));
-    });
+    setSelectedRowIds((prev) => toggleAllVisibleTakeRateRows(prev, visibleIds));
   };
 
   const removeSelectedRows = () => {
     if (selectedRowIds.length === 0) return;
-    const selectedSet = new Set<string>(selectedRowIds);
-
-    setRows((prev) => prev.filter((row) => !selectedSet.has(row.id)));
+    setRows((prev) => removeTakeRateRows(prev, selectedRowIds));
     setBaseRows((prev) => {
-      const next = prev.filter((row) => !selectedSet.has(row.id));
+      const next = removeTakeRateRows(prev, selectedRowIds);
       persistBaseRows(next);
       return next;
     });
@@ -335,83 +322,45 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   };
 
   const updateRow = (rowId: string, patch: Partial<TakeRateMappingRow>) => {
-    setRows((prev) =>
-      prev.map((row) => {
-        if (row.id !== rowId) return row;
-        const next = normalizeRow({ ...row, ...patch });
-        if ('costHt' in patch || 'sellPriceHt' in patch || 'marginPercent' in patch || 'marginEuro' in patch) {
-          next.marginSource = 'manual';
-        }
-        return next;
-      })
-    );
+    setRows((prev) => updateTakeRateRow(prev, rowId, patch));
     setBaseRows((prev) => {
-      const nextRows = prev.map((row) => {
-        if (row.id !== rowId) return row;
-        const next = normalizeRow({ ...row, ...patch });
-        if ('costHt' in patch || 'sellPriceHt' in patch || 'marginPercent' in patch || 'marginEuro' in patch) {
-          next.marginSource = 'manual';
-        }
-        return next;
-      });
+      const nextRows = updateTakeRateRow(prev, rowId, patch);
       persistBaseRows(nextRows);
       return nextRows;
     });
   };
 
   const removeRow = (rowId: string) => {
-    setRows((prev) => prev.filter((row) => row.id !== rowId));
+    setRows((prev) => removeTakeRateRows(prev, [rowId]));
     setBaseRows((prev) => {
-      const next = prev.filter((row) => row.id !== rowId);
+      const next = removeTakeRateRows(prev, [rowId]);
       persistBaseRows(next);
       return next;
     });
   };
 
   const updateRowsAndBase = (updater: (prev: TakeRateMappingRow[]) => TakeRateMappingRow[]) => {
-    setRows((prev) => {
+    setRows((prev) => updater(prev));
+    setBaseRows((prev) => {
       const next = updater(prev);
-      setBaseRows(next);
       persistBaseRows(next);
       return next;
     });
   };
 
   const addImportToRow = (rowId: string, importLabel: string) => {
-    updateRowsAndBase((prev) =>
-      prev.map((row) => {
-        if (row.id !== rowId) return row;
-        if (row.linkedImports.includes(importLabel)) return row;
-        return { ...row, linkedImports: [...row.linkedImports, importLabel] };
-      })
-    );
+    updateRowsAndBase((prev) => addTakeRateImportLinks(prev, rowId, [importLabel]));
     setActivePopover(null);
   };
 
   const togglePendingImport = (rowId: string, importLabel: string) => {
-    setPendingImportsByRow((prev) => {
-      const current = prev[rowId] ?? [];
-      const nextForRow = current.includes(importLabel)
-        ? current.filter((item) => item !== importLabel)
-        : [...current, importLabel];
-      if (nextForRow.length === 0) {
-        const next = { ...prev };
-        delete next[rowId];
-        return next;
-      }
-      return { ...prev, [rowId]: nextForRow };
-    });
+    setPendingImportsByRow((prev) => togglePendingTakeRateImport(prev, rowId, importLabel));
   };
 
   const validatePendingImports = (rowId: string) => {
     const pending = pendingImportsByRow[rowId] ?? [];
     if (pending.length === 0) return;
-    updateRowsAndBase((prev) =>
-      prev.map((row) => {
-        if (row.id !== rowId) return row;
-        return { ...row, linkedImports: Array.from(new Set([...row.linkedImports, ...pending])) };
-      })
-    );
+    updateRowsAndBase((prev) => addTakeRateImportLinks(prev, rowId, pending));
     setPendingImportsByRow((prev) => {
       const next = { ...prev };
       delete next[rowId];
@@ -421,9 +370,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   };
 
   const removeImportFromRow = (rowId: string, importLabel: string) => {
-    updateRowsAndBase((prev) =>
-      prev.map((row) => (row.id === rowId ? { ...row, linkedImports: row.linkedImports.filter((item) => item !== importLabel) } : row))
-    );
+    updateRowsAndBase((prev) => removeTakeRateImportLink(prev, rowId, importLabel));
   };
 
   const toggleFreezeSelectedMonth = () => {
