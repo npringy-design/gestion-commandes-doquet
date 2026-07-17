@@ -6,14 +6,19 @@ import type { TakeRateMappingRow } from './TakeRatePage';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { loadAllFromSupabase } from '../utils/supabase';
 import { resolveTakeRateMonthCovers } from '../utils/takeRateSnapshot';
+import {
+  buildTakeRateResultRows,
+  getMaxTakeRate,
+  normalizeTakeRateKey as normalize,
+  parseTakeRateNumber as parseNumber,
+  type TakeRateSortKey,
+} from '../utils/takeRateResultsModel';
 
 interface TakeRateResultsPageProps {
   setView: (view: View) => void;
   prepImportsByMonth: Record<string, string>;
   covers: Record<string, number>;
 }
-
-type SortKey = 'takeRate' | 'sales' | 'marginTotal';
 
 const TAKE_RATE_FROZEN_CLOUD_KEY = 'takeRateFrozenMonths';
 const TAKE_RATE_BASE_ROWS_CLOUD_KEY = 'takeRateBaseRows';
@@ -34,16 +39,6 @@ const isMarginBaseRow = (row: TakeRateMappingRow) =>
       (row as any).marginEuro ||
       (row as any).marginPercent
   );
-
-const normalize = (value: string) =>
-  String(value ?? '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/\([^)]*\)/g, ' ')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
 
 const parseCsvLine = (line: string, delimiter: string) => {
   const cells: string[] = [];
@@ -85,13 +80,6 @@ const detectDelimiter = (input: string) => {
     }
   });
   return best;
-};
-
-const parseNumber = (value: string | number | null | undefined) => {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-  const cleaned = String(value ?? '').replace(/\s/g, '').replace(',', '.');
-  const parsed = Number(cleaned);
-  return Number.isFinite(parsed) ? parsed : 0;
 };
 
 const buildMonthSalesMap = (content: string) => {
@@ -199,7 +187,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
   const [selectedMonth, setSelectedMonth] = useState<string>(MONTHS_DISPLAY_CONFIG[new Date().getMonth()]?.key ?? 'jan');
   const [search, setSearch] = useState('');
   const [familyFilter, setFamilyFilter] = useState('all');
-  const [sortBy, setSortBy] = useState<SortKey>('takeRate');
+  const [sortBy, setSortBy] = useState<TakeRateSortKey>('takeRate');
   const [expertMode, setExpertMode] = useState(false);
   const [baseRows, setBaseRows] = useState<TakeRateMappingRow[]>([]);
   const [frozenMonths, setFrozenMonths] = useState<Record<string, TakeRateMonthSnapshot>>({});
@@ -279,43 +267,14 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
   );
 
   const computedRows = useMemo(() => {
-    const query = normalize(search);
-    return rows
-      .filter((row) => row.label.trim().length > 0 && row.linkedImports.length > 0)
-      .map((row) => {
-        const sales = row.linkedImports.reduce((sum, item) => sum + (monthSalesMap.get(normalize(item)) ?? 0), 0);
-        const takeRate = monthCovers > 0 ? (sales / monthCovers) * 100 : 0;
-        const costHt = parseNumber((row as any).costHt);
-        const sellPriceHt = parseNumber((row as any).sellPriceHt);
-        const storedMarginEuro = parseNumber((row as any).marginEuro);
-        const marginPercent = parseNumber((row as any).marginPercent);
-        const marginEuro = storedMarginEuro > 0 ? storedMarginEuro : sellPriceHt * (marginPercent / 100);
-        const marginTotal = sales * marginEuro;
-        const caTheo = sales * sellPriceHt;
-
-        return {
-          ...row,
-          sales,
-          takeRate,
-          costHt,
-          sellPriceHt,
-          marginEuro,
-          marginPercent,
-          marginTotal,
-          caTheo,
-        };
-      })
-      .filter((row) => (familyFilter === 'all' ? true : row.family === familyFilter))
-      .filter((row) => {
-        if (!query) return true;
-        return normalize(row.label).includes(query) || normalize(row.family).includes(query);
-      })
-      .sort((a, b) => {
-        if (sortBy === 'sales') return b.sales - a.sales || a.label.localeCompare(b.label, 'fr');
-        if (sortBy === 'marginTotal') return b.marginTotal - a.marginTotal || a.label.localeCompare(b.label, 'fr');
-        return b.takeRate - a.takeRate || b.sales - a.sales || a.label.localeCompare(b.label, 'fr');
-      })
-      .map((row, index) => ({ ...row, rank: index + 1 }));
+    return buildTakeRateResultRows({
+      rows,
+      salesByImport: monthSalesMap,
+      monthCovers,
+      familyFilter,
+      search,
+      sortBy,
+    });
   }, [rows, monthSalesMap, monthCovers, familyFilter, search, sortBy]);
 
   const families = useMemo(() => {
@@ -325,7 +284,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
 
   const totalSales = computedRows.reduce((sum, row) => sum + row.sales, 0);
   const totalMargin = computedRows.reduce((sum, row) => sum + row.marginTotal, 0);
-  const maxTakeRate = computedRows.length > 0 ? computedRows[0].takeRate : 1;
+  const maxTakeRate = getMaxTakeRate(computedRows) || 1;
   const getAiContext = React.useCallback(() => {
     const selectedMonthLabel = MONTH_KEY_TO_NAME[selectedMonth] ?? selectedMonth;
     const frozenCount = Object.keys(frozenMonths).length;
@@ -474,7 +433,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
               { key: 'takeRate', label: 'Taux' },
               { key: 'sales', label: 'Ventes' },
               { key: 'marginTotal', label: 'Marge' },
-            ] as { key: SortKey; label: string }[]).map((sort) => {
+            ] as { key: TakeRateSortKey; label: string }[]).map((sort) => {
               const active = sortBy === sort.key;
               return (
                 <button

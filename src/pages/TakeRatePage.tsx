@@ -6,6 +6,7 @@ import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { loadAllFromSupabase, saveToSupabaseDebounced } from '../utils/supabase';
 import { buildMarginCatalogFromWorkbook } from '../utils/takeRateMarginParser.js';
 import { resolveTakeRateMonthCovers } from '../utils/takeRateSnapshot';
+import { normalizeTakeRateKey as normalize } from '../utils/takeRateResultsModel';
 
 interface MarginCatalogItem {
   label: string;
@@ -67,16 +68,6 @@ const createEmptyRow = (): TakeRateMappingRow => ({
   matchedMarginLabel: '',
   matchedMarginSheet: '',
 });
-
-const normalize = (value: string) =>
-  String(value ?? '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/\([^)]*\)/g, ' ')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
 
 const parseCsvLine = (line: string, delimiter: string) => {
   const cells: string[] = [];
@@ -1213,6 +1204,5 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
 };
 
 export default TakeRatePage;
-
 
 
