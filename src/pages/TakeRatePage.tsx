@@ -3,7 +3,8 @@ import { MONTHS_DISPLAY_CONFIG, View } from '../constants';
 import AppNavTile from '../components/AppNavTile';
 import AiAssistantDrawer from '../components/AiAssistantDrawer';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
-import { loadAllFromSupabase, saveToSupabaseDebounced } from '../utils/supabase';
+import { loadAllFromSupabase } from '../utils/supabase';
+import { useTakeRateCloudPersistence } from '../hooks/useTakeRateCloudPersistence';
 import { buildMarginCatalogFromWorkbook } from '../utils/takeRateMarginParser.js';
 import {
   createTakeRateMonthSnapshot,
@@ -147,51 +148,18 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const baseRowsRef = useRef<TakeRateMappingRow[]>(readStoredBaseRows());
-  const cloudTsRef = useRef<Record<string, string>>({});
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
+  const {
+    persistBaseRows: persistCloudBaseRows,
+    persistMarginBase,
+    persistFrozenMonths,
+    registerCloudTimestamps,
+  } = useTakeRateCloudPersistence();
 
-  const persistBaseRows = (value: TakeRateMappingRow[]) => {
+  const persistBaseRows = React.useCallback((value: TakeRateMappingRow[]) => {
     baseRowsRef.current = value;
-
-    if (!isSupabaseConfigured()) return;
-    const ts = new Date().toISOString();
-    saveToSupabaseDebounced(
-      TAKE_RATE_BASE_ROWS_CLOUD_KEY,
-      value,
-      ts,
-      (key) => cloudTsRef.current[key],
-      (confirmedKey, confirmedTs) => {
-        cloudTsRef.current[confirmedKey] = confirmedTs;
-      },
-      2500,
-    );
-  };
-
-  const persistMarginBase = (catalog: MarginCatalogItem[], fileName: string) => {
-    if (!isSupabaseConfigured()) return;
-    const ts = new Date().toISOString();
-    saveToSupabaseDebounced(TAKE_RATE_MARGIN_CATALOG_CLOUD_KEY, catalog, ts, (key) => cloudTsRef.current[key], (confirmedKey, confirmedTs) => {
-      cloudTsRef.current[confirmedKey] = confirmedTs;
-    }, 2500);
-    saveToSupabaseDebounced(TAKE_RATE_MARGIN_FILE_NAME_CLOUD_KEY, fileName, ts, (key) => cloudTsRef.current[key], (confirmedKey, confirmedTs) => {
-      cloudTsRef.current[confirmedKey] = confirmedTs;
-    }, 2500);
-  };
-
-  const persistTakeRateCollection = (cloudKey: string, value: Record<string, TakeRateMonthSnapshot>) => {
-    if (!isSupabaseConfigured()) return;
-    const ts = new Date().toISOString();
-    saveToSupabaseDebounced(
-      cloudKey,
-      value,
-      ts,
-      (key) => cloudTsRef.current[key],
-      (confirmedKey, confirmedTs) => {
-        cloudTsRef.current[confirmedKey] = confirmedTs;
-      },
-      2500,
-    );
-  };
+    persistCloudBaseRows(value);
+  }, [persistCloudBaseRows]);
 
   useEffect(() => {
     let cancelled = false;
@@ -219,7 +187,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
             if (hydrated.acceptedKeys[TAKE_RATE_FROZEN_CLOUD_KEY]) {
               nextFrozen = hydrated.frozenMonths as Record<string, TakeRateMonthSnapshot>;
             }
-            Object.assign(cloudTsRef.current, hydrated.updatedAtByKey);
+            registerCloudTimestamps(hydrated.updatedAtByKey);
           }
         } catch (error) {
           console.error('[TakeRate Supabase load exception]', error);
@@ -245,7 +213,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [registerCloudTimestamps]);
 
   useEffect(() => {
     baseRowsRef.current = baseRows;
@@ -287,7 +255,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     setRows(nextRows);
     setBaseRows(nextRows);
     persistBaseRows(nextRows);
-  }, [importRows, isMonthFrozen, rows, selectedMonth]);
+  }, [importRows, isMonthFrozen, persistBaseRows, rows, selectedMonth]);
 
   const familyOptions = useMemo(() => {
     const unique = new Set<string>();
@@ -462,7 +430,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     if (isMonthFrozen) {
       setFrozenMonths((prev) => {
         const next = removeFrozenTakeRateMonth<TakeRateMonthSnapshot>(prev, selectedMonth);
-        persistTakeRateCollection(TAKE_RATE_FROZEN_CLOUD_KEY, next);
+        persistFrozenMonths(next);
         return next;
       });
       return;
@@ -477,7 +445,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     });
     setFrozenMonths((prev) => {
       const next = setFrozenTakeRateMonth(prev, selectedMonth, snapshot);
-      persistTakeRateCollection(TAKE_RATE_FROZEN_CLOUD_KEY, next);
+      persistFrozenMonths(next);
       return next;
     });
   };
@@ -667,7 +635,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                         if (snapshot) {
                           setFrozenMonths((prev) => {
                             const next = removeFrozenTakeRateMonth<TakeRateMonthSnapshot>(prev, month.key);
-                            persistTakeRateCollection(TAKE_RATE_FROZEN_CLOUD_KEY, next);
+                            persistFrozenMonths(next);
                             return next;
                           });
                           return;
@@ -683,7 +651,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                         });
                         setFrozenMonths((prev) => {
                           const next = setFrozenTakeRateMonth(prev, month.key, nextSnapshot);
-                          persistTakeRateCollection(TAKE_RATE_FROZEN_CLOUD_KEY, next);
+                          persistFrozenMonths(next);
                           return next;
                         });
                       }}

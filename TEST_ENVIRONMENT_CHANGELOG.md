@@ -51,6 +51,7 @@ Le workflow choisi :
 - Le reimport du fichier marge du Taux de prise conserve maintenant les liaisons de ventes et identifiants des produits reconnus exactement, tout en appliquant les nouvelles familles, prix et marges.
 - La creation et le defigeage des mois Taux de prise sont centralises : chaque snapshot conserve des copies isolees des lignes, liaisons, ventes, couverts et donnees marge.
 - L'hydratation cloud du Taux de prise est centralisee pour les deux pages : cles, reponses partielles, formats invalides et timestamps acceptes sont interpretes par un seul modele teste.
+- La persistance cloud du Taux de prise est isolee de la page : les quatre cles, le delai de 2,5 secondes, le controle LWW et les timestamps confirmes sont centralises et testes.
 - Relance documentaire du deploiement production apres blocage Vercel `build-rate-limit`, sans changement applicatif.
 - Stabilisation session commande en test : la deconnexion automatique pour inactivite est supprimee cote application. `AuthGate` ne rend plus `InactivityTimeout` et `src/auth/InactivityTimeout.tsx` est neutralise. La session reste donc geree par Supabase/navigateur, sans timer applicatif qui force la deconnexion pendant une saisie.
 - Promotion production du correctif `Connexion non confirmée` valide sur test : timeout profil porte a 12 s, retry automatique du profil apres timeout, purge de toutes les cles `sb-*` local/session storage a la deconnexion forcee, deconnexion Supabase locale, retour propre vers `/` et `autoRefreshToken` desactive.
