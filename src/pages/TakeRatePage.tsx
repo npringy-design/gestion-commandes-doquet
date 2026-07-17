@@ -8,6 +8,12 @@ import { buildMarginCatalogFromWorkbook } from '../utils/takeRateMarginParser.js
 import { resolveTakeRateMonthCovers } from '../utils/takeRateSnapshot';
 import { normalizeTakeRateKey as normalize } from '../utils/takeRateResultsModel';
 import { buildTakeRateImportRows, buildTakeRateSalesObject } from '../utils/takeRateSalesParser';
+import {
+  applyAutomaticTakeRateLinks,
+  getTakeRateLinkedSales,
+  getTakeRateMappingStatus,
+  type TakeRateMappingStatus as RowStatus,
+} from '../utils/takeRateMappingModel';
 
 interface MarginCatalogItem {
   label: string;
@@ -40,8 +46,6 @@ interface TakeRatePageProps {
   covers: Record<string, number>;
 }
 
-type RowStatus = 'ok' | 'review';
-
 interface TakeRateMonthSnapshot {
   rows: TakeRateMappingRow[];
   marginCatalog: MarginCatalogItem[];
@@ -69,28 +73,6 @@ const createEmptyRow = (): TakeRateMappingRow => ({
   matchedMarginLabel: '',
   matchedMarginSheet: '',
 });
-
-const GENERIC_MATCH_TOKENS = new Set(['le', 'la', 'les', 'de', 'des', 'du', 'a', 'au', 'aux', 'avec', 'sans', 'menu', 'formule']);
-const strongTokens = (value: string) => {
-  const tokens = normalize(value).split(' ').filter(Boolean);
-  const strong = tokens.filter((token) => !GENERIC_MATCH_TOKENS.has(token));
-  return strong.length > 0 ? strong : tokens;
-};
-
-const scoreImportMatch = (productLabel: string, importLabel: string) => {
-  const product = normalize(productLabel);
-  const imported = normalize(importLabel);
-  if (!product || !imported) return -1;
-  if (product === imported) return 1000;
-  const productTokens = strongTokens(productLabel);
-  const importTokens = strongTokens(importLabel);
-  const intersection = productTokens.filter((token) => importTokens.includes(token));
-  if (intersection.length === 0) return -1;
-  if (!productTokens.every((token) => importTokens.includes(token))) return -1;
-  const coverage = intersection.length / Math.max(productTokens.length, 1);
-  const substringBonus = imported.includes(product) ? 70 : 0;
-  return coverage * 160 + intersection.length * 25 + substringBonus - Math.max(importTokens.length - productTokens.length, 0) * 12;
-};
 
 const toNumber = (value: unknown): number | null => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
@@ -163,16 +145,6 @@ const generateRowsFromMarginCatalog = (catalog: MarginCatalogItem[], existingRow
       matchedMarginSheet: item.sourceSheet,
     })
   );
-};
-
-const getLinkedSales = (row: TakeRateMappingRow, salesByImport: Record<string, number>) =>
-  row.linkedImports.reduce((sum, label) => sum + (salesByImport[normalize(label)] ?? 0), 0);
-
-const getRowStatus = (row: TakeRateMappingRow, salesByImport: Record<string, number>): RowStatus => {
-  if (!row.label.trim() || !row.family.trim()) return 'review';
-  if (row.linkedImports.length === 0) return 'review';
-  if (getLinkedSales(row, salesByImport) <= 0) return 'review';
-  return 'ok';
 };
 
 const statusMeta: Record<RowStatus, { label: string; pill: string; rowRing: string }> = {
@@ -343,18 +315,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   useEffect(() => {
     if (isMonthFrozen || importRows.length === 0 || rows.length === 0) return;
 
-    let changed = false;
-    const nextRows = rows.map((row) => {
-      if (row.linkedImports.length > 0 || !row.label.trim()) return row;
-      let best: { label: string; score: number } | null = null;
-      importRows.forEach((item) => {
-        const score = scoreImportMatch(row.label, item.label);
-        if (!best || score > best.score) best = { label: item.label, score };
-      });
-      if (!best || best.score < 155) return row;
-      changed = true;
-      return { ...row, linkedImports: [best.label] };
-    });
+    const { rows: nextRows, changed } = applyAutomaticTakeRateLinks<TakeRateMappingRow>(rows, importRows);
 
     if (!changed) return;
     setRows(nextRows);
@@ -375,7 +336,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     const normalizedProductSearch = normalize(productSearch);
 
     return rows.filter((row) => {
-      const rowStatus = getRowStatus(row, importSalesByName);
+      const rowStatus = getTakeRateMappingStatus(row, importSalesByName);
       const familyValue = row.family.trim();
 
       const familyMatches =
@@ -602,18 +563,18 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const visibleRowIds = filteredRows.map((row) => row.id);
   const visibleSelectedCount = visibleRowIds.filter((id) => selectedRowIds.includes(id)).length;
   const allVisibleRowsSelected = visibleRowIds.length > 0 && visibleSelectedCount === visibleRowIds.length;
-  const okCount = rows.filter((row) => getRowStatus(row, importSalesByName) === 'ok').length;
-  const reviewCount = rows.filter((row) => getRowStatus(row, importSalesByName) === 'review').length;
+  const okCount = rows.filter((row) => getTakeRateMappingStatus(row, importSalesByName) === 'ok').length;
+  const reviewCount = rows.filter((row) => getTakeRateMappingStatus(row, importSalesByName) === 'review').length;
   const withoutLinkCount = rows.filter((row) => row.linkedImports.length === 0).length;
   const hasMarginImport = marginCatalog.length > 0 || Boolean(marginFileName);
-  const getRowSales = (row: TakeRateMappingRow) => getLinkedSales(row, importSalesByName);
+  const getRowSales = (row: TakeRateMappingRow) => getTakeRateLinkedSales(row, importSalesByName);
   const availableImportRows = importRows;
   const getAiContext = React.useCallback(() => {
     const monthLabel = MONTHS_DISPLAY_CONFIG.find((month) => month.key === selectedMonth)?.label ?? selectedMonth;
     const sampleRows = rows.slice(0, 80).map((row) => {
       const sales = getRowSales(row);
       const takeRate = monthCovers > 0 ? (sales / monthCovers) * 100 : 0;
-      return `${row.label || 'Produit sans nom'}: famille=${row.family || 'n/a'}, liens=${row.linkedImports.length}, ventes=${sales}, taux=${takeRate.toFixed(2)}%, statut=${getRowStatus(row, importSalesByName)}`;
+      return `${row.label || 'Produit sans nom'}: famille=${row.family || 'n/a'}, liens=${row.linkedImports.length}, ventes=${sales}, taux=${takeRate.toFixed(2)}%, statut=${getTakeRateMappingStatus(row, importSalesByName)}`;
     });
 
     return [
@@ -902,7 +863,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                   </tr>
                 ) : (
                   filteredRows.map((row, rowIndex) => {
-                    const status = getRowStatus(row, importSalesByName);
+                    const status = getTakeRateMappingStatus(row, importSalesByName);
                     const meta = statusMeta[status];
                     const rowSales = getRowSales(row);
                     const takeRate = monthCovers > 0 ? (rowSales / monthCovers) * 100 : 0;
@@ -1121,4 +1082,3 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
 };
 
 export default TakeRatePage;
-
