@@ -9,10 +9,10 @@ import { resolveTakeRateMonthCovers } from '../utils/takeRateSnapshot';
 import {
   buildTakeRateResultRows,
   getMaxTakeRate,
-  normalizeTakeRateKey as normalize,
   parseTakeRateNumber as parseNumber,
   type TakeRateSortKey,
 } from '../utils/takeRateResultsModel';
+import { buildTakeRateSalesMap } from '../utils/takeRateSalesParser';
 
 interface TakeRateResultsPageProps {
   setView: (view: View) => void;
@@ -39,94 +39,6 @@ const isMarginBaseRow = (row: TakeRateMappingRow) =>
       (row as any).marginEuro ||
       (row as any).marginPercent
   );
-
-const parseCsvLine = (line: string, delimiter: string) => {
-  const cells: string[] = [];
-  let current = '';
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-    const next = line[i + 1];
-    if (char === '"') {
-      if (inQuotes && next === '"') {
-        current += '"';
-        i += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (char === delimiter && !inQuotes) {
-      cells.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-
-  cells.push(current.trim());
-  return cells;
-};
-
-const detectDelimiter = (input: string) => {
-  const firstLine = input.split(/\r?\n/).find((line) => line.trim().length > 0) ?? '';
-  const candidates = [';', '\t', ','];
-  let best = ';';
-  let bestScore = -1;
-  candidates.forEach((candidate) => {
-    const score = firstLine.split(candidate).length;
-    if (score > bestScore) {
-      best = candidate;
-      bestScore = score;
-    }
-  });
-  return best;
-};
-
-const buildMonthSalesMap = (content: string) => {
-  const result = new Map<string, number>();
-  if (!content?.trim()) return result;
-
-  const lines = content.split(/\r?\n/).filter((line) => line.trim().length > 0);
-  if (lines.length === 0) return result;
-
-  const delimiter = detectDelimiter(content);
-  const headers = parseCsvLine(lines[0], delimiter).map(normalize);
-
-  const preferredNameHeaders = ['libelle', 'libellé', 'designation', 'désignation', 'produit', 'article', 'nom'];
-  const preferredQtyHeaders = [
-    'nombre',
-    'nb',
-  ];
-
-  const findPreferredIndex = (preferred: string[]) => {
-    for (const name of preferred) {
-      const exactIndex = headers.findIndex((cell) => cell === name);
-      if (exactIndex !== -1) return exactIndex;
-    }
-    for (const name of preferred) {
-      const includesIndex = headers.findIndex((cell) => cell.includes(name));
-      if (includesIndex !== -1) return includesIndex;
-    }
-    return -1;
-  };
-
-  const nameIndex = findPreferredIndex(preferredNameHeaders);
-  const qtyIndex = findPreferredIndex(preferredQtyHeaders);
-
-  if (nameIndex === -1 || qtyIndex === -1) return result;
-
-  for (let i = 1; i < lines.length; i += 1) {
-    const cols = parseCsvLine(lines[i], delimiter);
-    const rawLabel = (cols[nameIndex] ?? '').trim();
-    if (!rawLabel) continue;
-    const key = normalize(rawLabel);
-    const qty = parseNumber(cols[qtyIndex] ?? '0');
-    if (!key) continue;
-    result.set(key, (result.get(key) ?? 0) + qty);
-  }
-
-  return result;
-};
 
 const formatInt = (value: number) =>
   new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value);
@@ -257,7 +169,7 @@ const TakeRateResultsPage: React.FC<TakeRateResultsPageProps> = ({ setView, prep
       if (frozenSales && Object.keys(frozenSales).length > 0) {
         return new Map(Object.entries(frozenSales));
       }
-      return buildMonthSalesMap(prepImportsByMonth[selectedMonth] ?? '');
+      return buildTakeRateSalesMap(prepImportsByMonth[selectedMonth] ?? '');
     },
     [frozenMonths, prepImportsByMonth, selectedMonth]
   );

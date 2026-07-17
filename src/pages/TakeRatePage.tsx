@@ -7,6 +7,7 @@ import { loadAllFromSupabase, saveToSupabaseDebounced } from '../utils/supabase'
 import { buildMarginCatalogFromWorkbook } from '../utils/takeRateMarginParser.js';
 import { resolveTakeRateMonthCovers } from '../utils/takeRateSnapshot';
 import { normalizeTakeRateKey as normalize } from '../utils/takeRateResultsModel';
+import { buildTakeRateImportRows, buildTakeRateSalesObject } from '../utils/takeRateSalesParser';
 
 interface MarginCatalogItem {
   label: string;
@@ -68,90 +69,6 @@ const createEmptyRow = (): TakeRateMappingRow => ({
   matchedMarginLabel: '',
   matchedMarginSheet: '',
 });
-
-const parseCsvLine = (line: string, delimiter: string) => {
-  const cells: string[] = [];
-  let current = '';
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-    const next = line[i + 1];
-    if (char === '"') {
-      if (inQuotes && next === '"') {
-        current += '"';
-        i += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (char === delimiter && !inQuotes) {
-      cells.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-
-  cells.push(current.trim());
-  return cells;
-};
-
-const detectDelimiter = (input: string) => {
-  const firstLine = input.split(/\r?\n/).find((line) => line.trim().length > 0) ?? '';
-  return [';', '\t', ','].sort((a, b) => firstLine.split(b).length - firstLine.split(a).length)[0] ?? ';';
-};
-
-const parseNumber = (value: string | number | null | undefined) => {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-  const cleaned = String(value ?? '').replace(/\s/g, '').replace(',', '.');
-  const parsed = Number(cleaned);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
-
-const pickImportColumn = (headers: string[], preferred: string[]) => {
-  for (const name of preferred) {
-    const exactIndex = headers.findIndex((cell) => cell === normalize(name));
-    if (exactIndex !== -1) return exactIndex;
-  }
-  for (const name of preferred) {
-    const includesIndex = headers.findIndex((cell) => cell.includes(normalize(name)));
-    if (includesIndex !== -1) return includesIndex;
-  }
-  return -1;
-};
-
-const buildImportRows = (content: string) => {
-  if (!content?.trim()) return [] as { label: string; normalized: string; quantity: number }[];
-  const lines = content.split(/\r?\n/).filter((line) => line.trim().length > 0);
-  if (lines.length === 0) return [];
-  const delimiter = detectDelimiter(content);
-  const headers = parseCsvLine(lines[0], delimiter).map(normalize);
-  const nameIndex = pickImportColumn(headers, ['libelle', 'libellé', 'designation', 'désignation', 'produit', 'article', 'nom']);
-  const qtyIndex = pickImportColumn(headers, [
-    'nombre',
-    'nb',
-  ]);
-  if (nameIndex === -1 || qtyIndex === -1) return [];
-
-  const byLabel = new Map<string, { label: string; normalized: string; quantity: number }>();
-  for (let i = 1; i < lines.length; i += 1) {
-    const cols = parseCsvLine(lines[i], delimiter);
-    const label = String(cols[nameIndex] ?? '').trim();
-    const normalized = normalize(label);
-    if (!label || !normalized) continue;
-    const quantity = parseNumber(cols[qtyIndex] ?? '0');
-    const existing = byLabel.get(normalized);
-    if (existing) {
-      existing.quantity += quantity;
-    } else {
-      byLabel.set(normalized, { label, normalized, quantity });
-    }
-  }
-  return Array.from(byLabel.values()).sort((a, b) => a.label.localeCompare(b.label, 'fr'));
-};
-
-const buildSalesObject = (items: { normalized: string; quantity: number }[]) =>
-  Object.fromEntries(items.map((item) => [item.normalized, item.quantity]));
 
 const GENERIC_MATCH_TOKENS = new Set(['le', 'la', 'les', 'de', 'des', 'du', 'a', 'au', 'aux', 'avec', 'sans', 'menu', 'formule']);
 const strongTokens = (value: string) => {
@@ -406,11 +323,11 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     if (!MONTHS_DISPLAY_CONFIG.some((month) => month.key === selectedMonth)) setSelectedMonth(defaultDisplayMonth);
   }, [defaultDisplayMonth, selectedMonth]);
 
-  const importRows = useMemo(() => buildImportRows(prepImportsByMonth[selectedMonth] ?? ''), [prepImportsByMonth, selectedMonth]);
+  const importRows = useMemo(() => buildTakeRateImportRows(prepImportsByMonth[selectedMonth] ?? ''), [prepImportsByMonth, selectedMonth]);
   const importSalesByName = useMemo(() => {
     const frozenSales = frozenMonths[selectedMonth]?.salesByImport;
     if (frozenSales && Object.keys(frozenSales).length > 0) return frozenSales;
-    return buildSalesObject(importRows);
+    return buildTakeRateSalesObject(importRows);
   }, [frozenMonths, importRows, selectedMonth]);
   const isMonthFrozen = Boolean(frozenMonths[selectedMonth]);
   const monthCovers = resolveTakeRateMonthCovers(
@@ -629,7 +546,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       rows,
       marginCatalog,
       marginFileName,
-      salesByImport: buildSalesObject(importRows),
+      salesByImport: buildTakeRateSalesObject(importRows),
       covers: resolveTakeRateMonthCovers(undefined, covers[selectedMonth]),
       frozenAt: new Date().toISOString(),
     };
@@ -832,12 +749,12 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
                           return;
                         }
                         const rowsToFreeze = month.key === selectedMonth ? rows : baseRows;
-                        const monthImportRows = buildImportRows(prepImportsByMonth[month.key] ?? '');
+                        const monthImportRows = buildTakeRateImportRows(prepImportsByMonth[month.key] ?? '');
                         const nextSnapshot: TakeRateMonthSnapshot = {
                           rows: rowsToFreeze,
                           marginCatalog,
                           marginFileName,
-                          salesByImport: buildSalesObject(monthImportRows),
+                          salesByImport: buildTakeRateSalesObject(monthImportRows),
                           covers: resolveTakeRateMonthCovers(undefined, covers[month.key]),
                           frozenAt: new Date().toISOString(),
                         };
@@ -1204,5 +1121,4 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
 };
 
 export default TakeRatePage;
-
 
