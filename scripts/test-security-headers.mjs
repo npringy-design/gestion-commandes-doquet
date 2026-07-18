@@ -24,6 +24,7 @@ const cspHeaderNames = [
 ].filter((name) => headers[name]);
 
 assert.equal(cspHeaderNames.length, 1, 'Une seule CSP, observation ou blocage, doit être déclarée');
+assert.equal(cspHeaderNames[0], 'content-security-policy', 'La CSP finale doit être bloquante sur TEST');
 
 const csp = headers[cspHeaderNames[0]];
 const directives = new Map(

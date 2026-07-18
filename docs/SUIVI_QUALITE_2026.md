@@ -193,6 +193,8 @@ Vérification locale : `npm run verify` entièrement vert avec le nouveau contra
 
 Premier contrôle Vercel : la forme `/:path*` protégeait les chemins non vides mais pas la racine. Le test HTTP l'a détecté avant le passage en blocage. Le motif est corrigé en `/(.*)` et le contrat automatisé exige désormais explicitement cette couverture globale.
 
+Observation TEST : commit `78222e30eee0a3200983d495f8140fbf72acfd77`, déploiement Vercel `dpl_28EzGgSkEnqG6cJDTrKCmX8CsBmP` `READY`. L'accueil répond `200` avec CSP Report-Only, anti-framing, MIME, referrer et permissions. La politique passe maintenant en mode bloquant sur TEST ; aucune promotion `main` n'est autorisée avant le contrôle visuel.
+
 ## Règle pour la prochaine étape
 
 L'étape 1.3c reste isolée des migrations Supabase et des refactorings. La CSP doit être dérivée des ressources réellement utilisées et validée sur TEST avant toute promotion afin de ne pas casser Auth, Realtime, les Workers ou les imports.

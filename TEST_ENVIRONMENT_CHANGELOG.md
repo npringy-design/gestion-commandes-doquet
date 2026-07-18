@@ -48,6 +48,7 @@ Le workflow choisi :
 - Validation utilisateur reçue pour SheetJS 0.20.3 et les imports XLS/XLSX synthétiques. La promotion sur `main` est autorisée ; l'étape suivante traitera séparément les en-têtes de sécurité du navigateur et le contrôle final des secrets.
 - SheetJS 0.20.3 promu en production : commit de déploiement `bd4933f`, Vercel `READY`, alias public actif et accueil `200`. L'étape 1.3b est terminée en production ; l'étape 1.3c est désormais la seule étape ouverte.
 - Sécurité navigateur 1.3c préparée en observation : inventaire des origines Supabase, polices, textures et OCR, ajout des en-têtes CSP Report-Only, anti-framing, MIME, referrer et permissions dans `vercel.json`. Un test de contrat CSP et un scan du bundle final empêchent les jokers dangereux, secrets serveur, JWT `service_role` et source maps publiées.
+- Phase CSP Report-Only contrôlée sur TEST : la première règle ne couvrait pas la racine, défaut détecté par le contrôle HTTP puis corrigé avec `/(.*)`. Le commit `78222e3` est `READY`, l'accueil répond `200` avec les cinq en-têtes. La CSP est ensuite passée en mode bloquant pour la validation finale TEST.
 - Ajout de `VITE_APP_ENV`, `VITE_APP_ENV_LABEL`, `APP_ENV`, `IS_NON_PRODUCTION_ENV` dans `src/constants.ts`.
 - Ajout du composant `src/components/EnvironmentBanner.tsx`.
 - Affichage d'un bandeau visible en haut de l'application quand `VITE_APP_ENV` vaut `staging`, `test` ou `development`.

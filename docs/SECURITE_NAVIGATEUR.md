@@ -27,7 +27,7 @@ Les appels OpenAI sont exclusivement serveur à serveur via `/api/ai-assistant` 
 - `Referrer-Policy: strict-origin-when-cross-origin` ;
 - `Permissions-Policy` désactivant caméra, microphone, géolocalisation, paiement, USB, port série, Bluetooth et suivi publicitaire du navigateur.
 
-La CSP est d'abord publiée en `Content-Security-Policy-Report-Only` sur TEST, conformément à la [recommandation Vercel](https://vercel.com/docs/cdn-security/security-headers), puis remplacée par l'en-tête bloquant après observation des parcours.
+La CSP a d'abord été publiée en `Content-Security-Policy-Report-Only` sur TEST, conformément à la [recommandation Vercel](https://vercel.com/docs/cdn-security/security-headers). Après validation de sa présence sur la racine et les chemins, elle est remplacée sur TEST par l'en-tête bloquant `Content-Security-Policy`.
 
 ## Exceptions temporaires explicites
 
