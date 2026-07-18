@@ -42,17 +42,19 @@ Publication TEST du 18 juillet 2026 : commits distants `defec495` puis `ee98a17`
 
 ### Lot 1 — Étape 1.1 : sécuriser `/api/ai-assistant`
 
-- [ ] exiger une session Supabase valide ;
-- [ ] refuser les sessions absentes ou invalides ;
-- [ ] vérifier que le profil est actif ;
-- [ ] appliquer une limite de débit simple par utilisateur ;
-- [ ] conserver les limites de taille existantes et borner la durée de l'appel OpenAI ;
-- [ ] ajouter des tests autorisé, anonyme, session invalide et limite dépassée ;
-- [ ] intégrer les tests à `npm run verify` ;
+- [x] exiger une session Supabase valide ;
+- [x] refuser les sessions absentes ou invalides ;
+- [x] vérifier que le profil est actif ;
+- [x] appliquer une limite de débit simple par utilisateur ;
+- [x] conserver les limites de taille existantes et borner la durée de l'appel OpenAI ;
+- [x] ajouter des tests autorisé, anonyme, session invalide et limite dépassée ;
+- [x] intégrer les tests à `npm run verify` ;
 - [ ] déployer et vérifier sur TEST ;
 - [ ] documenter le retour arrière avant toute promotion production.
 
 Cette étape reste isolée des migrations Supabase, de la mise à jour des dépendances et des changements visuels.
+
+Implémentation locale du 18 juillet 2026 : authentification active factorisée dans `api/_lib/auth.ts`, quota et limites isolés dans `api/_lib/aiAssistantSecurity.ts`, jeton ajouté au frontend et test dédié ajouté à la vérification complète. Le quota simple est par instance Vercel ; l'authentification ferme dès cette étape les appels publics anonymes.
 
 ## Règle pour la prochaine étape
 

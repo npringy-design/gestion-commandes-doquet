@@ -9,18 +9,18 @@ const readBearerToken = (req: any): string | null => {
   return header.slice('Bearer '.length).trim() || null;
 };
 
-export const requireAdmin = async (req: any) => {
+export const requireActiveUser = async (req: any, client = supabaseAdmin) => {
   const token = readBearerToken(req);
   if (!token) {
     return { ok: false as const, status: 401, error: 'Token Bearer manquant.' };
   }
 
-  const { data: userData, error: authError } = await supabaseAdmin.auth.getUser(token);
+  const { data: userData, error: authError } = await client.auth.getUser(token);
   if (authError || !userData?.user) {
     return { ok: false as const, status: 401, error: 'Session invalide ou expirée.' };
   }
 
-  const { data: profile, error: profileError } = await supabaseAdmin
+  const { data: profile, error: profileError } = await client
     .from('profiles')
     .select('id, role, is_active, access_scope, protected_user')
     .eq('id', userData.user.id)
@@ -31,8 +31,17 @@ export const requireAdmin = async (req: any) => {
   }
 
   if (!profile.is_active) {
-    return { ok: false as const, status: 403, error: 'Compte administrateur inactif.' };
+    return { ok: false as const, status: 403, error: 'Compte utilisateur inactif.' };
   }
+
+  return { ok: true as const, user: userData.user, profile };
+};
+
+export const requireAdmin = async (req: any) => {
+  const auth = await requireActiveUser(req);
+  if (!auth.ok) return auth;
+
+  const { user, profile } = auth;
 
   if (!canAccessUserManagement(profile.role)) {
     return { ok: false as const, status: 403, error: 'Droits de gestion utilisateurs requis.' };
@@ -41,5 +50,5 @@ export const requireAdmin = async (req: any) => {
   const siteIdsByUser = await loadSiteIdsByUser(supabaseAdmin, [profile.id]);
   const siteIds = siteIdsForProfile(profile, siteIdsByUser.get(profile.id) ?? []);
 
-  return { ok: true as const, user: userData.user, profile: { ...profile, site_ids: siteIds } };
+  return { ok: true as const, user, profile: { ...profile, site_ids: siteIds } };
 };

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { supabase } from '../lib/supabaseClient';
 
 interface AiAssistantDrawerProps {
   title?: string;
@@ -27,9 +28,18 @@ const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
     setError('');
 
     try {
+      const { data, error: sessionError } = await supabase?.auth.getSession() ?? { data: { session: null }, error: null };
+      const accessToken = data.session?.access_token;
+      if (sessionError || !accessToken) {
+        throw new Error('Ta session a expiré. Reconnecte-toi pour utiliser l’assistant.');
+      }
+
       const response = await fetch('/api/ai-assistant', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           question: trimmed,
           context: getContext(),
