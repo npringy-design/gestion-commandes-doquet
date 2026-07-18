@@ -11,7 +11,7 @@ Ce document est le tableau d'avancement opérationnel de la feuille de route. Un
 | Lot | Poids | Statut | Preuve |
 | --- | ---: | --- | --- |
 | 0. Référence et garde-fous | 5 % | Terminé production | Validation utilisateur obtenue, promotion `main` autorisée |
-| 1. Sécurité et dépendances | 15 % | En cours | Étape 1.1 terminée ; étape 1.2a : inventaire et bornage des imports |
+| 1. Sécurité et dépendances | 15 % | En cours | Étapes 1.1, 1.2a et 1.2b terminées ; étape 1.2c ouverte |
 | 2. Supabase et données | 15 % | À faire | — |
 | 3. Sauvegarde, hors-ligne et conflits | 15 % | À faire | — |
 | 4. Architecture et organisation | 20 % | À faire | — |
@@ -97,7 +97,7 @@ Implémentation locale du 18 juillet 2026 : trois entrées confirmées et docume
 
 Publication TEST : commit `8b6996be10c6768297a5810cfc7f9a9475bc01d0`, déploiement Vercel `READY`, page d'accueil contrôlée en `200`. La validation est volontairement non destructive : aucun import manuel n'est réalisé, car il modifierait les données de TEST. Les fichiers générés en mémoire couvrent les acceptations et refus avant parsing, sans appel Supabase ni persistance. Promotion production autorisée.
 
-## Étape actuellement ouverte
+## Étape 1.2b terminée
 
 ### Lot 1 — Étape 1.2b : rendre les traitements d'import résistants aux blocages
 
@@ -108,15 +108,28 @@ Publication TEST : commit `8b6996be10c6768297a5810cfc7f9a9475bc01d0`, déploieme
 - [x] isoler dans un Worker les traitements dont la mesure confirme le besoin ;
 - [x] couvrir fichier réellement corrompu, timeout et annulation ;
 - [x] exécuter `npm run verify` ;
-- [ ] déployer puis contrôler sur TEST.
+- [x] déployer puis contrôler sur TEST.
 
 Mesure locale du 18 juillet 2026 : lecture XLSX de 5,6 Mo / 30 001 lignes en environ 1 023 ms, pic observé autour de 190 Mo ; CSV de 1,7 Mo / 100 001 lignes en environ 100 ms. Décision : Worker dédié pour XLS/XLSX, Worker PapaParse existant pour CSV/TXT. Aucun accès Supabase ou changement métier.
 
 Vérification locale du 18 juillet 2026 : `npm run verify` entièrement vert, y compris les tests de succès, erreur, timeout, annulation et nettoyage des Workers, le typecheck, le build Vite et le contrôle des secrets. Les scénarios utilisent des données synthétiques en mémoire et ne déclenchent aucune écriture Supabase.
 
+Publication TEST : commit `9484b8d325c8e19eee526c9ff288bc9c513de99a`, déploiement Vercel `READY`, page d'accueil contrôlée en `200`. Validation utilisateur reçue le 18 juillet 2026 pour la promotion sur `main`. Aucun import réel, accès Supabase ou changement de donnée n'a été nécessaire.
+
+## Étape actuellement ouverte
+
+### Lot 1 — Étape 1.2c : neutraliser les formules dangereuses dans les exports
+
+- [ ] inventorier les exports CSV et Excel réellement générés par l'application ;
+- [ ] identifier les cellules provenant de saisies ou de fichiers utilisateurs ;
+- [ ] neutraliser les préfixes de formule dangereux sans modifier les valeurs métier affichées ;
+- [ ] couvrir les préfixes `=`, `+`, `-`, `@`, les espaces initiaux et les valeurs légitimes ;
+- [ ] exécuter `npm run verify` ;
+- [ ] déployer et contrôler sur TEST sans modifier les données existantes.
+
 ## Règle pour la prochaine étape
 
-L'étape 1.2b reste isolée des exports, du remplacement de `xlsx` et des migrations Supabase. Ces sujets seront traités dans leurs sous-étapes dédiées.
+L'étape 1.2c reste isolée du remplacement de `xlsx`, des mises à jour de dépendances et des migrations Supabase. Aucun calcul métier ni import ne doit être modifié dans cette sous-étape.
 
 ## Backlog hors pourcentage
 
