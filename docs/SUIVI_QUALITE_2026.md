@@ -11,7 +11,7 @@ Ce document est le tableau d'avancement opérationnel de la feuille de route. Un
 | Lot | Poids | Statut | Preuve |
 | --- | ---: | --- | --- |
 | 0. Référence et garde-fous | 5 % | Terminé production | Validation utilisateur obtenue, promotion `main` autorisée |
-| 1. Sécurité et dépendances | 15 % | En cours | Étapes 1.1, 1.2, 1.3a et 1.3b validées ; étape 1.3c ouverte |
+| 1. Sécurité et dépendances | 15 % | Terminé production | Toutes les étapes validées sur TEST puis promues sur `main` |
 | 2. Supabase et données | 15 % | À faire | — |
 | 3. Sauvegarde, hors-ligne et conflits | 15 % | À faire | — |
 | 4. Architecture et organisation | 20 % | À faire | — |
@@ -19,7 +19,7 @@ Ce document est le tableau d'avancement opérationnel de la feuille de route. Un
 | 6. Tests, CI et exploitation | 10 % | À faire | — |
 | 7. Certification finale | 5 % | À faire | — |
 
-**Progression terminée : 5 %.**
+**Progression terminée : 20 %.**
 
 ## Lot 0 terminé
 
@@ -174,7 +174,7 @@ Publication TEST : commit `93dc143ed0d804a1a46cf53246066ace93285c39`, déploieme
 
 Promotion production : code et clôture publiés sur `main`, puis déploiement isolé au commit `bd4933ffb7a90e34099a4e82c0a752027e45ee10`. Déploiement Vercel `dpl_5ddFQqWjGeMocSUBPPubbWH3knZv` confirmé `READY`, alias de production actif et page d'accueil contrôlée en `200`.
 
-## Étape actuellement ouverte
+## Lot 1 terminé en production
 
 ### Lot 1 — Étape 1.3c : en-têtes navigateur et contrôle final des secrets
 
@@ -201,9 +201,13 @@ Le journal Vercel signale parallèlement des erreurs TypeScript préexistantes d
 
 Validation utilisateur reçue le 18 juillet 2026 : connexion, accueil, paramètres et trame de commande s'affichent normalement sous CSP bloquante, sans écran blanc ni anomalie visuelle. Aucun import, enregistrement ou changement de donnée n'a été nécessaire. La promotion de l'étape 1.3c sur `main` est autorisée.
 
-## Règle pour la prochaine étape
+Promotion production : `main` avancée sans divergence sur le commit `2e74757a92f0277cb52b7aa3606d6f44b87c0eca`. Déploiement Vercel `dpl_39pBzznk6au9NBahvS4MJ6hNFuc7` confirmé `READY`. L'accueil et sa feuille de styles répondent `200` sur l'alias public, avec CSP bloquante et les quatre autres en-têtes attendus. Le lot 1 est terminé en production et la progression fixe passe à 20 %.
 
-L'étape 1.3c reste isolée des migrations Supabase et des refactorings. La CSP doit être dérivée des ressources réellement utilisées et validée sur TEST avant toute promotion afin de ne pas casser Auth, Realtime, les Workers ou les imports.
+## Prochaine étape ouverte
+
+### Lot 2 — Étape 2.1a : inventaire du schéma et des scripts SQL
+
+La prochaine étape doit commencer par un inventaire en lecture seule des tables, contraintes, index, publications Realtime, politiques RLS et scripts SQL présents. Elle doit identifier la source de vérité et les divergences avant de déplacer ou exécuter une migration. Aucune base, donnée ou politique ne doit être modifiée pendant cet inventaire.
 
 ## Backlog hors pourcentage
 
