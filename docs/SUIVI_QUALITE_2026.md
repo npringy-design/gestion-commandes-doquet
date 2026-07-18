@@ -101,13 +101,18 @@ Publication TEST : commit `8b6996be10c6768297a5810cfc7f9a9475bc01d0`, déploieme
 
 ### Lot 1 — Étape 1.2b : rendre les traitements d'import résistants aux blocages
 
-- [ ] mesurer les traitements synchrones et les volumes intermédiaires ;
-- [ ] uniformiser les erreurs des parseurs sans exposer de détail interne ;
-- [ ] borner la durée des traitements PDF et OCR ;
-- [ ] garantir le nettoyage des ressources après erreur ou annulation ;
-- [ ] isoler dans un Worker les traitements dont la mesure confirme le besoin ;
-- [ ] couvrir fichier réellement corrompu, timeout et annulation ;
-- [ ] exécuter `npm run verify` puis déployer sur TEST.
+- [x] mesurer les traitements synchrones et les volumes intermédiaires ;
+- [x] uniformiser les erreurs des parseurs sans exposer de détail interne ;
+- [x] borner la durée des traitements PDF et OCR ;
+- [x] garantir le nettoyage des ressources après erreur ou annulation ;
+- [x] isoler dans un Worker les traitements dont la mesure confirme le besoin ;
+- [x] couvrir fichier réellement corrompu, timeout et annulation ;
+- [x] exécuter `npm run verify` ;
+- [ ] déployer puis contrôler sur TEST.
+
+Mesure locale du 18 juillet 2026 : lecture XLSX de 5,6 Mo / 30 001 lignes en environ 1 023 ms, pic observé autour de 190 Mo ; CSV de 1,7 Mo / 100 001 lignes en environ 100 ms. Décision : Worker dédié pour XLS/XLSX, Worker PapaParse existant pour CSV/TXT. Aucun accès Supabase ou changement métier.
+
+Vérification locale du 18 juillet 2026 : `npm run verify` entièrement vert, y compris les tests de succès, erreur, timeout, annulation et nettoyage des Workers, le typecheck, le build Vite et le contrôle des secrets. Les scénarios utilisent des données synthétiques en mémoire et ne déclenchent aucune écriture Supabase.
 
 ## Règle pour la prochaine étape
 

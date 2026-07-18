@@ -9,7 +9,7 @@
 //     sur un rendu canvas + OCR tesseract.js (langue française).
 // =============================================================
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
 import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.mjs?url';
 import { SupplierId, View } from '../constants';
@@ -21,6 +21,12 @@ import { OrderLineField, OrderTemplateRow, SupplierConfig } from '../types';
 import { ProductWithHistory } from '../data';
 import { ExtractedWord, extractRowsFromDocumentWords } from '../utils/orderTemplateParser';
 import { validateImportFile } from '../utils/importFileValidation';
+import {
+  IMPORT_PROCESSING_TIMEOUTS,
+  throwIfImportAborted,
+  toSafeImportErrorMessage,
+  withImportTimeout,
+} from '../utils/importProcessing';
 
 GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
 
@@ -97,12 +103,18 @@ const ROTATION_CANDIDATES: RotationDegrees[] = [0, 90, 180, 270];
 const OCR_RENDER_SCALE = 3;
 const LANDSCAPE_USEFUL_TABLE_WIDTH_RATIO = 0.48;
 
-const detectBestRotation = async (worker: any, canvas: HTMLCanvasElement): Promise<RotationDegrees> => {
+const detectBestRotation = async (
+  worker: any,
+  canvas: HTMLCanvasElement,
+  signal?: AbortSignal,
+): Promise<RotationDegrees> => {
   let best: { degrees: RotationDegrees; confidence: number } = { degrees: 0, confidence: -1 };
 
   for (const degrees of ROTATION_CANDIDATES) {
+    throwIfImportAborted(signal);
     const candidate = rotateCanvas(canvas, degrees);
     const { data } = await worker.recognize(candidate, {}, {});
+    throwIfImportAborted(signal);
     if (data.confidence > best.confidence) {
       best = { degrees, confidence: data.confidence };
     }
@@ -148,6 +160,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
   const canImport = canAccessRatiosPage(profile);
   const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const pdfAbortControllerRef = useRef<AbortController | null>(null);
 
   const [step, setStep] = useState<ProcessingStep>('idle');
   const [statusLabel, setStatusLabel] = useState('');
@@ -159,6 +172,8 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
   const selectedSupplierId: SupplierId | '' = supplierOptions.some((config) => config.id === ratioTab) ? ratioTab : '';
 
   const isProcessing = step === 'reading' || step === 'ocr';
+
+  useEffect(() => () => pdfAbortControllerRef.current?.abort(), []);
 
   const handleCreateProducts = useCallback(() => {
     if (!canImport) return;
@@ -226,15 +241,17 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     showToast(`✓ ${toCreate.length} produit(s) créé(s)`, 'success');
   }, [canImport, orderTemplateRows, products, selectedSupplierId, setProducts, showToast, updateOrderLineField]);
 
-  const extractViaText = useCallback(async (pdf: any) => {
+  const extractViaText = useCallback(async (pdf: any, signal?: AbortSignal) => {
     const pagesWords: ExtractedWord[][] = [];
     let totalChars = 0;
 
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      throwIfImportAborted(signal);
       setStatusLabel(`Lecture du texte — page ${pageNum}/${pdf.numPages}`);
       const page = await pdf.getPage(pageNum);
       const viewport = page.getViewport({ scale: 1 });
       const textContent = await page.getTextContent();
+      throwIfImportAborted(signal);
       const words: ExtractedWord[] = [];
 
       (textContent.items as any[]).forEach((item) => {
@@ -251,7 +268,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     return { pagesWords, totalChars };
   }, []);
 
-  const extractViaOcr = useCallback(async (pdf: any) => {
+  const extractViaOcr = useCallback(async (pdf: any, signal?: AbortSignal) => {
     const { createWorker } = await import('tesseract.js');
     setStatusLabel('Préparation de la reconnaissance de texte (OCR)…');
     const worker = await createWorker('fra', undefined, {
@@ -264,9 +281,18 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
 
     const pagesWords: ExtractedWord[][] = [];
     let rotationDegrees: RotationDegrees = 0;
+    let terminated = false;
+    const terminateWorker = async () => {
+      if (terminated) return;
+      terminated = true;
+      await worker.terminate();
+    };
+    const abortWorker = () => { void terminateWorker().catch(() => undefined); };
+    signal?.addEventListener('abort', abortWorker, { once: true });
 
     try {
       for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        throwIfImportAborted(signal);
         setOcrProgress(0);
         setStatusLabel(`OCR — page ${pageNum}/${pdf.numPages}`);
         const page = await pdf.getPage(pageNum);
@@ -278,10 +304,11 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
         const context = canvas.getContext('2d');
         if (!context) throw new Error('Contexte 2D introuvable.');
         await page.render({ canvasContext: context, canvas, viewport }).promise;
+        throwIfImportAborted(signal);
 
         if (pageNum === 1) {
           setStatusLabel('Détection de l’orientation du document…');
-          rotationDegrees = await detectBestRotation(worker, canvas);
+          rotationDegrees = await detectBestRotation(worker, canvas, signal);
           console.info(`[OrderTemplatePage] Rotation détectée : ${rotationDegrees}°`);
           setStatusLabel(`OCR — page ${pageNum}/${pdf.numPages}`);
         }
@@ -289,6 +316,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
         const orientedCanvas = rotateCanvas(canvas, rotationDegrees);
         const ocrCanvas = cropOrderTemplateOcrArea(orientedCanvas);
         const { data } = await worker.recognize(ocrCanvas, {}, { blocks: true });
+        throwIfImportAborted(signal);
         const words: ExtractedWord[] = [];
 
         (data.blocks ?? []).forEach((block) => {
@@ -306,7 +334,8 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
         pagesWords.push(words);
       }
     } finally {
-      await worker.terminate();
+      signal?.removeEventListener('abort', abortWorker);
+      await terminateWorker().catch(() => undefined);
     }
 
     return pagesWords;
@@ -314,6 +343,11 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
 
   const handleFile = useCallback(async (file: File) => {
     if (!canImport || isProcessing) return;
+    pdfAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    pdfAbortControllerRef.current = controller;
+    let loadingTask: ReturnType<typeof getDocument> | null = null;
+    let pdf: any = null;
 
     setStep('reading');
     setOcrProgress(0);
@@ -321,23 +355,40 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
 
     try {
       await validateImportFile(file, 'order-template-pdf');
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await getDocument({ data: arrayBuffer }).promise;
+      throwIfImportAborted(controller.signal);
+      const arrayBuffer = await withImportTimeout(
+        file.arrayBuffer(),
+        IMPORT_PROCESSING_TIMEOUTS.fileRead,
+        'La lecture du PDF a dépassé 15 secondes.',
+      );
+      throwIfImportAborted(controller.signal);
+      loadingTask = getDocument({ data: arrayBuffer });
+      pdf = await withImportTimeout(
+        loadingTask.promise,
+        IMPORT_PROCESSING_TIMEOUTS.pdfLoad,
+        'L’ouverture du PDF a dépassé 20 secondes.',
+        () => { controller.abort(); void loadingTask?.destroy(); },
+      );
 
-      const { pagesWords, totalChars } = await extractViaText(pdf);
-      let finalPagesWords = pagesWords;
-      let usedOcr = false;
+      const processed = await withImportTimeout((async () => {
+        const { pagesWords, totalChars } = await extractViaText(pdf, controller.signal);
+        let finalPagesWords = pagesWords;
+        let usedOcr = false;
 
-      console.info(`[OrderTemplatePage] Extraction texte : ${pdf.numPages} page(s), ${totalChars} caractère(s) trouvé(s).`);
+        console.info(`[OrderTemplatePage] Extraction texte : ${pdf.numPages} page(s), ${totalChars} caractère(s) trouvé(s).`);
 
-      // Seuil > 0 pour tolérer un PDF "Print to PDF" contenant quelques
-      // caractères de métadonnées invisibles alors que le contenu visible
-      // est en réalité une image (aucun texte réellement exploitable).
-      if (totalChars < 20) {
-        setStep('ocr');
-        usedOcr = true;
-        finalPagesWords = await extractViaOcr(pdf);
-      }
+        if (totalChars < 20) {
+          setStep('ocr');
+          usedOcr = true;
+          finalPagesWords = await extractViaOcr(pdf, controller.signal);
+        }
+
+        return { finalPagesWords, usedOcr };
+      })(), IMPORT_PROCESSING_TIMEOUTS.pdfProcessing,
+      'Le traitement du PDF a dépassé 2 minutes et a été arrêté.',
+      () => { controller.abort(); void pdf?.destroy(); });
+
+      const { finalPagesWords, usedOcr } = processed;
 
       finalPagesWords.forEach((words, idx) => {
         console.info(`[OrderTemplatePage] Page ${idx + 1} (${usedOcr ? 'OCR' : 'texte'}) : ${words.length} mot(s) positionné(s).`);
@@ -367,12 +418,23 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
       })));
       setStep('done');
     } catch (err) {
-      console.error('[OrderTemplatePage] Erreur import PDF', err);
-      showToast('Erreur lors de la lecture du PDF : ' + (err as Error).message, 'error');
-      setStep('error');
+      if (pdfAbortControllerRef.current === controller) {
+        console.warn('[OrderTemplatePage] Import PDF refusé ou interrompu.');
+        showToast(toSafeImportErrorMessage(
+          err,
+          'Impossible de traiter ce PDF. Vérifie qu’il n’est pas corrompu.',
+        ), 'error');
+        setStep('error');
+      }
     } finally {
-      setStatusLabel('');
-      setOcrProgress(0);
+      controller.abort();
+      if (pdf) await pdf.destroy().catch(() => undefined);
+      else if (loadingTask) await loadingTask.destroy().catch(() => undefined);
+      if (pdfAbortControllerRef.current === controller) {
+        pdfAbortControllerRef.current = null;
+        setStatusLabel('');
+        setOcrProgress(0);
+      }
     }
   }, [canImport, isProcessing, extractViaText, extractViaOcr, setOrderTemplateRows, showToast]);
 

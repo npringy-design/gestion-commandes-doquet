@@ -111,7 +111,7 @@ try {
   const orderTemplateSource = readFileSync(join(root, 'src', 'pages', 'OrderTemplatePage.tsx'), 'utf8');
 
   assert.match(statsSource, /await validateImportFile\(file, 'tabular'\)[\s\S]*?readFileAsCSV\(file\)/);
-  assert.match(takeRateSource, /await validateImportFile\(file, 'margin-workbook'\)[\s\S]*?buildMarginCatalogFromWorkbook\(file\)/);
+  assert.match(takeRateSource, /await validateImportFile\(file, 'margin-workbook'\)[\s\S]*?buildMarginCatalogInWorker\(file, controller\.signal\)/);
   assert.match(orderTemplateSource, /await validateImportFile\(file, 'order-template-pdf'\)[\s\S]*?file\.arrayBuffer\(\)/);
 
   console.log('Validation imports OK : taille, extension, signatures PDF/Excel/texte et intégrations protégées.');

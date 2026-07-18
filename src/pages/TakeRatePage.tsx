@@ -5,8 +5,12 @@ import AiAssistantDrawer from '../components/AiAssistantDrawer';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { loadAllFromSupabase } from '../utils/supabase';
 import { useTakeRateCloudPersistence } from '../hooks/useTakeRateCloudPersistence';
-import { buildMarginCatalogFromWorkbook } from '../utils/takeRateMarginParser.js';
-import { ImportFileValidationError, validateImportFile } from '../utils/importFileValidation';
+import { validateImportFile } from '../utils/importFileValidation';
+import { toSafeImportErrorMessage } from '../utils/importProcessing';
+import {
+  buildMarginCatalogInWorker,
+  type MarginCatalogImportItem as MarginCatalogItem,
+} from '../utils/spreadsheetImportWorker';
 import {
   createTakeRateMonthSnapshot,
   removeFrozenTakeRateMonth,
@@ -40,17 +44,6 @@ import {
   TAKE_RATE_MARGIN_CATALOG_CLOUD_KEY,
   TAKE_RATE_MARGIN_FILE_NAME_CLOUD_KEY,
 } from '../utils/takeRateCloudModel';
-
-interface MarginCatalogItem {
-  label: string;
-  normalized: string;
-  costHt: number | null;
-  sellPriceHt: number | null;
-  marginPercent: number | null;
-  marginEuro: number | null;
-  sourceSheet: string;
-  section: string;
-}
 
 export interface TakeRateMappingRow {
   id: string;
@@ -145,6 +138,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const [productSearch, setProductSearch] = useState('');
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const importAbortControllerRef = useRef<AbortController | null>(null);
   const baseRowsRef = useRef<TakeRateMappingRow[]>(readStoredBaseRows());
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -216,6 +210,8 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   useEffect(() => {
     baseRowsRef.current = baseRows;
   }, [baseRows]);
+
+  useEffect(() => () => importAbortControllerRef.current?.abort(), []);
 
   const defaultDisplayMonth = useMemo(
     () => MONTHS_DISPLAY_CONFIG.find((month) => !frozenMonths[month.key])?.key ?? MONTHS_DISPLAY_CONFIG[0].key,
@@ -415,13 +411,17 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
   const handleImportMarginFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    const input = event.currentTarget;
+    importAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    importAbortControllerRef.current = controller;
 
     setIsImportingMargin(true);
     setImportMessage('');
 
     try {
       await validateImportFile(file, 'margin-workbook');
-      const catalog = await buildMarginCatalogFromWorkbook(file);
+      const catalog = await buildMarginCatalogInWorker(file, controller.signal);
       const generatedBase = buildTakeRateRowsFromMarginCatalog(catalog, baseRowsRef.current);
       const sectionCount = new Set(catalog.map((item) => item.section.trim()).filter(Boolean)).size;
 
@@ -434,12 +434,18 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       persistMarginBase(catalog, file.name);
       setImportMessage(`${catalog.length} produits marge générés • ${sectionCount} sections détectées.`);
     } catch (error) {
-      setImportMessage(error instanceof ImportFileValidationError
-        ? error.message
-        : 'Import marge impossible. Vérifie le fichier ou la librairie xlsx.');
+      if (importAbortControllerRef.current === controller) {
+        setImportMessage(toSafeImportErrorMessage(
+          error,
+          'Import marge impossible. Vérifie que le fichier Excel n’est pas corrompu.',
+        ));
+      }
     } finally {
-      setIsImportingMargin(false);
-      if (event.target) event.target.value = '';
+      if (importAbortControllerRef.current === controller) {
+        importAbortControllerRef.current = null;
+        setIsImportingMargin(false);
+      }
+      input.value = '';
     }
   };
 

@@ -4,6 +4,7 @@
 // =============================================================
 
 import Papa from 'papaparse';
+import { readSpreadsheetAsCsv } from './spreadsheetImportWorker';
 
 const parseCSV = (csvData: string): string[][] => {
   const result = Papa.parse<string[]>(csvData, {
@@ -221,37 +222,20 @@ export const extractAllNamesFromCsvs = (
 };
 
 export const readFileAsCSV = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-      import('xlsx').then(XLSX => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          try {
-            const data = e.target?.result;
-            if (!data) { reject(new Error('Fichier vide')); return; }
-            const wb = XLSX.read(data, { type: 'array' });
-            const csvText = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]);
-            resolve(csvText);
-          } catch (err) {
-            reject(new Error('Impossible de lire le fichier Excel : ' + (err as Error).message));
-          }
-        };
-        reader.onerror = () => reject(new Error('Erreur de lecture du fichier Excel'));
-        reader.readAsArrayBuffer(file);
-      });
-      return;
-    }
+  if (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')) {
+    return readSpreadsheetAsCsv(file);
+  }
 
+  return new Promise((resolve, reject) => {
     Papa.parse<string[]>(file, {
       download: false,
+      worker: true,
       skipEmptyLines: true,
       complete: (results) => {
         const cleanCSV = Papa.unparse((results.data as unknown as string[][]) ?? []);
         resolve(cleanCSV);
       },
-      error: (err) => {
-        reject(new Error('Impossible de lire le fichier CSV : ' + err.message));
-      },
+      error: () => reject(new Error('Impossible de lire ce fichier CSV. Vérifie qu’il n’est pas corrompu.')),
     });
   });
 };
