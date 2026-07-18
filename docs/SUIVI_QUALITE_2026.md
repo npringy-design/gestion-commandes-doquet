@@ -10,8 +10,8 @@ Ce document est le tableau d'avancement opérationnel de la feuille de route. Un
 
 | Lot | Poids | Statut | Preuve |
 | --- | ---: | --- | --- |
-| 0. Référence et garde-fous | 5 % | En cours | Référence initiale en préparation |
-| 1. Sécurité et dépendances | 15 % | À faire | — |
+| 0. Référence et garde-fous | 5 % | Validé TEST | Commit TEST `defec495`, vérifications et builds Vercel verts ; promotion `main` à valider |
+| 1. Sécurité et dépendances | 15 % | À faire | Ouverture après clôture du lot 0 sur `main` |
 | 2. Supabase et données | 15 % | À faire | — |
 | 3. Sauvegarde, hors-ligne et conflits | 15 % | À faire | — |
 | 4. Architecture et organisation | 20 % | À faire | — |
@@ -19,11 +19,9 @@ Ce document est le tableau d'avancement opérationnel de la feuille de route. Un
 | 6. Tests, CI et exploitation | 10 % | À faire | — |
 | 7. Certification finale | 5 % | À faire | — |
 
-**Progression validée : 0 %.**
+**Progression terminée sur production : 0 %. Progression validée sur TEST : 5 %.**
 
-## Étape actuellement ouverte
-
-### Lot 0 — Référence et garde-fous
+## Lot 0 validé sur TEST
 
 - [x] confirmer la branche officielle et l'alignement initial avec `main` ;
 - [x] enregistrer le commit de départ ;
@@ -32,14 +30,33 @@ Ce document est le tableau d'avancement opérationnel de la feuille de route. Un
 - [x] renforcer les instructions `AGENTS.md` ;
 - [x] intégrer la feuille de route complète au dépôt ;
 - [x] exécuter `npm run verify` depuis l'état documenté ;
-- [ ] vérifier que le déploiement TEST correspondant est prêt ;
-- [ ] enregistrer le commit et clôturer le lot 0.
+- [x] vérifier que le déploiement TEST correspondant est prêt ;
+- [ ] promouvoir le lot documentaire sur `main` après validation utilisateur ;
+- [ ] enregistrer le commit production et clôturer le lot 0.
 
 Vérification locale du 18 juillet 2026 : `npm run verify` entièrement vert, build Vite réussi en 5,02 secondes. L'avertissement du chunk `vendor` supérieur à 650 Ko est conservé comme mesure initiale et sera traité au lot 5.
 
+Publication TEST du 18 juillet 2026 : commit distant `defec49522814373d7691dccecddf094ef627191`, builds Vercel `gestion-commande-test` et preview `gestion-commandes-doquet` réussis. Aucun comportement applicatif n'a été modifié et aucune promotion de `main` n'a été effectuée.
+
+## Étape suivante après clôture production
+
+### Lot 1 — Étape 1.1 : sécuriser `/api/ai-assistant`
+
+- [ ] exiger une session Supabase valide ;
+- [ ] refuser les sessions absentes ou invalides ;
+- [ ] vérifier que le profil est actif ;
+- [ ] appliquer une limite de débit simple par utilisateur ;
+- [ ] conserver les limites de taille existantes et borner la durée de l'appel OpenAI ;
+- [ ] ajouter des tests autorisé, anonyme, session invalide et limite dépassée ;
+- [ ] intégrer les tests à `npm run verify` ;
+- [ ] déployer et vérifier sur TEST ;
+- [ ] documenter le retour arrière avant toute promotion production.
+
+Cette étape reste isolée des migrations Supabase, de la mise à jour des dépendances et des changements visuels.
+
 ## Règle pour la prochaine étape
 
-Après clôture du lot 0, la seule étape autorisée est la sécurisation de `/api/ai-assistant`. Elle doit rester isolée des migrations Supabase, de la mise à jour des dépendances et des changements visuels.
+Tant que le lot 0 n'est pas clôturé sur `main`, l'étape 1.1 ne doit pas commencer. Ensuite, tant que l'étape 1.1 n'est pas validée sur TEST, aucune autre action du lot sécurité ne doit commencer.
 
 ## Backlog hors pourcentage
 
