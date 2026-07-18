@@ -183,7 +183,7 @@ Promotion production : code et clôture publiés sur `main`, puis déploiement i
 - [x] préserver explicitement Supabase, les polices, le Worker tableur, PDF et OCR sans assouplissement global inutile ;
 - [x] ajouter un contrôle automatisé des en-têtes et de la politique CSP ;
 - [x] confirmer qu'aucun secret n'apparaît dans le bundle frontend et les sources publiées ;
-- [ ] exécuter `npm run verify` et contrôler les parcours sur TEST avant promotion.
+- [x] exécuter `npm run verify` et contrôler les parcours sur TEST avant promotion.
 
 Inventaire du 18 juillet 2026 : l'application charge Supabase en HTTPS/WSS, Google Fonts, une texture externe, Tailwind CDN et les ressources OCR Tesseract sur jsDelivr. PDF.js et SheetJS sont servis par l'origine dans des Workers dédiés. La CSP autorise uniquement ces besoins. OpenAI reste serveur à serveur et n'est pas autorisé côté navigateur.
 
@@ -194,6 +194,12 @@ Vérification locale : `npm run verify` entièrement vert avec le nouveau contra
 Premier contrôle Vercel : la forme `/:path*` protégeait les chemins non vides mais pas la racine. Le test HTTP l'a détecté avant le passage en blocage. Le motif est corrigé en `/(.*)` et le contrat automatisé exige désormais explicitement cette couverture globale.
 
 Observation TEST : commit `78222e30eee0a3200983d495f8140fbf72acfd77`, déploiement Vercel `dpl_28EzGgSkEnqG6cJDTrKCmX8CsBmP` `READY`. L'accueil répond `200` avec CSP Report-Only, anti-framing, MIME, referrer et permissions. La politique passe maintenant en mode bloquant sur TEST ; aucune promotion `main` n'est autorisée avant le contrôle visuel.
+
+CSP bloquante publiée sur TEST : commit `d4912190b1250c99f1d740426195c936575c325b`, déploiement Vercel `dpl_6ytFo7wVayHBgupuAnYuEXJXYZKF` `READY`. L'alias TEST et sa feuille de styles répondent `200`. Les réponses exposent bien `Content-Security-Policy`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` et `Permissions-Policy`, sans conserver l'ancien en-tête Report-Only. Une nouvelle exécution locale de `npm run verify` est entièrement verte et le scan du bundle ne trouve ni secret serveur, ni JWT `service_role`, ni source map publiée.
+
+Le journal Vercel signale parallèlement des erreurs TypeScript préexistantes dans `api/admin/users/*`. Elles ne bloquent pas le build Vercel et ne sont pas causées par les en-têtes, mais confirment la dette déjà inscrite au lot 4.4 : le dossier `api` est encore exclu du typecheck principal. Elles seront corrigées dans ce lot dédié afin de ne pas mélanger sécurité navigateur et refactoring backend. Le contrôle visuel de la connexion et des ressources chargées avec la CSP bloquante reste nécessaire avant promotion.
+
+Validation utilisateur reçue le 18 juillet 2026 : connexion, accueil, paramètres et trame de commande s'affichent normalement sous CSP bloquante, sans écran blanc ni anomalie visuelle. Aucun import, enregistrement ou changement de donnée n'a été nécessaire. La promotion de l'étape 1.3c sur `main` est autorisée.
 
 ## Règle pour la prochaine étape
 
