@@ -38,6 +38,8 @@ Les Workers, les délais maximaux de traitement, les erreurs détaillées de fic
 
 `npm run test:import-file-validation` couvre les quatre formats acceptés, les fichiers vides, trop lourds, renommés, binaires ou incohérents, ainsi que la présence du contrôle avant chaque parseur.
 
+La validation utilise uniquement des fichiers générés en mémoire. Aucun import manuel n'est requis : cela évite toute modification des saisies ou paramètres présents dans Supabase TEST. Le déploiement du validateur ne lit, ne migre et ne réécrit aucune donnée existante.
+
 ## Retour arrière
 
 Retirer les trois appels à `validateImportFile`, le module `src/utils/importFileValidation.ts` et son test restaure le comportement précédent. Aucune donnée ni migration ne doit être restaurée.

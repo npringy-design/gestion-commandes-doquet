@@ -78,7 +78,7 @@ Publication TEST : commit `ee5d063ac347e3292f6a1ed2c65508ee789a2314`, déploieme
 
 Validation utilisateur reçue le 18 juillet 2026 pour les parcours de connexion et de récupération de mot de passe. Promotion production de l'étape 1.1 autorisée.
 
-## Étape actuellement ouverte
+## Étape 1.2a terminée
 
 ### Lot 1 — Étape 1.2a : inventorier et borner les imports utilisateurs
 
@@ -90,13 +90,28 @@ Validation utilisateur reçue le 18 juillet 2026 pour les parcours de connexion 
 - [x] brancher les contrôles sur chaque point d'entrée sans modifier les règles métier ;
 - [x] couvrir les fichiers trop lourds, incohérents et corrompus par des tests ;
 - [x] exécuter `npm run verify` ;
-- [ ] déployer sur TEST et contrôler les trois parcours.
+- [x] déployer sur TEST ;
+- [x] valider sans écriture métier à l'aide de fichiers générés en mémoire.
 
 Implémentation locale du 18 juillet 2026 : trois entrées confirmées et documentées. Limites fixées à 8 Mo pour CSV/TXT, 15 Mo pour XLS/XLSX et 20 Mo pour PDF. Le contrôle commun vérifie le contenu réel avant les parseurs existants, qui restent inchangés. `npm run verify` est entièrement vert avec le nouveau test dédié.
 
+Publication TEST : commit `8b6996be10c6768297a5810cfc7f9a9475bc01d0`, déploiement Vercel `READY`, page d'accueil contrôlée en `200`. La validation est volontairement non destructive : aucun import manuel n'est réalisé, car il modifierait les données de TEST. Les fichiers générés en mémoire couvrent les acceptations et refus avant parsing, sans appel Supabase ni persistance. Promotion production autorisée.
+
+## Étape actuellement ouverte
+
+### Lot 1 — Étape 1.2b : rendre les traitements d'import résistants aux blocages
+
+- [ ] mesurer les traitements synchrones et les volumes intermédiaires ;
+- [ ] uniformiser les erreurs des parseurs sans exposer de détail interne ;
+- [ ] borner la durée des traitements PDF et OCR ;
+- [ ] garantir le nettoyage des ressources après erreur ou annulation ;
+- [ ] isoler dans un Worker les traitements dont la mesure confirme le besoin ;
+- [ ] couvrir fichier réellement corrompu, timeout et annulation ;
+- [ ] exécuter `npm run verify` puis déployer sur TEST.
+
 ## Règle pour la prochaine étape
 
-L'étape 1.2a reste isolée des Workers, des exports, du remplacement de `xlsx` et des migrations Supabase. Ces sujets seront traités dans leurs sous-étapes dédiées.
+L'étape 1.2b reste isolée des exports, du remplacement de `xlsx` et des migrations Supabase. Ces sujets seront traités dans leurs sous-étapes dédiées.
 
 ## Backlog hors pourcentage
 
