@@ -178,12 +178,18 @@ Promotion production : code et clôture publiés sur `main`, puis déploiement i
 
 ### Lot 1 — Étape 1.3c : en-têtes navigateur et contrôle final des secrets
 
-- [ ] inventorier les ressources, API et Workers nécessaires avant de définir la CSP ;
-- [ ] ajouter CSP, protection anti-framing, referrer policy et permissions policy dans la configuration Vercel ;
-- [ ] préserver explicitement Supabase, les polices, le Worker tableur, PDF et OCR sans assouplissement global inutile ;
-- [ ] ajouter un contrôle automatisé des en-têtes et de la politique CSP ;
-- [ ] confirmer qu'aucun secret n'apparaît dans le bundle frontend, les sources publiées ou les logs contrôlables ;
+- [x] inventorier les ressources, API et Workers nécessaires avant de définir la CSP ;
+- [x] ajouter CSP, protection anti-framing, referrer policy et permissions policy dans la configuration Vercel ;
+- [x] préserver explicitement Supabase, les polices, le Worker tableur, PDF et OCR sans assouplissement global inutile ;
+- [x] ajouter un contrôle automatisé des en-têtes et de la politique CSP ;
+- [x] confirmer qu'aucun secret n'apparaît dans le bundle frontend et les sources publiées ;
 - [ ] exécuter `npm run verify` et contrôler les parcours sur TEST avant promotion.
+
+Inventaire du 18 juillet 2026 : l'application charge Supabase en HTTPS/WSS, Google Fonts, une texture externe, Tailwind CDN et les ressources OCR Tesseract sur jsDelivr. PDF.js et SheetJS sont servis par l'origine dans des Workers dédiés. La CSP autorise uniquement ces besoins. OpenAI reste serveur à serveur et n'est pas autorisé côté navigateur.
+
+Phase d'observation préparée : les en-têtes anti-framing, MIME, referrer et permissions sont actifs, tandis que la CSP commence en `Report-Only` sur TEST. Un contrôle dédié verrouille sa structure. Le contrôle des secrets inspecte désormais le bundle produit, les JWT `service_role`, les clés serveur probables et l'absence de source maps.
+
+Vérification locale : `npm run verify` entièrement vert avec le nouveau contrat des en-têtes, le typecheck, les tests métier, le build inchangé et le scan des sources puis du bundle final. La validation Vercel et l'observation navigateur restent à effectuer avant le passage de la CSP en mode bloquant.
 
 ## Règle pour la prochaine étape
 

@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 const root = process.cwd();
@@ -40,6 +40,7 @@ const textExtensions = new Set([
   '.jsx',
   '.md',
   '.mjs',
+  '.map',
   '.sql',
   '.ts',
   '.tsx',
@@ -121,12 +122,54 @@ for (const file of walk(root)) {
   });
 }
 
-if (findings.length > 0) {
+const builtFindings = [];
+const distDirectory = join(root, 'dist');
+
+if (existsSync(distDirectory)) {
+  const builtFiles = walk(distDirectory);
+  const secretPatterns = [
+    { label: 'Nom de secret serveur dans le bundle', pattern: /(?:SUPABASE_SERVICE_ROLE_KEY|OPENAI_API_KEY|sb_secret_[A-Za-z0-9_-]{16,})/g },
+    { label: 'Clé OpenAI probable dans le bundle', pattern: /sk-[A-Za-z0-9_-]{20,}/g },
+    { label: 'Clé privée probable dans le bundle', pattern: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g },
+  ];
+
+  for (const file of builtFiles) {
+    if (file.relativePath.endsWith('.map')) {
+      builtFindings.push({ file: file.relativePath, label: 'Source map publiée' });
+      continue;
+    }
+
+    const content = readFileSync(file.fullPath, 'utf8');
+    for (const check of secretPatterns) {
+      check.pattern.lastIndex = 0;
+      if (check.pattern.test(content)) {
+        builtFindings.push({ file: file.relativePath, label: check.label });
+      }
+    }
+
+    const jwtPattern = /eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}/g;
+    for (const token of content.match(jwtPattern) ?? []) {
+      try {
+        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
+        if (payload.role === 'service_role') {
+          builtFindings.push({ file: file.relativePath, label: 'JWT service_role dans le bundle' });
+        }
+      } catch {
+        // Une chaîne ressemblant à un JWT mais invalide n'est pas une preuve de secret.
+      }
+    }
+  }
+}
+
+if (findings.length > 0 || builtFindings.length > 0) {
   console.error('Variables sensibles ou URLs hardcodees detectees :');
   for (const finding of findings) {
     console.error(`- ${finding.file}:${finding.line} ${finding.label}`);
   }
+  for (const finding of builtFindings) {
+    console.error(`- ${finding.file} ${finding.label}`);
+  }
   process.exit(1);
 }
 
-console.log('Aucune variable sensible ni URL Supabase hardcodee detectee.');
+console.log(`Aucun secret ni URL Supabase hardcodee detecte${existsSync(distDirectory) ? ' dans les sources ou le bundle' : ' dans les sources'}.`);
