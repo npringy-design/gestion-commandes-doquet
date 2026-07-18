@@ -155,14 +155,20 @@ Publication TEST : commit `dc2583c0d8891f1957e2f8baf771dd5b951b166e`, déploieme
 
 ### Lot 1 — Étape 1.3b : retirer la dépendance npm vulnérable `xlsx`
 
-- [ ] inventorier les API `xlsx` réellement utilisées par les deux parcours d'import ;
-- [ ] comparer une version SheetJS corrigée distribuée officiellement et une alternative maintenue ;
-- [ ] choisir une solution compatible navigateur et Worker sans chargement externe à l'exécution ;
-- [ ] migrer les lectures XLS/XLSX sans modifier les résultats des parsers métier ;
-- [ ] renforcer les tests sur les classeurs valides, corrompus, volumineux et multi-feuilles ;
-- [ ] supprimer `xlsx` du registre npm et confirmer l'audit résiduel ;
-- [ ] exécuter `npm run verify` et comparer le build ;
+- [x] inventorier les API `xlsx` réellement utilisées par les deux parcours d'import ;
+- [x] comparer une version SheetJS corrigée distribuée officiellement et une alternative maintenue ;
+- [x] choisir une solution compatible navigateur et Worker sans chargement externe à l'exécution ;
+- [x] migrer les lectures XLS/XLSX sans modifier les résultats des parsers métier ;
+- [x] renforcer les tests sur les classeurs valides, corrompus, volumineux et multi-feuilles ;
+- [x] supprimer `xlsx` du registre npm et confirmer l'audit résiduel ;
+- [x] exécuter `npm run verify` et comparer le build ;
 - [ ] déployer et contrôler les imports sur TEST avec des fichiers synthétiques sans écriture métier.
+
+Décision du 18 juillet 2026 : les deux parcours utilisent seulement `read`, `sheet_to_csv`, `sheet_to_json` et les utilitaires de classeur dans leur Worker. La version npm publique 0.18.5, signalée comme obsolète par l'éditeur, est remplacée par le tarball officiel SheetJS CE 0.20.3, verrouillé par URL et intégrité dans le lockfile. [La documentation SheetJS](https://docs.sheetjs.com/docs/getting-started/installation/nodejs/) indique que le registre npm public n'est plus la source à jour et fournit cette distribution officielle. ExcelJS a été écarté pour cette étape car son périmètre documenté est XLSX, alors que l'application doit préserver les imports XLS historiques.
+
+Le chargement reste entièrement bundlé au build dans le Worker : aucune ressource SheetJS n'est récupérée par le navigateur à l'exécution. Le test de non-régression sérialise puis relit de vrais classeurs synthétiques XLS et XLSX, avec multi-feuilles, fichier corrompu et 10 000 lignes. L'audit complet et l'audit production passent tous deux de 1 alerte élevée à 0.
+
+Vérification locale : réinstallation propre `npm ci`, audits complet et production, `npm run verify`, typecheck, tests, build et contrôle des secrets entièrement verts. Les bundles initiaux restent stables. Seul le Worker tableur différé passe de 432,61 Ko à 503,13 Ko brut, soit +70,52 Ko ; il reste absent du chargement initial.
 
 ## Règle pour la prochaine étape
 

@@ -76,3 +76,15 @@ Cette stratégie suit la [recommandation OWASP sur les injections CSV](https://o
 Retirer les trois appels à `validateImportFile`, le module `src/utils/importFileValidation.ts` et son test restaure le comportement précédent. Aucune donnée ni migration ne doit être restaurée.
 
 Pour l'étape 1.2c, retirer `spreadsheetExportSecurity.ts`, son test et sa commande dans `package.json` supprime uniquement le garde-fou préventif. Aucun rollback de donnée, d'import ou de configuration Supabase n'est nécessaire.
+
+## Bibliothèque XLS/XLSX — étape 1.3b
+
+L'inventaire confirme que les deux imports tableur passent désormais par `spreadsheetImport.worker.ts`. Le Worker utilise `read`, `sheet_to_csv` et le parser de marge utilise `sheet_to_json`. L'ancien helper de lecture directe sur le thread principal, sans consommateur, a été retiré.
+
+La version publique npm `xlsx@0.18.5` est remplacée par SheetJS CE `0.20.3`, installée depuis le [tarball officiel recommandé par SheetJS](https://docs.sheetjs.com/docs/getting-started/installation/nodejs/). L'URL ne sert qu'à l'installation : Vite intègre le code dans le Worker et le navigateur ne charge aucun script externe à l'exécution. Le lockfile fixe aussi l'intégrité du paquet.
+
+ExcelJS a été comparé comme alternative maintenue mais n'a pas été retenu : le remplacement aurait changé d'API et son périmètre public est XLSX, sans garantie équivalente pour les anciens fichiers XLS encore acceptés par l'application. Conserver l'API SheetJS évite une réécriture des parsers métier.
+
+`npm run test:spreadsheet-library` couvre des octets réellement sérialisés puis relus : XLS, XLSX, sélection d'un onglet Produits non placé en premier, conversion CSV, archive corrompue et classeur de 10 000 lignes. Les résultats de marge attendus sont comparés champ par champ. Les fichiers sont exclusivement générés en mémoire et ne déclenchent aucune écriture Supabase.
+
+Après migration, `npm audit` et `npm audit --omit=dev` ne rapportent plus aucune vulnérabilité. Le retour arrière consiste uniquement à restaurer la dépendance et son lockfile ; aucune donnée n'est concernée.

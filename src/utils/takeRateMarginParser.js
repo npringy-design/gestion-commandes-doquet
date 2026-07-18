@@ -135,10 +135,3 @@ export const parseMarginCatalogFromWorkbook = (workbook, XLSX) => {
     })
     .filter(Boolean);
 };
-
-export const buildMarginCatalogFromWorkbook = async (file) => {
-  const XLSX = await import('xlsx');
-  const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: 'array', cellFormula: true, cellText: true, cellNF: false });
-  return parseMarginCatalogFromWorkbook(workbook, XLSX);
-};

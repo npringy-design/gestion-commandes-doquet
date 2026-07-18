@@ -76,6 +76,12 @@ Classification et décision :
 
 Au total, 27 résolutions compatibles du lockfile sont actualisées sans changement de version majeure déclarée dans `package.json`. Une réinstallation propre par `npm ci` et `npm run verify` réussit. Les principaux fichiers de build restent inchangés pour cette étape : `vendor` 860,79 Ko, `index` 193,79 Ko, `charts` 264,30 Ko et Worker tableur 432,61 Ko.
 
+### Mesure après remplacement de SheetJS — étape 1.3b
+
+La version publique npm `xlsx@0.18.5` est remplacée par la distribution officielle SheetJS CE `0.20.3`, fixée par URL et intégrité dans le lockfile. Le nombre de dépendances passe de 205 à 197 au total et de 82 à 74 en production. Les audits complet et production passent chacun de 1 alerte élevée à 0.
+
+Les bundles initiaux restent stables : `vendor` 860,79 Ko, `index` 193,79 Ko et `charts` 264,30 Ko. Le Worker tableur différé passe de 432,61 Ko à 503,13 Ko brut, soit +70,52 Ko ; sa taille gzip mesurée est de 162,68 Ko. Aucun octet supplémentaire n'est préchargé avec la page initiale.
+
 Risques ouverts confirmés :
 
 - `/api/ai-assistant` sans authentification ni limitation de débit ;
