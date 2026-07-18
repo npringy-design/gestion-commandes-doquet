@@ -6,6 +6,7 @@ import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { loadAllFromSupabase } from '../utils/supabase';
 import { useTakeRateCloudPersistence } from '../hooks/useTakeRateCloudPersistence';
 import { buildMarginCatalogFromWorkbook } from '../utils/takeRateMarginParser.js';
+import { ImportFileValidationError, validateImportFile } from '../utils/importFileValidation';
 import {
   createTakeRateMonthSnapshot,
   removeFrozenTakeRateMonth,
@@ -419,6 +420,7 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
     setImportMessage('');
 
     try {
+      await validateImportFile(file, 'margin-workbook');
       const catalog = await buildMarginCatalogFromWorkbook(file);
       const generatedBase = buildTakeRateRowsFromMarginCatalog(catalog, baseRowsRef.current);
       const sectionCount = new Set(catalog.map((item) => item.section.trim()).filter(Boolean)).size;
@@ -431,8 +433,10 @@ const TakeRatePage: React.FC<TakeRatePageProps> = ({ setView, prepImportsByMonth
       persistBaseRows(generatedBase);
       persistMarginBase(catalog, file.name);
       setImportMessage(`${catalog.length} produits marge générés • ${sectionCount} sections détectées.`);
-    } catch (_error) {
-      setImportMessage('Import marge impossible. Vérifie le fichier ou la librairie xlsx.');
+    } catch (error) {
+      setImportMessage(error instanceof ImportFileValidationError
+        ? error.message
+        : 'Import marge impossible. Vérifie le fichier ou la librairie xlsx.');
     } finally {
       setIsImportingMargin(false);
       if (event.target) event.target.value = '';

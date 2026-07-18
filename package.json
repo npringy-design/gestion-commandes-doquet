@@ -20,6 +20,7 @@
     "test:take-rate-row-editing": "node scripts/test-take-rate-row-editing.mjs",
     "test:ai-assistant-security": "node scripts/test-ai-assistant-security.mjs",
     "test:auth-proxy-surface": "node scripts/test-auth-proxy-surface.mjs",
+    "test:import-file-validation": "node scripts/test-import-file-validation.mjs",
     "test:sync": "node scripts/test-reliable-sync.mjs",
     "test:save-lifecycle": "node scripts/test-reliable-save-lifecycle.mjs",
     "test:order-line-sync": "node scripts/test-order-line-sync.mjs",
@@ -36,7 +37,7 @@
     "check:multisite": "node scripts/check-app-state-multisite.mjs",
     "check:security-contract": "node scripts/check-security-contract.mjs",
     "check:secrets": "node scripts/check-sensitive-env.mjs",
-    "verify": "npm run typecheck && npm run test:calculations && npm run test:supplier-dates && npm run test:margin-parser && npm run test:take-rate-snapshots && npm run test:take-rate-results && npm run test:take-rate-sales-parser && npm run test:take-rate-mapping && npm run test:take-rate-margin-rows && npm run test:take-rate-cloud && npm run test:take-rate-persistence && npm run test:take-rate-row-editing && npm run test:ai-assistant-security && npm run test:auth-proxy-surface && npm run test:sync && npm run test:save-lifecycle && npm run test:order-line-sync && npm run test:app-state-sync && npm run test:app-state-persistence && npm run test:cloud-hydration && npm run test:app-state-realtime && npm run test:cloud-sync-orchestrator && npm run test:cloud-realtime && npm run test:network-connection && npm run test:mobile-calendar && npm run test:order-navigation && npm run test:order-anomalies && npm run check:multisite && npm run check:security-contract && npm run build && npm run check:secrets",
+    "verify": "npm run typecheck && npm run test:calculations && npm run test:supplier-dates && npm run test:margin-parser && npm run test:take-rate-snapshots && npm run test:take-rate-results && npm run test:take-rate-sales-parser && npm run test:take-rate-mapping && npm run test:take-rate-margin-rows && npm run test:take-rate-cloud && npm run test:take-rate-persistence && npm run test:take-rate-row-editing && npm run test:ai-assistant-security && npm run test:auth-proxy-surface && npm run test:import-file-validation && npm run test:sync && npm run test:save-lifecycle && npm run test:order-line-sync && npm run test:app-state-sync && npm run test:app-state-persistence && npm run test:cloud-hydration && npm run test:app-state-realtime && npm run test:cloud-sync-orchestrator && npm run test:cloud-realtime && npm run test:network-connection && npm run test:mobile-calendar && npm run test:order-navigation && npm run test:order-anomalies && npm run check:multisite && npm run check:security-contract && npm run build && npm run check:secrets",
     "preview": "vite preview"
   },
   "dependencies": {

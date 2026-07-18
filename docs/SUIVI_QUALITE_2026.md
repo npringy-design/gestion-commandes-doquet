@@ -82,14 +82,17 @@ Validation utilisateur reçue le 18 juillet 2026 pour les parcours de connexion 
 
 ### Lot 1 — Étape 1.2a : inventorier et borner les imports utilisateurs
 
-- [ ] inventorier tous les points d'entrée PDF, XLSX et CSV ;
-- [ ] relever les bibliothèques, traitements synchrones et limites actuelles ;
-- [ ] fixer des tailles maximales adaptées à chaque type de fichier ;
-- [ ] créer un validateur commun testable avant parsing ;
-- [ ] vérifier le type réel du fichier au-delà de son extension ;
-- [ ] brancher les contrôles sur chaque point d'entrée sans modifier les règles métier ;
-- [ ] couvrir les fichiers trop lourds, incohérents et corrompus par des tests ;
-- [ ] exécuter `npm run verify` puis déployer sur TEST.
+- [x] inventorier tous les points d'entrée PDF, XLSX et CSV ;
+- [x] relever les bibliothèques, traitements synchrones et limites actuelles ;
+- [x] fixer des tailles maximales adaptées à chaque type de fichier ;
+- [x] créer un validateur commun testable avant parsing ;
+- [x] vérifier le type réel du fichier au-delà de son extension ;
+- [x] brancher les contrôles sur chaque point d'entrée sans modifier les règles métier ;
+- [x] couvrir les fichiers trop lourds, incohérents et corrompus par des tests ;
+- [x] exécuter `npm run verify` ;
+- [ ] déployer sur TEST et contrôler les trois parcours.
+
+Implémentation locale du 18 juillet 2026 : trois entrées confirmées et documentées. Limites fixées à 8 Mo pour CSV/TXT, 15 Mo pour XLS/XLSX et 20 Mo pour PDF. Le contrôle commun vérifie le contenu réel avant les parseurs existants, qui restent inchangés. `npm run verify` est entièrement vert avec le nouveau test dédié.
 
 ## Règle pour la prochaine étape
 

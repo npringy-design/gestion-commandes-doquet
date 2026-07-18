@@ -6,6 +6,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { readFileAsCSV } from '../utils/csvHelpers';
+import { validateImportFile } from '../utils/importFileValidation';
 import { useToast } from '../components/Toast';
 import { View, MONTHS_DISPLAY_CONFIG } from '../constants';
 import { ImportModal } from '../components/Modals';
@@ -122,6 +123,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
     if (!modalState || !canImport) return;
 
     try {
+      await validateImportFile(file, 'tabular');
       const content = await readFileAsCSV(file);
       const targetMonth = resolveImportTargetMonth(modalState.month, modalState.target);
 

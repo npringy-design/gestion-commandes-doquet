@@ -20,6 +20,7 @@ import { canAccessRatiosPage } from '../lib/permissions';
 import { OrderLineField, OrderTemplateRow, SupplierConfig } from '../types';
 import { ProductWithHistory } from '../data';
 import { ExtractedWord, extractRowsFromDocumentWords } from '../utils/orderTemplateParser';
+import { validateImportFile } from '../utils/importFileValidation';
 
 GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
 
@@ -319,6 +320,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     setStatusLabel('Lecture du fichier PDF…');
 
     try {
+      await validateImportFile(file, 'order-template-pdf');
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await getDocument({ data: arrayBuffer }).promise;
 

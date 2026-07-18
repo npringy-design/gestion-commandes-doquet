@@ -35,6 +35,7 @@ Le workflow choisi :
 - Sécurisation de l'assistant IA promue en production après validation de ses contrôles sur TEST. Le parcours connecté atteint bien la fonction protégée ; la génération d'une réponse reste volontairement non validable tant qu'aucun crédit API OpenAI n'est activé.
 - Suppression préparée du proxy générique `/api/auth/supabase`, qui n'avait aucun consommateur dans le dépôt et pouvait transmettre un chemin Auth arbitraire. Les parcours de connexion et de récupération continuent d'utiliser directement le client Supabase officiel ; un test d'architecture empêche la réintroduction silencieuse du proxy.
 - Validation utilisateur reçue sur TEST pour la suppression du proxy Supabase Auth : connexion et récupération de mot de passe conservées. La promotion production de l'étape 1.1 est autorisée ; l'étape suivante devient l'inventaire et le bornage des imports utilisateurs.
+- Sécurisation préparée des trois entrées de fichiers : CSV/TXT limités à 8 Mo, XLS/XLSX à 15 Mo et PDF à 20 Mo. Un validateur commun contrôle extension, contenu textuel et signatures PDF/Excel avant PapaParse, `xlsx`, pdf.js ou Tesseract. Les parsers et calculs métier restent inchangés ; un test dédié couvre les fichiers vides, trop lourds, renommés, binaires et incohérents.
 - Ajout de `VITE_APP_ENV`, `VITE_APP_ENV_LABEL`, `APP_ENV`, `IS_NON_PRODUCTION_ENV` dans `src/constants.ts`.
 - Ajout du composant `src/components/EnvironmentBanner.tsx`.
 - Affichage d'un bandeau visible en haut de l'application quand `VITE_APP_ENV` vaut `staging`, `test` ou `development`.
