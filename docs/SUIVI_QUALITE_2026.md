@@ -11,7 +11,7 @@ Ce document est le tableau d'avancement opérationnel de la feuille de route. Un
 | Lot | Poids | Statut | Preuve |
 | --- | ---: | --- | --- |
 | 0. Référence et garde-fous | 5 % | Terminé production | Validation utilisateur obtenue, promotion `main` autorisée |
-| 1. Sécurité et dépendances | 15 % | En cours | Étapes 1.1, 1.2 et 1.3a terminées ; étape 1.3b ouverte |
+| 1. Sécurité et dépendances | 15 % | En cours | Étapes 1.1, 1.2, 1.3a et 1.3b validées ; étape 1.3c ouverte |
 | 2. Supabase et données | 15 % | À faire | — |
 | 3. Sauvegarde, hors-ligne et conflits | 15 % | À faire | — |
 | 4. Architecture et organisation | 20 % | À faire | — |
@@ -151,7 +151,7 @@ Vérification locale : réinstallation propre `npm ci`, `npm run verify`, typech
 
 Publication TEST : commit `dc2583c0d8891f1957e2f8baf771dd5b951b166e`, déploiement Vercel `READY`, page d'accueil contrôlée en `200`. Validation utilisateur reçue le 18 juillet 2026 pour la promotion sur `main`.
 
-## Étape actuellement ouverte
+## Étape 1.3b validée sur TEST
 
 ### Lot 1 — Étape 1.3b : retirer la dépendance npm vulnérable `xlsx`
 
@@ -162,7 +162,7 @@ Publication TEST : commit `dc2583c0d8891f1957e2f8baf771dd5b951b166e`, déploieme
 - [x] renforcer les tests sur les classeurs valides, corrompus, volumineux et multi-feuilles ;
 - [x] supprimer `xlsx` du registre npm et confirmer l'audit résiduel ;
 - [x] exécuter `npm run verify` et comparer le build ;
-- [ ] déployer et contrôler les imports sur TEST avec des fichiers synthétiques sans écriture métier.
+- [x] déployer et contrôler les imports sur TEST avec des fichiers synthétiques sans écriture métier.
 
 Décision du 18 juillet 2026 : les deux parcours utilisent seulement `read`, `sheet_to_csv`, `sheet_to_json` et les utilitaires de classeur dans leur Worker. La version npm publique 0.18.5, signalée comme obsolète par l'éditeur, est remplacée par le tarball officiel SheetJS CE 0.20.3, verrouillé par URL et intégrité dans le lockfile. [La documentation SheetJS](https://docs.sheetjs.com/docs/getting-started/installation/nodejs/) indique que le registre npm public n'est plus la source à jour et fournit cette distribution officielle. ExcelJS a été écarté pour cette étape car son périmètre documenté est XLSX, alors que l'application doit préserver les imports XLS historiques.
 
@@ -170,9 +170,22 @@ Le chargement reste entièrement bundlé au build dans le Worker : aucune ressou
 
 Vérification locale : réinstallation propre `npm ci`, audits complet et production, `npm run verify`, typecheck, tests, build et contrôle des secrets entièrement verts. Les bundles initiaux restent stables. Seul le Worker tableur différé passe de 432,61 Ko à 503,13 Ko brut, soit +70,52 Ko ; il reste absent du chargement initial.
 
+Publication TEST : commit `93dc143ed0d804a1a46cf53246066ace93285c39`, déploiement Vercel `dpl_HXbcPPeyTsDdzH2M1MezPjd1j8Xc` `READY`, page d'accueil contrôlée en `200`. Les contrôles XLS/XLSX sont entièrement synthétiques et ne lisent ni n'écrivent aucune donnée métier. Validation utilisateur reçue le 18 juillet 2026 ; promotion sur `main` autorisée.
+
+## Étape actuellement ouverte
+
+### Lot 1 — Étape 1.3c : en-têtes navigateur et contrôle final des secrets
+
+- [ ] inventorier les ressources, API et Workers nécessaires avant de définir la CSP ;
+- [ ] ajouter CSP, protection anti-framing, referrer policy et permissions policy dans la configuration Vercel ;
+- [ ] préserver explicitement Supabase, les polices, le Worker tableur, PDF et OCR sans assouplissement global inutile ;
+- [ ] ajouter un contrôle automatisé des en-têtes et de la politique CSP ;
+- [ ] confirmer qu'aucun secret n'apparaît dans le bundle frontend, les sources publiées ou les logs contrôlables ;
+- [ ] exécuter `npm run verify` et contrôler les parcours sur TEST avant promotion.
+
 ## Règle pour la prochaine étape
 
-L'étape 1.3b reste isolée des en-têtes navigateur, des autres mises à jour de dépendances et des migrations Supabase. Le choix doit supprimer l'alerte élevée sans introduire de CDN de production ni modifier les calculs issus des imports.
+L'étape 1.3c reste isolée des migrations Supabase et des refactorings. La CSP doit être dérivée des ressources réellement utilisées et validée sur TEST avant toute promotion afin de ne pas casser Auth, Realtime, les Workers ou les imports.
 
 ## Backlog hors pourcentage
 
