@@ -11,7 +11,7 @@ Ce document est le tableau d'avancement opérationnel de la feuille de route. Un
 | Lot | Poids | Statut | Preuve |
 | --- | ---: | --- | --- |
 | 0. Référence et garde-fous | 5 % | Terminé production | Validation utilisateur obtenue, promotion `main` autorisée |
-| 1. Sécurité et dépendances | 15 % | En cours | Étape 1.1 : sécurisation de l'API IA |
+| 1. Sécurité et dépendances | 15 % | En cours | Étape 1.1a en production ; étape 1.1b : suppression du proxy Supabase générique |
 | 2. Supabase et données | 15 % | À faire | — |
 | 3. Sauvegarde, hors-ligne et conflits | 15 % | À faire | — |
 | 4. Architecture et organisation | 20 % | À faire | — |
@@ -38,9 +38,9 @@ Vérification locale du 18 juillet 2026 : `npm run verify` entièrement vert, bu
 
 Publication TEST du 18 juillet 2026 : commits distants `defec495` puis `ee98a17`, builds Vercel `gestion-commande-test` et preview `gestion-commandes-doquet` réussis. Aucun comportement applicatif n'a été modifié. Validation utilisateur reçue pour la promotion documentaire sur `main`.
 
-## Étape actuellement ouverte
+## Étape 1.1a terminée en production
 
-### Lot 1 — Étape 1.1 : sécuriser `/api/ai-assistant`
+### Sécuriser `/api/ai-assistant`
 
 - [x] exiger une session Supabase valide ;
 - [x] refuser les sessions absentes ou invalides ;
@@ -49,16 +49,34 @@ Publication TEST du 18 juillet 2026 : commits distants `defec495` puis `ee98a17`
 - [x] conserver les limites de taille existantes et borner la durée de l'appel OpenAI ;
 - [x] ajouter des tests autorisé, anonyme, session invalide et limite dépassée ;
 - [x] intégrer les tests à `npm run verify` ;
-- [ ] déployer et vérifier sur TEST ;
-- [ ] documenter le retour arrière avant toute promotion production.
+- [x] déployer et vérifier sur TEST ;
+- [x] documenter le retour arrière avant toute promotion production ;
+- [x] vérifier le parcours depuis une session réellement connectée jusqu'à la fonction protégée.
 
 Cette étape reste isolée des migrations Supabase, de la mise à jour des dépendances et des changements visuels.
 
 Implémentation locale du 18 juillet 2026 : authentification active factorisée dans `api/_lib/auth.ts`, quota et limites isolés dans `api/_lib/aiAssistantSecurity.ts`, jeton ajouté au frontend et test dédié ajouté à la vérification complète. Le quota simple est par instance Vercel ; l'authentification ferme dès cette étape les appels publics anonymes.
 
+Publication TEST : commit `2f66e39ee83e03c539075b96616a195754a2ddfd`, builds Vercel verts. Contrôles directs de l'API déployée : requête sans jeton refusée en `401`, jeton invalide refusé en `401`, corps supérieur à 32 000 octets refusé en `413`.
+
+Validation utilisateur : la demande depuis l'application TEST connectée atteint la fonction protégée. La génération d'une réponse OpenAI ne peut pas être validée tant que le compte API reste sans crédits ; cette limitation externe ne remet pas en cause les contrôles de sécurité testés. Promotion sur `main` au commit `2f66e39ee83e03c539075b96616a195754a2ddfd`, déploiement Vercel production confirmé `READY`.
+
+## Étape actuellement ouverte
+
+### Lot 1 — Étape 1.1b : supprimer le proxy Supabase Auth générique
+
+- [x] confirmer qu'aucun code applicatif n'appelle `/api/auth/supabase` ;
+- [x] confirmer que connexion, récupération et changement de mot de passe utilisent des chemins dédiés ;
+- [x] supprimer la route générique au lieu de conserver une liste blanche vide ;
+- [x] ajouter un test empêchant sa réintroduction silencieuse ;
+- [x] documenter les parcours conservés et le retour arrière ;
+- [x] exécuter `npm run verify` ;
+- [ ] déployer sur TEST et confirmer que l'ancienne route répond `404` ;
+- [ ] valider les parcours d'authentification sur TEST avant promotion production.
+
 ## Règle pour la prochaine étape
 
-Tant que l'étape 1.1 n'est pas validée sur TEST, aucune autre action du lot sécurité ne doit commencer.
+Tant que l'étape 1.1b n'est pas validée sur TEST, les travaux sur les imports et les dépendances ne doivent pas commencer.
 
 ## Backlog hors pourcentage
 
