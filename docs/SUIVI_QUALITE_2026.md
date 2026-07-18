@@ -151,7 +151,7 @@ Vérification locale : réinstallation propre `npm ci`, `npm run verify`, typech
 
 Publication TEST : commit `dc2583c0d8891f1957e2f8baf771dd5b951b166e`, déploiement Vercel `READY`, page d'accueil contrôlée en `200`. Validation utilisateur reçue le 18 juillet 2026 pour la promotion sur `main`.
 
-## Étape 1.3b validée sur TEST
+## Étape 1.3b terminée en production
 
 ### Lot 1 — Étape 1.3b : retirer la dépendance npm vulnérable `xlsx`
 
@@ -171,6 +171,8 @@ Le chargement reste entièrement bundlé au build dans le Worker : aucune ressou
 Vérification locale : réinstallation propre `npm ci`, audits complet et production, `npm run verify`, typecheck, tests, build et contrôle des secrets entièrement verts. Les bundles initiaux restent stables. Seul le Worker tableur différé passe de 432,61 Ko à 503,13 Ko brut, soit +70,52 Ko ; il reste absent du chargement initial.
 
 Publication TEST : commit `93dc143ed0d804a1a46cf53246066ace93285c39`, déploiement Vercel `dpl_HXbcPPeyTsDdzH2M1MezPjd1j8Xc` `READY`, page d'accueil contrôlée en `200`. Les contrôles XLS/XLSX sont entièrement synthétiques et ne lisent ni n'écrivent aucune donnée métier. Validation utilisateur reçue le 18 juillet 2026 ; promotion sur `main` autorisée.
+
+Promotion production : code et clôture publiés sur `main`, puis déploiement isolé au commit `bd4933ffb7a90e34099a4e82c0a752027e45ee10`. Déploiement Vercel `dpl_5ddFQqWjGeMocSUBPPubbWH3knZv` confirmé `READY`, alias de production actif et page d'accueil contrôlée en `200`.
 
 ## Étape actuellement ouverte
 

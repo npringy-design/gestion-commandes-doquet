@@ -46,6 +46,7 @@ Le workflow choisi :
 - Remplacement isolé de `xlsx@0.18.5` par la distribution officielle SheetJS CE 0.20.3, sans CDN au chargement navigateur et sans changement des parsers métier. Les audits complet et production passent de 1 alerte élevée à 0. Un test dédié relit de vrais octets XLS/XLSX synthétiques, un classeur multi-feuilles, un fichier corrompu et 10 000 lignes ; aucune saisie ou donnée Supabase n'est utilisée.
 - Remplacement SheetJS publié sur TEST au commit `93dc143` : déploiement Vercel `READY`, accueil `200`, suite complète verte et audits npm à 0. La validation utilisateur reste nécessaire avant toute promotion sur `main`.
 - Validation utilisateur reçue pour SheetJS 0.20.3 et les imports XLS/XLSX synthétiques. La promotion sur `main` est autorisée ; l'étape suivante traitera séparément les en-têtes de sécurité du navigateur et le contrôle final des secrets.
+- SheetJS 0.20.3 promu en production : commit de déploiement `bd4933f`, Vercel `READY`, alias public actif et accueil `200`. L'étape 1.3b est terminée en production ; l'étape 1.3c est désormais la seule étape ouverte.
 - Ajout de `VITE_APP_ENV`, `VITE_APP_ENV_LABEL`, `APP_ENV`, `IS_NON_PRODUCTION_ENV` dans `src/constants.ts`.
 - Ajout du composant `src/components/EnvironmentBanner.tsx`.
 - Affichage d'un bandeau visible en haut de l'application quand `VITE_APP_ENV` vaut `staging`, `test` ou `development`.
