@@ -30,6 +30,7 @@ Le workflow choisi :
 
 - Démarrage du chantier qualité 2026 sans changement applicatif : ajout de la feuille de route fixe à 8 lots, d'une référence initiale chiffrée et d'un tableau de suivi. `AGENTS.md` impose désormais la branche `codex-setup-staging-workflow`, la lecture du suivi, le périmètre fermé, les vérifications et la définition de terminé. Le lot 0 documente le commit de départ `918a787`, 24 scripts de tests, 3 checks, 438 assertions, les poids du build et les risques ouverts. `npm run verify` reste entièrement vert.
 - Validation technique du lot 0 qualité sur TEST : commit documentaire `defec495` et builds Vercel verts. La clôture à 5 % attend la promotion documentaire sur `main`. L'étape suivante sera la sécurisation isolée de `/api/ai-assistant`.
+- Validation utilisateur du lot 0 qualité et promotion documentaire autorisée sur `main`. La progression fixe passe à 5 % et l'étape 1.1 de sécurisation de `/api/ai-assistant` devient le seul chantier ouvert.
 - Ajout de `VITE_APP_ENV`, `VITE_APP_ENV_LABEL`, `APP_ENV`, `IS_NON_PRODUCTION_ENV` dans `src/constants.ts`.
 - Ajout du composant `src/components/EnvironmentBanner.tsx`.
 - Affichage d'un bandeau visible en haut de l'application quand `VITE_APP_ENV` vaut `staging`, `test` ou `development`.
