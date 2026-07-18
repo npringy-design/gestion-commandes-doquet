@@ -11,7 +11,7 @@ Ce document est le tableau d'avancement opérationnel de la feuille de route. Un
 | Lot | Poids | Statut | Preuve |
 | --- | ---: | --- | --- |
 | 0. Référence et garde-fous | 5 % | Terminé production | Validation utilisateur obtenue, promotion `main` autorisée |
-| 1. Sécurité et dépendances | 15 % | En cours | Étapes 1.1 et 1.2 terminées ; étape 1.3a ouverte |
+| 1. Sécurité et dépendances | 15 % | En cours | Étapes 1.1, 1.2 et 1.3a terminées ; étape 1.3b ouverte |
 | 2. Supabase et données | 15 % | À faire | — |
 | 3. Sauvegarde, hors-ligne et conflits | 15 % | À faire | — |
 | 4. Architecture et organisation | 20 % | À faire | — |
@@ -133,7 +133,7 @@ Vérification locale du 18 juillet 2026 : `npm run verify` entièrement vert ave
 
 Publication TEST : commit `9af47d204fb7b4184793f059247074823b643a29`, déploiement Vercel `READY`, page d'accueil contrôlée en `200`. Validation utilisateur reçue le 18 juillet 2026 pour la promotion sur `main`. Aucun export réel, fichier téléchargé ou accès Supabase n'a été nécessaire.
 
-## Étape actuellement ouverte
+## Étape 1.3a terminée
 
 ### Lot 1 — Étape 1.3a : mesurer et corriger les dépendances avec correctif compatible
 
@@ -143,15 +143,30 @@ Publication TEST : commit `9af47d204fb7b4184793f059247074823b643a29`, déploieme
 - [x] conserver `xlsx` dans une décision séparée puisqu'aucun correctif npm n'est annoncé ;
 - [x] comparer le typecheck, les tests, le build et les poids de chunks avant/après ;
 - [x] exécuter `npm run verify` ;
-- [ ] déployer et contrôler sur TEST.
+- [x] déployer et contrôler sur TEST.
 
 Mesure et correction du 18 juillet 2026 : l'audit complet passe de 16 entrées agrégées à 1, et l'audit production de 6 à 1. Les résolutions compatibles de Vite, Babel, PostCSS, Picomatch, `ws`, Lodash et leurs transitives sont inscrites dans le lockfile sans `--force` ni changement majeur déclaré. Seul `xlsx` reste élevé et sans correctif npm ; son usage réel sera traité dans l'étape dédiée.
 
 Vérification locale : réinstallation propre `npm ci`, `npm run verify`, typecheck, tests, build Vite 6.4.3 et contrôle des secrets entièrement verts. Les tailles principales restent identiques à la mesure précédant cette mise à jour. Aucun code applicatif, calcul, écran ou accès Supabase n'est modifié.
 
+Publication TEST : commit `dc2583c0d8891f1957e2f8baf771dd5b951b166e`, déploiement Vercel `READY`, page d'accueil contrôlée en `200`. Validation utilisateur reçue le 18 juillet 2026 pour la promotion sur `main`.
+
+## Étape actuellement ouverte
+
+### Lot 1 — Étape 1.3b : retirer la dépendance npm vulnérable `xlsx`
+
+- [ ] inventorier les API `xlsx` réellement utilisées par les deux parcours d'import ;
+- [ ] comparer une version SheetJS corrigée distribuée officiellement et une alternative maintenue ;
+- [ ] choisir une solution compatible navigateur et Worker sans chargement externe à l'exécution ;
+- [ ] migrer les lectures XLS/XLSX sans modifier les résultats des parsers métier ;
+- [ ] renforcer les tests sur les classeurs valides, corrompus, volumineux et multi-feuilles ;
+- [ ] supprimer `xlsx` du registre npm et confirmer l'audit résiduel ;
+- [ ] exécuter `npm run verify` et comparer le build ;
+- [ ] déployer et contrôler les imports sur TEST avec des fichiers synthétiques sans écriture métier.
+
 ## Règle pour la prochaine étape
 
-L'étape 1.3a reste isolée du remplacement de `xlsx`, des en-têtes navigateur et des migrations Supabase. Aucun calcul métier, écran ou schéma de données ne doit être modifié pendant les mises à jour compatibles.
+L'étape 1.3b reste isolée des en-têtes navigateur, des autres mises à jour de dépendances et des migrations Supabase. Le choix doit supprimer l'alerte élevée sans introduire de CDN de production ni modifier les calculs issus des imports.
 
 ## Backlog hors pourcentage
 
