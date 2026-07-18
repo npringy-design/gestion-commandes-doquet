@@ -11,7 +11,7 @@ Ce document est le tableau d'avancement opérationnel de la feuille de route. Un
 | Lot | Poids | Statut | Preuve |
 | --- | ---: | --- | --- |
 | 0. Référence et garde-fous | 5 % | Terminé production | Validation utilisateur obtenue, promotion `main` autorisée |
-| 1. Sécurité et dépendances | 15 % | En cours | Étape 1.1a en production ; étape 1.1b : suppression du proxy Supabase générique |
+| 1. Sécurité et dépendances | 15 % | En cours | Étape 1.1 terminée ; étape 1.2a : inventaire et bornage des imports |
 | 2. Supabase et données | 15 % | À faire | — |
 | 3. Sauvegarde, hors-ligne et conflits | 15 % | À faire | — |
 | 4. Architecture et organisation | 20 % | À faire | — |
@@ -61,7 +61,7 @@ Publication TEST : commit `2f66e39ee83e03c539075b96616a195754a2ddfd`, builds Ver
 
 Validation utilisateur : la demande depuis l'application TEST connectée atteint la fonction protégée. La génération d'une réponse OpenAI ne peut pas être validée tant que le compte API reste sans crédits ; cette limitation externe ne remet pas en cause les contrôles de sécurité testés. Promotion sur `main` au commit `2f66e39ee83e03c539075b96616a195754a2ddfd`, déploiement Vercel production confirmé `READY`.
 
-## Étape actuellement ouverte
+## Étape 1.1b terminée
 
 ### Lot 1 — Étape 1.1b : supprimer le proxy Supabase Auth générique
 
@@ -71,12 +71,29 @@ Validation utilisateur : la demande depuis l'application TEST connectée atteint
 - [x] ajouter un test empêchant sa réintroduction silencieuse ;
 - [x] documenter les parcours conservés et le retour arrière ;
 - [x] exécuter `npm run verify` ;
-- [ ] déployer sur TEST et confirmer que l'ancienne route répond `404` ;
-- [ ] valider les parcours d'authentification sur TEST avant promotion production.
+- [x] déployer sur TEST et confirmer que l'ancienne route répond `404` ;
+- [x] valider les parcours d'authentification sur TEST avant promotion production.
+
+Publication TEST : commit `ee5d063ac347e3292f6a1ed2c65508ee789a2314`, déploiement Vercel `READY`. Contrôles directs : application `200`, proxy supprimé `404`, route dédiée `/api/auth/complete-password-change` toujours présente et limitée à `POST` (`405` sur une lecture).
+
+Validation utilisateur reçue le 18 juillet 2026 pour les parcours de connexion et de récupération de mot de passe. Promotion production de l'étape 1.1 autorisée.
+
+## Étape actuellement ouverte
+
+### Lot 1 — Étape 1.2a : inventorier et borner les imports utilisateurs
+
+- [ ] inventorier tous les points d'entrée PDF, XLSX et CSV ;
+- [ ] relever les bibliothèques, traitements synchrones et limites actuelles ;
+- [ ] fixer des tailles maximales adaptées à chaque type de fichier ;
+- [ ] créer un validateur commun testable avant parsing ;
+- [ ] vérifier le type réel du fichier au-delà de son extension ;
+- [ ] brancher les contrôles sur chaque point d'entrée sans modifier les règles métier ;
+- [ ] couvrir les fichiers trop lourds, incohérents et corrompus par des tests ;
+- [ ] exécuter `npm run verify` puis déployer sur TEST.
 
 ## Règle pour la prochaine étape
 
-Tant que l'étape 1.1b n'est pas validée sur TEST, les travaux sur les imports et les dépendances ne doivent pas commencer.
+L'étape 1.2a reste isolée des Workers, des exports, du remplacement de `xlsx` et des migrations Supabase. Ces sujets seront traités dans leurs sous-étapes dédiées.
 
 ## Backlog hors pourcentage
 
