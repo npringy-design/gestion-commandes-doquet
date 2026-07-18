@@ -28,6 +28,7 @@ Le workflow choisi :
 
 ## Changements code
 
+- Démarrage du chantier qualité 2026 sans changement applicatif : ajout de la feuille de route fixe à 8 lots, d'une référence initiale chiffrée et d'un tableau de suivi. `AGENTS.md` impose désormais la branche `codex-setup-staging-workflow`, la lecture du suivi, le périmètre fermé, les vérifications et la définition de terminé. Le lot 0 documente le commit de départ `918a787`, 24 scripts de tests, 3 checks, 438 assertions, les poids du build et les risques ouverts. `npm run verify` reste entièrement vert.
 - Ajout de `VITE_APP_ENV`, `VITE_APP_ENV_LABEL`, `APP_ENV`, `IS_NON_PRODUCTION_ENV` dans `src/constants.ts`.
 - Ajout du composant `src/components/EnvironmentBanner.tsx`.
 - Affichage d'un bandeau visible en haut de l'application quand `VITE_APP_ENV` vaut `staging`, `test` ou `development`.
