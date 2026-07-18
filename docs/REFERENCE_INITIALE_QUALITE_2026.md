@@ -55,6 +55,27 @@ Résultat du 18 juillet 2026. La base des avis npm change avec le temps ; toute 
 
 Principales dépendances concernées en production : `xlsx`, `lodash` via Recharts et `ws` via Supabase Realtime. Vite est également concerné dans l'environnement de développement/build.
 
+### Mesure après correctifs compatibles — étape 1.3a
+
+Le même lockfile a été remesuré avant et après `npm audit fix` sans `--force`. Le chiffre npm représente des entrées agrégées dans l'arbre, pas seize vulnérabilités indépendantes.
+
+| Périmètre | Avant | Après | Reste |
+| --- | ---: | ---: | --- |
+| Audit complet | 16 : 6 élevées, 6 moyennes, 4 faibles | 1 élevée | `xlsx` |
+| Production uniquement | 6 : 4 élevées, 2 moyennes | 1 élevée | `xlsx` |
+
+Classification et décision :
+
+| Chaîne | Type / exposition | Correction compatible |
+| --- | --- | --- |
+| Vite → Picomatch, PostCSS, Fdir, Tinyglobby | direct développement/build ; serveur Vite absent de la production Vercel servie | Vite `6.4.1 → 6.4.3`, Picomatch `4.0.3 → 4.0.5`, PostCSS `8.5.8 → 8.5.19` et transitives |
+| plugin React → Babel | direct développement/build | Babel `7.29.0 → 7.29.7` et aides transitives |
+| Supabase Realtime → `ws` | transitif production ; chaîne Realtime utilisée par l'application | `ws` `8.19.0 → 8.21.1` |
+| Recharts → Lodash | transitif production ; bibliothèque de graphiques chargée dans l'application | Lodash `4.17.23 → 4.18.1` |
+| `xlsx` | direct production ; lecture de fichiers utilisateurs réellement accessible | aucune version corrigée sur le registre npm ; décision reportée à l'étape dédiée |
+
+Au total, 27 résolutions compatibles du lockfile sont actualisées sans changement de version majeure déclarée dans `package.json`. Une réinstallation propre par `npm ci` et `npm run verify` réussit. Les principaux fichiers de build restent inchangés pour cette étape : `vendor` 860,79 Ko, `index` 193,79 Ko, `charts` 264,30 Ko et Worker tableur 432,61 Ko.
+
 Risques ouverts confirmés :
 
 - `/api/ai-assistant` sans authentification ni limitation de débit ;

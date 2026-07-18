@@ -137,13 +137,17 @@ Publication TEST : commit `9af47d204fb7b4184793f059247074823b643a29`, déploieme
 
 ### Lot 1 — Étape 1.3a : mesurer et corriger les dépendances avec correctif compatible
 
-- [ ] mesurer `npm audit` sur le lockfile exact, dépendances de production et de développement ;
-- [ ] classer chaque avis par dépendance directe ou transitive et par exposition réelle dans l'application ;
-- [ ] mettre à jour uniquement les dépendances disposant d'un correctif compatible, par groupe réversible ;
-- [ ] conserver `xlsx` dans une décision séparée puisqu'aucun correctif npm n'est annoncé ;
-- [ ] comparer le typecheck, les tests, le build et les poids de chunks avant/après ;
-- [ ] exécuter `npm run verify` ;
+- [x] mesurer `npm audit` sur le lockfile exact, dépendances de production et de développement ;
+- [x] classer chaque avis par dépendance directe ou transitive et par exposition réelle dans l'application ;
+- [x] mettre à jour uniquement les dépendances disposant d'un correctif compatible, par groupe réversible ;
+- [x] conserver `xlsx` dans une décision séparée puisqu'aucun correctif npm n'est annoncé ;
+- [x] comparer le typecheck, les tests, le build et les poids de chunks avant/après ;
+- [x] exécuter `npm run verify` ;
 - [ ] déployer et contrôler sur TEST.
+
+Mesure et correction du 18 juillet 2026 : l'audit complet passe de 16 entrées agrégées à 1, et l'audit production de 6 à 1. Les résolutions compatibles de Vite, Babel, PostCSS, Picomatch, `ws`, Lodash et leurs transitives sont inscrites dans le lockfile sans `--force` ni changement majeur déclaré. Seul `xlsx` reste élevé et sans correctif npm ; son usage réel sera traité dans l'étape dédiée.
+
+Vérification locale : réinstallation propre `npm ci`, `npm run verify`, typecheck, tests, build Vite 6.4.3 et contrôle des secrets entièrement verts. Les tailles principales restent identiques à la mesure précédant cette mise à jour. Aucun code applicatif, calcul, écran ou accès Supabase n'est modifié.
 
 ## Règle pour la prochaine étape
 
