@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const config = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
-const globalRule = config.headers?.find((rule) => rule.source === '/:path*');
+const globalRule = config.headers?.find((rule) => rule.source === '/(.*)');
 
 assert.ok(globalRule, 'Une règle Vercel globale doit protéger toutes les routes');
 

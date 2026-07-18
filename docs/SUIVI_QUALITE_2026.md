@@ -191,6 +191,8 @@ Phase d'observation préparée : les en-têtes anti-framing, MIME, referrer et p
 
 Vérification locale : `npm run verify` entièrement vert avec le nouveau contrat des en-têtes, le typecheck, les tests métier, le build inchangé et le scan des sources puis du bundle final. La validation Vercel et l'observation navigateur restent à effectuer avant le passage de la CSP en mode bloquant.
 
+Premier contrôle Vercel : la forme `/:path*` protégeait les chemins non vides mais pas la racine. Le test HTTP l'a détecté avant le passage en blocage. Le motif est corrigé en `/(.*)` et le contrat automatisé exige désormais explicitement cette couverture globale.
+
 ## Règle pour la prochaine étape
 
 L'étape 1.3c reste isolée des migrations Supabase et des refactorings. La CSP doit être dérivée des ressources réellement utilisées et validée sur TEST avant toute promotion afin de ne pas casser Auth, Realtime, les Workers ou les imports.

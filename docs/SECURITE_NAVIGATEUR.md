@@ -19,7 +19,7 @@ Les appels OpenAI sont exclusivement serveur à serveur via `/api/ai-assistant` 
 
 ## Politique déployée
 
-`vercel.json` applique les en-têtes à toutes les routes :
+`vercel.json` applique les en-têtes à toutes les routes, racine `/` comprise :
 
 - CSP limitant scripts, connexions, images, polices, formulaires, objets, cadres et Workers ;
 - `X-Frame-Options: DENY` en défense complémentaire anti-framing ;
