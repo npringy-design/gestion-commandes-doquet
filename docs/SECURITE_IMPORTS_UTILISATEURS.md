@@ -1,7 +1,7 @@
-# Sécurité des imports utilisateurs
+# Sécurité des fichiers utilisateurs — imports et exports
 
 Date : 18 juillet 2026  
-Périmètre : lot 1, étape 1.2a
+Périmètre : lot 1, étapes 1.2a à 1.2c
 
 ## Inventaire confirmé
 
@@ -57,6 +57,22 @@ Ces changements restent locaux au navigateur et ne déclenchent aucune écriture
 
 La validation utilise uniquement des fichiers générés en mémoire. Aucun import manuel n'est requis : cela évite toute modification des saisies ou paramètres présents dans Supabase TEST. Le déploiement du validateur ne lit, ne migre et ne réécrit aucune donnée existante.
 
+## Exports CSV et Excel — étape 1.2c
+
+L'inventaire du code confirme qu'aucune fonctionnalité de l'application ne génère actuellement de fichier CSV ou Excel. Les appels `sheet_to_csv` et `Papa.unparse` existants servent uniquement à normaliser des fichiers importés en mémoire ; aucun `Blob`, téléchargement CSV, classeur ou feuille de sortie n'est créé. Il n'existe donc pas aujourd'hui de cellule exportée provenant d'une saisie utilisateur.
+
+Le garde-fou `spreadsheetExportSecurity.ts` prépare néanmoins le futur chemin sûr :
+
+- les textes commençant par `=`, `+`, `-` ou `@`, y compris après des espaces, sont préfixés par une tabulation afin d'être interprétés comme du texte ;
+- les retours ligne initiaux sont également neutralisés ;
+- les nombres, booléens, textes ordinaires et données source restent inchangés ;
+- le sérialiseur CSV protège chaque champ texte par des guillemets et échappe les guillemets internes ;
+- un test d'architecture refuse l'ajout d'un writer CSV/XLSX direct hors du chemin central sécurisé.
+
+Cette stratégie suit la [recommandation OWASP sur les injections CSV](https://owasp.org/www-community/attacks/CSV_Injection). Elle n'altère jamais les valeurs affichées ou stockées : la copie protégée n'est créée qu'au moment d'un futur export.
+
 ## Retour arrière
 
 Retirer les trois appels à `validateImportFile`, le module `src/utils/importFileValidation.ts` et son test restaure le comportement précédent. Aucune donnée ni migration ne doit être restaurée.
+
+Pour l'étape 1.2c, retirer `spreadsheetExportSecurity.ts`, son test et sa commande dans `package.json` supprime uniquement le garde-fou préventif. Aucun rollback de donnée, d'import ou de configuration Supabase n'est nécessaire.

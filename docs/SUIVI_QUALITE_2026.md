@@ -120,12 +120,16 @@ Publication TEST : commit `9484b8d325c8e19eee526c9ff288bc9c513de99a`, déploieme
 
 ### Lot 1 — Étape 1.2c : neutraliser les formules dangereuses dans les exports
 
-- [ ] inventorier les exports CSV et Excel réellement générés par l'application ;
-- [ ] identifier les cellules provenant de saisies ou de fichiers utilisateurs ;
-- [ ] neutraliser les préfixes de formule dangereux sans modifier les valeurs métier affichées ;
-- [ ] couvrir les préfixes `=`, `+`, `-`, `@`, les espaces initiaux et les valeurs légitimes ;
-- [ ] exécuter `npm run verify` ;
+- [x] inventorier les exports CSV et Excel réellement générés par l'application ;
+- [x] identifier les cellules provenant de saisies ou de fichiers utilisateurs ;
+- [x] neutraliser les préfixes de formule dangereux sans modifier les valeurs métier affichées ;
+- [x] couvrir les préfixes `=`, `+`, `-`, `@`, les espaces initiaux et les valeurs légitimes ;
+- [x] exécuter `npm run verify` ;
 - [ ] déployer et contrôler sur TEST sans modifier les données existantes.
+
+Inventaire du 18 juillet 2026 : aucun export CSV ou Excel n'est généré par l'application. Les conversions existantes restent internes aux imports et ne déclenchent aucun téléchargement. Une protection pure, un sérialiseur CSV sûr et un contrat d'architecture sont ajoutés pour rendre obligatoire le chemin sécurisé lors de tout futur export. Aucun écran, calcul, import ou accès Supabase n'est modifié.
+
+Vérification locale du 18 juillet 2026 : `npm run verify` entièrement vert avec le nouveau contrôle intégré, le typecheck, le build Vite et le contrôle des secrets. Les tests utilisent uniquement des tableaux synthétiques en mémoire et ne créent aucun fichier ni aucune écriture métier.
 
 ## Règle pour la prochaine étape
 
