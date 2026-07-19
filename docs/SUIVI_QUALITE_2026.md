@@ -1,6 +1,6 @@
 # Suivi qualité 2026
 
-Dernière mise à jour : 18 juillet 2026  
+Dernière mise à jour : 19 juillet 2026
 Branche de référence : `codex-setup-staging-workflow`  
 Commit initial : `918a7871991021e7e9c185e4c0f2828220c09413`
 
@@ -12,7 +12,7 @@ Ce document est le tableau d'avancement opérationnel de la feuille de route. Un
 | --- | ---: | --- | --- |
 | 0. Référence et garde-fous | 5 % | Terminé production | Validation utilisateur obtenue, promotion `main` autorisée |
 | 1. Sécurité et dépendances | 15 % | Terminé production | Toutes les étapes validées sur TEST puis promues sur `main` |
-| 2. Supabase et données | 15 % | À faire | — |
+| 2. Supabase et données | 15 % | En cours | Inventaire 2.1a réalisé en lecture seule ; aucune base modifiée |
 | 3. Sauvegarde, hors-ligne et conflits | 15 % | À faire | — |
 | 4. Architecture et organisation | 20 % | À faire | — |
 | 5. Interface, performance et accessibilité | 15 % | À faire | — |
@@ -203,11 +203,23 @@ Validation utilisateur reçue le 18 juillet 2026 : connexion, accueil, paramètr
 
 Promotion production : `main` avancée sans divergence sur le commit `2e74757a92f0277cb52b7aa3606d6f44b87c0eca`. Déploiement Vercel `dpl_39pBzznk6au9NBahvS4MJ6hNFuc7` confirmé `READY`. L'accueil et sa feuille de styles répondent `200` sur l'alias public, avec CSP bloquante et les quatre autres en-têtes attendus. Le lot 1 est terminé en production et la progression fixe passe à 20 %.
 
-## Prochaine étape ouverte
+## Étape actuellement ouverte
 
 ### Lot 2 — Étape 2.1a : inventaire du schéma et des scripts SQL
 
-La prochaine étape doit commencer par un inventaire en lecture seule des tables, contraintes, index, publications Realtime, politiques RLS et scripts SQL présents. Elle doit identifier la source de vérité et les divergences avant de déplacer ou exécuter une migration. Aucune base, donnée ou politique ne doit être modifiée pendant cet inventaire.
+- [x] identifier sans ambiguïté les projets Supabase production et TEST ;
+- [x] inventorier en lecture seule les tables, colonnes, contraintes, index et triggers ;
+- [x] comparer les politiques RLS, privilèges et publications Realtime ;
+- [x] relever l'historique et le SQL des migrations distantes ;
+- [x] inventorier les scripts SQL du dépôt et leurs contradictions ;
+- [x] identifier les tables réellement consommées par Hippo Commandes ;
+- [x] isoler les objets historiques et ceux appartenant à l'autre application ;
+- [x] relever les advisors sécurité et performance sans appliquer de remédiation ;
+- [x] documenter la source de vérité proposée et l'absence de mutation.
+
+Résultat du 19 juillet 2026 : les quatre tables métier ont un socle RLS et Realtime cohérent, mais TEST et production divergent sur `profiles`, plusieurs triggers, index et objets historiques. Les migrations distantes `order_line_states` ne sont pas versionnées dans le dépôt. Le détail complet se trouve dans `docs/INVENTAIRE_SCHEMA_SUPABASE_2026.md`.
+
+Aucune donnée, table, politique, fonction, publication ou configuration Auth n'a été modifiée. Après vérification et publication documentaire sur TEST, la prochaine étape sera 2.1b : définir la baseline cible et les migrations de convergence, toujours sans les exécuter sur production.
 
 ## Backlog hors pourcentage
 
