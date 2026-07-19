@@ -2,10 +2,11 @@
 
 ## Verdict du palier
 
-La baseline, la convergence et les deux rollbacks sont exécutables sur une
-base PostgreSQL 17 jetable. Le préflight distant ne relève aucune donnée qui
-bloquerait la convergence sur TEST. Aucune migration n'a été appliquée et
-aucune donnée TEST ou production n'a été modifiée.
+La baseline et la convergence sont exécutables sur la stack Supabase Docker
+officielle, et la chaîne migrations/rollbacks est validée sur une base
+PostgreSQL 17 jetable. Le préflight distant ne relève aucune donnée qui
+bloquerait la convergence sur TEST. Aucune migration distante n'a été
+appliquée et aucune donnée TEST ou production n'a été modifiée.
 
 Ce palier a trouvé et corrigé deux défauts avant toute application distante :
 
@@ -19,7 +20,9 @@ Ce palier a trouvé et corrigé deux défauts avant toute application distante :
 - Supabase CLI inspectée : `2.109.1` ;
 - Supabase TEST : PostgreSQL `17.6.1.113` ;
 - rejeu jetable : PGlite `0.3.14`, PostgreSQL `17.5` en mémoire ;
-- Docker : indisponible dans l'environnement Codex ;
+- Docker local : indisponible dans l'environnement Codex ;
+- Docker officiel : validé par GitHub Actions, run `29686711920`, job
+  `88192126433` ;
 - procédure de référence : [workflow local Supabase](https://supabase.com/docs/guides/local-development/cli-workflows) et [`db push --dry-run`](https://supabase.com/docs/reference/cli/supabase-db-push).
 
 Le changement Supabase 2026 sur l'exposition Data API a aussi été contrôlé :
@@ -44,6 +47,23 @@ forcée sur les quatre, 9 politiques, 2 tables dans Realtime et 3 helpers dans
 le schéma `private`. Après démontage complet : aucune table, aucune relation
 Realtime et aucun helper résiduel. La reconstruction finale produit le même
 état.
+
+## Rejeu Supabase Docker officiel
+
+Le workflow permanent `.github/workflows/verify.yml` contient désormais un
+job isolé, sans secret ni accès distant, qui utilise Supabase CLI `2.109.1` :
+
+1. démarrage de PostgreSQL Supabase `17.6.1.143` avec `supabase db start` ;
+2. reconstruction avec `supabase db reset --local --no-seed` ;
+3. contrôle par `supabase migration list --local` ;
+4. exécution de `npm run check:supabase-migrations`.
+
+Le run GitHub Actions `29686711920`, job `88192126433`, est entièrement vert.
+Les cinq versions locales et appliquées correspondent exactement :
+`20260713091142`, `20260713104058`, `20260713104108`, `20260719101200` et
+`20260719101210`. La vérification applicative complète exécutée en parallèle
+est également verte. Cette preuve est locale au runner GitHub et n'a lu ni
+modifié Supabase TEST ou production.
 
 ## Préflight Supabase TEST en lecture seule
 
