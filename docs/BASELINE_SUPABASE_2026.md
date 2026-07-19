@@ -94,11 +94,13 @@ npm run check:supabase-migrations
 ```
 
 Le conteneur Docker n'est pas disponible dans l'environnement Codex actuel.
-Le 19 juillet 2026, la chaîne complète a été exécutée dans une base PostgreSQL
-17.5 jetable en mémoire : ponts, baseline, convergence, rollback de
-convergence, démontage complet, puis reconstruction. Ce rejeu valide le SQL
-réel mais ne remplace pas la confirmation finale `supabase db reset` sur la
-stack Docker officielle avant une application distante persistante.
+Le 19 juillet 2026, la chaîne complète a d'abord été exécutée dans une base
+PostgreSQL 17.5 jetable en mémoire : ponts, baseline, convergence, rollback de
+convergence, démontage complet, puis reconstruction. La confirmation finale
+`supabase db reset --local --no-seed` a ensuite réussi sur la stack Docker
+officielle dans le run GitHub Actions `29686711920`, job `88192126433`. Le
+workflow conserve désormais ce rejeu comme contrôle permanent, sans secret ni
+connexion à un projet Supabase distant.
 
 ### 2. Supabase TEST
 
