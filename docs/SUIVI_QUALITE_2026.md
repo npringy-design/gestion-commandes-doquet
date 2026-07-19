@@ -227,7 +227,7 @@ Validation utilisateur reçue le 19 juillet 2026. La promotion documentaire de l
 
 Promotion production : `main` avancée sans divergence sur le commit `4a3736d887d58c33bf0898fdc21cb04f044045e8`. Déploiement Vercel `dpl_CRK9RqPfCAgYj8iqE2pY8qDLKkPq` confirmé `READY`, alias public en `200` avec les en-têtes de sécurité attendus. L'étape 2.1a est terminée en production sans aucune mutation Supabase ; la progression globale reste à 20 % tant que le lot 2 n'est pas entièrement terminé.
 
-## Étape actuellement ouverte
+## Étape 2.1b validée sur TEST — promotion production autorisée
 
 ### Lot 2 — Étape 2.1b : définir la baseline cible et les migrations de convergence
 
@@ -248,6 +248,21 @@ Décisions structurantes : `profiles.role` devient un texte contraint avec défa
 Vérifications locales : contrôles statiques des migrations et du contrat de sécurité verts ; les deux migrations et leurs deux rollbacks sont acceptés par le parseur natif PostgreSQL 17. `npm run verify` est entièrement vert, y compris typecheck, tests métier, build et scan des secrets. Aucun SQL n'a été exécuté sur Supabase TEST ou production. `supabase db reset` reste à exécuter sur une machine disposant de Docker avant toute application distante.
 
 Publication TEST : commit `8e99934b287f9600327a218cc7d1b6853be138a9`, déploiement Vercel `dpl_FdKQyfpRfg1u4AS3dPCjWypRL3hm` `READY`, alias TEST en `200` avec les en-têtes de sécurité attendus. Cette publication ne déclenche pas les fichiers de migration et n'a modifié aucune base. `main` reste au commit `db1b1032312b7711cb5a0055c4660b0763631e85`.
+
+Validation utilisateur reçue le 19 juillet 2026. La promotion de la baseline, des archives et des contrôles sur `main` est autorisée. Cette validation n'autorise l'exécution d'aucune migration ni aucune mutation de Supabase TEST ou production.
+
+## Étape actuellement ouverte
+
+### Lot 2 — Étape 2.1c : valider l'exécution de la baseline avant Supabase TEST
+
+- [ ] reconstruire une base locale jetable avec `supabase db reset --local --no-seed` sur une machine disposant de Docker ;
+- [ ] contrôler les schémas, contraintes, RLS, privilèges, triggers et publications Realtime obtenus ;
+- [ ] exécuter les rollbacks sur cette base jetable, puis reconstruire à nouveau la baseline ;
+- [ ] réaliser un dry-run de la migration contre Supabase TEST sans appliquer le SQL ;
+- [ ] capturer avant exécution les définitions et volumes des objets Hippo Commandes et `suivi_gestion_*` ;
+- [ ] obtenir une autorisation utilisateur explicite avant toute application réelle sur Supabase TEST.
+
+La promotion des fichiers sur `main` ne déclenche aucun SQL. La production reste interdite à cette étape ; seule une validation sur environnement local jetable puis un dry-run TEST sont autorisés sans nouvelle décision utilisateur.
 
 ## Backlog hors pourcentage
 
