@@ -47,6 +47,9 @@ drop table public.order_line_states;
 drop table public.app_state;
 drop table public.user_site_access;
 drop table public.profiles;
+-- Le rollback opérationnel de convergence recrée ce helper public. Une base
+-- jetable entièrement démontée ne doit pas conserver cette fonction orpheline.
+drop function if exists public.can_access_app_state_site(text);
 drop function private.handle_new_user_profile();
 drop function private.can_access_app_state_site(text);
 drop function private.set_updated_at();

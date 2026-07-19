@@ -7,8 +7,10 @@ n'a encore été exécutée sur Supabase TEST ou production.
 
 La source de vérité active est désormais :
 
-1. `supabase/migrations/20260719101200_hippo_commandes_baseline.sql` ;
-2. `supabase/migrations/20260719101210_converge_hippo_commandes_schema.sql`.
+1. trois ponts historiques sans DDL (`select 1;`) pour les versions déjà
+   enregistrées différemment sur TEST et production ;
+2. `supabase/migrations/20260719101200_hippo_commandes_baseline.sql` ;
+3. `supabase/migrations/20260719101210_converge_hippo_commandes_schema.sql`.
 
 Les scripts historiques sont conservés sous `supabase/legacy/`, mais ne font
 plus partie du parcours d'installation.
@@ -64,11 +66,19 @@ préservées. `site_backups` est vide.
 Les migrations distantes suivantes ont été recopiées sous
 `supabase/legacy/remote_history/` :
 
+- `20260713091142_create_order_line_states_test.sql` (TEST) ;
 - `20260713104058_create_order_line_states.sql` ;
 - `20260713104108_migrate_data_into_order_line_states.sql`.
 
 La reprise des anciens blobs est volontairement archivée et non active : son
 rejeu pourrait écraser des lignes plus récentes de `order_line_states`.
+
+Les trois timestamps possèdent aussi un fichier actif sans DDL sous
+`supabase/migrations/`. Supabase compare les historiques par timestamp : ces
+marqueurs permettent à chaque environnement de reconnaître ses versions déjà
+appliquées, tandis qu'une base neuve attend la baseline canonique pour créer
+les objets. Le détail du préflight est dans
+`docs/VALIDATION_BASELINE_SUPABASE_TEST_2026.md`.
 
 ## Plan d'essai obligatoire
 
@@ -83,8 +93,12 @@ supabase migration list --local
 npm run check:supabase-migrations
 ```
 
-Le conteneur Docker n'est pas disponible dans l'environnement Codex actuel :
-ce test reste donc un prérequis bloquant avant toute application distante.
+Le conteneur Docker n'est pas disponible dans l'environnement Codex actuel.
+Le 19 juillet 2026, la chaîne complète a été exécutée dans une base PostgreSQL
+17.5 jetable en mémoire : ponts, baseline, convergence, rollback de
+convergence, démontage complet, puis reconstruction. Ce rejeu valide le SQL
+réel mais ne remplace pas la confirmation finale `supabase db reset` sur la
+stack Docker officielle avant une application distante persistante.
 
 ### 2. Supabase TEST
 

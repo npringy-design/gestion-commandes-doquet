@@ -10,15 +10,26 @@ const migrations = listSql('supabase/migrations');
 assert.deepEqual(
   migrations,
   [
+    '20260713091142_create_order_line_states.sql',
+    '20260713104058_create_order_line_states.sql',
+    '20260713104108_migrate_data_into_order_line_states.sql',
     '20260719101200_hippo_commandes_baseline.sql',
     '20260719101210_converge_hippo_commandes_schema.sql',
   ],
-  'Seules la baseline et sa convergence doivent être actives, dans cet ordre'
+  'Les trois ponts historiques doivent précéder la baseline et sa convergence'
 );
 
-const baseline = read(`supabase/migrations/${migrations[0]}`);
-const convergence = read(`supabase/migrations/${migrations[1]}`);
+const historyBridges = migrations.slice(0, 3).map(name => read(`supabase/migrations/${name}`));
+const baseline = read(`supabase/migrations/${migrations[3]}`);
+const convergence = read(`supabase/migrations/${migrations[4]}`);
+const baselineRollback = read(`supabase/rollbacks/${migrations[3]}`);
+const preflight = read('supabase/diagnostics/SUPABASE_BASELINE_PREFLIGHT_READ_ONLY.sql');
 const activeSql = `${baseline}\n${convergence}`;
+
+for (const [index, bridge] of historyBridges.entries()) {
+  const executable = bridge.replace(/^\s*--.*$/gm, '').trim();
+  assert.equal(executable, 'select 1;', `${migrations[index]} doit rester un pont historique sans DDL`);
+}
 
 for (const [name, sql] of [['baseline', baseline], ['convergence', convergence]]) {
   assert.match(sql, /^--[\s\S]*\bbegin;/i, `${name} doit être transactionnelle`);
@@ -108,8 +119,20 @@ assert.doesNotMatch(
   /jsonb_array_elements\s*\(\s*a\.value\s*\)/i,
   'La reprise historique des blobs ne doit jamais être rejouée automatiquement'
 );
+assert.match(
+  baselineRollback,
+  /drop function if exists public\.can_access_app_state_site\(text\)/i,
+  'Le rollback complet doit retirer le helper public recréé par le rollback de convergence'
+);
+assert.doesNotMatch(
+  preflight
+    .replace(/^\s*--.*$/gm, '')
+    .replace(/'(?:''|[^'])*'/g, "''"),
+  /\b(insert|update|delete|alter|create|drop|truncate|grant|revoke|do|call)\b/i,
+  'Le préflight Supabase TEST doit rester strictement en lecture seule'
+);
 
-for (const migration of migrations) {
+for (const migration of migrations.slice(3)) {
   assert.ok(
     existsSync(join(root, 'supabase/rollbacks', migration)),
     `Un retour arrière doit accompagner ${migration}`
@@ -119,17 +142,19 @@ for (const migration of migrations) {
 assert.deepEqual(
   listSql('supabase/legacy/remote_history'),
   [
+    '20260713091142_create_order_line_states_test.sql',
     '20260713104058_create_order_line_states.sql',
     '20260713104108_migrate_data_into_order_line_states.sql',
   ],
-  'Les deux migrations distantes retrouvées doivent rester archivées'
+  'Les migrations distantes TEST et production doivent rester archivées'
 );
 
 const rootSql = readdirSync(root).filter(name => name.endsWith('.sql'));
 assert.deepEqual(rootSql, [], 'Aucun script SQL ne doit rester dispersé à la racine');
 assert.ok(existsSync(join(root, 'supabase/diagnostics/SUPABASE_SECURITY_AUDIT_READ_ONLY.sql')));
+assert.ok(existsSync(join(root, 'supabase/diagnostics/SUPABASE_BASELINE_PREFLIGHT_READ_ONLY.sql')));
 assert.ok(existsSync(join(root, 'supabase/legacy/README.md')));
 
 console.log(
-  'Migrations Supabase OK : baseline ordonnée, convergence protégée, RLS/privileges sûrs, archives et rollbacks présents.'
+  'Migrations Supabase OK : historiques réconciliés sans DDL, baseline ordonnée, RLS/privileges sûrs et rollbacks présents.'
 );

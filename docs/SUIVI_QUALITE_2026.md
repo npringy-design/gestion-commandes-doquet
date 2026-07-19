@@ -241,7 +241,7 @@ Promotion production : `main` avancée sans divergence sur le commit `4a3736d887
 
 Cette étape prépare la source de vérité dans le dépôt. Elle n'autorise encore aucune exécution sur Supabase production et ne doit toucher ni aux objets `suivi_gestion_*` de TEST, ni aux tables historiques exclues par l'inventaire.
 
-La baseline et la convergence sont désormais sous `supabase/migrations/`, avec un rollback par migration. Les deux migrations `order_line_states` retrouvées à distance sont conservées dans `supabase/legacy/remote_history/` et la reprise historique des blobs est interdite au rejeu automatique. Les anciens scripts manuels restent consultables sous `supabase/legacy/` et le diagnostic en lecture seule sous `supabase/diagnostics/`.
+La baseline et la convergence sont désormais sous `supabase/migrations/`, avec un rollback par migration. Les trois versions `order_line_states` retrouvées dans les historiques TEST et production sont conservées dans `supabase/legacy/remote_history/` et la reprise historique des blobs est interdite au rejeu automatique. Les anciens scripts manuels restent consultables sous `supabase/legacy/` et le diagnostic en lecture seule sous `supabase/diagnostics/`.
 
 Décisions structurantes : `profiles.role` devient un texte contraint avec défaut `commande`, `email` devient obligatoire et unique, `must_change_password` est intégré, les fonctions privilégiées passent dans le schéma non exposé `private`, les index redondants sont retirés et les privilèges communs minimaux sont reproduits. Les objets legacy de production sont conservés : le contrôle complémentaire a trouvé 3 lignes `sites`, 2 lignes `user_sites` et 2 profils utilisant encore `default_site_id`.
 
@@ -257,14 +257,18 @@ Promotion production : `main` avancée sans divergence sur le commit `ffe8c8f640
 
 ### Lot 2 — Étape 2.1c : valider l'exécution de la baseline avant Supabase TEST
 
-- [ ] reconstruire une base locale jetable avec `supabase db reset --local --no-seed` sur une machine disposant de Docker ;
-- [ ] contrôler les schémas, contraintes, RLS, privilèges, triggers et publications Realtime obtenus ;
-- [ ] exécuter les rollbacks sur cette base jetable, puis reconstruire à nouveau la baseline ;
-- [ ] réaliser un dry-run de la migration contre Supabase TEST sans appliquer le SQL ;
-- [ ] capturer avant exécution les définitions et volumes des objets Hippo Commandes et `suivi_gestion_*` ;
+- [x] rejouer les migrations sur une base PostgreSQL 17.5 jetable en mémoire, Docker étant indisponible ;
+- [ ] confirmer le même rejeu avec `supabase db reset --local --no-seed` sur la stack Docker officielle ;
+- [x] contrôler les schémas, contraintes, RLS, privilèges, triggers et publications Realtime obtenus ;
+- [x] exécuter les rollbacks sur cette base jetable, vérifier l'absence de résidu, puis reconstruire la baseline ;
+- [x] comparer les historiques TEST/production et déterminer la liste exacte du dry-run TEST ;
+- [ ] confirmer cette liste avec `supabase db push --dry-run` depuis une CLI liée disposant de ses secrets locaux ;
+- [x] capturer avant exécution les définitions, empreintes et volumes des objets Hippo Commandes et `suivi_gestion_*` ;
 - [ ] obtenir une autorisation utilisateur explicite avant toute application réelle sur Supabase TEST.
 
 La promotion des fichiers sur `main` ne déclenche aucun SQL. La production reste interdite à cette étape ; seule une validation sur environnement local jetable puis un dry-run TEST sont autorisés sans nouvelle décision utilisateur.
+
+Palier technique du 19 juillet 2026 : le rejeu PostgreSQL 17.5 est vert et a permis de corriger un helper public résiduel après rollback. Le préflight TEST est intégralement vert sur les données de convergence. L'historique réel diffère : TEST contient `20260713091142`, production contient `20260713104058` et `20260713104108`. Trois ponts actifs sans DDL réconcilient désormais ces timestamps avant la baseline. Le rapport et les empreintes avant migration sont consignés dans `docs/VALIDATION_BASELINE_SUPABASE_TEST_2026.md`. Aucune base n'a été modifiée.
 
 ## Backlog hors pourcentage
 

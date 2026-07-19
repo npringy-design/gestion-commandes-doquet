@@ -10,5 +10,9 @@ une base.
 - `remote_history/` conserve les migrations retrouvées dans les historiques
   Supabase TEST et production.
 
+Les fichiers actifs antérieurs à la baseline qui portent les mêmes versions
+sont uniquement des ponts `select 1;` : ils alignent les timestamps distants
+avant que la baseline canonique construise le schéma.
+
 La seule source de vérité exécutable est `supabase/migrations/`. Les retours
 arrière contrôlés sont sous `supabase/rollbacks/`.
