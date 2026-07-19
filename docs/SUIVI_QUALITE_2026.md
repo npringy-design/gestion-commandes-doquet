@@ -272,6 +272,8 @@ Palier technique du 19 juillet 2026 : le rejeu PostgreSQL 17.5 est vert et a per
 
 Publication TEST : commit `ef299b5f2591eca37c98721eeb38605e7231c70f`, déploiement Vercel `dpl_tJ5839YnNmrp86LrzyGDwBc2CAQc` confirmé `READY`, alias TEST en `200` avec les en-têtes de sécurité attendus. `npm run verify`, le parseur PostgreSQL 17 et le rejeu PostgreSQL 17.5 sont verts. Cette publication ne déclenche aucun SQL et attend la validation utilisateur avant toute promotion sur `main`.
 
+Validation utilisateur reçue le 19 juillet 2026 pour la promotion de ce palier technique sur `main`. Cette validation couvre uniquement les fichiers, contrôles et rapports ; elle n'autorise ni l'application des migrations ni aucune mutation de Supabase TEST ou production.
+
 ## Backlog hors pourcentage
 
 Vide au démarrage. Toute idée future non critique est ajoutée ici sans modifier les lots ni l'avancement.
