@@ -33,6 +33,10 @@ Ne jamais creer de variable `VITE_SUPABASE_SERVICE_ROLE_KEY`.
 
 Tout changement SQL doit etre teste d'abord sur Supabase test.
 
+La seule source de vérité exécutable est `supabase/migrations/`. Les scripts
+placés dans `supabase/legacy/` sont des archives et ne doivent pas être rejoués.
+Chaque migration active doit posséder un rollback sous `supabase/rollbacks/`.
+
 Ne pas executer un script SQL en production avant validation complete sur staging.
 
 ## Sauvegarde Supabase avant modification sensible

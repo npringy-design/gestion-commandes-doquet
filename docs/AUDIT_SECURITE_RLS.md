@@ -1,5 +1,9 @@
 # Audit sécurité des rôles et politiques Supabase
 
+> Document historique du 14 juillet 2026. Les anciens scripts sont conservés
+> sous `supabase/legacy/` et `supabase/diagnostics/`. Ne pas rejouer la procédure
+> ci-dessous ; utiliser `docs/BASELINE_SUPABASE_2026.md`.
+
 ## Objectif
 
 Les rôles et les accès fonctionnels sont déjà définis dans l'application. Cet audit vérifie que Supabase applique réellement des limites cohérentes, même si une requête contourne l'interface.
@@ -104,9 +108,9 @@ Le contrôle vérifie notamment :
 - l'absence de droit d'écriture frontend sur `profiles` et `user_site_access` ;
 - la lecture limitée au compte connecté sur ces deux tables.
 
-## Procédure de validation
+## Procédure historique — ne plus exécuter
 
-1. Exécuter `SUPABASE_SECURITY_RLS_HARDENING.sql` sur Supabase TEST uniquement.
+1. L'ancien workflow exécutait `SUPABASE_SECURITY_RLS_HARDENING.sql` sur Supabase TEST uniquement.
 2. Contrôler les trois tableaux retournés à la fin du script.
 3. Tester une connexion avec un compte non global pour vérifier le chargement de son site.
 4. Tester la page Utilisateurs avec les rôles disponibles : création, changement de rôle, changement de sites, activation et suppression selon leurs droits.

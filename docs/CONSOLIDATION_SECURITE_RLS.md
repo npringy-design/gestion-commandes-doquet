@@ -1,5 +1,9 @@
 # Consolidation durable de la sécurité RLS
 
+> Document historique. Les scripts cités ci-dessous sont archivés sous
+> `supabase/legacy/manual_sql/` et ne doivent plus être exécutés. La source de
+> vérité actuelle est décrite dans `docs/BASELINE_SUPABASE_2026.md`.
+
 ## Objectif
 
 Après validation du durcissement RLS sur Supabase TEST puis production, les scripts d'installation du dépôt ont été alignés sur le même contrat de sécurité.
@@ -49,7 +53,7 @@ Les trois indicateurs doivent être à `true`.
 
 ## Protection contre les régressions
 
-`scripts/check-security-contract.mjs`, lancé par `npm run verify`, vérifie désormais aussi les scripts d'installation eux-mêmes.
+`scripts/check-security-contract.mjs` et `scripts/check-supabase-migrations.mjs`, lancés par `npm run verify`, vérifient désormais la baseline active.
 
 Le contrôle échoue notamment si :
 

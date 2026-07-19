@@ -1,5 +1,8 @@
 # Validation sécurité RLS production
 
+> Preuve historique. Le script mentionné est désormais archivé et ne doit pas
+> être rejoué ; voir `docs/BASELINE_SUPABASE_2026.md`.
+
 Date : 14 juillet 2026
 
 ## Déploiement GitHub / Vercel

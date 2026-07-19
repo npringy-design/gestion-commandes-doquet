@@ -231,15 +231,21 @@ Promotion production : `main` avancée sans divergence sur le commit `4a3736d887
 
 ### Lot 2 — Étape 2.1b : définir la baseline cible et les migrations de convergence
 
-- [ ] fixer le schéma cible de chaque table réellement utilisée par Hippo Commandes ;
-- [ ] trancher explicitement les divergences `profiles`, triggers, contraintes et index ;
-- [ ] récupérer les migrations distantes manquantes dans un historique versionné ;
-- [ ] préparer des migrations ordonnées avec préconditions et retour arrière ;
-- [ ] archiver les scripts SQL contradictoires sans supprimer les preuves historiques ;
-- [ ] vérifier statiquement la reproductibilité et l'absence de droits larges à `anon` ;
-- [ ] documenter le plan d'essai sur Supabase TEST avant toute exécution.
+- [x] fixer le schéma cible de chaque table réellement utilisée par Hippo Commandes ;
+- [x] trancher explicitement les divergences `profiles`, triggers, contraintes et index ;
+- [x] récupérer les migrations distantes manquantes dans un historique versionné ;
+- [x] préparer des migrations ordonnées avec préconditions et retour arrière ;
+- [x] archiver les scripts SQL contradictoires sans supprimer les preuves historiques ;
+- [x] vérifier statiquement la reproductibilité et l'absence de droits larges à `anon` ;
+- [x] documenter le plan d'essai sur Supabase TEST avant toute exécution.
 
 Cette étape prépare la source de vérité dans le dépôt. Elle n'autorise encore aucune exécution sur Supabase production et ne doit toucher ni aux objets `suivi_gestion_*` de TEST, ni aux tables historiques exclues par l'inventaire.
+
+La baseline et la convergence sont désormais sous `supabase/migrations/`, avec un rollback par migration. Les deux migrations `order_line_states` retrouvées à distance sont conservées dans `supabase/legacy/remote_history/` et la reprise historique des blobs est interdite au rejeu automatique. Les anciens scripts manuels restent consultables sous `supabase/legacy/` et le diagnostic en lecture seule sous `supabase/diagnostics/`.
+
+Décisions structurantes : `profiles.role` devient un texte contraint avec défaut `commande`, `email` devient obligatoire et unique, `must_change_password` est intégré, les fonctions privilégiées passent dans le schéma non exposé `private`, les index redondants sont retirés et les privilèges communs minimaux sont reproduits. Les objets legacy de production sont conservés : le contrôle complémentaire a trouvé 3 lignes `sites`, 2 lignes `user_sites` et 2 profils utilisant encore `default_site_id`.
+
+Vérifications locales : contrôles statiques des migrations et du contrat de sécurité verts ; les deux migrations et leurs deux rollbacks sont acceptés par le parseur natif PostgreSQL 17. `npm run verify` est entièrement vert, y compris typecheck, tests métier, build et scan des secrets. Aucun SQL n'a été exécuté sur Supabase TEST ou production. `supabase db reset` reste à exécuter sur une machine disposant de Docker avant toute application distante.
 
 ## Backlog hors pourcentage
 

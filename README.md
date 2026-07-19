@@ -71,5 +71,6 @@ Une donnée d'un site ne doit jamais être sauvegardée sur un autre site.
 
 - [Déploiement](docs/DEPLOIEMENT.md)
 - [Supabase](docs/SUPABASE.md)
+- [Baseline et migrations Supabase](docs/BASELINE_SUPABASE_2026.md)
 - [Multisite](docs/MULTISITE.md)
 - [Tests manuels](docs/TESTS_MANUELS.md)

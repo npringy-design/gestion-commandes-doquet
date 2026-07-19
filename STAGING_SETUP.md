@@ -10,15 +10,20 @@ Ne jamais mettre les cles Supabase production dans l'environnement Preview/Test 
 
 ## Supabase test
 
-Dans le projet Supabase test, executer les scripts SQL de structure dans cet ordre :
+La source de vérité est le répertoire `supabase/migrations/`. Ne plus exécuter
+les anciens scripts SQL manuels, désormais archivés dans `supabase/legacy/`.
 
-1. `SUPABASE_SETUP.sql`
-2. `SUPABASE_PROFILES_SETUP.sql`
-3. `SUPABASE_USER_SITE_ACCESS.sql`
-4. `SUPABASE_APP_STATE_RLS_LOCKDOWN.sql`
-5. `SUPABASE_ENABLE_REALTIME.sql`
+Avant toute migration distante :
 
-Ensuite, creer les utilisateurs de test necessaires dans l'application test ou dans Supabase Auth.
+1. reconstruire une base locale vide avec `supabase db reset --local --no-seed` ;
+2. exécuter `npm run check:supabase-migrations` puis `npm run verify` ;
+3. contrôler la liste avec `supabase migration list --local` ;
+4. lancer `supabase db push --dry-run` sur le projet TEST lié ;
+5. obtenir l'autorisation explicite avant l'application réelle sur TEST.
+
+Le plan complet, les préconditions et les rollbacks sont décrits dans
+`docs/BASELINE_SUPABASE_2026.md`. Supabase production reste interdit pendant
+la totalité des essais TEST.
 
 ## Variables Vercel
 

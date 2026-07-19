@@ -16,7 +16,7 @@ La méthode cible recommandée par la [documentation Supabase sur le développem
 - le schéma des colonnes, fonctions et triggers n'est toutefois pas identique, surtout pour `profiles` ;
 - les migrations `order_line_states` existent dans l'historique distant mais pas dans le dépôt ;
 - le dépôt contient 11 scripts SQL dispersés, dont deux `SUPABASE_PROFILES_SETUP.sql` différents et un setup initial volontairement non sécurisé ;
-- la production contient trois tables historiques inutilisées par le code actuel ;
+- la production contient trois tables historiques inutilisées par le code actuel, dont deux portent encore des données ;
 - TEST contient deux tables préfixées `suivi_gestion_` appartenant manifestement à l'autre application et qui ne doivent pas être intégrées aux migrations Hippo Commandes.
 
 Il n'est donc pas sûr de copier aveuglément le schéma production ou TEST. La future migration de référence doit être construite à partir du contrat applicatif validé, puis testée sur une base vide.
@@ -29,13 +29,13 @@ Il n'est donc pas sûr de copier aveuglément le schéma production ou TEST. La 
 | `user_site_access` | Oui | Oui | Oui, frontend Auth et API utilisateurs | Inclure |
 | `app_state` | Oui | Oui | Oui, persistance principale | Inclure |
 | `order_line_states` | Oui | Oui | Oui, synchronisation des lignes | Inclure |
-| `sites` | Oui, vide | Non | Non ; le code utilise des identifiants texte constants | Classer comme héritage jusqu'à décision explicite |
-| `user_sites` | Oui, vide | Non | Non ; remplacée fonctionnellement par `user_site_access` | Ne pas intégrer sans décision de migration |
+| `sites` | Oui, 3 lignes | Non | Non ; le code utilise des identifiants texte constants | Héritage à préserver jusqu'à migration métier explicite |
+| `user_sites` | Oui, 2 lignes | Non | Non ; remplacée fonctionnellement par `user_site_access` | Héritage à préserver jusqu'à migration métier explicite |
 | `site_backups` | Oui, vide | Non | Non | Ne pas intégrer sans fonctionnalité propriétaire |
 | `suivi_gestion_app_state` | Non | Oui | Non, autre application | Hors périmètre, ne jamais supprimer depuis ce dépôt |
 | `suivi_gestion_user_access` | Non | Oui | Non, autre application | Hors périmètre, ne jamais supprimer depuis ce dépôt |
 
-La recherche statique des appels Supabase confirme que le code applicatif nomme directement `profiles` et `user_site_access`, tandis que le module de persistance centralise `app_state` et `order_line_states`. Aucun appel à `sites`, `user_sites`, `site_backups` ou `suivi_gestion_*` n'existe dans ce dépôt.
+La recherche statique des appels Supabase confirme que le code applicatif nomme directement `profiles` et `user_site_access`, tandis que le module de persistance centralise `app_state` et `order_line_states`. Aucun appel à `sites`, `user_sites`, `site_backups` ou `suivi_gestion_*` n'existe dans ce dépôt. Un contrôle complémentaire de l'étape 2.1b a corrigé le comptage initial : 2 profils de production référencent encore le même `default_site_id`, ce qui interdit une suppression automatique des objets legacy.
 
 ## Contrat commun déjà sain
 
@@ -150,3 +150,11 @@ Avant d'écrire cette baseline, l'étape 2.1b devra trancher explicitement le mo
 ## Retour arrière
 
 Cette étape n'a aucun retour arrière de base de données : aucune mutation n'a été effectuée. Le seul retour arrière éventuel consiste à retirer ce rapport et les lignes de suivi associées.
+
+## Mise à jour après l'étape 2.1b
+
+Les 11 scripts dispersés ont été déplacés sans suppression sous
+`supabase/legacy/` et `supabase/diagnostics/`. La baseline active, la migration
+de convergence, leurs rollbacks et les décisions détaillées sont documentés
+dans `docs/BASELINE_SUPABASE_2026.md`. Cette réorganisation n'a exécuté aucun
+SQL sur une base distante.

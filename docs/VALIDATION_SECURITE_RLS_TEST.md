@@ -1,5 +1,8 @@
 # Validation du durcissement RLS sur Supabase TEST
 
+> Preuve historique. Le script mentionné est désormais archivé et ne doit pas
+> être utilisé pour une nouvelle installation.
+
 Date : 14 juillet 2026
 
 Le script `SUPABASE_SECURITY_RLS_HARDENING.sql` a été exécuté manuellement dans le SQL Editor du projet Supabase TEST.
