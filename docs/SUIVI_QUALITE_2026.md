@@ -274,6 +274,8 @@ Publication TEST : commit `ef299b5f2591eca37c98721eeb38605e7231c70f`, déploieme
 
 Validation utilisateur reçue le 19 juillet 2026 pour la promotion de ce palier technique sur `main`. Cette validation couvre uniquement les fichiers, contrôles et rapports ; elle n'autorise ni l'application des migrations ni aucune mutation de Supabase TEST ou production.
 
+Promotion production du dépôt : `main` avancée sans divergence sur le commit `b824e7ae5e01cbf8ebd588999316d320ed841715`. Déploiement Vercel `dpl_26MtWSUN9yeSJRzYG6CXUj9Zprkm` confirmé `READY`, alias public en `200` avec les en-têtes de sécurité attendus. Aucun SQL n'a été exécuté et les bases restent inchangées. L'étape 2.1c reste ouverte pour les deux confirmations CLI officielles ; la progression globale reste à 20 % jusqu'à la clôture du lot 2.
+
 ## Backlog hors pourcentage
 
 Vide au démarrage. Toute idée future non critique est ajoutée ici sans modifier les lots ni l'avancement.
