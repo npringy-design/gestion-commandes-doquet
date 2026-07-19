@@ -203,7 +203,7 @@ Validation utilisateur reçue le 18 juillet 2026 : connexion, accueil, paramètr
 
 Promotion production : `main` avancée sans divergence sur le commit `2e74757a92f0277cb52b7aa3606d6f44b87c0eca`. Déploiement Vercel `dpl_39pBzznk6au9NBahvS4MJ6hNFuc7` confirmé `READY`. L'accueil et sa feuille de styles répondent `200` sur l'alias public, avec CSP bloquante et les quatre autres en-têtes attendus. Le lot 1 est terminé en production et la progression fixe passe à 20 %.
 
-## Étape 2.1a terminée sur TEST — promotion production autorisée
+## Étape 2.1a terminée en production
 
 ### Lot 2 — Étape 2.1a : inventaire du schéma et des scripts SQL
 
@@ -224,6 +224,8 @@ Aucune donnée, table, politique, fonction, publication ou configuration Auth n'
 Publication TEST : commit `d4c55fd402eb9fe86670043836181ff712ccf791`, déploiement Vercel `dpl_DcCSXg92cbb3hbNvbNLGbw8Dq29s` `READY`, accueil `200`. `npm run verify` est entièrement vert. Cette publication est exclusivement documentaire et n'appelle aucune API de mutation Supabase.
 
 Validation utilisateur reçue le 19 juillet 2026. La promotion documentaire de l'inventaire sur `main` est autorisée. Cette validation ne donne l'autorisation d'exécuter aucune migration ni de modifier les données TEST ou production.
+
+Promotion production : `main` avancée sans divergence sur le commit `4a3736d887d58c33bf0898fdc21cb04f044045e8`. Déploiement Vercel `dpl_CRK9RqPfCAgYj8iqE2pY8qDLKkPq` confirmé `READY`, alias public en `200` avec les en-têtes de sécurité attendus. L'étape 2.1a est terminée en production sans aucune mutation Supabase ; la progression globale reste à 20 % tant que le lot 2 n'est pas entièrement terminé.
 
 ## Étape actuellement ouverte
 
