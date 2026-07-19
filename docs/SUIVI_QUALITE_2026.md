@@ -227,7 +227,7 @@ Validation utilisateur reçue le 19 juillet 2026. La promotion documentaire de l
 
 Promotion production : `main` avancée sans divergence sur le commit `4a3736d887d58c33bf0898fdc21cb04f044045e8`. Déploiement Vercel `dpl_CRK9RqPfCAgYj8iqE2pY8qDLKkPq` confirmé `READY`, alias public en `200` avec les en-têtes de sécurité attendus. L'étape 2.1a est terminée en production sans aucune mutation Supabase ; la progression globale reste à 20 % tant que le lot 2 n'est pas entièrement terminé.
 
-## Étape 2.1b validée sur TEST — promotion production autorisée
+## Étape 2.1b terminée en production
 
 ### Lot 2 — Étape 2.1b : définir la baseline cible et les migrations de convergence
 
@@ -250,6 +250,8 @@ Vérifications locales : contrôles statiques des migrations et du contrat de s�
 Publication TEST : commit `8e99934b287f9600327a218cc7d1b6853be138a9`, déploiement Vercel `dpl_FdKQyfpRfg1u4AS3dPCjWypRL3hm` `READY`, alias TEST en `200` avec les en-têtes de sécurité attendus. Cette publication ne déclenche pas les fichiers de migration et n'a modifié aucune base. `main` reste au commit `db1b1032312b7711cb5a0055c4660b0763631e85`.
 
 Validation utilisateur reçue le 19 juillet 2026. La promotion de la baseline, des archives et des contrôles sur `main` est autorisée. Cette validation n'autorise l'exécution d'aucune migration ni aucune mutation de Supabase TEST ou production.
+
+Promotion production : `main` avancée sans divergence sur le commit `ffe8c8f6405441c78fa8089ebc385bf8cf99e66a`. Déploiement Vercel `dpl_9KtgggN2tADxBTiJZTHyPEtBKQK8` confirmé `READY`, alias public en `200` avec les en-têtes de sécurité attendus. La publication des fichiers n'a exécuté aucun SQL et les deux bases Supabase restent inchangées. L'étape 2.1b est terminée en production ; la progression globale reste à 20 % jusqu'à la clôture complète du lot 2.
 
 ## Étape actuellement ouverte
 
