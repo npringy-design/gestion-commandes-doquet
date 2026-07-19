@@ -29,3 +29,32 @@ jobs:
 
       - name: Run verification
         run: npm run verify
+
+  supabase-baseline:
+    name: Rebuild Supabase migrations on Docker
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+
+      - name: Start local Supabase Postgres
+        run: supabase db start
+
+      - name: Replay migrations from scratch
+        run: supabase db reset --local --no-seed
+
+      - name: Check local migration history and safety contract
+        run: |
+          supabase migration list --local
+          npm run check:supabase-migrations
