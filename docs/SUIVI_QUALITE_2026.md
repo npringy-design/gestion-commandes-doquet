@@ -203,7 +203,7 @@ Validation utilisateur reçue le 18 juillet 2026 : connexion, accueil, paramètr
 
 Promotion production : `main` avancée sans divergence sur le commit `2e74757a92f0277cb52b7aa3606d6f44b87c0eca`. Déploiement Vercel `dpl_39pBzznk6au9NBahvS4MJ6hNFuc7` confirmé `READY`. L'accueil et sa feuille de styles répondent `200` sur l'alias public, avec CSP bloquante et les quatre autres en-têtes attendus. Le lot 1 est terminé en production et la progression fixe passe à 20 %.
 
-## Étape actuellement ouverte
+## Étape 2.1a terminée sur TEST — promotion production autorisée
 
 ### Lot 2 — Étape 2.1a : inventaire du schéma et des scripts SQL
 
@@ -220,6 +220,24 @@ Promotion production : `main` avancée sans divergence sur le commit `2e74757a92
 Résultat du 19 juillet 2026 : les quatre tables métier ont un socle RLS et Realtime cohérent, mais TEST et production divergent sur `profiles`, plusieurs triggers, index et objets historiques. Les migrations distantes `order_line_states` ne sont pas versionnées dans le dépôt. Le détail complet se trouve dans `docs/INVENTAIRE_SCHEMA_SUPABASE_2026.md`.
 
 Aucune donnée, table, politique, fonction, publication ou configuration Auth n'a été modifiée. Après vérification et publication documentaire sur TEST, la prochaine étape sera 2.1b : définir la baseline cible et les migrations de convergence, toujours sans les exécuter sur production.
+
+Publication TEST : commit `d4c55fd402eb9fe86670043836181ff712ccf791`, déploiement Vercel `dpl_DcCSXg92cbb3hbNvbNLGbw8Dq29s` `READY`, accueil `200`. `npm run verify` est entièrement vert. Cette publication est exclusivement documentaire et n'appelle aucune API de mutation Supabase.
+
+Validation utilisateur reçue le 19 juillet 2026. La promotion documentaire de l'inventaire sur `main` est autorisée. Cette validation ne donne l'autorisation d'exécuter aucune migration ni de modifier les données TEST ou production.
+
+## Étape actuellement ouverte
+
+### Lot 2 — Étape 2.1b : définir la baseline cible et les migrations de convergence
+
+- [ ] fixer le schéma cible de chaque table réellement utilisée par Hippo Commandes ;
+- [ ] trancher explicitement les divergences `profiles`, triggers, contraintes et index ;
+- [ ] récupérer les migrations distantes manquantes dans un historique versionné ;
+- [ ] préparer des migrations ordonnées avec préconditions et retour arrière ;
+- [ ] archiver les scripts SQL contradictoires sans supprimer les preuves historiques ;
+- [ ] vérifier statiquement la reproductibilité et l'absence de droits larges à `anon` ;
+- [ ] documenter le plan d'essai sur Supabase TEST avant toute exécution.
+
+Cette étape prépare la source de vérité dans le dépôt. Elle n'autorise encore aucune exécution sur Supabase production et ne doit toucher ni aux objets `suivi_gestion_*` de TEST, ni aux tables historiques exclues par l'inventaire.
 
 ## Backlog hors pourcentage
 
