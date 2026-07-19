@@ -247,6 +247,8 @@ Décisions structurantes : `profiles.role` devient un texte contraint avec défa
 
 Vérifications locales : contrôles statiques des migrations et du contrat de sécurité verts ; les deux migrations et leurs deux rollbacks sont acceptés par le parseur natif PostgreSQL 17. `npm run verify` est entièrement vert, y compris typecheck, tests métier, build et scan des secrets. Aucun SQL n'a été exécuté sur Supabase TEST ou production. `supabase db reset` reste à exécuter sur une machine disposant de Docker avant toute application distante.
 
+Publication TEST : commit `8e99934b287f9600327a218cc7d1b6853be138a9`, déploiement Vercel `dpl_FdKQyfpRfg1u4AS3dPCjWypRL3hm` `READY`, alias TEST en `200` avec les en-têtes de sécurité attendus. Cette publication ne déclenche pas les fichiers de migration et n'a modifié aucune base. `main` reste au commit `db1b1032312b7711cb5a0055c4660b0763631e85`.
+
 ## Backlog hors pourcentage
 
 Vide au démarrage. Toute idée future non critique est ajoutée ici sans modifier les lots ni l'avancement.
