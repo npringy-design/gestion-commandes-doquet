@@ -270,13 +270,15 @@ La promotion des fichiers sur `main` ne déclenche aucun SQL. La production rest
 
 Palier technique du 19 juillet 2026 : le rejeu PostgreSQL 17.5 est vert et a permis de corriger un helper public résiduel après rollback. Le préflight TEST est intégralement vert sur les données de convergence. L'historique réel diffère : TEST contient `20260713091142`, production contient `20260713104058` et `20260713104108`. Trois ponts actifs sans DDL réconcilient désormais ces timestamps avant la baseline. Le rapport et les empreintes avant migration sont consignés dans `docs/VALIDATION_BASELINE_SUPABASE_TEST_2026.md`. Aucune base n'a été modifiée.
 
-Confirmation Docker officielle du 19 juillet 2026 : le workflow GitHub Actions `Verify` exécute désormais un job séparé avec Supabase CLI `2.109.1` et la stack Docker officielle. Le run `29686711920`, job `88192126433`, a appliqué avec succès les cinq migrations, recréé la base locale via `supabase db reset --local --no-seed`, confirmé les cinq versions avec `supabase migration list --local` et validé le contrat statique. Le job applicatif complet est également vert. Aucun secret, accès distant ou changement de donnée n'a été utilisé. Seule la confirmation CLI liée `supabase db push --dry-run` reste ouverte.
-
 Publication TEST : commit `ef299b5f2591eca37c98721eeb38605e7231c70f`, déploiement Vercel `dpl_tJ5839YnNmrp86LrzyGDwBc2CAQc` confirmé `READY`, alias TEST en `200` avec les en-têtes de sécurité attendus. `npm run verify`, le parseur PostgreSQL 17 et le rejeu PostgreSQL 17.5 sont verts. Cette publication ne déclenche aucun SQL et attend la validation utilisateur avant toute promotion sur `main`.
 
 Validation utilisateur reçue le 19 juillet 2026 pour la promotion de ce palier technique sur `main`. Cette validation couvre uniquement les fichiers, contrôles et rapports ; elle n'autorise ni l'application des migrations ni aucune mutation de Supabase TEST ou production.
 
 Promotion production du dépôt : `main` avancée sans divergence sur le commit `b824e7ae5e01cbf8ebd588999316d320ed841715`. Déploiement Vercel `dpl_26MtWSUN9yeSJRzYG6CXUj9Zprkm` confirmé `READY`, alias public en `200` avec les en-têtes de sécurité attendus. Aucun SQL n'a été exécuté et les bases restent inchangées. Après la confirmation Docker sur TEST, l'étape 2.1c reste ouverte uniquement pour le `supabase db push --dry-run` lié ; la progression globale reste à 20 % jusqu'à la clôture du lot 2.
+
+Confirmation Docker officielle du 19 juillet 2026 : le workflow GitHub Actions `Verify` exécute désormais un job séparé avec Supabase CLI `2.109.1` et la stack Docker officielle. Le run `29686711920`, job `88192126433`, a appliqué avec succès les cinq migrations, recréé la base locale via `supabase db reset --local --no-seed`, confirmé les cinq versions avec `supabase migration list --local` et validé le contrat statique. Le job applicatif complet est également vert. Aucun secret, accès distant ou changement de donnée n'a été utilisé. Seule la confirmation CLI liée `supabase db push --dry-run` reste ouverte.
+
+Validation utilisateur et promotion production du 19 juillet 2026 : `main` a été avancée sans divergence sur `d8bc739c853070a8fd4d9dea72b249b594e704e2`. Les déploiements Vercel TEST et production sont `READY`. Le run GitHub Actions production `29687057950` confirme de nouveau la suite applicative complète et le rejeu Docker. Cette promotion ne déclenche aucune migration distante ; le `supabase db push --dry-run` sur Supabase TEST demeure la seule confirmation ouverte.
 
 ## Backlog hors pourcentage
 
