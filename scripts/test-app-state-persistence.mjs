@@ -104,6 +104,8 @@ try {
     'salesHtByMonth',
     'costMatterByMonth',
     'validatedMonths',
+    'ratioValidatedMonthsBySupplier',
+    'ratioProductUnfrozenMonths',
     'prepValidatedMonths',
     'supplierConfigs',
     'deliveryDateBySupplier',

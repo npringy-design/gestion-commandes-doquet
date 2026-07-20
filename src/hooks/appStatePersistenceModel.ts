@@ -12,6 +12,8 @@ export const APP_STATE_SAVE_DEBOUNCE_MS_BY_KEY: Record<string, number> = {
   salesHtByMonth: 2500,
   costMatterByMonth: 2500,
   validatedMonths: 2000,
+  ratioValidatedMonthsBySupplier: 1000,
+  ratioProductUnfrozenMonths: 1000,
   prepValidatedMonths: 2000,
   supplierConfigs: 2500,
   prepItems: 3000,

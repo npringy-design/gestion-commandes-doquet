@@ -42,8 +42,7 @@ const hasFrozenMonthData = (product: any, month: string) =>
 
 // Source unique de vérité pour le statut lié/non lié d'un produit,
 // utilisée à la fois par ProductCard et par la page (filtrage, comptages, contexte IA).
-const isProductLinked = (p: any, monthFreezeMap: Record<string, boolean>, displayMonthKey: string, detailedInventory: any): boolean => {
-  const isFrozenDisplay = !!monthFreezeMap[displayMonthKey];
+const isProductLinked = (p: any, isFrozenDisplay: boolean, displayMonthKey: string, detailedInventory: any): boolean => {
   const frozenSnapshot = isFrozenDisplay ? p.ratioSnapshots?.[displayMonthKey] : undefined;
   if (frozenSnapshot) return hasFrozenLinkedValue(frozenSnapshot);
 
@@ -86,18 +85,19 @@ const ProductCard: React.FC<{
     moveProduct, handleNameChange,
     updateSearchName, updateImportDivisor,
     activeMappingId, setActiveMappingId,
-    allAvailableImportNames, products, detailedInventory,
-    validatedMonths, ratioValidatedMonths, toggleValidateMonth,
+    products, detailedInventory,
+    toggleProductValidateMonth,
     getProductStats,
   } = state;
 
-  const monthFreezeMap = ratioValidatedMonths ?? validatedMonths;
   const { avgRatio, mR, mS } = getProductStats(p);
-  const isFrozenDisplay = !!monthFreezeMap[displayMonthKey];
+  const supplierId = String(p.supplierId || 'doquet');
+  const allAvailableImportNames = state.getAvailableImportNamesForSupplier(supplierId);
+  const isFrozenDisplay = state.isRatioProductMonthFrozen(p.id, supplierId, displayMonthKey);
   const frozenSnapshot = isFrozenDisplay ? p.ratioSnapshots?.[displayMonthKey] : undefined;
   const displaySearchName = frozenSnapshot?.searchName ?? p.searchName;
   const displayProductName = frozenSnapshot?.productName ?? p.name;
-  const isMapped = isProductLinked(p, monthFreezeMap, displayMonthKey, detailedInventory);
+  const isMapped = isProductLinked(p, isFrozenDisplay, displayMonthKey, detailedInventory);
   const alert      = !isMapped;
   const linkState: LinkState = alert ? 'unlinked' : 'linked';
   const stateStyle = LINK_STATE_STYLES[linkState];
@@ -206,7 +206,10 @@ const ProductCard: React.FC<{
           <div>
             <div className="mb-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-[#A85F2A]">Ventes & ratios par mois</div>
             <div className="grid grid-cols-6 gap-1 2xl:grid-cols-12">
-              {MONTHS_ORDER.map(m => (
+              {MONTHS_ORDER.map(m => {
+                const supplierMonthFrozen = state.isRatioSupplierMonthFrozen(supplierId, m);
+                const productMonthFrozen = state.isRatioProductMonthFrozen(p.id, supplierId, m);
+                return (
                 <div key={m} className={`rounded-lg p-1.5 text-center ${mS[m].isValidated ? 'border border-[#6D8F4E] bg-[#F1F5E9]' : mS[m].isImported ? 'border border-[#D8AE77] bg-[#FFF7EA]' : 'border border-[#E8D8C6] bg-[#FFFDF8]'}`}>
                   <div className="mb-0.5 text-[8px] font-black uppercase text-[#8B6B54]">{MONTH_LABELS[m]}</div>
                   <div className={`mb-0.5 text-xs font-black leading-none ${mS[m].isValidated ? 'text-[#2F6B38]' : mS[m].isImported ? 'text-[#A85F2A]' : 'text-[#B7A08D]'}`}>
@@ -214,14 +217,16 @@ const ProductCard: React.FC<{
                   </div>
                   <div className="font-mono text-[8px] text-[#2F7A42]">{mR[m].toFixed(2)}</div>
                   <button
-                    onClick={() => toggleValidateMonth(m)}
-                    disabled={!canEdit}
-                    className={`mt-0.5 w-full rounded py-0.5 text-[7px] font-black uppercase disabled:cursor-not-allowed disabled:opacity-50 ${monthFreezeMap[m] ? 'bg-[#2F7A42] text-white' : 'bg-[#F3DDC0] text-[#8B6B54]'}`}
+                    onClick={() => toggleProductValidateMonth(p.id, m)}
+                    disabled={!canEdit || !supplierMonthFrozen}
+                    title={supplierMonthFrozen ? 'Agir uniquement sur ce produit' : 'Le mois du fournisseur est déjà ouvert'}
+                    className={`mt-0.5 w-full rounded py-0.5 text-[7px] font-black uppercase disabled:cursor-not-allowed disabled:opacity-50 ${productMonthFrozen ? 'bg-[#2F7A42] text-white' : supplierMonthFrozen ? 'bg-[#F0A33A] text-white' : 'bg-[#F3DDC0] text-[#8B6B54]'}`}
                   >
-                    {monthFreezeMap[m] ? 'Figé' : 'Val.'}
+                    {!supplierMonthFrozen ? 'Ouvert' : productMonthFrozen ? 'Défiger' : 'Refiger'}
                   </button>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -265,8 +270,6 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
     selectedProductIds, setSelectedProductIds,
     addNewProduct,
     deleteSelectedProducts,
-    validatedMonths,
-    ratioValidatedMonths,
   } = state;
 
   const supplierTabs: { id: SupplierId; label: string }[] = Object.values(supplierConfigs)
@@ -286,14 +289,13 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
   }, [products, safeRatioTab]);
 
   const availableImportNames = React.useMemo(
-    () => Array.from(state.allAvailableImportNames),
-    [state.allAvailableImportNames]
+    () => Array.from(state.getAvailableImportNamesForSupplier(safeRatioTab)),
+    [safeRatioTab, state.getAvailableImportNamesForSupplier]
   );
 
   const activeSupplierLabel = supplierTabs.find(tab => tab.id === safeRatioTab)?.label ?? 'Fournisseur';
-  const workMonthKey = String(state.importTargetMonth);
-  const monthFreezeMap = ratioValidatedMonths ?? validatedMonths;
-  const isWorkMonthValidated = !!monthFreezeMap[workMonthKey];
+  const workMonthKey = String(state.getRatioWorkMonthForSupplier(safeRatioTab));
+  const isWorkMonthValidated = state.isRatioSupplierMonthFrozen(safeRatioTab, workMonthKey);
   const [freezeMonthKey, setFreezeMonthKey] = React.useState<string>(workMonthKey);
   const [displayMonthKey, setDisplayMonthKey] = React.useState<string>(workMonthKey);
 
@@ -310,17 +312,24 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
     if (!MONTHS_ORDER.includes(displayMonthKey)) setDisplayMonthKey(workMonthKey);
   }, [displayMonthKey, workMonthKey]);
 
-  const isSelectedFreezeMonthValidated = !!monthFreezeMap[freezeMonthKey];
+  const isSelectedFreezeMonthValidated = state.isRatioSupplierMonthFrozen(safeRatioTab, freezeMonthKey);
 
   const isLinkedProduct = React.useCallback(
-    (p: any) => isProductLinked(p, monthFreezeMap, displayMonthKey, state.detailedInventory),
-    [displayMonthKey, monthFreezeMap, state.detailedInventory],
+    (p: any) => isProductLinked(
+      p,
+      state.isRatioProductMonthFrozen(p.id, String(p.supplierId || 'doquet'), displayMonthKey),
+      displayMonthKey,
+      state.detailedInventory,
+    ),
+    [displayMonthKey, state.detailedInventory, state.isRatioProductMonthFrozen],
   );
 
   const displaySourceProducts = React.useMemo(() => {
-    if (!monthFreezeMap[displayMonthKey]) return supplierRatioProducts;
-    return supplierRatioProducts.filter((product) => hasFrozenMonthData(product, displayMonthKey));
-  }, [displayMonthKey, monthFreezeMap, supplierRatioProducts]);
+    return supplierRatioProducts.filter((product) => (
+      !state.isRatioProductMonthFrozen(product.id, safeRatioTab, displayMonthKey)
+      || hasFrozenMonthData(product, displayMonthKey)
+    ));
+  }, [displayMonthKey, safeRatioTab, state.isRatioProductMonthFrozen, supplierRatioProducts]);
 
   const displayedRatioProducts = React.useMemo(() => {
     if (!showOnlyUnlinked) return displaySourceProducts;
@@ -342,13 +351,13 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
       'Page: Calcul vente ratio.',
       'Source utilisée: import inventaire. La colonne quantité attendue est Conso Théorique Qté.',
       `Fournisseur actif: ${activeSupplierLabel}.`,
-      `Mois de travail: ${workMonthKey}; mois affiché: ${displayMonthKey}; figé=${monthFreezeMap[displayMonthKey] ? 'oui' : 'non'}.`,
+      `Mois de travail: ${workMonthKey}; mois affiché: ${displayMonthKey}; figé fournisseur=${state.isRatioSupplierMonthFrozen(safeRatioTab, displayMonthKey) ? 'oui' : 'non'}.`,
       `Produits fournisseur affichés: ${displaySourceProducts.length}; liés=${mappedProductsCount}; à revoir=${alertProductsCount}.`,
       `Imports disponibles sur mois de travail: ${availableImportNames.length}.`,
       'Produits visibles/extraits:',
       ...topProducts,
     ].join('\n');
-  }, [activeSupplierLabel, alertProductsCount, availableImportNames.length, displayMonthKey, displaySourceProducts, isLinkedProduct, mappedProductsCount, monthFreezeMap, state, workMonthKey]);
+  }, [activeSupplierLabel, alertProductsCount, availableImportNames.length, displayMonthKey, displaySourceProducts, isLinkedProduct, mappedProductsCount, safeRatioTab, state, workMonthKey]);
 
   return (
     <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_12%_0%,rgba(247,178,74,0.18),transparent_30%),radial-gradient(circle_at_88%_8%,rgba(181,65,45,0.12),transparent_28%),linear-gradient(180deg,#FFF7EA_0%,#F8E6C7_52%,#E9C38B_100%)] text-[#2E1B12]">
@@ -380,7 +389,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                 <p className="mt-1 text-sm font-black text-[#B5412D]">{alertProductsCount}</p>
               </div>
               <button
-                onClick={() => state.toggleValidateMonth(workMonthKey)}
+                onClick={() => state.toggleValidateMonth(workMonthKey, safeRatioTab)}
                 disabled={!canEdit}
                 className={`rounded-2xl border px-3 py-2.5 text-left shadow-sm transition disabled:opacity-50 ${isWorkMonthValidated ? 'border-[#6D8F4E] bg-[#F1F5E9]' : 'border-[#EBC28A] bg-[#FFF7EA] hover:bg-white'}`}
               >
@@ -402,7 +411,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                   </select>
                   <button
                     type="button"
-                    onClick={() => state.toggleValidateMonth(freezeMonthKey)}
+                    onClick={() => state.toggleValidateMonth(freezeMonthKey, safeRatioTab)}
                     disabled={!canEdit || !freezeMonthKey}
                     className="rounded-xl border border-[#D4922F] bg-[#FFF1DF] px-2 py-1 text-xs font-black text-[#3A2116] transition hover:bg-[#FFE8C2] disabled:opacity-50"
                   >
@@ -426,19 +435,19 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                       <option key={`display-sales-${month}`} value={month}>{MONTH_LABELS[month]}</option>
                     ))}
                   </select>
-                  <p className="text-[11px] font-bold text-[#FFE1B8]">{MONTHS_ORDER.filter((month) => monthFreezeMap[month]).length} mois figes</p>
+                  <p className="text-[11px] font-bold text-[#FFE1B8]">{MONTHS_ORDER.filter((month) => state.isRatioSupplierMonthFrozen(safeRatioTab, month)).length} mois figes</p>
                 </div>
               </div>
               <div className="grid grid-cols-6 gap-1.5 xl:grid-cols-12">
                 {MONTHS_ORDER.map((month) => {
-                  const locked = !!monthFreezeMap[month];
+                  const locked = state.isRatioSupplierMonthFrozen(safeRatioTab, month);
                   return (
                     <button
                       key={`sales-freeze-${month}`}
                       type="button"
                       onClick={() => {
                         setFreezeMonthKey(month);
-                        state.toggleValidateMonth(month);
+                        state.toggleValidateMonth(month, safeRatioTab);
                       }}
                       disabled={!canEdit}
                       className={`min-h-[42px] rounded-xl border px-2 py-1 text-[10px] font-black uppercase tracking-[0.07em] transition disabled:opacity-50 ${

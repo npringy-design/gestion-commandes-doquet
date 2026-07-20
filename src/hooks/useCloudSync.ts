@@ -29,6 +29,10 @@ import type {
 import type { ProductWithHistory } from '../data';
 import type { DailyCoversState } from '../utils/dateHelpers';
 import type { AppStateSetterRegistry } from './appStateSyncModel';
+import type {
+  RatioProductMonthUnfreezeMap,
+  RatioSupplierMonthFreezeMap,
+} from '../utils/ratioFreezeModel';
 import { useAppStateHydration } from './useAppStateHydration';
 import { useAppStateRealtimeEvents } from './useAppStateRealtimeEvents';
 import {
@@ -47,6 +51,8 @@ type StateSetters = {
   setSalesHtByMonth: Dispatch<SetStateAction<Record<string, number>>>;
   setCostMatterByMonth: Dispatch<SetStateAction<Record<string, number>>>;
   setValidatedMonths: Dispatch<SetStateAction<Record<string, boolean>>>;
+  setRatioValidatedMonthsBySupplier: Dispatch<SetStateAction<RatioSupplierMonthFreezeMap>>;
+  setRatioProductUnfrozenMonths: Dispatch<SetStateAction<RatioProductMonthUnfreezeMap>>;
   setPrepValidatedMonths: Dispatch<SetStateAction<Record<string, boolean>>>;
   setSupplierConfigs: Dispatch<SetStateAction<Record<string, SupplierConfig>>>;
   setDeliveryDateBySupplier: Dispatch<SetStateAction<Record<string, string>>>;
@@ -71,6 +77,8 @@ export const useCloudSync = ({
   salesHtByMonth,
   costMatterByMonth,
   validatedMonths,
+  ratioValidatedMonthsBySupplier,
+  ratioProductUnfrozenMonths,
   prepValidatedMonths,
   supplierConfigs,
   deliveryDateBySupplier,
@@ -88,6 +96,8 @@ export const useCloudSync = ({
   setSalesHtByMonth,
   setCostMatterByMonth,
   setValidatedMonths,
+  setRatioValidatedMonthsBySupplier,
+  setRatioProductUnfrozenMonths,
   setPrepValidatedMonths,
   setSupplierConfigs,
   setDeliveryDateBySupplier,
@@ -127,6 +137,8 @@ export const useCloudSync = ({
     salesHtByMonth: value => setSalesHtByMonth(value as Record<string, number>),
     costMatterByMonth: value => setCostMatterByMonth(value as Record<string, number>),
     validatedMonths: value => setValidatedMonths(value as Record<string, boolean>),
+    ratioValidatedMonthsBySupplier: value => setRatioValidatedMonthsBySupplier(value as RatioSupplierMonthFreezeMap),
+    ratioProductUnfrozenMonths: value => setRatioProductUnfrozenMonths(value as RatioProductMonthUnfreezeMap),
     prepValidatedMonths: value => setPrepValidatedMonths(value as Record<string, boolean>),
     supplierConfigs: value => setSupplierConfigs(value as Record<string, SupplierConfig>),
     deliveryDateBySupplier: value => setDeliveryDateBySupplier(value as Record<string, string>),
@@ -156,6 +168,8 @@ export const useCloudSync = ({
     setSalesHtByMonth,
     setSupplierConfigs,
     setValidatedMonths,
+    setRatioValidatedMonthsBySupplier,
+    setRatioProductUnfrozenMonths,
   ]);
 
   const {
@@ -220,6 +234,8 @@ export const useCloudSync = ({
     salesHtByMonth,
     costMatterByMonth,
     validatedMonths,
+    ratioValidatedMonthsBySupplier,
+    ratioProductUnfrozenMonths,
     prepValidatedMonths,
     supplierConfigs,
     deliveryDateBySupplier,

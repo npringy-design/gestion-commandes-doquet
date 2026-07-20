@@ -31,6 +31,15 @@ import {
 } from './appStateHelpers';
 import { useProductActions } from './useProductActions';
 import { useCloudSync } from './useCloudSync';
+import {
+  clearRatioProductMonthOverrides,
+  isRatioProductMonthFrozen as resolveRatioProductMonthFrozen,
+  isRatioSupplierMonthFrozen as resolveRatioSupplierMonthFrozen,
+  setRatioProductMonthUnfrozen,
+  setRatioSupplierMonthFreeze,
+  type RatioProductMonthUnfreezeMap,
+  type RatioSupplierMonthFreezeMap,
+} from '../utils/ratioFreezeModel';
 
 type RatioProductMonthSnapshot = {
   salesValue: number;
@@ -122,6 +131,15 @@ export const useAppState = () => {
   const [ratioValidatedMonths, setRatioValidatedMonths] =
     useState<Record<string, boolean>>({});
 
+  // Portée moderne du figement vente : fournisseur + mois, avec une
+  // exception persistante possible pour rouvrir un seul produit.
+  // Le statut global ci-dessus reste le filet de migration des anciens comptes.
+  const [ratioValidatedMonthsBySupplier, setRatioValidatedMonthsBySupplier] =
+    useState<RatioSupplierMonthFreezeMap>({});
+
+  const [ratioProductUnfrozenMonths, setRatioProductUnfrozenMonths] =
+    useState<RatioProductMonthUnfreezeMap>({});
+
   // La page Paramètres doit rester modifiable : le figé ratio ne doit pas la verrouiller.
   const validatedMonths = useMemo<Record<string, boolean>>(() => ({}), []);
 
@@ -202,6 +220,8 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     salesHtByMonth,
     costMatterByMonth,
     validatedMonths: ratioValidatedMonths,
+    ratioValidatedMonthsBySupplier,
+    ratioProductUnfrozenMonths,
     prepValidatedMonths,
     supplierConfigs,
     deliveryDateBySupplier,
@@ -219,6 +239,8 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     setSalesHtByMonth,
     setCostMatterByMonth,
     setValidatedMonths: setRatioValidatedMonths,
+    setRatioValidatedMonthsBySupplier,
+    setRatioProductUnfrozenMonths,
     setPrepValidatedMonths,
     setSupplierConfigs,
     setDeliveryDateBySupplier,
@@ -280,11 +302,20 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
 
   // Mois cible d'import inventaire: premier mois non figé disposant d'un CSV, sinon fallback sur le premier mois importé
   const importTargetMonth = useMemo(() => {
-    const firstOpenWithCsv = MONTHS_ORDER.find(m => !ratioValidatedMonths[m] && !!detailedInventory[m]);
+    const firstOpenWithCsv = MONTHS_ORDER.find(m => (
+      !!detailedInventory[m] && products.some(p => !resolveRatioProductMonthFrozen(
+        ratioValidatedMonths,
+        ratioValidatedMonthsBySupplier,
+        ratioProductUnfrozenMonths,
+        String(p.supplierId || 'doquet'),
+        p.id,
+        m,
+      ))
+    ));
     if (firstOpenWithCsv) return firstOpenWithCsv;
     const firstWithCsv = MONTHS_ORDER.find(m => !!detailedInventory[m]);
     return firstWithCsv ?? MONTHS_ORDER[0];
-  }, [detailedInventory, ratioValidatedMonths]);
+  }, [detailedInventory, products, ratioProductUnfrozenMonths, ratioValidatedMonths, ratioValidatedMonthsBySupplier]);
 
   // Mois cible d'import production: indépendant du figé ventes
   const prepImportTargetMonth = useMemo(() => {
@@ -304,6 +335,38 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     [detailedInventory, importTargetMonth]
   );
 
+  const getRatioWorkMonthForSupplier = useCallback((supplierId: string) => {
+    const supplierProducts = products.filter(
+      p => String(p.supplierId || 'doquet') === supplierId,
+    );
+    const firstOpenWithCsv = MONTHS_ORDER.find(m => {
+      if (!detailedInventory[m]) return false;
+      if (supplierProducts.length === 0) {
+        return !resolveRatioSupplierMonthFrozen(
+          ratioValidatedMonths,
+          ratioValidatedMonthsBySupplier,
+          supplierId,
+          m,
+        );
+      }
+      return supplierProducts.some(p => !resolveRatioProductMonthFrozen(
+        ratioValidatedMonths,
+        ratioValidatedMonthsBySupplier,
+        ratioProductUnfrozenMonths,
+        supplierId,
+        p.id,
+        m,
+      ));
+    });
+    if (firstOpenWithCsv) return firstOpenWithCsv;
+    return MONTHS_ORDER.find(m => !!detailedInventory[m]) ?? MONTHS_ORDER[0];
+  }, [detailedInventory, products, ratioProductUnfrozenMonths, ratioValidatedMonths, ratioValidatedMonthsBySupplier]);
+
+  const getAvailableImportNamesForSupplier = useCallback((supplierId: string) => {
+    const month = getRatioWorkMonthForSupplier(supplierId);
+    return extractAllNamesFromCsvs(detailedInventory[month] ? { [month]: detailedInventory[month] } : {});
+  }, [detailedInventory, getRatioWorkMonthForSupplier]);
+
   // --- Actions sur les produits ---
 
   // Calcule les stats (ratio moyen, ventes mensuelles) pour un produit
@@ -316,9 +379,18 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     // - Mois figés (validated) : on affiche uniquement le snapshot figé -> jamais de lecture CSV
     // - Mois de travail (importTargetMonth) : seul mois autorisé à lire/parsing CSV + matching/alertes
     // - Autres mois non figés : 0 (pas de parsing, pas de fallback salesHistory)
+    const supplierId = String(p.supplierId || 'doquet');
+    const productWorkMonth = getRatioWorkMonthForSupplier(supplierId);
     MONTHS_ORDER.forEach(m => {
-      const isValidated = ratioValidatedMonths[m] || false;
-      const isWorkMonth = m === importTargetMonth;
+      const isValidated = resolveRatioProductMonthFrozen(
+        ratioValidatedMonths,
+        ratioValidatedMonthsBySupplier,
+        ratioProductUnfrozenMonths,
+        supplierId,
+        p.id,
+        m,
+      );
+      const isWorkMonth = m === productWorkMonth;
 
       let importedVal: number | null = null;
       let val = 0;
@@ -344,45 +416,107 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     });
 
     return { avgRatio: countR > 0 ? totalR / countR : 0, mR, mS };
-  }, [detailedInventory, ratioValidatedMonths, covers, importTargetMonth]);
+  }, [covers, detailedInventory, getRatioWorkMonthForSupplier, ratioProductUnfrozenMonths, ratioValidatedMonths, ratioValidatedMonthsBySupplier]);
 
-  // Valide / dévalide un mois (fige les valeurs importées dans l'historique)
-  const toggleValidateMonth = (m: string) => {
-    const next = !ratioValidatedMonths[m];
+  const isRatioSupplierMonthFrozen = useCallback((supplierId: string, month: string) => (
+    resolveRatioSupplierMonthFrozen(
+      ratioValidatedMonths,
+      ratioValidatedMonthsBySupplier,
+      supplierId,
+      month,
+    )
+  ), [ratioValidatedMonths, ratioValidatedMonthsBySupplier]);
+
+  const isRatioProductMonthFrozen = useCallback((productId: string, supplierId: string, month: string) => (
+    resolveRatioProductMonthFrozen(
+      ratioValidatedMonths,
+      ratioValidatedMonthsBySupplier,
+      ratioProductUnfrozenMonths,
+      supplierId,
+      productId,
+      month,
+    )
+  ), [ratioProductUnfrozenMonths, ratioValidatedMonths, ratioValidatedMonthsBySupplier]);
+
+  const snapshotRatioProduct = useCallback((
+    product: ProductWithHistory,
+    month: string,
+    importNamesForMonthList: string[],
+  ): ProductWithHistory => {
+    const importedValue = getImportedValueForProduct(detailedInventory[month], product.searchName, product.importDivisor);
+    const previousSnapshot = getRatioSnapshot(product, month);
+    const salesValue = roundRatioImportedValue(importedValue)
+      ?? previousSnapshot?.salesValue
+      ?? Number(product.salesHistory[month] || 0);
+    const monthCovers = covers[month] || 1;
+    const ratio = salesValue / monthCovers;
+    const searchName = String(product.searchName || '');
+    const mappingId = normalizeRatioMappingId(searchName);
+    const isLinked = mappingId.length > 0
+      && importNamesForMonthList.some((name) => matchesImportedProductName(searchName, name))
+      && salesValue > 0;
+    const previousSnapshots = (product as ProductWithRatioSnapshots).ratioSnapshots || {};
+
+    return {
+      ...product,
+      salesHistory: { ...product.salesHistory, [month]: salesValue },
+      ratioSnapshots: {
+        ...previousSnapshots,
+        [month]: {
+          salesValue,
+          ratio,
+          productName: product.name,
+          searchName,
+          mappingId: mappingId || undefined,
+          isLinked,
+        },
+      },
+    } as ProductWithRatioSnapshots;
+  }, [covers, detailedInventory]);
+
+  // Le bouton général agit uniquement sur le fournisseur affiché.
+  const toggleValidateMonth = (m: string, supplierId: string = ratioTab) => {
+    const next = !isRatioSupplierMonthFrozen(supplierId, m);
+    const supplierProductIds = products
+      .filter(p => String(p.supplierId || 'doquet') === supplierId)
+      .map(p => p.id);
+
     if (next) {
       const importNamesForMonth = extractAllNamesFromCsvs(
         detailedInventory[m] ? { [m]: detailedInventory[m] } : {}
       );
       const importNamesForMonthList = Array.from(importNamesForMonth);
-
-      setProducts(prev => prev.map(p => {
-        const importedValue = getImportedValueForProduct(detailedInventory[m], p.searchName, p.importDivisor);
-        const salesValue = roundRatioImportedValue(importedValue) ?? getProductStats(p).mS[m].value;
-        const monthCovers = covers[m] || 1;
-        const ratio = salesValue / monthCovers;
-        const searchName = String(p.searchName || '');
-        const mappingId = normalizeRatioMappingId(searchName);
-        const isLinked = mappingId.length > 0 && importNamesForMonthList.some((name) => matchesImportedProductName(searchName, name)) && salesValue > 0;
-        const previousSnapshots = (p as ProductWithRatioSnapshots).ratioSnapshots || {};
-
-        return {
-          ...p,
-          salesHistory: { ...p.salesHistory, [m]: salesValue },
-          ratioSnapshots: {
-            ...previousSnapshots,
-            [m]: {
-              salesValue,
-              ratio,
-              productName: p.name,
-              searchName,
-              mappingId: mappingId || undefined,
-            isLinked,
-            },
-          },
-        };
-      }));
+      setProducts(prev => prev.map(p => (
+        String(p.supplierId || 'doquet') === supplierId
+          ? snapshotRatioProduct(p, m, importNamesForMonthList)
+          : p
+      )));
     }
-    setRatioValidatedMonths(prev => ({ ...prev, [m]: next }));
+
+    setRatioValidatedMonthsBySupplier(prev => setRatioSupplierMonthFreeze(prev, supplierId, m, next));
+    setRatioProductUnfrozenMonths(prev => clearRatioProductMonthOverrides(prev, supplierProductIds, m));
+  };
+
+  // Sur un mois fournisseur figé, ce bouton ne rouvre ou ne refige que le produit.
+  const toggleProductValidateMonth = (productId: string, m: string) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    const supplierId = String(product.supplierId || 'doquet');
+    if (!isRatioSupplierMonthFrozen(supplierId, m)) return;
+
+    const currentlyFrozen = isRatioProductMonthFrozen(productId, supplierId, m);
+    if (currentlyFrozen) {
+      setRatioProductUnfrozenMonths(prev => setRatioProductMonthUnfrozen(prev, productId, m, true));
+      return;
+    }
+
+    const importNamesForMonth = extractAllNamesFromCsvs(
+      detailedInventory[m] ? { [m]: detailedInventory[m] } : {}
+    );
+    setProducts(prev => prev.map(p => (
+      p.id === productId ? snapshotRatioProduct(p, m, Array.from(importNamesForMonth)) : p
+    )));
+    setRatioProductUnfrozenMonths(prev => setRatioProductMonthUnfrozen(prev, productId, m, false));
   };
 
   // Valide / dévalide un mois production (fige les valeurs importées dans ratioHistory des prepItems)
@@ -480,6 +614,8 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     costMatterByMonth, setCostMatterByMonth,
     validatedMonths,
     ratioValidatedMonths,
+    ratioValidatedMonthsBySupplier,
+    ratioProductUnfrozenMonths,
     prepValidatedMonths,
     importTargetMonth,
     prepImportTargetMonth,
@@ -498,7 +634,12 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
 
     // Actions
     getProductStats,
+    getRatioWorkMonthForSupplier,
+    getAvailableImportNamesForSupplier,
+    isRatioSupplierMonthFrozen,
+    isRatioProductMonthFrozen,
     toggleValidateMonth,
+    toggleProductValidateMonth,
     togglePrepValidateMonth,
     updateProductValue,
     updateOrderLineField,

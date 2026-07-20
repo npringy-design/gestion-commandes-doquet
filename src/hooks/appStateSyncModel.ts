@@ -13,6 +13,8 @@ export type WritableAppStateKey =
   | 'salesHtByMonth'
   | 'costMatterByMonth'
   | 'validatedMonths'
+  | 'ratioValidatedMonthsBySupplier'
+  | 'ratioProductUnfrozenMonths'
   | 'prepValidatedMonths'
   | 'supplierConfigs'
   | 'deliveryDateBySupplier'
@@ -48,6 +50,8 @@ const WRITABLE_APP_STATE_KEYS: readonly WritableAppStateKey[] = [
   'salesHtByMonth',
   'costMatterByMonth',
   'validatedMonths',
+  'ratioValidatedMonthsBySupplier',
+  'ratioProductUnfrozenMonths',
   'prepValidatedMonths',
   'supplierConfigs',
   'deliveryDateBySupplier',

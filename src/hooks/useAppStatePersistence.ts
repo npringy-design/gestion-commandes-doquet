@@ -15,6 +15,10 @@ import type {
 } from '../types';
 import type { ProductWithHistory } from '../data';
 import type { DailyCoversState } from '../utils/dateHelpers';
+import type {
+  RatioProductMonthUnfreezeMap,
+  RatioSupplierMonthFreezeMap,
+} from '../utils/ratioFreezeModel';
 import { nowIso, removeState } from './appStateHelpers';
 import { stableStringify } from './appStateSyncModel';
 import {
@@ -31,6 +35,8 @@ export type PersistedAppState = {
   salesHtByMonth: Record<string, number>;
   costMatterByMonth: Record<string, number>;
   validatedMonths: Record<string, boolean>;
+  ratioValidatedMonthsBySupplier: RatioSupplierMonthFreezeMap;
+  ratioProductUnfrozenMonths: RatioProductMonthUnfreezeMap;
   prepValidatedMonths: Record<string, boolean>;
   supplierConfigs: Record<string, SupplierConfig>;
   deliveryDateBySupplier: Record<string, string>;
@@ -66,6 +72,8 @@ export const useAppStatePersistence = ({
   salesHtByMonth,
   costMatterByMonth,
   validatedMonths,
+  ratioValidatedMonthsBySupplier,
+  ratioProductUnfrozenMonths,
   prepValidatedMonths,
   supplierConfigs,
   deliveryDateBySupplier,
@@ -156,6 +164,12 @@ export const useAppStatePersistence = ({
   useEffect(() => { persistAppState('salesHtByMonth', salesHtByMonth); }, [persistAppState, salesHtByMonth]);
   useEffect(() => { persistAppState('costMatterByMonth', costMatterByMonth); }, [costMatterByMonth, persistAppState]);
   useEffect(() => { persistAppState('validatedMonths', validatedMonths); }, [persistAppState, validatedMonths]);
+  useEffect(() => {
+    persistAppState('ratioValidatedMonthsBySupplier', ratioValidatedMonthsBySupplier);
+  }, [persistAppState, ratioValidatedMonthsBySupplier]);
+  useEffect(() => {
+    persistAppState('ratioProductUnfrozenMonths', ratioProductUnfrozenMonths);
+  }, [persistAppState, ratioProductUnfrozenMonths]);
   useEffect(() => { persistAppState('prepValidatedMonths', prepValidatedMonths); }, [persistAppState, prepValidatedMonths]);
   useEffect(() => { persistAppState('supplierConfigs', supplierConfigs); }, [persistAppState, supplierConfigs]);
   useEffect(() => {
