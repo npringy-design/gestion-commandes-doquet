@@ -26,6 +26,19 @@ const normalizeText = (value: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
+// Normalisation réservée aux liaisons explicites : contrairement au score
+// approché, elle conserve le contenu des parenthèses et tous les nombres afin
+// de ne jamais confondre deux variantes (10/20 pièces, 100/140 g, etc.).
+const normalizeExactText = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
 const WEAK_MATCH_TOKENS = new Set([
   'au', 'aux', 'a', 'l', 'le', 'la', 'les', 'de', 'du', 'des', 'd', 'et',
   'kg', 'g', 'gr', 'piece', 'pieces', 'carton', 'colis', 'sachet', 'sac',
@@ -120,8 +133,25 @@ export const getImportedValueForProduct = (
   const nameIdx = findHeaderIndex(header, nameColumnCandidates);
   if (valueIdx === -1) return null;
 
+  // Une sélection effectuée dans la liste des produits importés enregistre le
+  // libellé exact de la ligne. Dans ce cas, cette liaison manuelle doit primer
+  // sur la recherche approchée, sinon des variantes proches (grammage, recette,
+  // pourcentage...) seraient additionnées au produit choisi.
+  const dataRows = rows.slice(1);
+  const normalizedSearchName = normalizeExactText(searchName);
+  const exactRows = nameIdx >= 0
+    ? dataRows.filter((row) => normalizeExactText(String(row[nameIdx] || '')) === normalizedSearchName)
+    : [];
+
+  if (exactRows.length > 0) {
+    const exactTotal = exactRows.reduce((sum, row) => sum + parseNumber(row[valueIdx]), 0);
+    const div = importDivisor === '' || importDivisor === undefined ? 0 : Number(importDivisor);
+    if (div && div > 0) return Math.ceil(exactTotal / div);
+    return roundImportedValue(exactTotal);
+  }
+
   let hasMatch = false;
-  const total = rows.slice(1).reduce((sum, row) => {
+  const total = dataRows.reduce((sum, row) => {
     const rowName = nameIdx >= 0 ? String(row[nameIdx] || '') : '';
     const isMatch = nameIdx >= 0
       ? isConfidentImportMatch(searchName, rowName)
