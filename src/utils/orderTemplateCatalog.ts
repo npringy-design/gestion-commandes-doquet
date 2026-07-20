@@ -1,5 +1,12 @@
 import type { ProductWithHistory } from '../data';
-import type { OrderTemplateRow } from '../types';
+import type { OrderTemplateRow, SupplierConfig } from '../types';
+
+export const getOrderTemplateSupplierOptions = (
+  supplierConfigs: Record<string, SupplierConfig>,
+): SupplierConfig[] => Object.entries(supplierConfigs)
+  .map(([supplierId, config]) => ({ ...config, id: config.id || supplierId }))
+  .filter(config => !config.isArchived)
+  .sort((left, right) => left.name.localeCompare(right.name, 'fr', { sensitivity: 'base' }));
 
 export const normalizeTemplateProductName = (name: string) => name.replace(/\s+/g, ' ').trim();
 

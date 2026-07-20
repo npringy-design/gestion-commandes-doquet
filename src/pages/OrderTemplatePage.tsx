@@ -35,6 +35,7 @@ import {
 } from '../utils/importProcessing';
 import {
   buildTemplateRowsFromProducts,
+  getOrderTemplateSupplierOptions,
   linkTemplateRowsToExistingProducts,
   synchronizeOrderTemplateProducts,
 } from '../utils/orderTemplateCatalog';
@@ -184,7 +185,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
   const [ocrProgress, setOcrProgress] = useState(0);
   const [importQualityReport, setImportQualityReport] = useState<ImportQualityReport | null>(null);
   const supplierOptions = useMemo(
-    () => (Object.values(supplierConfigs) as SupplierConfig[]).filter((config) => !config.isArchived),
+    () => getOrderTemplateSupplierOptions(supplierConfigs),
     [supplierConfigs]
   );
   const selectedSupplierId: SupplierId | '' = supplierOptions.some((config) => config.id === ratioTab) ? ratioTab : '';
@@ -193,13 +194,8 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
   const legacyTemplateMigratedRef = useRef(false);
 
   const templateSupplierIds = useMemo(
-    () => supplierOptions
-      .filter(config => (
-        (orderTemplatesBySupplier[config.id]?.length || 0) > 0
-        || products.some(product => product.supplierId === config.id)
-      ))
-      .map(config => config.id),
-    [orderTemplatesBySupplier, products, supplierOptions],
+    () => supplierOptions.map(config => config.id),
+    [supplierOptions],
   );
 
   const currentSupplierHasProducts = !!selectedSupplierId
@@ -815,7 +811,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
             <h2 className="text-lg font-black text-[#2F1D14]">Trames enregistrées</h2>
             <p className="mt-2 text-sm text-[#6A432D]">
               Ouvre une trame existante, modifie uniquement les unités nécessaires, puis utilise « Enregistrer les modifications ».
-              Les mappings, historiques et ratios des produits sont conservés.
+              Les mappings, historiques et ratios des produits sont conservés. Un fournisseur à 0 ligne permet de démarrer une nouvelle trame.
             </p>
 
             {templateSupplierIds.length === 0 ? (
@@ -843,7 +839,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
                     >
                       <span className="block text-sm font-black">{config?.name || supplierId}</span>
                       <span className={`mt-1 block text-xs font-semibold ${active ? 'text-[#FFE4C4]' : 'text-[#8B6B54]'}`}>
-                        {rowCount} ligne(s)
+                        {rowCount > 0 ? `${rowCount} ligne(s)` : 'Nouvelle trame · 0 ligne'}
                       </span>
                     </button>
                   );

@@ -29,6 +29,17 @@ try {
   writeFileSync(compiledPath, outputText, 'utf8');
   const catalog = await import(pathToFileURL(compiledPath).href);
 
+  const supplierOptions = catalog.getOrderTemplateSupplierOptions({
+    historique: { id: 'historique', name: 'Historique', isArchived: true },
+    doquet: { id: 'doquet', name: 'Doquet' },
+    nouveau_fournisseur: { id: 'nouveau_fournisseur', name: 'Nouveau fournisseur' },
+  });
+  assert.deepEqual(
+    supplierOptions.map(supplier => supplier.id),
+    ['doquet', 'nouveau_fournisseur'],
+    'Tout fournisseur actif créé dans les paramètres doit apparaître dans les trames, même sans produit',
+  );
+
   const products = [{
     id: 'p1',
     supplierId: 'bof',
