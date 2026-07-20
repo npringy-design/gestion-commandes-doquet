@@ -19,7 +19,11 @@ import { useAuth } from '../auth/AuthProvider';
 import { canAccessRatiosPage } from '../lib/permissions';
 import { OrderLineField, OrderTemplateRow, SupplierConfig } from '../types';
 import { ProductWithHistory } from '../data';
-import { ExtractedWord, extractRowsFromDocumentWords } from '../utils/orderTemplateParser';
+import {
+  ExtractedWord,
+  extractRowsFromDocumentWords,
+  scoreTemplateExtraction,
+} from '../utils/orderTemplateParser';
 import { validateImportFile } from '../utils/importFileValidation';
 import {
   IMPORT_PROCESSING_TIMEOUTS,
@@ -54,6 +58,16 @@ const parsePackagingQuantity = (packagingUnit: string): number => {
 };
 
 type ProcessingStep = 'idle' | 'reading' | 'ocr' | 'done' | 'error';
+
+interface ImportQualityReport {
+  mode: 'texte' | 'OCR';
+  attemptedOcr: boolean;
+  rowCount: number;
+  codeCount: number;
+  incompleteCodeCount: number;
+  suspiciousRowCount: number;
+  needsReview: boolean;
+}
 
 const makeRowId = () => `row_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
@@ -165,6 +179,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
   const [step, setStep] = useState<ProcessingStep>('idle');
   const [statusLabel, setStatusLabel] = useState('');
   const [ocrProgress, setOcrProgress] = useState(0);
+  const [importQualityReport, setImportQualityReport] = useState<ImportQualityReport | null>(null);
   const supplierOptions = useMemo(
     () => (Object.values(supplierConfigs) as SupplierConfig[]).filter((config) => !config.isArchived),
     [supplierConfigs]
@@ -373,29 +388,99 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
       const processed = await withImportTimeout((async () => {
         const { pagesWords, totalChars } = await extractViaText(pdf, controller.signal);
         let finalPagesWords = pagesWords;
+        let extraction = extractRowsFromDocumentWords(pagesWords);
         let usedOcr = false;
+        let attemptedOcr = false;
+        let maximumDetectedCodeCount = extraction.codeCount;
 
         console.info(`[OrderTemplatePage] Extraction texte : ${pdf.numPages} page(s), ${totalChars} caractère(s) trouvé(s).`);
+        console.info('[OrderTemplatePage] Qualité texte natif :', {
+          score: scoreTemplateExtraction(extraction),
+          codes: extraction.codeCount,
+          rows: extraction.rows.length,
+          incomplete: extraction.incompleteCodeCount,
+          suspicious: extraction.suspiciousRowCount,
+        });
 
-        if (totalChars < 20) {
+        // Un PDF peut exposer beaucoup de caractères tout en ayant une table
+        // mal encodée ou des cellules positionnées sur des baselines distinctes.
+        // On relance alors automatiquement une lecture visuelle OCR, puis on
+        // conserve objectivement la version la plus complète et la plus saine.
+        if (totalChars < 20 || extraction.needsReview) {
           setStep('ocr');
-          usedOcr = true;
-          finalPagesWords = await extractViaOcr(pdf, controller.signal);
+          attemptedOcr = true;
+          const ocrPagesWords = await extractViaOcr(pdf, controller.signal);
+          const ocrExtraction = extractRowsFromDocumentWords(ocrPagesWords);
+          maximumDetectedCodeCount = Math.max(maximumDetectedCodeCount, ocrExtraction.codeCount);
+          console.info('[OrderTemplatePage] Qualité OCR :', {
+            score: scoreTemplateExtraction(ocrExtraction),
+            codes: ocrExtraction.codeCount,
+            rows: ocrExtraction.rows.length,
+            incomplete: ocrExtraction.incompleteCodeCount,
+            suspicious: ocrExtraction.suspiciousRowCount,
+          });
+
+          const ocrPreservesDetectedCodes =
+            ocrExtraction.codeCount >= extraction.codeCount ||
+            ocrExtraction.rows.length > extraction.rows.length;
+          if (
+            totalChars < 20 ||
+            (
+              ocrPreservesDetectedCodes &&
+              scoreTemplateExtraction(ocrExtraction) > scoreTemplateExtraction(extraction)
+            )
+          ) {
+            finalPagesWords = ocrPagesWords;
+            extraction = ocrExtraction;
+            usedOcr = true;
+          }
         }
 
-        return { finalPagesWords, usedOcr };
+        return { finalPagesWords, extraction, usedOcr, attemptedOcr, maximumDetectedCodeCount };
       })(), IMPORT_PROCESSING_TIMEOUTS.pdfProcessing,
       'Le traitement du PDF a dépassé 2 minutes et a été arrêté.',
       () => { controller.abort(); void pdf?.destroy(); });
 
-      const { finalPagesWords, usedOcr } = processed;
+      const {
+        finalPagesWords,
+        extraction,
+        usedOcr,
+        attemptedOcr,
+        maximumDetectedCodeCount,
+      } = processed;
 
       finalPagesWords.forEach((words, idx) => {
         console.info(`[OrderTemplatePage] Page ${idx + 1} (${usedOcr ? 'OCR' : 'texte'}) : ${words.length} mot(s) positionné(s).`);
       });
 
-      const { rows: parsedRows, headerFound, pagesDebug } = extractRowsFromDocumentWords(finalPagesWords);
-      console.info('[OrderTemplatePage] En-tête détecté :', headerFound, pagesDebug);
+      const {
+        rows: parsedRows,
+        headerFound,
+        pagesDebug,
+        codeCount: selectedCodeCount,
+        incompleteCodeCount: selectedIncompleteCodeCount,
+        suspiciousRowCount,
+        needsReview: selectedNeedsReview,
+      } = extraction;
+      const codeCount = Math.max(selectedCodeCount, maximumDetectedCodeCount);
+      const incompleteCodeCount = Math.max(
+        selectedIncompleteCodeCount,
+        Math.max(0, codeCount - parsedRows.length),
+      );
+      const needsReview = selectedNeedsReview || incompleteCodeCount > 0;
+      console.info('[OrderTemplatePage] En-tête détecté :', headerFound, pagesDebug, {
+        selectedMode: usedOcr ? 'OCR' : 'texte',
+        attemptedOcr,
+      });
+      setImportQualityReport({
+        mode: usedOcr ? 'OCR' : 'texte',
+        attemptedOcr,
+        rowCount: parsedRows.length,
+        codeCount,
+        incompleteCodeCount,
+        suspiciousRowCount,
+        needsReview,
+      });
 
       if (parsedRows.length === 0) {
         if (!headerFound) {
@@ -406,6 +491,15 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
         } else {
           showToast('En-tête trouvé mais aucune ligne exploitable en dessous. Vérifiez le fichier ou saisissez manuellement.', 'warning');
         }
+      } else if (needsReview) {
+        const reviewReasons = [
+          incompleteCodeCount > 0 ? `${incompleteCodeCount} code(s) sans article complet` : '',
+          suspiciousRowCount > 0 ? `${suspiciousRowCount} ligne(s) à contrôler` : '',
+        ].filter(Boolean).join(', ');
+        showToast(
+          `⚠ ${parsedRows.length} ligne(s) récupérée(s), mais la lecture reste incertaine${reviewReasons ? ` : ${reviewReasons}` : ''}. Contrôlez le tableau avant de créer les produits.`,
+          'warning'
+        );
       } else {
         showToast(`✓ ${parsedRows.length} ligne(s) importée(s)`, 'success');
       }
@@ -460,6 +554,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     if (orderTemplateRows.length === 0) return;
     if (!window.confirm('Vider entièrement la trame de commande ?')) return;
     setOrderTemplateRows([]);
+    setImportQualityReport(null);
   };
 
   return (
@@ -507,9 +602,9 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
             </div>
 
             <p className="mb-4 text-sm text-[#6A432D]">
-              Importe le PDF Adoria « Bon de préparation de commande ». Les colonnes Articles, Unité de stockage et
-              Conditionnement sont extraites automatiquement. Corrige les éventuelles erreurs directement dans le
-              tableau ci-dessous.
+              Importe un PDF Adoria « Bon de préparation de commande ». Les colonnes Code, Articles, Unité de stockage
+              et Conditionnement servent à reconstruire chaque ligne logique. Si la lecture texte paraît incomplète,
+              l'application relance automatiquement une lecture visuelle OCR et affiche clairement tout contrôle restant.
             </p>
 
             <input
@@ -555,6 +650,32 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
                     />
                   </div>
                 )}
+              </div>
+            )}
+
+            {!isProcessing && importQualityReport && (
+              <div
+                className={`mt-4 rounded-lg border p-3 text-sm ${
+                  importQualityReport.needsReview
+                    ? 'border-amber-300 bg-amber-50 text-amber-900'
+                    : 'border-emerald-300 bg-emerald-50 text-emerald-900'
+                }`}
+              >
+                <p className="font-black">
+                  {importQualityReport.needsReview ? 'Lecture à contrôler' : 'Lecture vérifiée'} — {importQualityReport.mode}
+                  {importQualityReport.attemptedOcr ? ' après comparaison automatique avec l’OCR' : ''}
+                </p>
+                <p className="mt-1">
+                  {importQualityReport.codeCount > 0
+                    ? `${importQualityReport.codeCount} code(s) détecté(s), ${importQualityReport.rowCount} ligne(s) restituée(s).`
+                    : `${importQualityReport.rowCount} ligne(s) restituée(s).`}
+                  {importQualityReport.incompleteCodeCount > 0
+                    ? ` ${importQualityReport.incompleteCodeCount} code(s) restent incomplets.`
+                    : ''}
+                  {importQualityReport.suspiciousRowCount > 0
+                    ? ` ${importQualityReport.suspiciousRowCount} ligne(s) présentent encore un texte ou une unité atypique.`
+                    : ''}
+                </p>
               </div>
             )}
           </section>

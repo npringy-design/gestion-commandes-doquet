@@ -36,7 +36,11 @@ try {
 
   const compiledPath = join(tempDir, 'orderTemplateParser.mjs');
   writeFileSync(compiledPath, outputText, 'utf8');
-  const { extractRowsFromPageWords } = await import(pathToFileURL(compiledPath).href);
+  const {
+    extractRowsFromDocumentWords,
+    extractRowsFromPageWords,
+    scoreTemplateExtraction,
+  } = await import(pathToFileURL(compiledPath).href);
 
   const header = [
     { text: 'Code', x: 20, yTop: 20 },
@@ -55,8 +59,9 @@ try {
     ...articleLine({ yTop: 118, article: '400 g LA CHAMPENOISE' }),
     ...articleLine({ yTop: 180, code: '72372', article: 'Bavette aloyau Irlande pièce 160 g', packagingUnit: 'poche x 5' }),
     ...articleLine({ yTop: 198, article: 'LESAGE' }),
-    ...articleLine({ yTop: 260, code: '200269', article: 'Cote de boeuf VBF décongelé pièce 400', packagingUnit: 'pièce' }),
-    ...articleLine({ yTop: 278, article: 'g PUIGRENIER' }),
+    ...articleLine({ yTop: 248, article: 'Cote de boeuf VBF décongelé pièce 400', storageUnit: 'au' }),
+    ...wordsAt('200269', 20, 268),
+    ...articleLine({ yTop: 288, article: 'g PUIGRENIER', storageUnit: 'Kg', packagingUnit: 'pièce' }),
     ...articleLine({ yTop: 340, code: '200272', article: 'Entrecôte VBF Décongelé pièce pièce', packagingUnit: 'poche x 2' }),
     ...articleLine({ yTop: 358, article: '300 G PUIGRENIER' }),
     ...articleLine({ yTop: 420, code: '140680', article: 'Faux filet VBF decongel pièce 200 G', packagingUnit: 'poche x 5' }),
@@ -69,6 +74,8 @@ try {
   const { rows, debug } = extractRowsFromPageWords(domafraisWords);
 
   assert.equal(debug.headerFound, true, 'L en-tete Domafrais doit etre detecte');
+  assert.equal(debug.codeCount, 7, 'Chaque code article doit devenir une ancre logique');
+  assert.equal(debug.incompleteCodeCount, 0, 'Aucun code detecte ne doit disparaitre du resultat');
   assert.equal(rows.length, 7, 'Les sept articles du PDF doivent produire exactement sept lignes');
   assert.deepEqual(
     rows.map((row) => row.article),
@@ -103,7 +110,80 @@ try {
     'Un vrai code article de trois chiffres doit rester accepte',
   );
 
-  console.log('Parser trame commande OK : articles multilignes regroupes, grammages preserves et unites dedupliquees.');
+  const scaledOcrWords = [
+    ...header,
+    ...articleLine({ yTop: 140, article: 'Crème anglaise bouteille 1 L', storageUnit: 'bouteille' }),
+    ...wordsAt('550770', 20, 200),
+    ...articleLine({ yTop: 260, article: 'PRESIDENT RDP', storageUnit: '', packagingUnit: 'carton x 6' }),
+    ...articleLine({ yTop: 380, article: 'Crème fraîche brique 100 cl BOURG', storageUnit: 'au L' }),
+    ...wordsAt('100246', 20, 440),
+    ...articleLine({ yTop: 500, article: 'FLEURI', storageUnit: '', packagingUnit: 'brique' }),
+  ];
+  const scaledOcrResult = extractRowsFromPageWords(scaledOcrWords);
+  assert.equal(scaledOcrResult.rows.length, 2, 'Le regroupement doit s adapter a l echelle verticale de l OCR');
+  assert.deepEqual(
+    scaledOcrResult.rows.map((row) => row.article),
+    ['Crème anglaise bouteille 1 L\nPRESIDENT RDP', 'Crème fraîche brique 100 cl BOURG\nFLEURI'],
+    'Les continuations eloignees doivent suivre les bandes definies par les codes voisins',
+  );
+
+  const splitLiterWords = [
+    ...header,
+    ...articleLine({ yTop: 100, code: '56468', article: 'Crème liquide UHT brique 1 L', storageUnit: 'au', packagingUnit: 'carton' }),
+    ...articleLine({ yTop: 118, article: 'BOURG FLEURI', storageUnit: 'L', packagingUnit: 'x 6' }),
+  ];
+  const splitLiterResult = extractRowsFromPageWords(splitLiterWords);
+  assert.equal(splitLiterResult.rows[0].storageUnit, 'au L', 'Les fragments "au" et "L" doivent etre nettoyes ensemble');
+  assert.equal(splitLiterResult.rows[0].packagingUnit, 'carton x 6', 'Le conditionnement fragmente doit etre recompose');
+
+  const splitQuantityWords = [
+    ...header,
+    ...articleLine({ yTop: 100, code: '43263', article: 'Mini Dés Roquefort barquette', packagingUnit: 'lot x 2' }),
+    ...wordsAt('250', 100, 116),
+    ...wordsAt('g', 100, 126),
+    ...articleLine({ yTop: 180, code: '190064', article: 'Oeuf 53 63 pièce 53 g FERME DU PRE', storageUnit: 'pièce', packagingUnit: 'boîte x 90' }),
+  ];
+  const splitQuantityResult = extractRowsFromPageWords(splitQuantityWords);
+  assert.equal(splitQuantityResult.rows.length, 2, 'Un grammage dont le nombre et l unite ont deux baselines ne doit pas creer un faux code');
+  assert.equal(
+    splitQuantityResult.rows[0].article,
+    'Mini Dés Roquefort barquette\n250\ng',
+    'Le grammage fragmente doit rester avec le produit precedent',
+  );
+  assert.equal(
+    splitQuantityResult.rows[1].article,
+    'Oeuf 53 63 pièce 53 g FERME DU PRE',
+    'Le fragment du grammage precedent ne doit pas polluer le produit suivant',
+  );
+
+  const pageOne = [
+    ...header,
+    ...articleLine({ yTop: 100, code: '190081', article: 'Comté AOP râpé 33% sachet 1 Kg', packagingUnit: 'sachet' }),
+    ...articleLine({ yTop: 118, article: 'FRANCE FRAIS' }),
+  ];
+  const pageTwo = [
+    ...wordsAt('20/07/2026 13:33', 20, 10),
+    ...articleLine({ yTop: 100, code: '550770', article: 'Crème anglaise bouteille 1 L', storageUnit: 'bouteille', packagingUnit: 'carton x 6' }),
+    ...articleLine({ yTop: 118, article: 'PRESIDENT RDP', storageUnit: '' }),
+  ];
+  const multipageResult = extractRowsFromDocumentWords([pageOne, pageTwo]);
+  assert.equal(multipageResult.rows.length, 2, 'Les colonnes doivent rester actives sur une page suivante sans nouvel en-tete');
+  assert.equal(multipageResult.codeCount, 2);
+  assert.equal(multipageResult.incompleteCodeCount, 0);
+
+  const degradedWords = [
+    ...header,
+    ...articleLine({ yTop: 100, code: '56253', article: 'pero tee da UT', storageUnit: 'bombe', packagingUnit: 'colis x 6' }),
+  ];
+  const degradedResult = extractRowsFromDocumentWords([degradedWords]);
+  assert.equal(degradedResult.needsReview, true, 'Un libelle fortement fragmente doit demander un repli ou un controle');
+  assert.equal(degradedResult.suspiciousRowCount, 1);
+  assert.ok(
+    scoreTemplateExtraction(multipageResult) > scoreTemplateExtraction(degradedResult),
+    'Une extraction complete et lisible doit etre preferee a une extraction degradee',
+  );
+
+  console.log('Parser trame commande OK : codes, bandes multilignes, pages, echelle OCR et qualite proteges.');
 } finally {
   rmSync(tempDir, { recursive: true, force: true });
 }

@@ -136,8 +136,33 @@ try {
   assert.match(pdfSource, /IMPORT_PROCESSING_TIMEOUTS\.pdfProcessing/);
   assert.match(pdfSource, /await pdf\.destroy\(\)/);
   assert.match(pdfSource, /await terminateWorker\(\)/);
+  assert.match(
+    pdfSource,
+    /totalChars < 20 \|\| extraction\.needsReview/,
+    'Une extraction textuelle incomplète ou suspecte doit déclencher automatiquement le repli OCR',
+  );
+  assert.match(
+    pdfSource,
+    /scoreTemplateExtraction\(ocrExtraction\) > scoreTemplateExtraction\(extraction\)/,
+    'Le choix texte natif\/OCR doit reposer sur une comparaison de complétude et de qualité',
+  );
+  assert.match(
+    pdfSource,
+    /ocrExtraction\.codeCount >= extraction\.codeCount/,
+    'Le repli OCR ne doit pas être préféré s il oublie des codes vus par la lecture native',
+  );
+  assert.match(
+    pdfSource,
+    /maximumDetectedCodeCount/,
+    'Le contrôle final doit conserver le plus grand nombre de codes détecté par les deux lectures',
+  );
+  assert.match(
+    pdfSource,
+    /Lecture à contrôler/,
+    'Une lecture encore incertaine doit rester visible pour un utilisateur sans accès au code',
+  );
 
-  console.log('Robustesse imports OK : Workers, timeout, annulation, nettoyage et erreurs publiques protégés.');
+  console.log('Robustesse imports OK : Workers, timeout, OCR adaptatif, qualité visible, nettoyage et erreurs protégés.');
 } finally {
   rmSync(tempDir, { recursive: true, force: true });
 }

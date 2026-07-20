@@ -34,6 +34,19 @@ export interface PageExtractionDebug {
   lineCount: number;
   headerFound: boolean;
   rowCount: number;
+  codeCount: number;
+  incompleteCodeCount: number;
+  suspiciousRowCount: number;
+}
+
+export interface DocumentExtractionResult {
+  rows: ParsedTemplateRow[];
+  headerFound: boolean;
+  pagesDebug: PageExtractionDebug[];
+  codeCount: number;
+  incompleteCodeCount: number;
+  suspiciousRowCount: number;
+  needsReview: boolean;
 }
 
 interface ColumnBounds {
@@ -69,14 +82,16 @@ const startsWithArticleQuantity = (words: ExtractedWord[]): boolean =>
   ARTICLE_QUANTITY_UNIT_PATTERN.test(words[1].text);
 
 // Un fragment Unité/Conditionnement récupéré sur une ligne voisine (wrap)
-// n'est retenu que s'il contient au moins 2 caractères alphanumériques utiles :
-// un fragment plus court ("=", "a", "A", "9"...) est presque toujours une
-// bordure de tableau mal lue par l'OCR, pas une vraie suite de valeur.
-const isPlausibleUnitFragment = (text: string): boolean =>
-  text.replace(/[^a-zà-ÿ0-9]/gi, '').length >= 2;
+// n'est retenu que s'il contient au moins 2 caractères alphanumériques utiles.
+// Les tokens isolés "a", "L" et "g" restent admis car ils peuvent compléter
+// une vraie unité répartie sur plusieurs baselines ("au" / "L").
+const isPlausibleUnitFragment = (text: string): boolean => {
+  const useful = text.replace(/[^a-zà-ÿ0-9]/gi, '');
+  return useful.length >= 2 || /^(?:a|l|g)$/i.test(useful);
+};
 
 const UNIT_KEYWORD_PATTERN =
-  /\b(au|aux|a|l|unite|piece|pieces|kg|g|gr|ml|cl|l|litre|litres|bac|carton|colis|sachet|sac|boite|pot|seau|barquette|poche|bidon|bouteille|portion|plaquette)\b/;
+  /\b(au|aux|a|l|unite|piece|pieces|kg|g|gr|ml|cl|l|litre|litres|bac|carton|colis|sachet|sac|boite|pot|seau|barquette|poche|bidon|bouteille|portion|plaquette|brique|bombe|pack|lot)\b/;
 
 const isPlausibleUnitValue = (text: string): boolean => {
   const normalized = normalize(text)
@@ -109,6 +124,8 @@ const cleanImportedStorageUnit = (text: string): string => {
   const loose = normalizeLooseUnitText(text);
   if (!loose) return '';
 
+  if (/^au\s*l$|^aul$/.test(loose)) return 'au L';
+  if (/^au\s*kg$|^aukg$/.test(loose)) return 'au Kg';
   if (/\bbac\b/.test(loose)) return 'bac';
   if (/\btranche\b/.test(loose)) return 'tranche';
   if (/\bpieces?\b|\bpiece\b|\bpi\s*ce\b/.test(loose)) return 'pièce';
@@ -154,6 +171,30 @@ const inferStorageUnitFromArticle = (article: string): string => {
 
   return '';
 };
+
+const isSuspiciousArticleText = (article: string): boolean => {
+  const trimmed = article.trim();
+  if (!trimmed || /[?�]{2,}|�/.test(trimmed) || /-\s*$/.test(trimmed)) return true;
+
+  const lines = trimmed.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+  if (lines.some((line) => line.replace(/[^a-zà-ÿ0-9]/gi, '').length <= 1)) return true;
+
+  const tokens = normalizeLooseUnitText(trimmed).split(' ').filter(Boolean);
+  if (tokens.length >= 4) {
+    const shortTokenCount = tokens.filter((token) => token.length <= 2).length;
+    const letterCount = tokens.join('').length;
+    if (shortTokenCount / tokens.length >= 0.5 && letterCount < 18) return true;
+  }
+
+  return false;
+};
+
+const isSuspiciousParsedRow = (row: ParsedTemplateRow): boolean =>
+  isSuspiciousArticleText(row.article) ||
+  !row.storageUnit.trim() ||
+  !row.packagingUnit.trim() ||
+  !isPlausibleUnitValue(row.storageUnit) ||
+  !isPlausibleUnitValue(row.packagingUnit);
 
 // Regroupe les mots d'une page en lignes en fonction de leur proximité verticale.
 // Tolérance généreuse car les bbox OCR (rendu canvas) sont moins régulières
@@ -238,6 +279,7 @@ interface LineInfo {
   storageUnit: string;
   packagingUnit: string;
   isAnchor: boolean;
+  codeValue: string;
 }
 
 // Traite les mots d'une page et renvoie les lignes de tableau détectées.
@@ -301,7 +343,19 @@ export const extractRowsFromPageWords = (
   const rows: ParsedTemplateRow[] = [];
 
   if (!bounds) {
-    return { rows, bounds, debug: { wordCount: words.length, lineCount: lines.length, headerFound, rowCount: 0 } };
+    return {
+      rows,
+      bounds,
+      debug: {
+        wordCount: words.length,
+        lineCount: lines.length,
+        headerFound,
+        rowCount: 0,
+        codeCount: 0,
+        incompleteCodeCount: 0,
+        suspiciousRowCount: 0,
+      },
+    };
   }
 
   const { hasCodeColumn, stockTamponStart, unitStart, conditionStart } = bounds;
@@ -309,6 +363,28 @@ export const extractRowsFromPageWords = (
   const adjustedUnitStart = unitStart - COLUMN_MARGIN;
   const adjustedConditionStart = conditionStart - COLUMN_MARGIN;
   const articleEnd = adjustedStockTamponStart ?? adjustedUnitStart;
+
+  // La colonne Code est estimée à partir de la position dominante des
+  // nombres placés en tête de la zone Code+Articles. Cela distingue un vrai
+  // code court d'un grammage de continuation dont le "g" aurait été placé
+  // sur une baseline différente par le PDF ou l'OCR.
+  const numericStarts = bodyLines.flatMap((line) => {
+    const sorted = line
+      .map((word) => ({ ...word, text: cleanWordText(word.text) }))
+      .filter((word) => word.text && word.x < articleEnd)
+      .sort((a, b) => a.x - b.x);
+    const first = sorted[0];
+    return first && CODE_VALUE_PATTERN.test(first.text) ? [first] : [];
+  });
+  const strongCodeStarts = numericStarts.filter((word) => word.text.length >= 5);
+  const codeColumnSamples = strongCodeStarts.length > 0 ? strongCodeStarts : numericStarts;
+  const sortedCodeXs = codeColumnSamples.map((word) => word.x).sort((a, b) => a - b);
+  const dominantCodeX = sortedCodeXs.length > 0
+    ? sortedCodeXs[Math.floor(sortedCodeXs.length / 2)]
+    : null;
+  const codeColumnTolerance = dominantCodeX === null
+    ? 0
+    : Math.max(12, Math.abs(adjustedUnitStart - dominantCodeX) * 0.12);
 
   const lineInfos: LineInfo[] = [];
 
@@ -324,12 +400,16 @@ export const extractRowsFromPageWords = (
 
     let articleWords = sorted.filter((w) => w.x < articleEnd);
     let isAnchorFromCode = false;
+    let codeValue = '';
     if (
       hasCodeColumn &&
       articleWords.length > 0 &&
       CODE_VALUE_PATTERN.test(articleWords[0].text) &&
+      dominantCodeX !== null &&
+      Math.abs(articleWords[0].x - dominantCodeX) <= codeColumnTolerance &&
       !startsWithArticleQuantity(articleWords)
     ) {
+      codeValue = articleWords[0].text;
       articleWords = articleWords.slice(1);
       isAnchorFromCode = true;
     }
@@ -349,19 +429,21 @@ export const extractRowsFromPageWords = (
       storageUnit.length > 0 ||
       packagingUnit.length > 0;
 
-    if (hasCodeColumn && isAnchorFromCode && !isPlausibleDataRow) return;
-
     lineInfos.push({
       yTop: line[0].yTop,
       articleText,
-      storageUnit,
-      packagingUnit,
-      // Quand une colonne Code existe, seule une ligne portant un vrai code
-      // démarre une nouvelle ligne logique : une valeur Unité/Conditionnement
-      // qui déborde sur la ligne suivante (ex: "à" / "l'unité") ne doit pas
-      // créer une seconde ligne de tableau pour le même produit.
+      // On conserve les fragments bruts jusqu'au regroupement de la ligne
+      // logique. Nettoyer "au" avant de voir le fragment voisin "L" le
+      // convertirait à tort en "au Kg".
+      storageUnit: rawStorageUnit,
+      packagingUnit: rawPackagingUnit,
+      codeValue,
+      // La présence du code suffit à ancrer la ligne logique. Le PDF peut
+      // positionner le code, l'article et les unités sur des baselines
+      // différentes : exiger l'unité sur la même ligne ferait disparaître
+      // silencieusement l'article complet.
       isAnchor: hasCodeColumn
-        ? isAnchorFromCode && isPlausibleDataRow
+        ? isAnchorFromCode
         : isPlausibleDataRow,
     });
   });
@@ -376,7 +458,11 @@ export const extractRowsFromPageWords = (
     // reconnue) -> traitement simple ligne à ligne.
     lineInfos.forEach((l) => {
       if (l.articleText) {
-        rows.push({ article: l.articleText, storageUnit: l.storageUnit, packagingUnit: l.packagingUnit });
+        rows.push({
+          article: l.articleText,
+          storageUnit: cleanImportedStorageUnit(l.storageUnit) || inferStorageUnitFromArticle(l.articleText),
+          packagingUnit: cleanImportedPackagingUnit(l.packagingUnit),
+        });
       }
     });
   } else {
@@ -384,11 +470,19 @@ export const extractRowsFromPageWords = (
     const storageUnitByAnchorPos: string[][] = anchorIndices.map(() => []);
     const packagingUnitByAnchorPos: string[][] = anchorIndices.map(() => []);
 
-    // Du bruit résiduel (fragment d'en-tête, section) peut traîner isolé entre
-    // deux lignes réelles : on ne rattache une ligne à l'ancre la plus proche
-    // que si elle en reste réellement proche (même bloc visuel de ligne),
-    // sinon on la jette plutôt que de polluer une ligne de tableau valide.
-    const MAX_ANCHOR_MERGE_DISTANCE = 45;
+    // La distance admissible dépend de l'espacement réel des codes. Elle
+    // s'adapte donc aussi bien aux coordonnées pdf.js qu'aux coordonnées OCR
+    // rendues à une échelle supérieure, sans seuil fixe propre à un fichier.
+    const getAnchorMergeDistance = (anchorPos: number): number => {
+      const anchorY = lineInfos[anchorIndices[anchorPos]].yTop;
+      const neighborGaps: number[] = [];
+      if (anchorPos > 0) neighborGaps.push(anchorY - lineInfos[anchorIndices[anchorPos - 1]].yTop);
+      if (anchorPos < anchorIndices.length - 1) {
+        neighborGaps.push(lineInfos[anchorIndices[anchorPos + 1]].yTop - anchorY);
+      }
+      if (neighborGaps.length === 0) return 90;
+      return Math.max(30, Math.min(180, Math.min(...neighborGaps) * 0.5));
+    };
 
     lineInfos.forEach((line, idx) => {
       let nearestPos = 0;
@@ -400,7 +494,7 @@ export const extractRowsFromPageWords = (
           nearestPos = pos;
         }
       });
-      if (bestDistance > MAX_ANCHOR_MERGE_DISTANCE) return;
+      if (bestDistance > getAnchorMergeDistance(nearestPos)) return;
 
       // Ligne "ancre" elle-même : on garde toujours son contenu, même court.
       // Ligne voisine (wrap d'article ou de valeur) : un fragment Unité/
@@ -420,28 +514,42 @@ export const extractRowsFromPageWords = (
 
     anchorIndices.forEach((_anchorIdx, pos) => {
       const article = articleTextByAnchorPos[pos].join('\n').trim();
-      const storageUnit = storageUnitByAnchorPos[pos].join(' ').trim() || inferStorageUnitFromArticle(article);
+      const storageUnit =
+        cleanImportedStorageUnit(storageUnitByAnchorPos[pos].join(' ').trim()) ||
+        inferStorageUnitFromArticle(article);
       if (article) {
         rows.push({
           article,
           storageUnit,
-          packagingUnit: packagingUnitByAnchorPos[pos].join(' ').trim(),
+          packagingUnit: cleanImportedPackagingUnit(packagingUnitByAnchorPos[pos].join(' ').trim()),
         });
       }
     });
   }
 
+  const codeCount = hasCodeColumn ? anchorIndices.length : 0;
+  const incompleteCodeCount = hasCodeColumn ? Math.max(0, codeCount - rows.length) : 0;
+  const suspiciousRowCount = rows.filter(isSuspiciousParsedRow).length;
+
   return {
     rows,
     bounds,
-    debug: { wordCount: words.length, lineCount: lines.length, headerFound, rowCount: rows.length },
+    debug: {
+      wordCount: words.length,
+      lineCount: lines.length,
+      headerFound,
+      rowCount: rows.length,
+      codeCount,
+      incompleteCodeCount,
+      suspiciousRowCount,
+    },
   };
 };
 
 // Combine les mots de plusieurs pages (dans l'ordre) en lignes de tableau.
 export const extractRowsFromDocumentWords = (
   pagesWords: ExtractedWord[][]
-): { rows: ParsedTemplateRow[]; headerFound: boolean; pagesDebug: PageExtractionDebug[] } => {
+): DocumentExtractionResult => {
   const rows: ParsedTemplateRow[] = [];
   const pagesDebug: PageExtractionDebug[] = [];
   let bounds: ColumnBounds | null = null;
@@ -455,5 +563,35 @@ export const extractRowsFromDocumentWords = (
     rows.push(...result.rows);
   });
 
-  return { rows, headerFound, pagesDebug };
+  const codeCount = pagesDebug.reduce((total, page) => total + page.codeCount, 0);
+  const incompleteCodeCount = pagesDebug.reduce((total, page) => total + page.incompleteCodeCount, 0);
+  const suspiciousRowCount = pagesDebug.reduce((total, page) => total + page.suspiciousRowCount, 0);
+  const needsReview =
+    !headerFound ||
+    rows.length === 0 ||
+    incompleteCodeCount > 0 ||
+    suspiciousRowCount > 0;
+
+  return {
+    rows,
+    headerFound,
+    pagesDebug,
+    codeCount,
+    incompleteCodeCount,
+    suspiciousRowCount,
+    needsReview,
+  };
+};
+
+// Compare deux extractions (texte natif / OCR) sans dépendre d'un fournisseur
+// ou d'un libellé particulier. La complétude prime, puis la qualité des champs.
+export const scoreTemplateExtraction = (result: DocumentExtractionResult): number => {
+  const completeRows = result.rows.length - result.suspiciousRowCount;
+  return (
+    result.rows.length * 200 +
+    completeRows * 25 -
+    result.incompleteCodeCount * 150 -
+    result.suspiciousRowCount * 35 +
+    (result.headerFound ? 20 : -200)
+  );
 };
