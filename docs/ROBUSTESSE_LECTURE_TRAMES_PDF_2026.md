@@ -14,8 +14,9 @@ Un PDF arbitraire sans structure de colonnes identifiable ne peut pas être conv
 4. Les colonnes détectées sur la première page restent applicables aux pages suivantes dépourvues d'en-tête répété.
 5. Le moteur mesure le nombre de codes, de lignes restituées, de codes incomplets et de lignes suspectes.
 6. Si la lecture native est incomplète ou dégradée, l'application lance automatiquement une lecture OCR puis fusionne les résultats par code article. Un libellé natif existant reste prioritaire ; l'OCR complète seulement une cellule ou un code absent.
-7. Une unité de stockage vide peut être reconstruite à partir d'une quantité explicite dans l'article (`kg`, `g`, `L`, `cl`, `ml`). Une valeur non ambiguë comme `au Kg` ou `au L`, décalée dans le conditionnement, est replacée dans la colonne stockage.
-8. Le bilan reste visible après l'import : mode choisi (`texte`, `OCR` ou `texte + OCR`), codes détectés, lignes restituées et éventuels contrôles manuels.
+7. Pour un PDF-image, l'appartenance des mots aux lignes fournie par Tesseract est conservée. La proximité verticale, calculée depuis la hauteur réelle des glyphes, ne sert que de repli lorsque cette information n'existe pas.
+8. Une unité de stockage vide peut être reconstruite à partir d'une quantité explicite dans l'article (`kg`, `g`, `L`, `cl`, `ml`). Une valeur non ambiguë comme `au Kg` ou `au L`, décalée dans le conditionnement, est replacée dans la colonne stockage.
+9. Le bilan reste visible après l'import : mode choisi (`texte`, `OCR` ou `texte + OCR`), codes détectés, lignes restituées et éventuels contrôles manuels.
 
 ## Anomalies couvertes
 
@@ -31,6 +32,9 @@ Un PDF arbitraire sans structure de colonnes identifiable ne peut pas être conv
 - OCR qui déforme un nom pourtant lisible dans le texte natif ;
 - unité de stockage vide malgré un poids ou un volume explicite ;
 - valeur `au Kg` ou `au L` décalée d'une colonne.
+- PDF sans calque texte et contenu imprimé avec une rotation interne ;
+- tirets et petites lettres dont la boîte OCR est verticalement décalée ;
+- mots d'une même ligne distribués dans plusieurs blocs OCR.
 
 ## Non-régression
 

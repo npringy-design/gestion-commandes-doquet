@@ -77,7 +77,8 @@ const extractWordsFromTextItem = (item: any, viewportHeight: number): ExtractedW
   if (!text) return null;
   const x = item.transform[4];
   const y = item.transform[5];
-  return { text, x, yTop: viewportHeight - y };
+  const height = Math.abs(Number(item.height ?? item.transform?.[3] ?? 0));
+  return { text, x, yTop: viewportHeight - y, height };
 };
 
 type RotationDegrees = 0 | 90 | 180 | 270;
@@ -334,14 +335,23 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
         const { data } = await worker.recognize(ocrCanvas, {}, { blocks: true });
         throwIfImportAborted(signal);
         const words: ExtractedWord[] = [];
+        let ocrLineIndex = 0;
 
         (data.blocks ?? []).forEach((block) => {
           block.paragraphs.forEach((paragraph) => {
             paragraph.lines.forEach((line) => {
+              const lineId = `page-${pageNum}-line-${ocrLineIndex}`;
+              ocrLineIndex += 1;
               line.words.forEach((word) => {
                 const text = word.text.trim();
                 if (!text) return;
-                words.push({ text, x: word.bbox.x0, yTop: word.bbox.y0 });
+                words.push({
+                  text,
+                  x: word.bbox.x0,
+                  yTop: word.bbox.y0,
+                  height: Math.max(1, word.bbox.y1 - word.bbox.y0),
+                  lineId,
+                });
               });
             });
           });

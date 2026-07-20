@@ -255,6 +255,44 @@ try {
     'L OCR ne doit pas remplacer un conditionnement natif plus fidèle',
   );
 
+  const offsetGlyphWords = [
+    ...header,
+    { text: '900004', x: 20, yTop: 100, height: 18 },
+    { text: 'Produit', x: 100, yTop: 100, height: 18 },
+    { text: 'MARQUE', x: 160, yTop: 100, height: 18 },
+    // Les petits glyphes comme le tiret ont souvent une bbox plus basse que
+    // les lettres de la même ligne dans Tesseract.
+    { text: '-', x: 230, yTop: 108, height: 5 },
+    { text: 'SUITE', x: 245, yTop: 100, height: 18 },
+    { text: 'au', x: 310, yTop: 100, height: 18 },
+    { text: 'Kg', x: 340, yTop: 100, height: 18 },
+    { text: 'carton', x: 470, yTop: 100, height: 18 },
+  ];
+  assert.equal(
+    extractRowsFromDocumentWords([offsetGlyphWords]).rows[0].article,
+    'Produit MARQUE - SUITE',
+    'La tolérance verticale doit suivre la taille OCR et garder les petits glyphes sur leur ligne',
+  );
+
+  const explicitOcrLineWords = [
+    ...header,
+    { text: '900005', x: 20, yTop: 100, height: 18, lineId: 'ocr-row-1' },
+    { text: 'Préparation', x: 100, yTop: 100, height: 18, lineId: 'ocr-row-1' },
+    { text: '700', x: 190, yTop: 100, height: 18, lineId: 'ocr-row-1' },
+    { text: 'mi', x: 225, yTop: 108, height: 5, lineId: 'ocr-row-1' },
+    { text: 'au', x: 310, yTop: 100, height: 18, lineId: 'ocr-row-1' },
+    { text: 'L', x: 340, yTop: 108, height: 5, lineId: 'ocr-row-1' },
+    { text: 'plaque', x: 470, yTop: 100, height: 18, lineId: 'ocr-row-1' },
+  ];
+  const explicitOcrLineResult = extractRowsFromDocumentWords([explicitOcrLineWords]);
+  assert.equal(
+    explicitOcrLineResult.rows[0].article,
+    'Préparation 700 ml',
+    'Les lignes natives de Tesseract doivent être conservées et la quantité ml normalisée',
+  );
+  assert.equal(explicitOcrLineResult.rows[0].storageUnit, 'au L');
+  assert.equal(explicitOcrLineResult.suspiciousRowCount, 0, 'Le conditionnement plaque est une valeur valide');
+
   console.log('Parser trame commande OK : codes, bandes multilignes, fusion OCR, unités et qualité protégés.');
 } finally {
   rmSync(tempDir, { recursive: true, force: true });

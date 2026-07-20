@@ -21,6 +21,8 @@ export interface ExtractedWord {
   text: string;
   x: number;
   yTop: number;
+  height?: number;
+  lineId?: string;
 }
 
 export interface ParsedTemplateRow {
@@ -92,7 +94,7 @@ const isPlausibleUnitFragment = (text: string): boolean => {
 };
 
 const UNIT_KEYWORD_PATTERN =
-  /\b(au|aux|a|l|unite|piece|pieces|kg|g|gr|ml|cl|l|litre|litres|bac|carton|colis|sachet|sac|boite|pot|seau|barquette|poche|bidon|bouteille|portion|plaquette|brique|bombe|pack|lot)\b/;
+  /\b(au|aux|a|l|unite|piece|pieces|kg|g|gr|ml|cl|l|litre|litres|bac|carton|colis|sachet|sac|boite|pot|seau|barquette|poche|bidon|bouteille|portion|plaquette|plaque|brique|bombe|pack|lot)\b/;
 
 const isPlausibleUnitValue = (text: string): boolean => {
   const normalized = normalize(text)
@@ -145,11 +147,11 @@ const cleanImportedPackagingUnit = (text: string): string => {
   const loose = normalizeLooseUnitText(text);
   if (!loose) return '';
 
-  const kindMatch = loose.match(/\b(carton|colis|bac|sachet|sac|boite|pot|seau|barquette|poche|bidon|bouteille)\b/);
+  const kindMatch = loose.match(/\b(carton|colis|bac|sachet|sac|boite|pot|seau|barquette|poche|bidon|bouteille|plaque|brique|bombe|pack|lot)\b/);
   const quantityMatch = loose.match(/(?:\bx\b\s*)?(\d+)\b/);
 
   if (kindMatch) {
-    const kind = kindMatch[1];
+    const kind = kindMatch[1] === 'boite' ? 'boîte' : kindMatch[1];
     return quantityMatch ? `${kind} x ${quantityMatch[1]}` : kind;
   }
 
@@ -159,6 +161,13 @@ const cleanImportedPackagingUnit = (text: string): string => {
     .replace(/\s+/g, ' ')
     .trim();
 };
+
+const cleanImportedArticleText = (text: string): string =>
+  text
+    // Confusion OCR courante et non ambiguë dans une quantité : « 700 mi »
+    // correspond à l'unité millilitre, pas au mot français « mi ».
+    .replace(/\b(\d+(?:[.,]\d+)?)\s+mi\b/gi, '$1 ml')
+    .trim();
 
 const inferStorageUnitFromArticle = (article: string): string => {
   const loose = normalizeLooseUnitText(article);
@@ -182,6 +191,7 @@ const isUnambiguousStorageOnlyValue = (value: string): boolean =>
   /^(?:au\s+kg|au\s+l|a\s+l\s+unite|a\s+lunite)$/i.test(normalizeLooseUnitText(value));
 
 const repairParsedRow = (row: ParsedTemplateRow): ParsedTemplateRow => {
+  const article = cleanImportedArticleText(row.article);
   let storageUnit = cleanImportedStorageUnit(row.storageUnit);
   let packagingUnit = cleanImportedPackagingUnit(row.packagingUnit);
 
@@ -190,11 +200,11 @@ const repairParsedRow = (row: ParsedTemplateRow): ParsedTemplateRow => {
     packagingUnit = '';
   }
 
-  if (!storageUnit) storageUnit = inferStorageUnitFromArticle(row.article);
+  if (!storageUnit) storageUnit = inferStorageUnitFromArticle(article);
 
   return {
     ...row,
-    article: row.article.trim(),
+    article,
     storageUnit,
     packagingUnit,
   };
@@ -227,20 +237,57 @@ const isSuspiciousParsedRow = (row: ParsedTemplateRow): boolean =>
 // Regroupe les mots d'une page en lignes en fonction de leur proximité verticale.
 // Tolérance généreuse car les bbox OCR (rendu canvas) sont moins régulières
 // que les positions natives pdf.js.
-const clusterLines = (words: ExtractedWord[], tolerance = 6): ExtractedWord[][] => {
-  const sorted = [...words].sort((a, b) => a.yTop - b.yTop || a.x - b.x);
+const clusterLines = (words: ExtractedWord[], tolerance?: number): ExtractedWord[][] => {
+  // Tesseract fournit déjà l'appartenance exacte de chaque mot à une ligne.
+  // La conserver évite de séparer un tiret, un « g » ou une lettre basse dont
+  // la bbox verticale diffère des autres glyphes de la même phrase.
+  const explicitLines = new Map<string, ExtractedWord[]>();
+  const positionalWords: ExtractedWord[] = [];
+  words.forEach((word) => {
+    if (!word.lineId) {
+      positionalWords.push(word);
+      return;
+    }
+    const line = explicitLines.get(word.lineId) ?? [];
+    line.push(word);
+    explicitLines.set(word.lineId, line);
+  });
+
+  const measuredHeights = words
+    .map((word) => word.height ?? 0)
+    .filter((height) => Number.isFinite(height) && height > 0)
+    .sort((a, b) => a - b);
+  const medianHeight = measuredHeights.length > 0
+    ? measuredHeights[Math.floor(measuredHeights.length / 2)]
+    : 0;
+  const resolvedTolerance = tolerance ?? (medianHeight > 0
+    ? Math.max(6, Math.min(14, medianHeight * 0.65))
+    : 6);
+  const sorted = [...positionalWords].sort((a, b) => a.yTop - b.yTop || a.x - b.x);
   const lines: ExtractedWord[][] = [];
 
   sorted.forEach((word) => {
     const currentLine = lines[lines.length - 1];
-    if (currentLine && Math.abs(currentLine[0].yTop - word.yTop) <= tolerance) {
+    const currentY = currentLine
+      ? currentLine.reduce((total, item) => total + item.yTop, 0) / currentLine.length
+      : 0;
+    if (currentLine && Math.abs(currentY - word.yTop) <= resolvedTolerance) {
       currentLine.push(word);
     } else {
       lines.push([word]);
     }
   });
 
-  return lines;
+  const groupedLines = [
+    ...lines,
+    ...[...explicitLines.values()].map((line) => line.sort((a, b) => a.x - b.x)),
+  ];
+
+  return groupedLines.sort((a, b) => {
+    const averageY = (line: ExtractedWord[]) =>
+      line.reduce((total, word) => total + word.yTop, 0) / Math.max(1, line.length);
+    return averageY(a) - averageY(b) || a[0].x - b[0].x;
+  });
 };
 
 // Repère l'en-tête (Code / Articles / [Stock Tampon] / Unité de Stock /
