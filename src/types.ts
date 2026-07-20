@@ -32,6 +32,7 @@ export interface Product {
   // Diviseur pour convertir une unité importée en pièces (ex: kg → pièces)
   importDivisor?:  number | '';
   storageUnit?:    string;        // Unité de stockage (ex: "au Kg", "carton") issue de la trame commande
+  packagingUnit?:  string;        // Libellé complet du conditionnement (ex: "carton x 16")
 }
 
 export interface OrderState {
@@ -116,7 +117,11 @@ export interface PrepBatch {
 
 export interface OrderTemplateRow {
   id: string;
+  productId?: string;
+  sourceCode?: string;
   article: string;
   storageUnit: string;
   packagingUnit: string;
 }
+
+export type OrderTemplatesBySupplier = Record<string, OrderTemplateRow[]>;

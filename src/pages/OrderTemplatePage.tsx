@@ -17,7 +17,7 @@ import AppNavTile from '../components/AppNavTile';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../auth/AuthProvider';
 import { canAccessRatiosPage } from '../lib/permissions';
-import { OrderLineField, OrderTemplateRow, SupplierConfig } from '../types';
+import { OrderLineField, OrderTemplateRow, OrderTemplatesBySupplier, SupplierConfig } from '../types';
 import { ProductWithHistory } from '../data';
 import {
   ExtractedWord,
@@ -33,6 +33,11 @@ import {
   toSafeImportErrorMessage,
   withImportTimeout,
 } from '../utils/importProcessing';
+import {
+  buildTemplateRowsFromProducts,
+  linkTemplateRowsToExistingProducts,
+  synchronizeOrderTemplateProducts,
+} from '../utils/orderTemplateCatalog';
 
 GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
 
@@ -40,24 +45,16 @@ interface OrderTemplatePageProps {
   setView: (v: View) => void;
   orderTemplateRows: OrderTemplateRow[];
   setOrderTemplateRows: React.Dispatch<React.SetStateAction<OrderTemplateRow[]>>;
+  orderTemplatesBySupplier: OrderTemplatesBySupplier;
+  setOrderTemplatesBySupplier: React.Dispatch<React.SetStateAction<OrderTemplatesBySupplier>>;
   products: ProductWithHistory[];
   setProducts: React.Dispatch<React.SetStateAction<ProductWithHistory[]>>;
   updateOrderLineField: (productId: string, field: OrderLineField, value: number | '') => void;
   supplierConfigs: Record<string, SupplierConfig>;
   ratioTab: SupplierId;
   setRatioTab: React.Dispatch<React.SetStateAction<SupplierId>>;
+  supabaseLoaded: boolean;
 }
-
-const normalizeProductKey = (supplierId: string, name: string) => `${supplierId}::${name.trim().toLowerCase()}`;
-
-const normalizeProductName = (name: string) => name.replace(/\s+/g, ' ').trim();
-
-// Extrait le premier nombre trouvé dans l'unité de conditionnement
-// (ex: "carton x 24" -> 24), 1 par défaut si aucun nombre n'est présent.
-const parsePackagingQuantity = (packagingUnit: string): number => {
-  const match = packagingUnit.match(/(\d+)/);
-  return match ? parseInt(match[1], 10) : 1;
-};
 
 type ProcessingStep = 'idle' | 'reading' | 'ocr' | 'done' | 'error';
 
@@ -166,12 +163,15 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
   setView,
   orderTemplateRows,
   setOrderTemplateRows,
+  orderTemplatesBySupplier,
+  setOrderTemplatesBySupplier,
   products,
   setProducts,
   updateOrderLineField,
   supplierConfigs,
   ratioTab,
   setRatioTab,
+  supabaseLoaded,
 }) => {
   const { profile } = useAuth();
   const canImport = canAccessRatiosPage(profile);
@@ -190,8 +190,56 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
   const selectedSupplierId: SupplierId | '' = supplierOptions.some((config) => config.id === ratioTab) ? ratioTab : '';
 
   const isProcessing = step === 'reading' || step === 'ocr';
+  const legacyTemplateMigratedRef = useRef(false);
+
+  const templateSupplierIds = useMemo(
+    () => supplierOptions
+      .filter(config => (
+        (orderTemplatesBySupplier[config.id]?.length || 0) > 0
+        || products.some(product => product.supplierId === config.id)
+      ))
+      .map(config => config.id),
+    [orderTemplatesBySupplier, products, supplierOptions],
+  );
+
+  const currentSupplierHasProducts = !!selectedSupplierId
+    && products.some(product => product.supplierId === selectedSupplierId);
 
   useEffect(() => () => pdfAbortControllerRef.current?.abort(), []);
+
+  // Migration non destructive de l'ancienne trame unique vers le catalogue
+  // fournisseur. On attend la fin du chargement cloud pour ne jamais sauver
+  // les valeurs initiales à la place des données réelles.
+  useEffect(() => {
+    if (legacyTemplateMigratedRef.current || !supabaseLoaded || !selectedSupplierId) return;
+    if (orderTemplatesBySupplier[selectedSupplierId]?.length) {
+      legacyTemplateMigratedRef.current = true;
+      return;
+    }
+    if (orderTemplateRows.length === 0) return;
+
+    const linkedRows = linkTemplateRowsToExistingProducts(orderTemplateRows, products, selectedSupplierId);
+    setOrderTemplateRows(linkedRows);
+    setOrderTemplatesBySupplier(prev => ({ ...prev, [selectedSupplierId]: linkedRows }));
+    legacyTemplateMigratedRef.current = true;
+  }, [orderTemplateRows, orderTemplatesBySupplier, products, selectedSupplierId, setOrderTemplateRows, setOrderTemplatesBySupplier, supabaseLoaded]);
+
+  const openSupplierTemplate = useCallback((supplierId: SupplierId) => {
+    if (supplierId === selectedSupplierId) return;
+
+    if (selectedSupplierId && orderTemplateRows.length > 0) {
+      const linkedCurrentRows = linkTemplateRowsToExistingProducts(orderTemplateRows, products, selectedSupplierId);
+      setOrderTemplatesBySupplier(prev => ({ ...prev, [selectedSupplierId]: linkedCurrentRows }));
+    }
+
+    const savedRows = orderTemplatesBySupplier[supplierId];
+    const nextRows = savedRows?.length
+      ? savedRows
+      : buildTemplateRowsFromProducts(products, supplierId);
+    setRatioTab(supplierId);
+    setOrderTemplateRows(nextRows.map(row => ({ ...row })));
+    setImportQualityReport(null);
+  }, [orderTemplateRows, orderTemplatesBySupplier, products, selectedSupplierId, setOrderTemplateRows, setOrderTemplatesBySupplier, setRatioTab]);
 
   const handleCreateProducts = useCallback(() => {
     if (!canImport) return;
@@ -200,64 +248,52 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
       return;
     }
 
-    const existingKeys = new Set(
-      products.map((p) => normalizeProductKey(p.supplierId ?? '', p.name))
-    );
-    const seenKeys = new Set<string>();
-    const toCreate: ProductWithHistory[] = [];
-    const packagingByProductId: Record<string, number> = {};
-    let duplicateCount = 0;
-
-    orderTemplateRows.forEach((row, index) => {
-      const article = normalizeProductName(row.article);
-      if (!article) return;
-
-      const key = normalizeProductKey(selectedSupplierId, article);
-      if (existingKeys.has(key) || seenKeys.has(key)) {
-        duplicateCount += 1;
-        return;
-      }
-      seenKeys.add(key);
-
-      const id = `custom-${Date.now()}-${index}`;
-      const packaging = parsePackagingQuantity(row.packagingUnit);
-      packagingByProductId[id] = packaging;
-
-      toCreate.push({
-        id,
-        supplierId: selectedSupplierId,
-        name: article,
-        searchName: article,
-        storageUnit: row.storageUnit.trim() || undefined,
-        packaging,
-        defaultMargin: 0,
-        salesHistory: {},
-      });
+    const creationTimestamp = Date.now();
+    const result = synchronizeOrderTemplateProducts({
+      rows: orderTemplateRows,
+      products,
+      supplierId: selectedSupplierId,
+      makeProductId: index => `custom-${creationTimestamp}-${index}`,
     });
 
-    if (duplicateCount > 0) {
+    if (result.duplicateCount > 0) {
       const proceed = window.confirm(
-        `${duplicateCount} doublon(s) détecté(s) (même nom + fournisseur) et seront ignorés. Créer les ${toCreate.length} autre(s) produit(s) ?`
+        `${result.duplicateCount} doublon(s) détecté(s) dans la trame seront ignorés. Continuer l'enregistrement ?`
       );
       if (!proceed) return;
     }
 
-    if (toCreate.length === 0) {
-      showToast('Aucun produit à créer (lignes vides ou déjà existantes).', 'warning');
+    if (result.linkedRows.length === 0) {
+      showToast('Aucune ligne exploitable à enregistrer.', 'warning');
       return;
     }
 
-    setProducts((prev) => [...toCreate, ...prev]);
-    // Champs opérationnels (stock/livraison/cible/conditionnement) vivent
-    // dans order_line_states : on seed la ligne de chaque nouveau produit.
-    toCreate.forEach((p) => {
+    const updatesById = new Map(result.updates.map(update => [update.id, update]));
+    setProducts(prev => [
+      ...result.creations,
+      ...prev.map(product => {
+        const update = updatesById.get(product.id);
+        return update ? { ...product, ...update } : product;
+      }),
+    ]);
+
+    result.creations.forEach((p) => {
       updateOrderLineField(p.id, 'stock', 0);
       updateOrderLineField(p.id, 'upcomingDelivery', 0);
       updateOrderLineField(p.id, 'targetStock', 0);
-      updateOrderLineField(p.id, 'packaging', packagingByProductId[p.id]);
+      updateOrderLineField(p.id, 'packaging', p.packaging);
     });
-    showToast(`✓ ${toCreate.length} produit(s) créé(s)`, 'success');
-  }, [canImport, orderTemplateRows, products, selectedSupplierId, setProducts, showToast, updateOrderLineField]);
+    result.updates.forEach(update => {
+      updateOrderLineField(update.id, 'packaging', update.packaging);
+    });
+
+    setOrderTemplateRows(result.linkedRows);
+    setOrderTemplatesBySupplier(prev => ({ ...prev, [selectedSupplierId]: result.linkedRows }));
+    showToast(
+      `✓ Trame enregistrée : ${result.creations.length} création(s), ${result.updates.length} mise(s) à jour`,
+      'success',
+    );
+  }, [canImport, orderTemplateRows, products, selectedSupplierId, setOrderTemplateRows, setOrderTemplatesBySupplier, setProducts, showToast, updateOrderLineField]);
 
   const extractViaText = useCallback(async (pdf: any, signal?: AbortSignal) => {
     const pagesWords: ExtractedWord[][] = [];
@@ -557,6 +593,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
 
       setOrderTemplateRows(parsedRows.map((row) => ({
         id: makeRowId(),
+        sourceCode: row.sourceCode,
         article: row.article,
         storageUnit: row.storageUnit,
         packagingUnit: row.packagingUnit,
@@ -743,7 +780,10 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
             <div className="flex flex-wrap items-center gap-3">
               <select
                 value={selectedSupplierId}
-                onChange={(e) => setRatioTab(e.target.value as SupplierId)}
+                onChange={(e) => {
+                  const supplierId = e.target.value as SupplierId;
+                  if (supplierId) openSupplierTemplate(supplierId);
+                }}
                 disabled={!canImport}
                 className="rounded-lg border-2 border-[#E2C39B] bg-[#FFFDF8] px-4 py-2 text-sm font-semibold text-[#2F1D14] focus:border-[#B66A2C] focus:outline-none disabled:cursor-not-allowed"
               >
@@ -765,9 +805,51 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
                     : 'cursor-not-allowed bg-[#F4E8D8] text-[#9A806A]'
                 }`}
               >
-                Créer les produits
+                {currentSupplierHasProducts ? 'Enregistrer les modifications' : 'Créer les produits'}
               </button>
             </div>
+          </section>
+
+          {/* Catalogue durable des trames déjà créées */}
+          <section className="mb-6 rounded-[24px] border border-[#D8AE77] bg-[#FFF7EA] p-6 shadow-[0_14px_30px_rgba(80,38,18,0.12)]">
+            <h2 className="text-lg font-black text-[#2F1D14]">Trames enregistrées</h2>
+            <p className="mt-2 text-sm text-[#6A432D]">
+              Ouvre une trame existante, modifie uniquement les unités nécessaires, puis utilise « Enregistrer les modifications ».
+              Les mappings, historiques et ratios des produits sont conservés.
+            </p>
+
+            {templateSupplierIds.length === 0 ? (
+              <p className="mt-4 rounded-xl border border-dashed border-[#D8AE77] bg-white/50 p-3 text-sm font-semibold text-[#8B6B54]">
+                Aucune trame enregistrée pour le moment.
+              </p>
+            ) : (
+              <div className="mt-4 flex flex-wrap gap-3">
+                {templateSupplierIds.map((supplierId) => {
+                  const config = supplierConfigs[supplierId];
+                  const rowCount = orderTemplatesBySupplier[supplierId]?.length
+                    || products.filter(product => product.supplierId === supplierId).length;
+                  const active = selectedSupplierId === supplierId;
+                  return (
+                    <button
+                      key={`saved-template-${supplierId}`}
+                      type="button"
+                      onClick={() => openSupplierTemplate(supplierId as SupplierId)}
+                      disabled={!canImport}
+                      className={`rounded-2xl border px-4 py-3 text-left transition disabled:opacity-50 ${
+                        active
+                          ? 'border-[#9A5525] bg-[#C86F24] text-white shadow-[0_5px_0_#8B431C]'
+                          : 'border-[#D8AE77] bg-[#FFFDF8] text-[#3A2116] hover:bg-white'
+                      }`}
+                    >
+                      <span className="block text-sm font-black">{config?.name || supplierId}</span>
+                      <span className={`mt-1 block text-xs font-semibold ${active ? 'text-[#FFE4C4]' : 'text-[#8B6B54]'}`}>
+                        {rowCount} ligne(s)
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </section>
 
           {/* Tableau éditable */}

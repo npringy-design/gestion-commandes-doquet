@@ -6,6 +6,7 @@ import {
 } from '../utils/reliableSaveQueue';
 import type {
   OrderTemplateRow,
+  OrderTemplatesBySupplier,
   PrepBatch,
   PrepForecastsByDate,
   PrepImportsByMonth,
@@ -48,6 +49,7 @@ export type PersistedAppState = {
   prepBatches: PrepBatch[];
   prepForecasts: PrepForecastsByDate;
   orderTemplateRows: OrderTemplateRow[];
+  orderTemplatesBySupplier: OrderTemplatesBySupplier;
 };
 
 type UseAppStatePersistenceParams = PersistedAppState & {
@@ -85,6 +87,7 @@ export const useAppStatePersistence = ({
   prepBatches,
   prepForecasts,
   orderTemplateRows,
+  orderTemplatesBySupplier,
   supabaseLoaded,
   isHydratingFromCloud,
   initialCloudLoadSucceededRef,
@@ -189,4 +192,7 @@ export const useAppStatePersistence = ({
   useEffect(() => {
     persistAppState('orderTemplateRows', orderTemplateRows);
   }, [orderTemplateRows, persistAppState]);
+  useEffect(() => {
+    persistAppState('orderTemplatesBySupplier', orderTemplatesBySupplier);
+  }, [orderTemplatesBySupplier, persistAppState]);
 };

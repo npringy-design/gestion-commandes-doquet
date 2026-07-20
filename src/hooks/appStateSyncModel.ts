@@ -25,7 +25,8 @@ export type WritableAppStateKey =
   | 'prepSheetStocks'
   | 'prepBatches'
   | 'prepForecasts'
-  | 'orderTemplateRows';
+  | 'orderTemplateRows'
+  | 'orderTemplatesBySupplier';
 
 export type AppStateCloudRow = {
   key: string;
@@ -63,6 +64,7 @@ const WRITABLE_APP_STATE_KEYS: readonly WritableAppStateKey[] = [
   'prepBatches',
   'prepForecasts',
   'orderTemplateRows',
+  'orderTemplatesBySupplier',
 ];
 
 export const stableStringify = (value: unknown): string => {

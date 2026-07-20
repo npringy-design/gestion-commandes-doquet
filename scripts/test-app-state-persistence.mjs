@@ -117,6 +117,7 @@ try {
     'prepBatches',
     'prepForecasts',
     'orderTemplateRows',
+    'orderTemplatesBySupplier',
   ]) {
     assert.match(hookSource, new RegExp(`persistAppState\\('${key}'`), `La clé ${key} doit rester sauvegardée`);
   }

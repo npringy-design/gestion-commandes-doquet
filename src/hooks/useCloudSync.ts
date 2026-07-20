@@ -25,6 +25,7 @@ import type {
   PrepForecastsByDate,
   PrepSheetStocks,
   OrderTemplateRow,
+  OrderTemplatesBySupplier,
 } from '../types';
 import type { ProductWithHistory } from '../data';
 import type { DailyCoversState } from '../utils/dateHelpers';
@@ -64,6 +65,7 @@ type StateSetters = {
   setPrepBatches: Dispatch<SetStateAction<PrepBatch[]>>;
   setPrepForecasts: Dispatch<SetStateAction<PrepForecastsByDate>>;
   setOrderTemplateRows: Dispatch<SetStateAction<OrderTemplateRow[]>>;
+  setOrderTemplatesBySupplier: Dispatch<SetStateAction<OrderTemplatesBySupplier>>;
 };
 
 type UseCloudSyncParams = PersistedAppState & StateSetters & {
@@ -90,6 +92,7 @@ export const useCloudSync = ({
   prepBatches,
   prepForecasts,
   orderTemplateRows,
+  orderTemplatesBySupplier,
   setCovers,
   setDailyCovers,
   setDetailedInventory,
@@ -109,6 +112,7 @@ export const useCloudSync = ({
   setPrepBatches,
   setPrepForecasts,
   setOrderTemplateRows,
+  setOrderTemplatesBySupplier,
   onSaveError,
 }: UseCloudSyncParams) => {
   const isHydratingFromCloud = useRef(false);
@@ -150,6 +154,7 @@ export const useCloudSync = ({
     prepBatches: value => setPrepBatches(value as PrepBatch[]),
     prepForecasts: value => setPrepForecasts(value as PrepForecastsByDate),
     orderTemplateRows: value => setOrderTemplateRows(value as OrderTemplateRow[]),
+    orderTemplatesBySupplier: value => setOrderTemplatesBySupplier(value as OrderTemplatesBySupplier),
   }), [
     setCostMatterByMonth,
     setCovers,
@@ -158,6 +163,7 @@ export const useCloudSync = ({
     setDetailedInventory,
     setNextDeliveryDateBySupplier,
     setOrderTemplateRows,
+    setOrderTemplatesBySupplier,
     setPrepBatches,
     setPrepForecasts,
     setPrepImportsByMonth,
@@ -247,6 +253,7 @@ export const useCloudSync = ({
     prepBatches,
     prepForecasts,
     orderTemplateRows,
+    orderTemplatesBySupplier,
     supabaseLoaded,
     isHydratingFromCloud,
     initialCloudLoadSucceededRef,

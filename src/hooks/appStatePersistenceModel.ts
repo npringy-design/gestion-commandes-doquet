@@ -23,6 +23,7 @@ export const APP_STATE_SAVE_DEBOUNCE_MS_BY_KEY: Record<string, number> = {
   prepImportsByMonth: 5000,
   inventory: 8000,
   orderTemplateRows: 1500,
+  orderTemplatesBySupplier: 800,
 };
 
 export type AppStatePersistenceDecision = 'skip' | 'protect-empty' | 'remember' | 'save';

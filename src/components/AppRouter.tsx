@@ -355,12 +355,15 @@ const AppRouter: React.FC<AppRouterProps> = ({
         setView={setView}
         orderTemplateRows={state.orderTemplateRows}
         setOrderTemplateRows={state.setOrderTemplateRows}
+        orderTemplatesBySupplier={state.orderTemplatesBySupplier}
+        setOrderTemplatesBySupplier={state.setOrderTemplatesBySupplier}
         products={state.products}
         setProducts={state.setProducts}
         updateOrderLineField={state.updateOrderLineField}
         supplierConfigs={state.supplierConfigs}
         ratioTab={state.ratioTab}
         setRatioTab={state.setRatioTab}
+        supabaseLoaded={state.supabaseLoaded}
       />,
       'Chargement de la trame commande…'
     );
