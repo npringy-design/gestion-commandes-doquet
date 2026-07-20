@@ -22,6 +22,7 @@ import { ProductWithHistory } from '../data';
 import {
   ExtractedWord,
   extractRowsFromDocumentWords,
+  mergeTemplateExtractions,
   scoreTemplateExtraction,
 } from '../utils/orderTemplateParser';
 import { validateImportFile } from '../utils/importFileValidation';
@@ -60,7 +61,7 @@ const parsePackagingQuantity = (packagingUnit: string): number => {
 type ProcessingStep = 'idle' | 'reading' | 'ocr' | 'done' | 'error';
 
 interface ImportQualityReport {
-  mode: 'texte' | 'OCR';
+  mode: 'texte' | 'OCR' | 'texte + OCR';
   attemptedOcr: boolean;
   rowCount: number;
   codeCount: number;
@@ -390,6 +391,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
         let finalPagesWords = pagesWords;
         let extraction = extractRowsFromDocumentWords(pagesWords);
         let usedOcr = false;
+        let hybridMode = false;
         let attemptedOcr = false;
         let maximumDetectedCodeCount = extraction.codeCount;
 
@@ -420,23 +422,22 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
             suspicious: ocrExtraction.suspiciousRowCount,
           });
 
-          const ocrPreservesDetectedCodes =
-            ocrExtraction.codeCount >= extraction.codeCount ||
-            ocrExtraction.rows.length > extraction.rows.length;
-          if (
-            totalChars < 20 ||
-            (
-              ocrPreservesDetectedCodes &&
-              scoreTemplateExtraction(ocrExtraction) > scoreTemplateExtraction(extraction)
-            )
-          ) {
+          if (totalChars < 20 || extraction.rows.length === 0) {
             finalPagesWords = ocrPagesWords;
             extraction = ocrExtraction;
             usedOcr = true;
+          } else {
+            // Sur un PDF natif, l'OCR ne remplace plus toute la table. Il ne
+            // fait que compléter les cellules ou codes absents, afin de ne pas
+            // transformer les accents, marques ou fins de libellés pourtant
+            // correctement encodés dans le document.
+            extraction = mergeTemplateExtractions(extraction, ocrExtraction);
+            usedOcr = true;
+            hybridMode = true;
           }
         }
 
-        return { finalPagesWords, extraction, usedOcr, attemptedOcr, maximumDetectedCodeCount };
+        return { finalPagesWords, extraction, usedOcr, hybridMode, attemptedOcr, maximumDetectedCodeCount };
       })(), IMPORT_PROCESSING_TIMEOUTS.pdfProcessing,
       'Le traitement du PDF a dépassé 2 minutes et a été arrêté.',
       () => { controller.abort(); void pdf?.destroy(); });
@@ -445,6 +446,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
         finalPagesWords,
         extraction,
         usedOcr,
+        hybridMode,
         attemptedOcr,
         maximumDetectedCodeCount,
       } = processed;
@@ -473,7 +475,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
         attemptedOcr,
       });
       setImportQualityReport({
-        mode: usedOcr ? 'OCR' : 'texte',
+        mode: hybridMode ? 'texte + OCR' : usedOcr ? 'OCR' : 'texte',
         attemptedOcr,
         rowCount: parsedRows.length,
         codeCount,

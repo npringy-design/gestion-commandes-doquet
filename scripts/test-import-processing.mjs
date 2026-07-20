@@ -143,13 +143,18 @@ try {
   );
   assert.match(
     pdfSource,
-    /scoreTemplateExtraction\(ocrExtraction\) > scoreTemplateExtraction\(extraction\)/,
-    'Le choix texte natif\/OCR doit reposer sur une comparaison de complétude et de qualité',
+    /mergeTemplateExtractions\(extraction, ocrExtraction\)/,
+    'Le texte natif et l OCR doivent être fusionnés cellule par cellule',
   );
   assert.match(
     pdfSource,
-    /ocrExtraction\.codeCount >= extraction\.codeCount/,
-    'Le repli OCR ne doit pas être préféré s il oublie des codes vus par la lecture native',
+    /extraction\.rows\.length === 0/,
+    'L OCR complet ne doit remplacer le texte natif que lorsque celui-ci ne produit aucune ligne',
+  );
+  assert.match(
+    pdfSource,
+    /mode: hybridMode \? 'texte \+ OCR'/,
+    'Le rapport doit rendre visible la fusion texte et OCR',
   );
   assert.match(
     pdfSource,

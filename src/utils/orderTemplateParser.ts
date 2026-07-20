@@ -24,6 +24,7 @@ export interface ExtractedWord {
 }
 
 export interface ParsedTemplateRow {
+  sourceCode?: string;
   article: string;
   storageUnit: string;
   packagingUnit: string;
@@ -168,8 +169,35 @@ const inferStorageUnitFromArticle = (article: string): string => {
   if (/\bpieces?\b|\bpiece\b|\bpi\s*ce\b/.test(loose)) return 'pièce';
   if (/\bbac\b/.test(loose)) return 'bac';
   if (/\b\d+(?:[.,]\d+)?\s*(kg|g|gr)\b/.test(loose)) return 'au Kg';
+  if (/\b\d+(?:[.,]\d+)?\s*(l|litre|litres|cl|ml)\b/.test(loose)) return 'au L';
 
   return '';
+};
+
+// Certaines extractions placent une valeur de stockage juste après la
+// frontière calculée de la colonne. Les valeurs ci-dessous ne sont pas des
+// conditionnements : si la cellule stockage est vide, on peut donc les
+// remettre à gauche sans dépendre d'un fournisseur ou d'un libellé produit.
+const isUnambiguousStorageOnlyValue = (value: string): boolean =>
+  /^(?:au\s+kg|au\s+l|a\s+l\s+unite|a\s+lunite)$/i.test(normalizeLooseUnitText(value));
+
+const repairParsedRow = (row: ParsedTemplateRow): ParsedTemplateRow => {
+  let storageUnit = cleanImportedStorageUnit(row.storageUnit);
+  let packagingUnit = cleanImportedPackagingUnit(row.packagingUnit);
+
+  if (!storageUnit && isUnambiguousStorageOnlyValue(packagingUnit)) {
+    storageUnit = cleanImportedStorageUnit(packagingUnit);
+    packagingUnit = '';
+  }
+
+  if (!storageUnit) storageUnit = inferStorageUnitFromArticle(row.article);
+
+  return {
+    ...row,
+    article: row.article.trim(),
+    storageUnit,
+    packagingUnit,
+  };
 };
 
 const isSuspiciousArticleText = (article: string): boolean => {
@@ -459,6 +487,7 @@ export const extractRowsFromPageWords = (
     lineInfos.forEach((l) => {
       if (l.articleText) {
         rows.push({
+          sourceCode: l.codeValue || undefined,
           article: l.articleText,
           storageUnit: cleanImportedStorageUnit(l.storageUnit) || inferStorageUnitFromArticle(l.articleText),
           packagingUnit: cleanImportedPackagingUnit(l.packagingUnit),
@@ -519,6 +548,7 @@ export const extractRowsFromPageWords = (
         inferStorageUnitFromArticle(article);
       if (article) {
         rows.push({
+          sourceCode: lineInfos[anchorIndices[pos]].codeValue || undefined,
           article,
           storageUnit,
           packagingUnit: cleanImportedPackagingUnit(packagingUnitByAnchorPos[pos].join(' ').trim()),
@@ -526,6 +556,9 @@ export const extractRowsFromPageWords = (
       }
     });
   }
+
+  const repairedRows = rows.map(repairParsedRow);
+  rows.splice(0, rows.length, ...repairedRows);
 
   const codeCount = hasCodeColumn ? anchorIndices.length : 0;
   const incompleteCodeCount = hasCodeColumn ? Math.max(0, codeCount - rows.length) : 0;
@@ -594,4 +627,66 @@ export const scoreTemplateExtraction = (result: DocumentExtractionResult): numbe
     result.suspiciousRowCount * 35 +
     (result.headerFound ? 20 : -200)
   );
+};
+
+// Le texte natif d'un PDF est généralement plus fidèle que l'OCR pour les
+// accents, marques et fins de lignes. L'OCR reste utile pour compléter un code
+// ou une cellule réellement absente. Cette fusion conserve donc le libellé
+// natif et ne prend dans l'OCR que les champs manquants, en alignant les lignes
+// par code produit plutôt que par leur position dans le tableau.
+export const mergeTemplateExtractions = (
+  nativeResult: DocumentExtractionResult,
+  ocrResult: DocumentExtractionResult,
+): DocumentExtractionResult => {
+  if (nativeResult.rows.length === 0) return ocrResult;
+  if (ocrResult.rows.length === 0) return nativeResult;
+
+  const ocrByCode = new Map(
+    ocrResult.rows
+      .filter((row) => row.sourceCode)
+      .map((row) => [row.sourceCode as string, row]),
+  );
+  const nativeCodes = new Set(nativeResult.rows.map((row) => row.sourceCode).filter(Boolean));
+
+  const rows = nativeResult.rows.map((nativeRow, index) => {
+    const ocrRow = nativeRow.sourceCode
+      ? ocrByCode.get(nativeRow.sourceCode)
+      : ocrResult.rows[index];
+
+    return repairParsedRow({
+      sourceCode: nativeRow.sourceCode || ocrRow?.sourceCode,
+      // Ne jamais remplacer un texte PDF existant par une reconnaissance
+      // visuelle moins fidèle. Elle peut seulement combler une valeur vide.
+      article: nativeRow.article || ocrRow?.article || '',
+      storageUnit: nativeRow.storageUnit || ocrRow?.storageUnit || '',
+      packagingUnit: nativeRow.packagingUnit || ocrRow?.packagingUnit || '',
+    });
+  });
+
+  ocrResult.rows.forEach((ocrRow) => {
+    if (ocrRow.sourceCode && !nativeCodes.has(ocrRow.sourceCode)) {
+      rows.push(repairParsedRow(ocrRow));
+    }
+  });
+
+  const codeCount = Math.max(nativeResult.codeCount, ocrResult.codeCount);
+  const returnedCodeCount = new Set(rows.map((row) => row.sourceCode).filter(Boolean)).size;
+  const incompleteCodeCount = Math.max(0, codeCount - returnedCodeCount);
+  const suspiciousRowCount = rows.filter(isSuspiciousParsedRow).length;
+  const headerFound = nativeResult.headerFound || ocrResult.headerFound;
+  const needsReview =
+    !headerFound ||
+    rows.length === 0 ||
+    incompleteCodeCount > 0 ||
+    suspiciousRowCount > 0;
+
+  return {
+    rows,
+    headerFound,
+    pagesDebug: nativeResult.pagesDebug,
+    codeCount,
+    incompleteCodeCount,
+    suspiciousRowCount,
+    needsReview,
+  };
 };

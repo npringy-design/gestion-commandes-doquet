@@ -39,6 +39,7 @@ try {
   const {
     extractRowsFromDocumentWords,
     extractRowsFromPageWords,
+    mergeTemplateExtractions,
     scoreTemplateExtraction,
   } = await import(pathToFileURL(compiledPath).href);
 
@@ -183,7 +184,78 @@ try {
     'Une extraction complete et lisible doit etre preferee a une extraction degradee',
   );
 
-  console.log('Parser trame commande OK : codes, bandes multilignes, pages, echelle OCR et qualite proteges.');
+  const missingLiterUnitWords = [
+    ...header,
+    ...articleLine({
+      yTop: 100,
+      code: '900001',
+      article: 'Préparation dessert brique 100 cl',
+      storageUnit: '',
+      packagingUnit: 'carton x 6',
+    }),
+  ];
+  const missingLiterUnitResult = extractRowsFromDocumentWords([missingLiterUnitWords]);
+  assert.equal(
+    missingLiterUnitResult.rows[0].storageUnit,
+    'au L',
+    'Une unité liquide absente doit être déduite du volume de l article',
+  );
+
+  const shiftedStorageWords = [
+    ...header,
+    ...articleLine({
+      yTop: 100,
+      code: '900002',
+      article: 'Fromage affiné',
+      storageUnit: '',
+      packagingUnit: 'au Kg',
+    }),
+  ];
+  const shiftedStorageResult = extractRowsFromDocumentWords([shiftedStorageWords]);
+  assert.equal(shiftedStorageResult.rows[0].storageUnit, 'au Kg');
+  assert.equal(
+    shiftedStorageResult.rows[0].packagingUnit,
+    '',
+    'Une valeur au Kg décalée dans conditionnement doit revenir dans stockage',
+  );
+
+  const faithfulNativeWords = [
+    ...header,
+    ...articleLine({
+      yTop: 100,
+      code: '900003',
+      article: 'Crème anglaise bouteille 1 L',
+      storageUnit: 'bouteille',
+      packagingUnit: 'carton x 6',
+    }),
+    ...articleLine({ yTop: 118, article: 'MARQUE COMPLETE', storageUnit: '' }),
+  ];
+  const damagedOcrWords = [
+    ...header,
+    ...articleLine({
+      yTop: 100,
+      code: '900003',
+      article: 'Crée anglaise pouteille 1 L',
+      storageUnit: 'bouteille',
+      packagingUnit: 'carfon x 6',
+    }),
+  ];
+  const hybridResult = mergeTemplateExtractions(
+    extractRowsFromDocumentWords([faithfulNativeWords]),
+    extractRowsFromDocumentWords([damagedOcrWords]),
+  );
+  assert.equal(
+    hybridResult.rows[0].article,
+    'Crème anglaise bouteille 1 L\nMARQUE COMPLETE',
+    'L OCR ne doit jamais manger ou déformer un libellé natif existant',
+  );
+  assert.equal(
+    hybridResult.rows[0].packagingUnit,
+    'carton x 6',
+    'L OCR ne doit pas remplacer un conditionnement natif plus fidèle',
+  );
+
+  console.log('Parser trame commande OK : codes, bandes multilignes, fusion OCR, unités et qualité protégés.');
 } finally {
   rmSync(tempDir, { recursive: true, force: true });
 }
