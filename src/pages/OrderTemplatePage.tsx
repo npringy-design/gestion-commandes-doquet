@@ -286,7 +286,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
   }, []);
 
   const extractViaOcr = useCallback(async (pdf: any, signal?: AbortSignal) => {
-    const { createWorker } = await import('tesseract.js');
+    const { createWorker, PSM } = await import('tesseract.js');
     setStatusLabel('Préparation de la reconnaissance de texte (OCR)…');
     const worker = await createWorker('fra', undefined, {
       logger: (m: { status: string; progress: number }) => {
@@ -295,6 +295,11 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
         }
       },
     });
+    // Le mode par défaut de Tesseract traite l'image comme un bloc de texte
+    // unique. Il convient aux documents simples mais mélange les cellules des
+    // tableaux denses. AUTO détecte les blocs et colonnes avant de reconnaître
+    // les mots, sans dépendre d'un fournisseur ou d'un gabarit précis.
+    await worker.setParameters({ tessedit_pageseg_mode: PSM.AUTO });
 
     const pagesWords: ExtractedWord[][] = [];
     let rotationDegrees: RotationDegrees = 0;

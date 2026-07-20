@@ -138,6 +138,11 @@ try {
   assert.match(pdfSource, /await terminateWorker\(\)/);
   assert.match(
     pdfSource,
+    /tessedit_pageseg_mode:\s*PSM\.AUTO/,
+    'L OCR des tableaux doit utiliser la segmentation automatique des blocs et colonnes',
+  );
+  assert.match(
+    pdfSource,
     /totalChars < 20 \|\| extraction\.needsReview/,
     'Une extraction textuelle incomplète ou suspecte doit déclencher automatiquement le repli OCR',
   );
