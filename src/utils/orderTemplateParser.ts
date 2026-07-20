@@ -56,9 +56,17 @@ const cleanWordText = (text: string): string => text.replace(/^\|+/, '').replace
 const COLUMN_MARGIN = 15;
 
 // Un mot uniquement numérique de 3 chiffres ou plus, en tête de la zone
-// Code+Articles, est traité comme la valeur de la colonne "Code" (les
-// quantités isolées type "5" ou "20g" ne matchent pas ce format).
+// Code+Articles, est traité comme la valeur de la colonne "Code". Une ligne
+// wrappée commençant par un grammage séparé (ex: "400 g PUIGRENIER") doit
+// toutefois rester une continuation de l'article, pas devenir un nouveau code.
 const CODE_VALUE_PATTERN = /^\d{3,}$/;
+const ARTICLE_QUANTITY_VALUE_PATTERN = /^\d{1,4}(?:[.,]\d+)?$/;
+const ARTICLE_QUANTITY_UNIT_PATTERN = /^(?:g|gr|kg|ml|cl|l)$/i;
+
+const startsWithArticleQuantity = (words: ExtractedWord[]): boolean =>
+  words.length >= 2 &&
+  ARTICLE_QUANTITY_VALUE_PATTERN.test(words[0].text) &&
+  ARTICLE_QUANTITY_UNIT_PATTERN.test(words[1].text);
 
 // Un fragment Unité/Conditionnement récupéré sur une ligne voisine (wrap)
 // n'est retenu que s'il contient au moins 2 caractères alphanumériques utiles :
@@ -89,6 +97,13 @@ const normalizeLooseUnitText = (text: string): string =>
     .replace(/[^a-z0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+
+const pushUniqueUnitFragment = (fragments: string[], value: string): void => {
+  const normalizedValue = normalizeLooseUnitText(value);
+  if (!normalizedValue) return;
+  if (fragments.some((fragment) => normalizeLooseUnitText(fragment) === normalizedValue)) return;
+  fragments.push(value);
+};
 
 const cleanImportedStorageUnit = (text: string): string => {
   const loose = normalizeLooseUnitText(text);
@@ -309,7 +324,12 @@ export const extractRowsFromPageWords = (
 
     let articleWords = sorted.filter((w) => w.x < articleEnd);
     let isAnchorFromCode = false;
-    if (hasCodeColumn && articleWords.length > 0 && CODE_VALUE_PATTERN.test(articleWords[0].text)) {
+    if (
+      hasCodeColumn &&
+      articleWords.length > 0 &&
+      CODE_VALUE_PATTERN.test(articleWords[0].text) &&
+      !startsWithArticleQuantity(articleWords)
+    ) {
       articleWords = articleWords.slice(1);
       isAnchorFromCode = true;
     }
@@ -391,10 +411,10 @@ export const extractRowsFromPageWords = (
 
       if (line.articleText) articleTextByAnchorPos[nearestPos].push(line.articleText);
       if (line.storageUnit && (isOwnAnchorLine || isPlausibleUnitFragment(line.storageUnit))) {
-        storageUnitByAnchorPos[nearestPos].push(line.storageUnit);
+        pushUniqueUnitFragment(storageUnitByAnchorPos[nearestPos], line.storageUnit);
       }
       if (line.packagingUnit && (isOwnAnchorLine || isPlausibleUnitFragment(line.packagingUnit))) {
-        packagingUnitByAnchorPos[nearestPos].push(line.packagingUnit);
+        pushUniqueUnitFragment(packagingUnitByAnchorPos[nearestPos], line.packagingUnit);
       }
     });
 
