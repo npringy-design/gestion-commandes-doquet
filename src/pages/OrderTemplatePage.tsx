@@ -22,6 +22,7 @@ import { ProductWithHistory } from '../data';
 import {
   ExtractedWord,
   extractRowsFromDocumentWords,
+  mergeOcrExtractions,
   mergeTemplateExtractions,
   scoreTemplateExtraction,
 } from '../utils/orderTemplateParser';
@@ -285,7 +286,12 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     return { pagesWords, totalChars };
   }, []);
 
-  const extractViaOcr = useCallback(async (pdf: any, signal?: AbortSignal) => {
+  const extractViaOcr = useCallback(async (
+    pdf: any,
+    signal?: AbortSignal,
+    segmentation: 'auto' | 'single-block' = 'auto',
+    forcedRotation?: RotationDegrees,
+  ) => {
     const { createWorker, PSM } = await import('tesseract.js');
     setStatusLabel('Préparation de la reconnaissance de texte (OCR)…');
     const worker = await createWorker('fra', undefined, {
@@ -299,10 +305,12 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     // unique. Il convient aux documents simples mais mélange les cellules des
     // tableaux denses. AUTO détecte les blocs et colonnes avant de reconnaître
     // les mots, sans dépendre d'un fournisseur ou d'un gabarit précis.
-    await worker.setParameters({ tessedit_pageseg_mode: PSM.AUTO });
+    await worker.setParameters({
+      tessedit_pageseg_mode: segmentation === 'auto' ? PSM.AUTO : PSM.SINGLE_BLOCK,
+    });
 
     const pagesWords: ExtractedWord[][] = [];
-    let rotationDegrees: RotationDegrees = 0;
+    let rotationDegrees: RotationDegrees = forcedRotation ?? 0;
     let terminated = false;
     const terminateWorker = async () => {
       if (terminated) return;
@@ -316,7 +324,9 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
       for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
         throwIfImportAborted(signal);
         setOcrProgress(0);
-        setStatusLabel(`OCR — page ${pageNum}/${pdf.numPages}`);
+        setStatusLabel(
+          `${segmentation === 'auto' ? 'OCR automatique' : 'OCR structure'} — page ${pageNum}/${pdf.numPages}`,
+        );
         const page = await pdf.getPage(pageNum);
         const viewport = page.getViewport({ scale: OCR_RENDER_SCALE });
         const canvas = document.createElement('canvas');
@@ -328,11 +338,11 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
         await page.render({ canvasContext: context, canvas, viewport }).promise;
         throwIfImportAborted(signal);
 
-        if (pageNum === 1) {
+        if (pageNum === 1 && forcedRotation === undefined) {
           setStatusLabel('Détection de l’orientation du document…');
           rotationDegrees = await detectBestRotation(worker, canvas, signal);
           console.info(`[OrderTemplatePage] Rotation détectée : ${rotationDegrees}°`);
-          setStatusLabel(`OCR — page ${pageNum}/${pdf.numPages}`);
+          setStatusLabel(`OCR automatique — page ${pageNum}/${pdf.numPages}`);
         }
 
         const orientedCanvas = rotateCanvas(canvas, rotationDegrees);
@@ -345,7 +355,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
         (data.blocks ?? []).forEach((block) => {
           block.paragraphs.forEach((paragraph) => {
             paragraph.lines.forEach((line) => {
-              const lineId = `page-${pageNum}-line-${ocrLineIndex}`;
+              const lineId = `${segmentation}-page-${pageNum}-line-${ocrLineIndex}`;
               ocrLineIndex += 1;
               line.words.forEach((word) => {
                 const text = word.text.trim();
@@ -369,7 +379,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
       await terminateWorker().catch(() => undefined);
     }
 
-    return pagesWords;
+    return { pagesWords, rotationDegrees };
   }, []);
 
   const handleFile = useCallback(async (file: File) => {
@@ -426,8 +436,32 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
         if (totalChars < 20 || extraction.needsReview) {
           setStep('ocr');
           attemptedOcr = true;
-          const ocrPagesWords = await extractViaOcr(pdf, controller.signal);
-          const ocrExtraction = extractRowsFromDocumentWords(ocrPagesWords);
+          const automaticOcr = await extractViaOcr(pdf, controller.signal, 'auto');
+          const ocrPagesWords = automaticOcr.pagesWords;
+          let ocrExtraction = extractRowsFromDocumentWords(ocrPagesWords);
+
+          // Un PDF-image ou une première lecture encore incertaine bénéficie
+          // d'une deuxième segmentation. AUTO privilégie la fidélité des
+          // blocs de texte ; SINGLE_BLOCK conserve souvent mieux les codes et
+          // cellules d'un tableau quadrillé. La fusion se fait ensuite par
+          // code article et ignore les fragments sans code.
+          if (totalChars < 20 || ocrExtraction.needsReview) {
+            const structuredOcr = await extractViaOcr(
+              pdf,
+              controller.signal,
+              'single-block',
+              automaticOcr.rotationDegrees,
+            );
+            const structuredExtraction = extractRowsFromDocumentWords(structuredOcr.pagesWords);
+            ocrExtraction = mergeOcrExtractions(ocrExtraction, structuredExtraction);
+            console.info('[OrderTemplatePage] Qualité OCR structure :', {
+              score: scoreTemplateExtraction(structuredExtraction),
+              codes: structuredExtraction.codeCount,
+              rows: structuredExtraction.rows.length,
+              incomplete: structuredExtraction.incompleteCodeCount,
+              suspicious: structuredExtraction.suspiciousRowCount,
+            });
+          }
           maximumDetectedCodeCount = Math.max(maximumDetectedCodeCount, ocrExtraction.codeCount);
           console.info('[OrderTemplatePage] Qualité OCR :', {
             score: scoreTemplateExtraction(ocrExtraction),

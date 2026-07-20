@@ -138,8 +138,13 @@ try {
   assert.match(pdfSource, /await terminateWorker\(\)/);
   assert.match(
     pdfSource,
-    /tessedit_pageseg_mode:\s*PSM\.AUTO/,
-    'L OCR des tableaux doit utiliser la segmentation automatique des blocs et colonnes',
+    /segmentation === 'auto' \? PSM\.AUTO : PSM\.SINGLE_BLOCK/,
+    'L OCR doit pouvoir comparer segmentation automatique et bloc structuré',
+  );
+  assert.match(
+    pdfSource,
+    /mergeOcrExtractions\(ocrExtraction, structuredExtraction\)/,
+    'Les deux segmentations OCR doivent être fusionnées par code article',
   );
   assert.match(
     pdfSource,

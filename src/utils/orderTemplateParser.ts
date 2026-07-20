@@ -667,13 +667,89 @@ export const extractRowsFromDocumentWords = (
 // ou d'un libellé particulier. La complétude prime, puis la qualité des champs.
 export const scoreTemplateExtraction = (result: DocumentExtractionResult): number => {
   const completeRows = result.rows.length - result.suspiciousRowCount;
+  const codedRows = result.rows.filter((row) => row.sourceCode).length;
+  const uncodedRows = result.rows.length - codedRows;
+  const rowScore = codedRows > 0
+    ? codedRows * 240 - uncodedRows * 120
+    : result.rows.length * 200;
   return (
-    result.rows.length * 200 +
+    rowScore +
     completeRows * 25 -
     result.incompleteCodeCount * 150 -
     result.suspiciousRowCount * 35 +
     (result.headerFound ? 20 : -200)
   );
+};
+
+const scoreOcrArticleCandidate = (article: string): number => {
+  const cleaned = cleanImportedArticleText(article);
+  if (!cleaned) return -1000;
+  const usefulLength = cleaned.replace(/[^a-zà-ÿ0-9]/gi, '').length;
+  const lineBonus = Math.max(0, cleaned.split(/\n+/).filter(Boolean).length - 1) * 8;
+  return usefulLength + lineBonus - (isSuspiciousArticleText(cleaned) ? 80 : 0);
+};
+
+// Deux segmentations OCR peuvent être complémentaires : AUTO lit mieux les
+// blocs de texte complexes, tandis que SINGLE_BLOCK conserve parfois mieux
+// la structure des lignes d'un tableau quadrillé. On aligne les résultats par
+// code et on choisit le libellé le plus complet, sans jamais créer une ligne
+// issue d'un fragment OCR dépourvu de code.
+export const mergeOcrExtractions = (
+  firstResult: DocumentExtractionResult,
+  secondResult: DocumentExtractionResult,
+): DocumentExtractionResult => {
+  const countCodedRows = (result: DocumentExtractionResult) =>
+    result.rows.filter((row) => row.sourceCode).length;
+  const firstCoded = countCodedRows(firstResult);
+  const secondCoded = countCodedRows(secondResult);
+  const primary = secondCoded > firstCoded || (
+    secondCoded === firstCoded && scoreTemplateExtraction(secondResult) > scoreTemplateExtraction(firstResult)
+  ) ? secondResult : firstResult;
+  const secondary = primary === firstResult ? secondResult : firstResult;
+  const secondaryByCode = new Map(
+    secondary.rows
+      .filter((row) => row.sourceCode)
+      .map((row) => [row.sourceCode as string, row]),
+  );
+  const primaryCodes = new Set(primary.rows.map((row) => row.sourceCode).filter(Boolean));
+
+  const rows = primary.rows
+    .filter((row) => row.sourceCode || countCodedRows(primary) === 0)
+    .map((primaryRow) => {
+      const secondaryRow = primaryRow.sourceCode
+        ? secondaryByCode.get(primaryRow.sourceCode)
+        : undefined;
+      const article = secondaryRow &&
+        scoreOcrArticleCandidate(secondaryRow.article) > scoreOcrArticleCandidate(primaryRow.article)
+        ? secondaryRow.article
+        : primaryRow.article;
+      return repairParsedRow({
+        sourceCode: primaryRow.sourceCode || secondaryRow?.sourceCode,
+        article,
+        storageUnit: primaryRow.storageUnit || secondaryRow?.storageUnit || '',
+        packagingUnit: primaryRow.packagingUnit || secondaryRow?.packagingUnit || '',
+      });
+    });
+
+  secondary.rows.forEach((row) => {
+    if (row.sourceCode && !primaryCodes.has(row.sourceCode)) rows.push(repairParsedRow(row));
+  });
+
+  const codeCount = Math.max(firstResult.codeCount, secondResult.codeCount);
+  const returnedCodeCount = new Set(rows.map((row) => row.sourceCode).filter(Boolean)).size;
+  const incompleteCodeCount = Math.max(0, codeCount - returnedCodeCount);
+  const suspiciousRowCount = rows.filter(isSuspiciousParsedRow).length;
+  const headerFound = firstResult.headerFound || secondResult.headerFound;
+
+  return {
+    rows,
+    headerFound,
+    pagesDebug: primary.pagesDebug,
+    codeCount,
+    incompleteCodeCount,
+    suspiciousRowCount,
+    needsReview: !headerFound || rows.length === 0 || incompleteCodeCount > 0 || suspiciousRowCount > 0,
+  };
 };
 
 // Le texte natif d'un PDF est généralement plus fidèle que l'OCR pour les

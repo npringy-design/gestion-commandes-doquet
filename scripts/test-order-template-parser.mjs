@@ -39,6 +39,7 @@ try {
   const {
     extractRowsFromDocumentWords,
     extractRowsFromPageWords,
+    mergeOcrExtractions,
     mergeTemplateExtractions,
     scoreTemplateExtraction,
   } = await import(pathToFileURL(compiledPath).href);
@@ -292,6 +293,36 @@ try {
   );
   assert.equal(explicitOcrLineResult.rows[0].storageUnit, 'au L');
   assert.equal(explicitOcrLineResult.suspiciousRowCount, 0, 'Le conditionnement plaque est une valeur valide');
+
+  const makeOcrResult = (rows, codeCount, suspiciousRowCount = 0) => ({
+    rows,
+    headerFound: true,
+    pagesDebug: [],
+    codeCount,
+    incompleteCodeCount: 0,
+    suspiciousRowCount,
+    needsReview: suspiciousRowCount > 0,
+  });
+  const structuredOcrResult = makeOcrResult([
+    { sourceCode: 'A100', article: 'Produit incomplet', storageUnit: 'au Kg', packagingUnit: 'carton x 6' },
+    { sourceCode: 'B200', article: 'Deuxième produit complet', storageUnit: 'pièce', packagingUnit: 'boîte x 10' },
+  ], 2);
+  const automaticOcrResult = makeOcrResult([
+    { sourceCode: 'A100', article: 'Produit automatique MARQUE COMPLETE', storageUnit: 'au Kg', packagingUnit: 'carton x 6' },
+    { article: '45468', storageUnit: 'au Kg', packagingUnit: '' },
+  ], 1, 1);
+  const dualOcrResult = mergeOcrExtractions(automaticOcrResult, structuredOcrResult);
+  assert.equal(dualOcrResult.rows.length, 2, 'Les fragments OCR sans code ne doivent pas créer de produits');
+  assert.equal(
+    dualOcrResult.rows[0].article,
+    'Produit automatique MARQUE COMPLETE',
+    'Le libellé le plus complet doit compléter la segmentation la plus structurée',
+  );
+  assert.deepEqual(
+    dualOcrResult.rows.map((row) => row.sourceCode),
+    ['A100', 'B200'],
+    'Les lignes doivent rester alignées par code article',
+  );
 
   console.log('Parser trame commande OK : codes, bandes multilignes, fusion OCR, unités et qualité protégés.');
 } finally {
