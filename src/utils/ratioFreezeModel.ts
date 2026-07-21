@@ -69,6 +69,15 @@ export const openNewRatioProductsForMonth = (
   current,
 );
 
+export const openNewRatioProductsForMonths = (
+  current: RatioProductMonthUnfreezeMap,
+  productIds: string[],
+  months: readonly string[],
+): RatioProductMonthUnfreezeMap => months.reduce(
+  (next, month) => openNewRatioProductsForMonth(next, productIds, month),
+  current,
+);
+
 export const clearRatioProductMonthOverrides = (
   current: RatioProductMonthUnfreezeMap,
   productIds: string[],

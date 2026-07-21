@@ -138,6 +138,16 @@ try {
   );
   assert.doesNotMatch(pageSource, /Enregistrer les modifications/);
   assert.match(pageSource, /Modifications enregistrées automatiquement/);
+  assert.match(
+    pageSource,
+    /Créer les nouveaux produits/,
+    'Le bouton de création doit rester présent après la création de la première trame',
+  );
+  assert.doesNotMatch(
+    pageSource,
+    /\{hasRowsToCreate \? \(\s*<button/,
+    'Le bouton de création ne doit plus disparaître quand toutes les lignes actuelles sont déjà liées',
+  );
   assert.match(pageSource, /updateOrderLineField\(update\.id, 'packaging', update\.packaging\)/);
 
   console.log('Catalogue trames OK : réouverture, sauvegarde automatique, création et paramètres ratio conservés.');

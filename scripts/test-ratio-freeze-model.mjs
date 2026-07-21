@@ -60,7 +60,16 @@ try {
     'Les autres produits du fournisseur doivent rester figés',
   );
 
-  products = model.openNewRatioProductsForMonth(products, ['nouveau-carpaccio'], 'oct');
+  products = model.openNewRatioProductsForMonths(
+    products,
+    ['nouveau-carpaccio'],
+    ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'],
+  );
+  assert.deepEqual(
+    Object.keys(products['nouveau-carpaccio']),
+    ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'],
+    'Les douze mois du nouveau produit doivent être défigés individuellement',
+  );
   assert.equal(
     model.isRatioProductMonthFrozen(legacy, suppliers, products, 'bof', 'nouveau-carpaccio', 'oct'),
     false,
@@ -79,7 +88,7 @@ try {
     'Refiger le fournisseur doit supprimer l’exception produit',
   );
 
-  console.log('Figement vente OK : migration, fournisseur isolé et exception produit isolée.');
+  console.log('Figement vente OK : migration, fournisseur isolé et douze mois du nouveau produit ouverts.');
 } finally {
   rmSync(tempDir, { recursive: true, force: true });
 }

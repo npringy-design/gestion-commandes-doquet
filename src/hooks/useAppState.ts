@@ -35,7 +35,7 @@ import {
   clearRatioProductMonthOverrides,
   isRatioProductMonthFrozen as resolveRatioProductMonthFrozen,
   isRatioSupplierMonthFrozen as resolveRatioSupplierMonthFrozen,
-  openNewRatioProductsForMonth,
+  openNewRatioProductsForMonths,
   setRatioProductMonthUnfrozen,
   setRatioSupplierMonthFreeze,
   type RatioProductMonthUnfreezeMap,
@@ -444,15 +444,13 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     )
   ), [ratioProductUnfrozenMonths, ratioValidatedMonths, ratioValidatedMonthsBySupplier]);
 
-  // Un produit qui vient d'être créé doit rester paramétrable même lorsque le
-  // mois de travail du fournisseur est déjà figé. Seuls ces nouveaux produits
-  // sont ouverts ; aucun autre produit ni fournisseur n'est défigé.
-  const openNewRatioProducts = useCallback((supplierId: string, productIds: string[]) => {
+  // Un produit créé depuis une trame démarre ouvert sur ses douze mois. Cela
+  // permet de les paramétrer puis de les refiger un à un dans sa fiche, sans
+  // ouvrir les produits déjà présents ni les autres fournisseurs.
+  const openNewRatioProducts = useCallback((_supplierId: string, productIds: string[]) => {
     if (productIds.length === 0) return;
-    const month = getRatioWorkMonthForSupplier(supplierId);
-    if (!isRatioSupplierMonthFrozen(supplierId, month)) return;
-    setRatioProductUnfrozenMonths(prev => openNewRatioProductsForMonth(prev, productIds, month));
-  }, [getRatioWorkMonthForSupplier, isRatioSupplierMonthFrozen]);
+    setRatioProductUnfrozenMonths(prev => openNewRatioProductsForMonths(prev, productIds, MONTHS_ORDER));
+  }, []);
 
   const snapshotRatioProduct = useCallback((
     product: ProductWithHistory,

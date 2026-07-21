@@ -15,18 +15,19 @@ Après une courte pause de saisie :
 ## Création et suppression
 
 Une ligne sans produit lié n'est jamais créée silencieusement. Le bouton `Créer les produits` ou `Créer les nouveaux produits` reste nécessaire dans ce seul cas.
+Il reste toujours visible dans la page : il est simplement désactivé tant qu'aucune nouvelle ligne exploitable n'attend d'être créée.
 
 Retirer une ligne de la trame ne supprime pas automatiquement le produit ni son historique.
 
 ## Nouveau produit sur un mois figé
 
-Lorsqu'une ligne de trame crée un nouveau produit alors que le mois de travail du fournisseur est figé :
+Lorsqu'une ligne de trame crée un nouveau produit :
 
-- seul ce nouveau produit est automatiquement défigé sur ce mois ;
-- il apparaît immédiatement dans `Calcul vente ratio` et peut être paramétré ;
+- seul ce nouveau produit est automatiquement défigé sur ses douze mois ;
+- il apparaît immédiatement dans `Calcul vente ratio`, à sa place alphabétique, et peut être paramétré ;
 - les autres produits et les autres fournisseurs restent figés ;
-- il est inséré à sa place alphabétique dans la liste du fournisseur.
+- chaque mois du nouveau produit peut ensuite être refigé un à un depuis sa fiche détaillée.
 
 ## Non-régression
 
-`scripts/test-order-template-catalog.mjs` vérifie qu'une ligne liée produit une mise à jour automatique du produit et du colisage, qu'une ligne inchangée n'entraîne aucune écriture, qu'une ligne nouvelle n'est jamais créée sans action explicite et que les créations sont insérées alphabétiquement. `scripts/test-ratio-freeze-model.mjs` protège l'ouverture isolée d'un nouveau produit sur un mois figé.
+`scripts/test-order-template-catalog.mjs` vérifie qu'une ligne liée produit une mise à jour automatique du produit et du colisage, qu'une ligne inchangée n'entraîne aucune écriture, que le bouton de création reste visible, qu'une ligne nouvelle n'est jamais créée sans action explicite et que les créations sont insérées alphabétiquement. `scripts/test-ratio-freeze-model.mjs` protège l'ouverture isolée des douze mois d'un nouveau produit.

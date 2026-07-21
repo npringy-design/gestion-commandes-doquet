@@ -847,20 +847,20 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
                 ))}
               </select>
 
-              {hasRowsToCreate ? (
-                <button
-                  type="button"
-                  onClick={handleCreateProducts}
-                  disabled={!canImport || !selectedSupplierId || orderTemplateRows.length === 0}
-                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                    canImport && selectedSupplierId && orderTemplateRows.length > 0
-                      ? 'bg-[#C86F24] text-white shadow-[0_4px_0_#8B431C] hover:bg-[#B85F1D]'
-                      : 'cursor-not-allowed bg-[#F4E8D8] text-[#9A806A]'
-                  }`}
-                >
-                  {currentSupplierHasProducts ? 'Créer les nouveaux produits' : 'Créer les produits'}
-                </button>
-              ) : selectedSupplierId && orderTemplateRows.length > 0 ? (
+              <button
+                type="button"
+                onClick={handleCreateProducts}
+                disabled={!canImport || !selectedSupplierId || orderTemplateRows.length === 0 || !hasRowsToCreate}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                  canImport && selectedSupplierId && orderTemplateRows.length > 0 && hasRowsToCreate
+                    ? 'bg-[#C86F24] text-white shadow-[0_4px_0_#8B431C] hover:bg-[#B85F1D]'
+                    : 'cursor-not-allowed bg-[#F4E8D8] text-[#9A806A]'
+                }`}
+              >
+                {currentSupplierHasProducts ? 'Créer les nouveaux produits' : 'Créer les produits'}
+              </button>
+
+              {!hasRowsToCreate && selectedSupplierId && orderTemplateRows.length > 0 ? (
                 <span className="rounded-full bg-[#E8F0DE] px-3 py-2 text-xs font-black text-[#4D613C]">
                   Modifications enregistrées automatiquement
                 </span>
