@@ -18,6 +18,15 @@ Une ligne sans produit lié n'est jamais créée silencieusement. Le bouton `Cr�
 
 Retirer une ligne de la trame ne supprime pas automatiquement le produit ni son historique.
 
+## Nouveau produit sur un mois figé
+
+Lorsqu'une ligne de trame crée un nouveau produit alors que le mois de travail du fournisseur est figé :
+
+- seul ce nouveau produit est automatiquement défigé sur ce mois ;
+- il apparaît immédiatement dans `Calcul vente ratio` et peut être paramétré ;
+- les autres produits et les autres fournisseurs restent figés ;
+- il est inséré à sa place alphabétique dans la liste du fournisseur.
+
 ## Non-régression
 
-`scripts/test-order-template-catalog.mjs` vérifie qu'une ligne liée produit une mise à jour automatique du produit et du colisage, qu'une ligne inchangée n'entraîne aucune écriture et qu'une ligne nouvelle n'est jamais créée sans action explicite.
+`scripts/test-order-template-catalog.mjs` vérifie qu'une ligne liée produit une mise à jour automatique du produit et du colisage, qu'une ligne inchangée n'entraîne aucune écriture, qu'une ligne nouvelle n'est jamais créée sans action explicite et que les créations sont insérées alphabétiquement. `scripts/test-ratio-freeze-model.mjs` protège l'ouverture isolée d'un nouveau produit sur un mois figé.

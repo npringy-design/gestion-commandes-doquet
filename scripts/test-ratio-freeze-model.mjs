@@ -60,6 +60,18 @@ try {
     'Les autres produits du fournisseur doivent rester figés',
   );
 
+  products = model.openNewRatioProductsForMonth(products, ['nouveau-carpaccio'], 'oct');
+  assert.equal(
+    model.isRatioProductMonthFrozen(legacy, suppliers, products, 'bof', 'nouveau-carpaccio', 'oct'),
+    false,
+    'Un nouveau produit doit être paramétrable sans défiger les produits existants',
+  );
+  assert.equal(
+    model.isRatioProductMonthFrozen(legacy, suppliers, products, 'bof', 'produit-2', 'oct'),
+    true,
+    'L’ouverture automatique du nouveau produit ne doit pas défiger les autres produits',
+  );
+
   products = model.clearRatioProductMonthOverrides(products, ['produit-1'], 'oct');
   assert.equal(
     model.isRatioProductMonthFrozen(legacy, suppliers, products, 'bof', 'produit-1', 'oct'),

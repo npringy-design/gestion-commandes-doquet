@@ -75,6 +75,30 @@ try {
   assert.equal(result.linkedRows[0].productId, 'p1');
   assert.equal(result.linkedRows[1].productId, 'new-1');
 
+  const alphabeticallyInserted = catalog.mergeTemplateProductChanges({
+    products: [
+      { ...products[0], name: 'Entrecôte' },
+      { ...products[0], id: 'p2', name: 'Saumon' },
+      { ...products[0], id: 'other', supplierId: 'autre', name: 'Produit autre fournisseur' },
+    ],
+    updates: [],
+    creations: [
+      { ...result.creations[0], id: 'carpaccio', name: 'Carpaccio' },
+      { ...result.creations[0], id: 'magret', name: 'Magret' },
+    ],
+    supplierId: 'bof',
+  });
+  assert.deepEqual(
+    alphabeticallyInserted.filter(product => product.supplierId === 'bof').map(product => product.name),
+    ['Carpaccio', 'Entrecôte', 'Magret', 'Saumon'],
+    'Les nouveaux produits doivent être insérés à leur place alphabétique dans Calcul vente ratio',
+  );
+  assert.equal(
+    alphabeticallyInserted.findIndex(product => product.id === 'other'),
+    4,
+    'Les produits des autres fournisseurs ne doivent pas être déplacés entre eux',
+  );
+
   const updatedExisting = { ...products[0], ...result.updates[0] };
   assert.equal(updatedExisting.searchName, 'STEAK HACHE IMPORT', 'Le mapping manuel doit être conservé');
   assert.deepEqual(updatedExisting.salesHistory, { oct: 204 }, 'L’historique de ventes doit être conservé');

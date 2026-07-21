@@ -38,6 +38,7 @@ import {
   getLinkedTemplateProductUpdates,
   getOrderTemplateSupplierOptions,
   linkTemplateRowsToExistingProducts,
+  mergeTemplateProductChanges,
   synchronizeOrderTemplateProducts,
 } from '../utils/orderTemplateCatalog';
 
@@ -55,6 +56,7 @@ interface OrderTemplatePageProps {
   supplierConfigs: Record<string, SupplierConfig>;
   ratioTab: SupplierId;
   setRatioTab: React.Dispatch<React.SetStateAction<SupplierId>>;
+  openNewRatioProducts: (supplierId: string, productIds: string[]) => void;
   supabaseLoaded: boolean;
 }
 
@@ -174,6 +176,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
   supplierConfigs,
   ratioTab,
   setRatioTab,
+  openNewRatioProducts,
   supabaseLoaded,
 }) => {
   const { profile } = useAuth();
@@ -318,14 +321,13 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
       return;
     }
 
-    const updatesById = new Map(result.updates.map(update => [update.id, update]));
-    setProducts(prev => [
-      ...result.creations,
-      ...prev.map(product => {
-        const update = updatesById.get(product.id);
-        return update ? { ...product, ...update } : product;
-      }),
-    ]);
+    setProducts(prev => mergeTemplateProductChanges({
+      products: prev,
+      updates: result.updates,
+      creations: result.creations,
+      supplierId: selectedSupplierId,
+    }));
+    openNewRatioProducts(selectedSupplierId, result.creations.map(product => product.id));
 
     result.creations.forEach((p) => {
       updateOrderLineField(p.id, 'stock', 0);
@@ -343,7 +345,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
       `✓ Trame enregistrée : ${result.creations.length} création(s), ${result.updates.length} mise(s) à jour`,
       'success',
     );
-  }, [canImport, orderTemplateRows, products, selectedSupplierId, setOrderTemplateRows, setOrderTemplatesBySupplier, setProducts, showToast, updateOrderLineField]);
+  }, [canImport, openNewRatioProducts, orderTemplateRows, products, selectedSupplierId, setOrderTemplateRows, setOrderTemplatesBySupplier, setProducts, showToast, updateOrderLineField]);
 
   const extractViaText = useCallback(async (pdf: any, signal?: AbortSignal) => {
     const pagesWords: ExtractedWord[][] = [];

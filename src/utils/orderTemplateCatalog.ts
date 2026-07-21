@@ -111,6 +111,54 @@ export interface OrderTemplateSyncResult {
   duplicateCount: number;
 }
 
+const compareProductNames = (left: ProductWithHistory, right: ProductWithHistory) => (
+  normalizeTemplateProductName(left.name).localeCompare(
+    normalizeTemplateProductName(right.name),
+    'fr',
+    { sensitivity: 'base', numeric: true },
+  )
+);
+
+// Insère les créations à leur place alphabétique dans le fournisseur sans
+// déplacer les produits existants des autres fournisseurs. Les mises à jour
+// conservent l'identité, l'historique et les paramètres du produit.
+export const mergeTemplateProductChanges = ({
+  products,
+  updates,
+  creations,
+  supplierId,
+}: {
+  products: ProductWithHistory[];
+  updates: ProductUpdate[];
+  creations: ProductWithHistory[];
+  supplierId: string;
+}): ProductWithHistory[] => {
+  const updatesById = new Map(updates.map(update => [update.id, update]));
+  const nextProducts = products.map(product => {
+    const update = updatesById.get(product.id);
+    return update ? { ...product, ...update } : product;
+  });
+
+  [...creations].sort(compareProductNames).forEach(creation => {
+    const firstFollowingProductIndex = nextProducts.findIndex(product => (
+      String(product.supplierId || '') === supplierId
+      && compareProductNames(creation, product) < 0
+    ));
+    if (firstFollowingProductIndex >= 0) {
+      nextProducts.splice(firstFollowingProductIndex, 0, creation);
+      return;
+    }
+
+    let lastSupplierProductIndex = -1;
+    nextProducts.forEach((product, index) => {
+      if (String(product.supplierId || '') === supplierId) lastSupplierProductIndex = index;
+    });
+    nextProducts.splice(lastSupplierProductIndex >= 0 ? lastSupplierProductIndex + 1 : nextProducts.length, 0, creation);
+  });
+
+  return nextProducts;
+};
+
 export const synchronizeOrderTemplateProducts = ({
   rows,
   products,

@@ -363,6 +363,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
         supplierConfigs={state.supplierConfigs}
         ratioTab={state.ratioTab}
         setRatioTab={state.setRatioTab}
+        openNewRatioProducts={state.openNewRatioProducts}
         supabaseLoaded={state.supabaseLoaded}
       />,
       'Chargement de la trame commande…'

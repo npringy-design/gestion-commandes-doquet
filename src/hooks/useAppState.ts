@@ -35,6 +35,7 @@ import {
   clearRatioProductMonthOverrides,
   isRatioProductMonthFrozen as resolveRatioProductMonthFrozen,
   isRatioSupplierMonthFrozen as resolveRatioSupplierMonthFrozen,
+  openNewRatioProductsForMonth,
   setRatioProductMonthUnfrozen,
   setRatioSupplierMonthFreeze,
   type RatioProductMonthUnfreezeMap,
@@ -443,6 +444,16 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     )
   ), [ratioProductUnfrozenMonths, ratioValidatedMonths, ratioValidatedMonthsBySupplier]);
 
+  // Un produit qui vient d'être créé doit rester paramétrable même lorsque le
+  // mois de travail du fournisseur est déjà figé. Seuls ces nouveaux produits
+  // sont ouverts ; aucun autre produit ni fournisseur n'est défigé.
+  const openNewRatioProducts = useCallback((supplierId: string, productIds: string[]) => {
+    if (productIds.length === 0) return;
+    const month = getRatioWorkMonthForSupplier(supplierId);
+    if (!isRatioSupplierMonthFrozen(supplierId, month)) return;
+    setRatioProductUnfrozenMonths(prev => openNewRatioProductsForMonth(prev, productIds, month));
+  }, [getRatioWorkMonthForSupplier, isRatioSupplierMonthFrozen]);
+
   const snapshotRatioProduct = useCallback((
     product: ProductWithHistory,
     month: string,
@@ -646,6 +657,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     isRatioProductMonthFrozen,
     toggleValidateMonth,
     toggleProductValidateMonth,
+    openNewRatioProducts,
     togglePrepValidateMonth,
     updateProductValue,
     updateOrderLineField,

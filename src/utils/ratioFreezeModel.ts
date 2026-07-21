@@ -60,6 +60,15 @@ export const setRatioProductMonthUnfrozen = (
   return next;
 };
 
+export const openNewRatioProductsForMonth = (
+  current: RatioProductMonthUnfreezeMap,
+  productIds: string[],
+  month: string,
+): RatioProductMonthUnfreezeMap => productIds.reduce(
+  (next, productId) => setRatioProductMonthUnfrozen(next, productId, month, true),
+  current,
+);
+
 export const clearRatioProductMonthOverrides = (
   current: RatioProductMonthUnfreezeMap,
   productIds: string[],
