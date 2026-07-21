@@ -292,4 +292,13 @@ Validation utilisateur et promotion production du 19 juillet 2026 : `main` a ét
 
 ## Backlog hors pourcentage
 
-Vide au démarrage. Toute idée future non critique est ajoutée ici sans modifier les lots ni l'avancement.
+- Étendre progressivement la sauvegarde granulaire à l'ensemble des autres
+  données métier encore persistées par blocs complets. Chaque page devra être
+  traitée séparément sur TEST, avec compatibilité de lecture des anciennes
+  données, sauvegarde par ligne ou entité, gestion dédiée de l'ordre si
+  nécessaire et contrôle des écritures concurrentes avant promotion sur
+  `main`. Priorité à définir selon les volumes et les incidents observés ; ne
+  pas regrouper toute l'application dans une migration unique.
+
+Toute autre idée future non critique est ajoutée ici sans modifier les lots ni
+l'avancement.
