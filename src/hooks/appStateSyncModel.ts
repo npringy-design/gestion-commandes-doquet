@@ -5,6 +5,7 @@ import {
   mergeAndNormalizeProducts,
   mergeSupplierConfigsWithDefaults,
 } from './appStateHelpers';
+import { materializeGranularRatioProducts } from './ratioProductPersistenceModel';
 
 export type WritableAppStateKey =
   | 'covers'
@@ -135,15 +136,16 @@ export const applyAppStateValues = (
   setters: AppStateSetterRegistry,
 ): WritableAppStateKey[] => {
   const applied: WritableAppStateKey[] = [];
+  const materializedValues = materializeGranularRatioProducts(values);
 
   WRITABLE_APP_STATE_KEYS.forEach(key => {
-    if (!Object.prototype.hasOwnProperty.call(values, key)) return;
-    if (key === 'dailyCovers' && !hasDailyCoverData(values[key] as DailyCoversState)) return;
+    if (!Object.prototype.hasOwnProperty.call(materializedValues, key)) return;
+    if (key === 'dailyCovers' && !hasDailyCoverData(materializedValues[key] as DailyCoversState)) return;
 
     const setter = setters[key];
     if (!setter) return;
 
-    setter(normalizeAppStateValue(key, values[key]));
+    setter(normalizeAppStateValue(key, materializedValues[key]));
     applied.push(key);
   });
 

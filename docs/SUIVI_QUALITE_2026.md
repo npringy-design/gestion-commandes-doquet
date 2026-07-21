@@ -255,6 +255,16 @@ Promotion production : `main` avancée sans divergence sur le commit `ffe8c8f640
 
 ## Étape actuellement ouverte
 
+### Correctif de fiabilité hors pourcentage — sauvegarde Vente ratio
+
+À la suite d'un échec de sauvegarde observé le 21 juillet 2026, la page
+`Calcul vente ratio` migre en priorité vers une persistance granulaire dans la
+table `app_state` existante. Le catalogue historique reste un filet de lecture ;
+les prochaines écritures ciblent une clé par produit et une clé d'ordre. Cette
+interruption est autorisée par le risque de perte ou d'écrasement de données et
+ne modifie ni les formules métier, ni le schéma Supabase, ni le pourcentage de
+la feuille de route. Publication et validation sur TEST requises avant `main`.
+
 ### Lot 2 — Étape 2.1c : valider l'exécution de la baseline avant Supabase TEST
 
 - [x] rejouer les migrations sur une base PostgreSQL 17.5 jetable en mémoire, Docker étant indisponible ;

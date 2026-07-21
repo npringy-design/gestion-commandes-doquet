@@ -1,4 +1,4 @@
-import { useCallback, useEffect, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import {
   scheduleReliableAppStateSave,
@@ -28,6 +28,11 @@ import {
   getAppStatePersistenceDecision,
   getAppStateSaveDebounceMs,
 } from './appStatePersistenceModel';
+import {
+  createRatioProductTombstone,
+  getRatioProductStateKey,
+  RATIO_PRODUCT_ORDER_KEY,
+} from './ratioProductPersistenceModel';
 
 export type PersistedAppState = {
   covers: Record<string, number>;
@@ -99,6 +104,9 @@ export const useAppStatePersistence = ({
   markSavePending,
   markSaveError,
 }: UseAppStatePersistenceParams): void => {
+  const observedProductSignaturesRef = useRef<Map<string, string> | null>(null);
+  const observedProductOrderRef = useRef<string[] | null>(null);
+
   useEffect(() => {
     CLOUD_ONLY_APP_STATE_KEYS.forEach(removeState);
   }, []);
@@ -181,7 +189,39 @@ export const useAppStatePersistence = ({
   useEffect(() => {
     persistAppState('nextDeliveryDateBySupplier', nextDeliveryDateBySupplier);
   }, [nextDeliveryDateBySupplier, persistAppState]);
-  useEffect(() => { persistAppState('products', products); }, [persistAppState, products]);
+  useEffect(() => {
+    const currentSignatures = new Map(
+      products.map(product => [product.id, stableStringify(product)]),
+    );
+    const currentOrder = products.map(product => product.id);
+    const previousSignatures = observedProductSignaturesRef.current;
+    const previousOrder = observedProductOrderRef.current;
+
+    observedProductSignaturesRef.current = currentSignatures;
+    observedProductOrderRef.current = currentOrder;
+
+    // Le premier rendu et chaque hydratation cloud servent uniquement de
+    // référence. Ils ne doivent jamais réécrire le catalogue complet.
+    if (!previousSignatures || !previousOrder || isHydratingFromCloud.current || !supabaseLoaded) return;
+
+    products.forEach(product => {
+      if (previousSignatures.get(product.id) === currentSignatures.get(product.id)) return;
+      persistAppState(getRatioProductStateKey(product.id), product, 500);
+    });
+
+    previousSignatures.forEach((_signature, productId) => {
+      if (currentSignatures.has(productId)) return;
+      persistAppState(
+        getRatioProductStateKey(productId),
+        createRatioProductTombstone(productId),
+        0,
+      );
+    });
+
+    const orderChanged = previousOrder.length !== currentOrder.length
+      || previousOrder.some((productId, index) => productId !== currentOrder[index]);
+    if (orderChanged) persistAppState(RATIO_PRODUCT_ORDER_KEY, currentOrder, 300);
+  }, [isHydratingFromCloud, persistAppState, products, supabaseLoaded]);
   useEffect(() => { persistAppState('prepItems', prepItems); }, [persistAppState, prepItems]);
   useEffect(() => {
     persistAppState('prepImportsByMonth', prepImportsByMonth);

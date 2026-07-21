@@ -110,7 +110,6 @@ try {
     'supplierConfigs',
     'deliveryDateBySupplier',
     'nextDeliveryDateBySupplier',
-    'products',
     'prepItems',
     'prepImportsByMonth',
     'prepSheetStocks',
@@ -121,6 +120,16 @@ try {
   ]) {
     assert.match(hookSource, new RegExp(`persistAppState\\('${key}'`), `La clé ${key} doit rester sauvegardée`);
   }
+  assert.doesNotMatch(
+    hookSource,
+    /persistAppState\('products'/,
+    'Le bloc products ne doit plus être renvoyé en entier',
+  );
+  assert.match(
+    hookSource,
+    /persistAppState\(getRatioProductStateKey\(product\.id\), product/,
+    'Chaque produit modifié doit être sauvegardé indépendamment',
+  );
 
   assert.match(
     cloudSyncSource,

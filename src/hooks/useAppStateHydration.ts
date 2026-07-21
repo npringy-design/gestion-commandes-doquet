@@ -5,6 +5,7 @@ import {
   type AppStateCloudRow,
   type AppStateSetterRegistry,
 } from './appStateSyncModel';
+import { materializeGranularRatioProducts } from './ratioProductPersistenceModel';
 
 type UseAppStateHydrationParams = {
   setters: AppStateSetterRegistry;
@@ -53,12 +54,13 @@ export const useAppStateHydration = ({
 
   const hydrateAppStateRows = useCallback((rows: AppStateCloudRow[] | null | undefined) => {
     const snapshot = buildAppStateSnapshot(rows, localTsByKey.current);
+    const values = materializeGranularRatioProducts(snapshot.values);
 
     Object.assign(lastCloudUpdatedAtByKey.current, snapshot.updatedAtByKey);
     Object.assign(lastPersistedSignatureByKey.current, snapshot.signaturesByKey);
-    applyValues(snapshot.values, 600);
+    applyValues(values, 600);
 
-    return snapshot.values;
+    return values;
   }, [applyValues, lastCloudUpdatedAtByKey, lastPersistedSignatureByKey, localTsByKey]);
 
   return {

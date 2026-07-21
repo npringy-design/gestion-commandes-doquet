@@ -19,6 +19,9 @@ try {
   const testableSource = rawModelSource.replace(
     /import \{[\s\S]*?\} from '\.\/appStateHelpers';\n/,
     `const mergeAndNormalizeProducts = value => ({ normalized: 'products', value });\nconst mergeSupplierConfigsWithDefaults = value => ({ normalized: 'supplierConfigs', value });\n`,
+  ).replace(
+    "import { materializeGranularRatioProducts } from './ratioProductPersistenceModel';\n",
+    'const materializeGranularRatioProducts = value => value;\n',
   );
 
   const { outputText, diagnostics = [] } = ts.transpileModule(testableSource, {
