@@ -72,8 +72,39 @@ try {
   assert.equal(result.updates[0].packaging, 16);
   assert.equal(result.creations.length, 1);
   assert.equal(result.creations[0].packaging, 6);
+  assert.deepEqual(result.productIdsToOpen, ['new-1']);
   assert.equal(result.linkedRows[0].productId, 'p1');
   assert.equal(result.linkedRows[1].productId, 'new-1');
+
+  const previouslyCreatedButHidden = catalog.synchronizeOrderTemplateProducts({
+    rows: [{
+      id: 'carpaccio-row',
+      article: 'Carpaccio',
+      storageUnit: 'pièce',
+      packagingUnit: 'carton x 12',
+    }],
+    products: [{
+      ...products[0],
+      id: 'carpaccio-existing',
+      name: 'Carpaccio',
+      searchName: 'Carpaccio',
+      salesHistory: {},
+      ratioSnapshots: {},
+    }],
+    supplierId: 'bof',
+    makeProductId: index => `should-not-create-${index}`,
+  });
+  assert.equal(
+    previouslyCreatedButHidden.creations.length,
+    0,
+    'Un produit déjà créé lors d’un essai précédent ne doit pas être dupliqué',
+  );
+  assert.deepEqual(
+    previouslyCreatedButHidden.productIdsToOpen,
+    ['carpaccio-existing'],
+    'Une nouvelle ligne retrouvant un produit existant caché doit réouvrir ce seul produit',
+  );
+  assert.equal(previouslyCreatedButHidden.linkedRows[0].productId, 'carpaccio-existing');
 
   const alphabeticallyInserted = catalog.mergeTemplateProductChanges({
     products: [
@@ -150,7 +181,7 @@ try {
   );
   assert.match(pageSource, /updateOrderLineField\(update\.id, 'packaging', update\.packaging\)/);
 
-  console.log('Catalogue trames OK : réouverture, sauvegarde automatique, création et paramètres ratio conservés.');
+  console.log('Catalogue trames OK : réactivation ciblée, sauvegarde automatique, création et paramètres ratio conservés.');
 } finally {
   rmSync(tempDir, { recursive: true, force: true });
 }

@@ -28,6 +28,10 @@ Lorsqu'une ligne de trame crée un nouveau produit :
 - les autres produits et les autres fournisseurs restent figés ;
 - chaque mois du nouveau produit peut ensuite être refigé un à un depuis sa fiche détaillée.
 
+Si une nouvelle ligne retrouve par son nom un produit déjà créé lors d'un essai
+précédent mais encore masqué par les mois figés, ce produit n'est pas dupliqué :
+ses douze mois sont ouverts de la même façon, pour lui seul.
+
 ## Non-régression
 
-`scripts/test-order-template-catalog.mjs` vérifie qu'une ligne liée produit une mise à jour automatique du produit et du colisage, qu'une ligne inchangée n'entraîne aucune écriture, que le bouton de création reste visible, qu'une ligne nouvelle n'est jamais créée sans action explicite et que les créations sont insérées alphabétiquement. `scripts/test-ratio-freeze-model.mjs` protège l'ouverture isolée des douze mois d'un nouveau produit.
+`scripts/test-order-template-catalog.mjs` vérifie qu'une ligne liée produit une mise à jour automatique du produit et du colisage, qu'une ligne inchangée n'entraîne aucune écriture, que le bouton de création reste visible, qu'une ligne nouvelle n'est jamais créée sans action explicite, qu'un produit existant mais caché est réactivé sans duplication et que les créations sont insérées alphabétiquement. `scripts/test-ratio-freeze-model.mjs` protège l'ouverture isolée des douze mois d'un nouveau produit.

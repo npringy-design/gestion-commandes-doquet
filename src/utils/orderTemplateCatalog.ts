@@ -108,6 +108,7 @@ export interface OrderTemplateSyncResult {
   linkedRows: OrderTemplateRow[];
   updates: ProductUpdate[];
   creations: ProductWithHistory[];
+  productIdsToOpen: string[];
   duplicateCount: number;
 }
 
@@ -180,13 +181,15 @@ export const synchronizeOrderTemplateProducts = ({
   const linkedRows: OrderTemplateRow[] = [];
   const updates: ProductUpdate[] = [];
   const creations: ProductWithHistory[] = [];
+  const productIdsToOpen = new Set<string>();
   let duplicateCount = 0;
 
   rows.forEach((row, index) => {
     const article = normalizeTemplateProductName(row.article);
     if (!article) return;
     const key = normalizeTemplateProductKey(supplierId, article);
-    const existing = (row.productId ? productsById.get(row.productId) : undefined) || productsByKey.get(key);
+    const explicitlyLinkedProduct = row.productId ? productsById.get(row.productId) : undefined;
+    const existing = explicitlyLinkedProduct || productsByKey.get(key);
 
     if (usedKeys.has(key) || (existing && usedProductIds.has(existing.id))) {
       duplicateCount += 1;
@@ -200,6 +203,10 @@ export const synchronizeOrderTemplateProducts = ({
 
     if (existing) {
       usedProductIds.add(existing.id);
+      // Une ligne nouvellement ajoutée peut retrouver par son nom un produit
+      // créé lors d'un essai précédent mais encore masqué par les mois figés.
+      // Elle doit alors le réactiver comme une création, sans ouvrir les autres.
+      if (!explicitlyLinkedProduct) productIdsToOpen.add(existing.id);
       updates.push({
         id: existing.id,
         name: article,
@@ -212,6 +219,7 @@ export const synchronizeOrderTemplateProducts = ({
     }
 
     const id = makeProductId(index);
+    productIdsToOpen.add(id);
     creations.push({
       id,
       supplierId,
@@ -226,5 +234,11 @@ export const synchronizeOrderTemplateProducts = ({
     linkedRows.push({ ...row, productId: id, article, storageUnit: storageUnit || '', packagingUnit });
   });
 
-  return { linkedRows, updates, creations, duplicateCount };
+  return {
+    linkedRows,
+    updates,
+    creations,
+    productIdsToOpen: Array.from(productIdsToOpen),
+    duplicateCount,
+  };
 };

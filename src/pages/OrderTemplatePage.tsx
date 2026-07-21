@@ -327,7 +327,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
       creations: result.creations,
       supplierId: selectedSupplierId,
     }));
-    openNewRatioProducts(selectedSupplierId, result.creations.map(product => product.id));
+    openNewRatioProducts(selectedSupplierId, result.productIdsToOpen);
 
     result.creations.forEach((p) => {
       updateOrderLineField(p.id, 'stock', 0);
