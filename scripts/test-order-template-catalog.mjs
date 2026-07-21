@@ -7,6 +7,7 @@ import ts from 'typescript';
 
 const sourcePath = join(process.cwd(), 'src', 'utils', 'orderTemplateCatalog.ts');
 const source = readFileSync(sourcePath, 'utf8');
+const pageSource = readFileSync(join(process.cwd(), 'src', 'pages', 'OrderTemplatePage.tsx'), 'utf8');
 const tempDir = mkdtempSync(join(tmpdir(), 'gestion-order-template-catalog-'));
 
 try {
@@ -88,7 +89,34 @@ try {
   assert.equal(rebuilt[0].productId, 'p1');
   assert.equal(rebuilt[0].packagingUnit, 'carton x 10');
 
-  console.log('Catalogue trames OK : réouverture, mise à jour ciblée, création et paramètres ratio conservés.');
+  const automaticUpdates = catalog.getLinkedTemplateProductUpdates({
+    rows: [{ ...linkedLegacy[0], storageUnit: 'à la pièce', packagingUnit: 'carton x 24' }],
+    products,
+    supplierId: 'bof',
+  });
+  assert.equal(automaticUpdates.length, 1, 'Une ligne liée modifiée doit produire une mise à jour automatique');
+  assert.equal(automaticUpdates[0].id, 'p1');
+  assert.equal(automaticUpdates[0].storageUnit, 'à la pièce');
+  assert.equal(automaticUpdates[0].packaging, 24, 'Le colisage automatique doit alimenter la page Commandes');
+  assert.deepEqual(
+    catalog.getLinkedTemplateProductUpdates({ rows: linkedLegacy, products, supplierId: 'bof' }),
+    [],
+    'Une trame inchangée ne doit déclencher aucune sauvegarde inutile',
+  );
+  assert.deepEqual(
+    catalog.getLinkedTemplateProductUpdates({
+      rows: [{ id: 'new-row', article: 'Produit à créer', storageUnit: 'pièce', packagingUnit: 'carton x 3' }],
+      products,
+      supplierId: 'bof',
+    }),
+    [],
+    'Une nouvelle ligne ne doit jamais créer silencieusement un produit',
+  );
+  assert.doesNotMatch(pageSource, /Enregistrer les modifications/);
+  assert.match(pageSource, /Modifications enregistrées automatiquement/);
+  assert.match(pageSource, /updateOrderLineField\(update\.id, 'packaging', update\.packaging\)/);
+
+  console.log('Catalogue trames OK : réouverture, sauvegarde automatique, création et paramètres ratio conservés.');
 } finally {
   rmSync(tempDir, { recursive: true, force: true });
 }

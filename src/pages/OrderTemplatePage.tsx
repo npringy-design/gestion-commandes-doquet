@@ -35,6 +35,7 @@ import {
 } from '../utils/importProcessing';
 import {
   buildTemplateRowsFromProducts,
+  getLinkedTemplateProductUpdates,
   getOrderTemplateSupplierOptions,
   linkTemplateRowsToExistingProducts,
   synchronizeOrderTemplateProducts,
@@ -70,6 +71,7 @@ interface ImportQualityReport {
 }
 
 const makeRowId = () => `row_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+const TEMPLATE_AUTO_SAVE_DELAY_MS = 400;
 
 const extractWordsFromTextItem = (item: any, viewportHeight: number): ExtractedWord | null => {
   const text = typeof item.str === 'string' ? item.str.trim() : '';
@@ -200,6 +202,12 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
 
   const currentSupplierHasProducts = !!selectedSupplierId
     && products.some(product => product.supplierId === selectedSupplierId);
+  const hasRowsToCreate = !!selectedSupplierId && orderTemplateRows.some(row => {
+    if (!row.article.trim()) return false;
+    return !row.productId || !products.some(product => (
+      product.id === row.productId && product.supplierId === selectedSupplierId
+    ));
+  });
 
   useEffect(() => () => pdfAbortControllerRef.current?.abort(), []);
 
@@ -219,6 +227,52 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     setOrderTemplatesBySupplier(prev => ({ ...prev, [selectedSupplierId]: linkedRows }));
     legacyTemplateMigratedRef.current = true;
   }, [orderTemplateRows, orderTemplatesBySupplier, products, selectedSupplierId, setOrderTemplateRows, setOrderTemplatesBySupplier, supabaseLoaded]);
+
+  // Les lignes déjà rattachées sont enregistrées automatiquement après une
+  // courte pause de saisie. Le catalogue, le produit et le colisage utilisé
+  // par la page Commandes évoluent ensemble, sans bouton de validation.
+  useEffect(() => {
+    if (!canImport || !supabaseLoaded || !selectedSupplierId) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setOrderTemplatesBySupplier(prev => {
+        const savedRows = prev[selectedSupplierId];
+        if (savedRows === orderTemplateRows) return prev;
+        return { ...prev, [selectedSupplierId]: orderTemplateRows };
+      });
+
+      const updates = getLinkedTemplateProductUpdates({
+        rows: orderTemplateRows,
+        products,
+        supplierId: selectedSupplierId,
+      });
+      if (updates.length === 0) return;
+
+      const updatesById = new Map(updates.map(update => [update.id, update]));
+      setProducts(prev => prev.map(product => {
+        const update = updatesById.get(product.id);
+        return update ? { ...product, ...update } : product;
+      }));
+
+      updates.forEach(update => {
+        const previousProduct = products.find(product => product.id === update.id);
+        if (previousProduct?.packaging !== update.packaging) {
+          updateOrderLineField(update.id, 'packaging', update.packaging);
+        }
+      });
+    }, TEMPLATE_AUTO_SAVE_DELAY_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    canImport,
+    orderTemplateRows,
+    products,
+    selectedSupplierId,
+    setOrderTemplatesBySupplier,
+    setProducts,
+    supabaseLoaded,
+    updateOrderLineField,
+  ]);
 
   const openSupplierTemplate = useCallback((supplierId: SupplierId) => {
     if (supplierId === selectedSupplierId) return;
@@ -766,11 +820,11 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
 
           {/* Création des produits dans Vente calcul ratio */}
           <section className="mb-6 rounded-[24px] border border-[#D8AE77] bg-[#FFF7EA] p-6 shadow-[0_14px_30px_rgba(80,38,18,0.12)]">
-            <h2 className="mb-4 text-lg font-black text-[#2F1D14]">Créer les produits (Vente calcul ratio)</h2>
+            <h2 className="mb-4 text-lg font-black text-[#2F1D14]">Produits (Vente calcul ratio)</h2>
 
             <p className="mb-4 text-sm text-[#6A432D]">
-              Sélectionne le fournisseur associé à cette trame, puis crée les produits correspondants avec leur unité
-              de stockage et leur conditionnement. Les doublons (même nom + fournisseur) sont ignorés.
+              Les modifications des produits existants sont enregistrées automatiquement et répercutées dans Commandes.
+              Le bouton de création apparaît uniquement lorsqu'une nouvelle ligne doit devenir un produit.
             </p>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -791,18 +845,24 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
                 ))}
               </select>
 
-              <button
-                type="button"
-                onClick={handleCreateProducts}
-                disabled={!canImport || !selectedSupplierId || orderTemplateRows.length === 0}
-                className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                  canImport && selectedSupplierId && orderTemplateRows.length > 0
-                    ? 'bg-[#C86F24] text-white shadow-[0_4px_0_#8B431C] hover:bg-[#B85F1D]'
-                    : 'cursor-not-allowed bg-[#F4E8D8] text-[#9A806A]'
-                }`}
-              >
-                {currentSupplierHasProducts ? 'Enregistrer les modifications' : 'Créer les produits'}
-              </button>
+              {hasRowsToCreate ? (
+                <button
+                  type="button"
+                  onClick={handleCreateProducts}
+                  disabled={!canImport || !selectedSupplierId || orderTemplateRows.length === 0}
+                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                    canImport && selectedSupplierId && orderTemplateRows.length > 0
+                      ? 'bg-[#C86F24] text-white shadow-[0_4px_0_#8B431C] hover:bg-[#B85F1D]'
+                      : 'cursor-not-allowed bg-[#F4E8D8] text-[#9A806A]'
+                  }`}
+                >
+                  {currentSupplierHasProducts ? 'Créer les nouveaux produits' : 'Créer les produits'}
+                </button>
+              ) : selectedSupplierId && orderTemplateRows.length > 0 ? (
+                <span className="rounded-full bg-[#E8F0DE] px-3 py-2 text-xs font-black text-[#4D613C]">
+                  Modifications enregistrées automatiquement
+                </span>
+              ) : null}
             </div>
           </section>
 
@@ -810,7 +870,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
           <section className="mb-6 rounded-[24px] border border-[#D8AE77] bg-[#FFF7EA] p-6 shadow-[0_14px_30px_rgba(80,38,18,0.12)]">
             <h2 className="text-lg font-black text-[#2F1D14]">Trames enregistrées</h2>
             <p className="mt-2 text-sm text-[#6A432D]">
-              Ouvre une trame existante, modifie uniquement les unités nécessaires, puis utilise « Enregistrer les modifications ».
+              Ouvre une trame existante et modifie les unités nécessaires : les changements sont enregistrés automatiquement.
               Les mappings, historiques et ratios des produits sont conservés. Un fournisseur à 0 ligne permet de démarrer une nouvelle trame.
             </p>
 

@@ -54,12 +54,54 @@ export const linkTemplateRowsToExistingProducts = (
   });
 };
 
-type ProductUpdate = {
+export type ProductUpdate = {
   id: string;
   name: string;
   storageUnit?: string;
   packagingUnit: string;
   packaging: number;
+};
+
+// Prépare uniquement les mises à jour des lignes déjà rattachées à un produit.
+// Cette fonction est utilisée par l'enregistrement automatique de la trame :
+// une ligne nouvelle reste soumise à l'action explicite « Créer les produits ».
+export const getLinkedTemplateProductUpdates = ({
+  rows,
+  products,
+  supplierId,
+}: {
+  rows: OrderTemplateRow[];
+  products: ProductWithHistory[];
+  supplierId: string;
+}): ProductUpdate[] => {
+  const productsById = new Map(
+    products
+      .filter(product => String(product.supplierId || '') === supplierId)
+      .map(product => [product.id, product]),
+  );
+
+  return rows.flatMap(row => {
+    if (!row.productId) return [];
+    const existing = productsById.get(row.productId);
+    if (!existing) return [];
+
+    const name = normalizeTemplateProductName(row.article) || existing.name;
+    const storageUnit = row.storageUnit.trim() || undefined;
+    const packagingUnit = row.packagingUnit.trim();
+    const packaging = parseTemplatePackagingQuantity(packagingUnit);
+    const hasChanged = existing.name !== name
+      || (existing.storageUnit || '') !== (storageUnit || '')
+      || (existing.packagingUnit || '') !== packagingUnit
+      || existing.packaging !== packaging;
+
+    return hasChanged ? [{
+      id: existing.id,
+      name,
+      storageUnit,
+      packagingUnit,
+      packaging,
+    }] : [];
+  });
 };
 
 export interface OrderTemplateSyncResult {
