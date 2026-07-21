@@ -3,6 +3,7 @@ import { ProductWithHistory } from '../data';
 import { SupplierId } from '../constants';
 import { OrderLineField } from '../types';
 import { getSupplierIdForResetView, getSupplierIdForView } from './appStateHelpers';
+import { reorderVisibleItems } from '../utils/productOrder';
 
 type Setter<T> = Dispatch<SetStateAction<T>>;
 
@@ -90,16 +91,8 @@ export const useProductActions = ({
     });
   }, [setSelectedProductIds]);
 
-  const moveProduct = useCallback((id: string, direction: 'up' | 'down') => {
-    setProducts((prev) => {
-      const idx = prev.findIndex((p) => p.id === id);
-      if (idx === -1) return prev;
-      const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
-      if (targetIdx < 0 || targetIdx >= prev.length) return prev;
-      const next = [...prev];
-      [next[idx], next[targetIdx]] = [next[targetIdx], next[idx]];
-      return next;
-    });
+  const reorderProducts = useCallback((draggedId: string, targetId: string, visibleIds: string[]) => {
+    setProducts(prev => reorderVisibleItems(prev, visibleIds, draggedId, targetId));
   }, [setProducts]);
 
   const jumpProductTo = useCallback((id: string, pos: number) => {
@@ -169,7 +162,7 @@ export const useProductActions = ({
     addNewProduct,
     deleteSelectedProducts,
     toggleProductSelection,
-    moveProduct,
+    reorderProducts,
     handleNameChange,
     updateSearchName,
     updateImportDivisor,

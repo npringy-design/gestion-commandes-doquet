@@ -76,13 +76,31 @@ const ProductCard: React.FC<{
   state: AppState;
   canEdit: boolean;
   displayMonthKey: string;
-}> = ({ p, idx, total, state, canEdit, displayMonthKey }) => {
+  draggingId: string | null;
+  dropTargetId: string | null;
+  onDragStart: (id: string) => void;
+  onDragTarget: (id: string) => void;
+  onDrop: (targetId: string) => void;
+  onDragEnd: () => void;
+}> = ({
+  p,
+  idx,
+  state,
+  canEdit,
+  displayMonthKey,
+  draggingId,
+  dropTargetId,
+  onDragStart,
+  onDragTarget,
+  onDrop,
+  onDragEnd,
+}) => {
   const [expanded, setExpanded] = useState(false);
   const mappingButtonRef = React.useRef<HTMLButtonElement | null>(null);
   const [mappingAnchorRect, setMappingAnchorRect] = React.useState<DOMRect | null>(null);
   const {
     selectedProductIds, toggleProductSelection,
-    moveProduct, handleNameChange,
+    handleNameChange,
     updateSearchName, updateImportDivisor,
     activeMappingId, setActiveMappingId,
     products, detailedInventory,
@@ -105,9 +123,43 @@ const ProductCard: React.FC<{
   const cardStateClasses = selected
     ? 'border-l-[#B85B2B] border-y-[#D8AE77] border-r-[#D8AE77] bg-[#FFF4E4]'
     : `${stateStyle.border} border-y-[#D8CAB8] border-r-[#D8CAB8] ${stateStyle.bg}`;
+  const isDragging = draggingId === p.id;
+  const isDropTarget = dropTargetId === p.id && draggingId !== p.id;
+
+  const isInteractiveDragTarget = (target: EventTarget | null) => (
+    target instanceof HTMLElement
+    && !!target.closest('input, button, select, textarea, a')
+  );
 
   return (
-    <div className={`relative rounded-[22px] border-l-[6px] border-y border-r transition-all shadow-[0_10px_22px_rgba(66,42,24,0.07)] ${cardStateClasses}`}>
+    <div
+      draggable={canEdit}
+      onDragStart={(event) => {
+        if (!canEdit || isInteractiveDragTarget(event.target)) {
+          event.preventDefault();
+          return;
+        }
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', p.id);
+        onDragStart(p.id);
+      }}
+      onDragEnter={() => {
+        if (draggingId && draggingId !== p.id) onDragTarget(p.id);
+      }}
+      onDragOver={(event) => {
+        if (!draggingId || draggingId === p.id) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+        onDragTarget(p.id);
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onDrop(p.id);
+      }}
+      onDragEnd={onDragEnd}
+      className={`relative rounded-[22px] border-l-[6px] border-y border-r transition-all shadow-[0_10px_22px_rgba(66,42,24,0.07)] ${canEdit ? 'cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'scale-[0.98] opacity-45' : ''} ${isDropTarget ? 'ring-4 ring-[#F7B24A] ring-offset-2' : ''} ${cardStateClasses}`}
+    >
       <div className="flex items-center gap-2 p-3">
         <input
           type="checkbox"
@@ -162,6 +214,15 @@ const ProductCard: React.FC<{
           <div className="text-[8px] font-black uppercase text-[#8B5A35]">Ratio</div>
           <div className="text-sm font-black leading-none text-[#2F1D14]">{avgRatio.toFixed(3)}</div>
         </div>
+        {canEdit && (
+          <span
+            className="select-none text-lg font-black tracking-[-0.2em] text-[#A88569]"
+            title="Maintenir le clic gauche pour déplacer la carte"
+            aria-hidden="true"
+          >
+            ⠿
+          </span>
+        )}
         <button
           onClick={() => setExpanded(v => !v)}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#D8CAB8] bg-[#F6EFE6] text-[#6A432D]"
@@ -232,22 +293,9 @@ const ProductCard: React.FC<{
 
           <div className="flex items-center justify-between">
             <span className="text-[9px] font-bold uppercase text-[#8B6B54]">Ordre : #{idx + 1}</span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => moveProduct(p.id, 'up')}
-                disabled={!canEdit || idx === 0}
-                className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#2F1D14] text-[#F7B24A] disabled:opacity-20"
-              >
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"/></svg>
-              </button>
-              <button
-                onClick={() => moveProduct(p.id, 'down')}
-                disabled={!canEdit || idx === total - 1}
-                className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#2F1D14] text-[#F7B24A] disabled:opacity-20"
-              >
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-              </button>
-            </div>
+            <span className="text-[9px] font-black uppercase tracking-[0.08em] text-[#A85F2A]">
+              Maintenir et déplacer la carte
+            </span>
           </div>
         </div>
       )}
@@ -261,6 +309,8 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
   const { profile } = useAuth();
   const canEdit = canEditRatios(profile);
   const [showOnlyUnlinked, setShowOnlyUnlinked] = React.useState(false);
+  const [draggingId, setDraggingId] = React.useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = React.useState<string | null>(null);
 
   const {
     setView,
@@ -270,6 +320,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
     selectedProductIds, setSelectedProductIds,
     addNewProduct,
     deleteSelectedProducts,
+    reorderProducts,
   } = state;
 
   const supplierTabs: { id: SupplierId; label: string }[] = Object.values(supplierConfigs)
@@ -339,6 +390,22 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
   const mappedProductsCount = displaySourceProducts.filter(isLinkedProduct).length;
   const alertProductsCount = displaySourceProducts.length - mappedProductsCount;
   const selectedVisibleCount = displayedRatioProducts.filter(p => selectedProductIds.has(p.id)).length;
+  const displayedProductIds = React.useMemo(
+    () => displayedRatioProducts.map(product => product.id),
+    [displayedRatioProducts],
+  );
+
+  const clearDragState = React.useCallback(() => {
+    setDraggingId(null);
+    setDropTargetId(null);
+  }, []);
+
+  const dropProductCard = React.useCallback((targetId: string) => {
+    if (draggingId && draggingId !== targetId) {
+      reorderProducts(draggingId, targetId, displayedProductIds);
+    }
+    clearDragState();
+  }, [clearDragState, displayedProductIds, draggingId, reorderProducts]);
   const getAiContext = React.useCallback(() => {
     const topProducts = displaySourceProducts.slice(0, 80).map((p: any) => {
       const stats = state.getProductStats(p);
@@ -546,10 +613,18 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                       key={p.id}
                       p={p}
                       idx={idx}
-                      total={displayedRatioProducts.length}
                       state={state}
                       canEdit={canEdit}
                       displayMonthKey={displayMonthKey}
+                      draggingId={draggingId}
+                      dropTargetId={dropTargetId}
+                      onDragStart={(id) => {
+                        setDraggingId(id);
+                        setDropTargetId(null);
+                      }}
+                      onDragTarget={setDropTargetId}
+                      onDrop={dropProductCard}
+                      onDragEnd={clearDragState}
                     />
                   ))}
                 </div>
