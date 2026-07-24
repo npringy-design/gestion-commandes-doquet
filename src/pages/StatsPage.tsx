@@ -78,6 +78,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
   setDetailedInventory,
   prepImportsByMonth,
   setPrepImportsByMonth,
+  validatedMonths,
   prepValidatedMonths = {},
 }) => {
   const { profile } = useAuth();
@@ -127,7 +128,14 @@ const StatsPage: React.FC<StatsPageProps> = ({
 
       if (modalState.target === 'inventory') {
         setDetailedInventory((prev) => ({ ...prev, [targetMonth]: content }));
-        showToast(`✓ Inventaire ${targetMonth.toUpperCase()} importé`, 'success');
+        if (validatedMonths[targetMonth]) {
+          showToast(
+            `✓ Inventaire ${targetMonth.toUpperCase()} importé — ⚠️ Ce mois est figé dans Calcul vente ratio. Rendez-vous dans Calcul vente ratio et défigeez puis refigeez le mois fournisseur par fournisseur pour mettre à jour les calculs.`,
+            'warning'
+          );
+        } else {
+          showToast(`✓ Inventaire ${targetMonth.toUpperCase()} importé`, 'success');
+        }
       } else {
         setPrepImportsByMonth((prev) => ({ ...prev, [targetMonth]: content }));
         showToast(`✓ Production ${targetMonth.toUpperCase()} importée`, 'success');
