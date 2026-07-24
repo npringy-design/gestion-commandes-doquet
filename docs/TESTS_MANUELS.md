@@ -34,6 +34,8 @@ Checklist courte a faire sur staging avant passage en production :
 - [ ] Verifier calcul des quantites a commander
 - [ ] Verifier fournisseurs
 - [ ] Verifier dates de livraison
+- [ ] Sur mobile en mode Marge, verifier les calendriers `Livraison` et `Livr. suivante`
+- [ ] Sur mobile en mode Cible, verifier que seule la date `Livraison` est affichee
 - [ ] Verifier que Supabase `updated_at` change sur la bonne base et le bon `site_id`
 
 ### Parametres fournisseurs

@@ -13,10 +13,11 @@ interface WindowsCalendarProps {
   onClose:      () => void;
   minDate?:     Date;           // date minimum sélectionnable (jours antérieurs grisés)
   anchorRect?:  DOMRect | null; // gardé pour compatibilité, non utilisé
+  align?:       'left' | 'right';
 }
 
 const WindowsCalendar: React.FC<WindowsCalendarProps> = ({
-  selectedDate, onSelect, onClose, minDate,
+  selectedDate, onSelect, onClose, minDate, align = 'left',
 }) => {
   const [currentMonth, setCurrentMonth] = useState(selectedDate.getMonth());
   const [currentYear,  setCurrentYear]  = useState(selectedDate.getFullYear());
@@ -64,7 +65,7 @@ const WindowsCalendar: React.FC<WindowsCalendarProps> = ({
   return (
     <div
       ref={calendarRef}
-      className="absolute left-0 top-full mt-2 z-[9999] bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.15)] border border-slate-100 p-5 w-[300px]"
+      className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} top-full mt-2 z-[9999] bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.15)] border border-slate-100 p-5 w-[300px]`}
       // Stopper la propagation pour que le mousedown sur le calendrier
       // ne remonte pas au document et ne déclenche pas onClose
       onMouseDown={e => e.stopPropagation()}

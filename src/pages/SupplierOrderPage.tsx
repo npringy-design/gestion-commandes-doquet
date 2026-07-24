@@ -268,41 +268,77 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
               </div>
             </div>
 
-            {/* ── Rangée 2 : livraison courante uniquement (mobile terrain) ── */}
-            <div className="relative">
-              <button
-                onClick={() => {
-                  setActiveCalendarSupplier(prev => prev === currentSupplierId ? null : currentSupplierId);
-                  setActiveNextCalendar(false);
-                }}
-                className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl"
-              >
-                <div className="flex flex-col items-start min-w-0">
-                  <span className="text-[8px] font-black text-emerald-400 uppercase leading-none mb-0.5">Livraison</span>
-                  <span className="font-black text-emerald-900 text-[12px] truncate leading-tight">
-                    {capitalizeFirstLetter(selectedDeliveryFormatted)}
-                  </span>
-                </div>
-                <svg className={`w-3 h-3 text-emerald-400 shrink-0 transition-transform ${activeCalendarSupplier === currentSupplierId ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"/>
-                </svg>
-              </button>
-              {activeCalendarSupplier === currentSupplierId && (
-                <WindowsCalendar
-                  selectedDate={selectedDeliveryDate}
-                  minDate={minDelivery1}
-                  onSelect={d => {
-                    setDeliveryDateBySupplier(prev => ({ ...prev, [currentSupplierId]: d.toISOString() }));
-                    // Une premiere livraison exceptionnelle ne decale pas le rythme habituel du fournisseur.
-                    setNextDeliveryDateBySupplier(prev => { const n = { ...prev }; delete n[currentSupplierId]; return n; });
-                    setActiveCalendarSupplier(null);
+            {/* ── Rangée 3 : dates de livraison (mobile terrain) ── */}
+            <div className={`grid gap-2 ${calculationMode === 'margin' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    setActiveCalendarSupplier(prev => prev === currentSupplierId ? null : currentSupplierId);
+                    setActiveNextCalendar(false);
                   }}
-                  onClose={() => setActiveCalendarSupplier(null)}
-                />
+                  className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl"
+                >
+                  <div className="flex flex-col items-start min-w-0">
+                    <span className="text-[8px] font-black text-emerald-400 uppercase leading-none mb-0.5">Livraison</span>
+                    <span className="font-black text-emerald-900 text-[12px] truncate leading-tight">
+                      {capitalizeFirstLetter(selectedDeliveryFormatted)}
+                    </span>
+                  </div>
+                  <svg className={`w-3 h-3 text-emerald-400 shrink-0 transition-transform ${activeCalendarSupplier === currentSupplierId ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </button>
+                {activeCalendarSupplier === currentSupplierId && (
+                  <WindowsCalendar
+                    selectedDate={selectedDeliveryDate}
+                    minDate={minDelivery1}
+                    onSelect={d => {
+                      setDeliveryDateBySupplier(prev => ({ ...prev, [currentSupplierId]: d.toISOString() }));
+                      // Une premiere livraison exceptionnelle ne decale pas le rythme habituel du fournisseur.
+                      setNextDeliveryDateBySupplier(prev => { const n = { ...prev }; delete n[currentSupplierId]; return n; });
+                      setActiveCalendarSupplier(null);
+                    }}
+                    onClose={() => setActiveCalendarSupplier(null)}
+                  />
+                )}
+              </div>
+
+              {calculationMode === 'margin' && (
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      setActiveNextCalendar(v => !v);
+                      setActiveCalendarSupplier(null);
+                    }}
+                    className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl"
+                  >
+                    <div className="flex flex-col items-start min-w-0">
+                      <span className="text-[8px] font-black text-amber-500 uppercase leading-none mb-0.5">Livr. suivante</span>
+                      <span className="font-black text-amber-900 text-[12px] truncate leading-tight">
+                        {capitalizeFirstLetter(selectedNextDeliveryFormatted)}
+                      </span>
+                    </div>
+                    <svg className={`w-3 h-3 text-amber-400 shrink-0 transition-transform ${activeNextCalendar ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                  </button>
+                  {activeNextCalendar && (
+                    <WindowsCalendar
+                      selectedDate={selectedNextDeliveryDate}
+                      minDate={minDelivery2}
+                      align="right"
+                      onSelect={d => {
+                        setNextDeliveryDateBySupplier(prev => ({ ...prev, [currentSupplierId]: d.toISOString() }));
+                        setActiveNextCalendar(false);
+                      }}
+                      onClose={() => setActiveNextCalendar(false)}
+                    />
+                  )}
+                </div>
               )}
             </div>
 
-            {/* ── Rangée 3 : sélecteur mode calcul ── */}
+            {/* ── Rangée 4 : sélecteur mode calcul ── */}
             <div className="flex bg-[#FCEEB5] p-1 rounded-xl border border-white/50">
               <button onClick={() => setCalculationMode('margin')}
                 className={`flex-1 py-2 rounded-lg font-black uppercase text-[10px] transition-all ${calculationMode === 'margin' ? 'bg-white text-orange-600 shadow' : 'text-slate-400'}`}>
