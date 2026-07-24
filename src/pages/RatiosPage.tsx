@@ -31,36 +31,78 @@ const MONTH_LABELS: Record<string, string> = {
   sep: 'Sep', oct: 'Oct', nov: 'Nov', dec: 'Déc',
 };
 
-const hasUsableAmount = (value: unknown) =>
-  Number(value || 0) > 0;
-
-const hasFrozenLinkedValue = (snapshot: any) =>
-  !!snapshot?.isLinked && hasUsableAmount(snapshot?.salesValue);
-
 const hasFrozenMonthData = (product: any, month: string) =>
   !!product.ratioSnapshots?.[month] || Number(product.salesHistory?.[month] || 0) > 0;
 
-// Source unique de vérité pour le statut lié/non lié d'un produit,
-// utilisée à la fois par ProductCard et par la page (filtrage, comptages, contexte IA).
-const isProductLinked = (p: any, isFrozenDisplay: boolean, displayMonthKey: string, detailedInventory: any): boolean => {
-  const frozenSnapshot = isFrozenDisplay ? p.ratioSnapshots?.[displayMonthKey] : undefined;
-  if (frozenSnapshot) return hasFrozenLinkedValue(frozenSnapshot);
+type LinkState = 'linked' | 'linkedZero' | 'unlinked';
 
-  const hasLegacyFrozenValue = isFrozenDisplay && Number(p.salesHistory?.[displayMonthKey] || 0) > 0;
-  if (hasLegacyFrozenValue) return true;
+// Distingue une absence de liaison d'une liaison réelle dont la quantité vaut zéro.
+// `null` signifie qu'aucune ligne n'a été trouvée ; `0` reste donc un résultat lié.
+const getProductLinkState = (
+  p: any,
+  isFrozenDisplay: boolean,
+  displayMonthKey: string,
+  detailedInventory: any,
+): LinkState => {
+  const frozenSnapshot = isFrozenDisplay ? p.ratioSnapshots?.[displayMonthKey] : undefined;
+  if (frozenSnapshot) {
+    const frozenSalesValue = Number(frozenSnapshot.salesValue || 0);
+    if (frozenSnapshot.isLinked) return frozenSalesValue === 0 ? 'linkedZero' : 'linked';
+
+    // Compatibilité avec les snapshots créés avant l'état violet : l'ancien code
+    // marquait à tort une liaison à zéro comme non liée.
+    if (frozenSalesValue === 0) {
+      const frozenImportedValue = getImportedValueForProduct(
+        detailedInventory[displayMonthKey],
+        frozenSnapshot.searchName ?? p.searchName,
+        p.importDivisor,
+      );
+      if (frozenImportedValue !== null) return 'linkedZero';
+    }
+    return 'unlinked';
+  }
+
+  const legacyFrozenValue = isFrozenDisplay
+    ? Number(p.salesHistory?.[displayMonthKey] || 0)
+    : 0;
+  if (legacyFrozenValue !== 0) return 'linked';
 
   const liveImportedValue = isFrozenDisplay
     ? null
     : getImportedValueForProduct(detailedInventory[displayMonthKey], p.searchName, p.importDivisor);
-  return hasUsableAmount(liveImportedValue);
+  if (liveImportedValue === null) return 'unlinked';
+  return Number(liveImportedValue) === 0 ? 'linkedZero' : 'linked';
 };
 
-type LinkState = 'linked' | 'unlinked';
-
-// Palette partagée : bordure, fond de carte et bouton rond dérivent tous du même état.
-const LINK_STATE_STYLES: Record<LinkState, { border: string; bg: string; dot: string }> = {
-  linked:   { border: 'border-l-[#6D8F4E]', bg: 'bg-[#F2F7EC]', dot: 'bg-[#6D8F4E]' },
-  unlinked: { border: 'border-l-[#D4922F]', bg: 'bg-[#FDF3E1]', dot: 'bg-[#D4922F]' },
+// Palette partagée : bordure, fond, champ et bouton rond dérivent du même état.
+const LINK_STATE_STYLES: Record<LinkState, {
+  border: string;
+  bg: string;
+  dot: string;
+  input: string;
+  title: string;
+}> = {
+  linked: {
+    border: 'border-l-[#6D8F4E]',
+    bg: 'bg-[#F2F7EC]',
+    dot: 'bg-[#6D8F4E]',
+    input: 'border-transparent text-[#24160F]',
+    title: 'Produit lié avec ventes trouvées',
+  },
+  linkedZero: {
+    border: 'border-l-[#7C3AED]',
+    bg: 'bg-[#F5F0FF]',
+    dot: 'bg-[#7C3AED]',
+    input: 'border-violet-300 text-violet-800',
+    title: 'Produit lié — montant trouvé à 0',
+  },
+  unlinked: {
+    border: 'border-l-[#D4922F]',
+    bg: 'bg-[#FDF3E1]',
+    dot: 'bg-[#D4922F]',
+    input: 'border-amber-300 text-amber-700',
+    title: 'Produit non lié — recherche nécessaire',
+  },
 };
 
 const formatWholeVisual = (value: unknown) => {
@@ -115,9 +157,8 @@ const ProductCard: React.FC<{
   const frozenSnapshot = isFrozenDisplay ? p.ratioSnapshots?.[displayMonthKey] : undefined;
   const displaySearchName = frozenSnapshot?.searchName ?? p.searchName;
   const displayProductName = frozenSnapshot?.productName ?? p.name;
-  const isMapped = isProductLinked(p, isFrozenDisplay, displayMonthKey, detailedInventory);
-  const alert      = !isMapped;
-  const linkState: LinkState = alert ? 'unlinked' : 'linked';
+  const linkState = getProductLinkState(p, isFrozenDisplay, displayMonthKey, detailedInventory);
+  const alert = linkState === 'unlinked';
   const stateStyle = LINK_STATE_STYLES[linkState];
   const selected   = selectedProductIds.has(p.id);
   const cardStateClasses = selected
@@ -169,7 +210,7 @@ const ProductCard: React.FC<{
           className="h-5 w-5 shrink-0 cursor-pointer accent-[#C86F24]"
         />
         <input
-          className={`min-w-0 flex-1 rounded-xl border bg-[#FFFDF8] px-3 py-2 text-sm font-black italic outline-none ${alert ? 'border-amber-300 text-amber-700' : 'border-transparent text-[#24160F]'}`}
+          className={`min-w-0 flex-1 rounded-xl border bg-[#FFFDF8] px-3 py-2 text-sm font-black italic outline-none ${stateStyle.input}`}
           value={displaySearchName}
           placeholder="Nom produit dans l'import..."
           onChange={e => updateSearchName(p.id, e.target.value)}
@@ -186,7 +227,7 @@ const ProductCard: React.FC<{
             }}
             disabled={!canEdit || isFrozenDisplay}
             className={`flex h-9 w-9 items-center justify-center rounded-full ${stateStyle.dot} text-white shadow-sm transition hover:opacity-90 disabled:opacity-50`}
-            title="Rechercher un mapping"
+            title={stateStyle.title}
           >
             <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
               <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"/>
@@ -366,12 +407,12 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
   const isSelectedFreezeMonthValidated = state.isRatioSupplierMonthFrozen(safeRatioTab, freezeMonthKey);
 
   const isLinkedProduct = React.useCallback(
-    (p: any) => isProductLinked(
+    (p: any) => getProductLinkState(
       p,
       state.isRatioProductMonthFrozen(p.id, String(p.supplierId || 'doquet'), displayMonthKey),
       displayMonthKey,
       state.detailedInventory,
-    ),
+    ) !== 'unlinked',
     [displayMonthKey, state.detailedInventory, state.isRatioProductMonthFrozen],
   );
 

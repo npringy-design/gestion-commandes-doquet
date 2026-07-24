@@ -6,6 +6,7 @@ import ts from 'typescript';
 
 const root = process.cwd();
 const sourcePath = join(root, 'src', 'utils', 'csvHelpers.ts');
+const ratioPageSource = readFileSync(join(root, 'src', 'pages', 'RatiosPage.tsx'), 'utf8');
 const tempDir = mkdtempSync(join(root, '.ratio-import-mapping-'));
 
 try {
@@ -63,6 +64,16 @@ try {
     'Le diviseur KG vers unités doit rester appliqué après la priorité exacte',
   );
 
+  const zeroValueCsv = [
+    'Produit;Conso Théorique Qté',
+    'Campari bitter 100cl;0',
+  ].join('\n');
+  assert.equal(
+    getImportedValueForProduct(zeroValueCsv, 'Campari bitter 100cl'),
+    0,
+    'Une ligne trouvée avec une quantité à zéro doit rester distincte d’une absence de liaison',
+  );
+
   const approximateCsv = [
     'Produit;Conso Théorique Qté',
     'Sauce caramel au beurre salé;4,5',
@@ -84,7 +95,28 @@ try {
     'Le contenu des parenthèses doit rester distinct dans une liaison exacte',
   );
 
-  console.log('Vente ratio OK : liaison exacte prioritaire et recherche automatique conservée.');
+  assert.match(
+    ratioPageSource,
+    /type LinkState = 'linked' \| 'linkedZero' \| 'unlinked';/,
+    'Calcul vente ratio doit conserver trois états de liaison distincts',
+  );
+  assert.match(
+    ratioPageSource,
+    /linkedZero:\s*\{[\s\S]*?border-l-\[#7C3AED\][\s\S]*?bg-\[#F5F0FF\][\s\S]*?bg-\[#7C3AED\]/,
+    'L’état lié à zéro doit utiliser la palette violette sur la carte et le bouton',
+  );
+  assert.match(
+    ratioPageSource,
+    /if \(liveImportedValue === null\) return 'unlinked';\s*return Number\(liveImportedValue\) === 0 \? 'linkedZero' : 'linked';/,
+    'La valeur zéro doit être liée, tandis que null reste le seul état non lié',
+  );
+  assert.match(
+    ratioPageSource,
+    /\) !== 'unlinked',/,
+    'Le filtre et les compteurs doivent considérer le violet comme un produit lié',
+  );
+
+  console.log('Vente ratio OK : liaison exacte, valeur zéro violette et recherche automatique conservées.');
 } finally {
   rmSync(tempDir, { recursive: true, force: true });
 }
