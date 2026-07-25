@@ -28,6 +28,7 @@ const TUTORIAL_SECTIONS: TutorialConfig[] = [
     title: 'Import Inventaire',
     description:
       "Exporter le rapport d'inventaire depuis Adoria et l'importer dans la page Paramètres pour alimenter le Calcul vente ratio.",
+    video: '/tutorials/import-inventaire/video.mp4',
     steps: [
       {
         text: 'Dans Adoria, cliquer sur "Rapports" dans le menu de navigation en haut.',
