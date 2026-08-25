@@ -481,7 +481,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
           La colonne "À Commander" est sticky à droite (position: sticky)
       ================================================================ */}
       <div className="max-w-[1600px] mx-auto pb-24">
-        <div className="bg-white rounded-2xl lg:rounded-[32px] shadow-2xl shadow-slate-300/20 border border-slate-100 overflow-x-auto">
+        <div className={`bg-white rounded-2xl lg:rounded-[32px] shadow-2xl shadow-slate-300/20 border border-slate-100 ${isMobile ? '' : 'overflow-x-auto'}`}>
           <table
             className="w-full"
             style={isMobile
@@ -501,12 +501,12 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
             <thead>
               <tr className="text-left h-10 lg:h-16">
 
-                {/* ── En-têtes mobile (5 colonnes égales) ── */}
-                <th className="lg:hidden p-1.5 bg-amber-600 text-white font-black uppercase text-[8px] tracking-widest text-center">Col.</th>
-                <th className="lg:hidden p-1.5 bg-emerald-600 text-white font-black uppercase text-[8px] tracking-widest text-center">Livr.</th>
-                <th className="lg:hidden p-1.5 bg-amber-500 text-white font-black uppercase text-[8px] tracking-widest text-center">Pcs.</th>
-                <th className="lg:hidden p-1.5 bg-slate-600 text-white font-black uppercase text-[8px] tracking-widest text-center">Réel</th>
-                <th className="lg:hidden p-1.5 bg-slate-900 text-white font-black uppercase text-[8px] tracking-widest text-center">Sug.</th>
+                {/* ── En-têtes mobile (5 colonnes égales) — sticky ── */}
+                <th className="lg:hidden p-1.5 bg-emerald-600 text-white font-black uppercase text-[8px] tracking-widest text-center" style={{ position: 'sticky', top: 0, zIndex: 30 }}>Livr.</th>
+                <th className="lg:hidden p-1.5 bg-amber-600 text-white font-black uppercase text-[8px] tracking-widest text-center" style={{ position: 'sticky', top: 0, zIndex: 30 }}>Col.</th>
+                <th className="lg:hidden p-1.5 bg-amber-500 text-white font-black uppercase text-[8px] tracking-widest text-center" style={{ position: 'sticky', top: 0, zIndex: 30 }}>Pcs.</th>
+                <th className="lg:hidden p-1.5 bg-slate-900 text-white font-black uppercase text-[8px] tracking-widest text-center" style={{ position: 'sticky', top: 0, zIndex: 30 }}>Sug.</th>
+                <th className="lg:hidden p-1.5 bg-slate-600 text-white font-black uppercase text-[8px] tracking-widest text-center" style={{ position: 'sticky', top: 0, zIndex: 30 }}>Réel</th>
 
                 {/* ── En-têtes desktop ── */}
                 <th className="hidden lg:table-cell px-6 bg-[#2c1810] text-[#ffd700] font-black uppercase text-xs tracking-widest"
@@ -587,18 +587,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
 
                     {/* ══ MOBILE — ligne champs (Col. | Livr. | Pcs. | Réel | Sug.) ══ */}
                     <tr className="lg:hidden border-b border-slate-100">
-                      {/* 1. Stock colisage */}
-                      <td className="p-1.5 bg-amber-50/30">
-                        <input type="number"
-                          value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockCases}
-                          onChange={e => updateStockFromSplit(p.id, p.packaging, e.target.value, String(getStockSplit(p.stock, p.packaging).stockPieces))}
-                          tabIndex={TAB_STOCK_CASES + rowIdx}
-                          onKeyDown={e => handleEnterKey(e, TAB_STOCK_CASES, rowIdx)}
-                          enterKeyHint="next" inputMode="numeric"
-                          className="w-full h-9 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
-                          placeholder="-" />
-                      </td>
-                      {/* 2. Livr. à venir */}
+                      {/* 1. Livr. à venir */}
                       <td className="p-1.5 bg-emerald-50/20">
                         <input type="number"
                           value={p.upcomingDelivery ?? ''}
@@ -607,6 +596,17 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                           onKeyDown={e => handleEnterKey(e, TAB_UPCOMING, rowIdx)}
                           enterKeyHint="next" inputMode="numeric"
                           className="w-full h-9 rounded-lg border border-emerald-200/50 bg-white text-emerald-700 text-center font-black text-sm outline-none focus:border-emerald-400 transition-all shadow-sm"
+                          placeholder="-" />
+                      </td>
+                      {/* 2. Stock colisage */}
+                      <td className="p-1.5 bg-amber-50/30">
+                        <input type="number"
+                          value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockCases}
+                          onChange={e => updateStockFromSplit(p.id, p.packaging, e.target.value, String(getStockSplit(p.stock, p.packaging).stockPieces))}
+                          tabIndex={TAB_STOCK_CASES + rowIdx}
+                          onKeyDown={e => handleEnterKey(e, TAB_STOCK_CASES, rowIdx)}
+                          enterKeyHint="next" inputMode="numeric"
+                          className="w-full h-9 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
                           placeholder="-" />
                       </td>
                       {/* 3. Stock pièces */}
@@ -620,7 +620,13 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                           className="w-full h-9 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
                           placeholder="-" />
                       </td>
-                      {/* 4. Réel */}
+                      {/* 4. Suggéré (badge) */}
+                      <td className="p-1.5">
+                        <div className={`flex items-center justify-center h-9 rounded-xl font-black text-base shadow-sm ${badgeCls}`}>
+                          {toOrder}
+                        </div>
+                      </td>
+                      {/* 5. Réel */}
                       <td className="p-1.5 bg-slate-50/50">
                         <input type="number"
                           value={orderLineStates[p.id]?.realOrder ?? ''}
@@ -629,12 +635,6 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                           inputMode="numeric"
                           className="w-full h-9 rounded-lg border border-slate-300 bg-white text-center font-black text-slate-700 text-sm outline-none focus:border-slate-500 transition-all shadow-sm"
                           placeholder="-" />
-                      </td>
-                      {/* 5. Suggéré (badge) */}
-                      <td className="p-1.5">
-                        <div className={`flex items-center justify-center h-9 rounded-xl font-black text-base shadow-sm ${badgeCls}`}>
-                          {toOrder}
-                        </div>
                       </td>
                     </tr>
 
