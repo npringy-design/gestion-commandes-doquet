@@ -313,6 +313,7 @@ export interface OrderLineStateFields {
   target_stock?:      number | null;
   packaging?:         number | null;
   margin?:            number | null;
+  real_order?:        number | null;
 }
 
 export interface OrderLineStateRow extends OrderLineStateFields {
@@ -325,7 +326,7 @@ export const loadOrderLineStates = async (): Promise<OrderLineStateRow[] | null>
   if (!isSupabaseConfigured()) return null;
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/${ORDER_LINE_TABLE}?select=product_id,stock,upcoming_delivery,target_stock,packaging,margin,updated_at&site_id=eq.${SITE_ID_QUERY}`,
+      `${SUPABASE_URL}/rest/v1/${ORDER_LINE_TABLE}?select=product_id,stock,upcoming_delivery,target_stock,packaging,margin,real_order,updated_at&site_id=eq.${SITE_ID_QUERY}`,
       { headers: await headers() }
     );
     if (!res.ok) {

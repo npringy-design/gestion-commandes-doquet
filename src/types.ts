@@ -46,7 +46,7 @@ export interface OrderState {
 // (table order_line_states), synchronisé en temps réel indépendamment
 // pour chaque produit — évite qu'une session périmée n'écrase en bloc
 // les modifications faites depuis un autre appareil.
-export type OrderLineField = 'stock' | 'upcomingDelivery' | 'targetStock' | 'packaging' | 'margin';
+export type OrderLineField = 'stock' | 'upcomingDelivery' | 'targetStock' | 'packaging' | 'margin' | 'realOrder';
 
 export interface OrderLineState {
   stock?:            number | '';
@@ -54,6 +54,7 @@ export interface OrderLineState {
   targetStock?:      number | '';
   packaging?:        number | '';
   margin?:           number;
+  realOrder?:        number | '';
   updatedAt?:        string;
 }
 
@@ -81,6 +82,7 @@ export interface SupplierConfig {
   flexibleDelivery?: boolean;       // Livraison possible lun→sam (Plaine Maison)
   isArchived?:      boolean;
   createdAt?:       string;
+  includeLimonadeForecast?: boolean;
 }
 
 
