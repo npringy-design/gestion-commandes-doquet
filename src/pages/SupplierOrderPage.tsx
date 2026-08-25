@@ -531,13 +531,13 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                   <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Colis.</th>
                 </>)}
 
-                <th className="hidden lg:table-cell p-2 bg-slate-700 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">
-                  Qté<br/>Réelle
+                <th className="hidden lg:table-cell px-4 bg-slate-900 text-white font-black uppercase text-xs tracking-widest text-center whitespace-nowrap">
+                  À Cmd.
                 </th>
 
-                <th className="hidden lg:table-cell px-4 bg-slate-900 text-white font-black uppercase text-xs tracking-widest text-center whitespace-nowrap"
+                <th className="hidden lg:table-cell p-2 bg-slate-700 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap"
                     style={{ position: 'sticky', right: 0, zIndex: 20, minWidth: '80px' }}>
-                  À Cmd.
+                  Qté<br/>Réelle
                 </th>
               </tr>
             </thead>
@@ -750,21 +750,8 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                         </td>
                       </>)}
 
-                      {/* Qté Réelle */}
-                      <td className="p-2 text-center bg-slate-50">
-                        <input type="number"
-                          value={orderLineStates[p.id]?.realOrder ?? ''}
-                          onChange={e => updateOrderLineField(p.id, 'realOrder', e.target.value === '' ? '' : Number(e.target.value))}
-                          tabIndex={TAB_REAL_ORDER + rowIdx}
-                          onKeyDown={e => handleEnterKey(e, TAB_REAL_ORDER, rowIdx)}
-                          enterKeyHint="next" inputMode="numeric"
-                          className="w-full h-10 rounded-lg border border-slate-300 bg-white text-center font-black text-slate-700 text-sm outline-none focus:border-slate-500 transition-all shadow-sm"
-                          placeholder="-" />
-                      </td>
-
-                      {/* À Commander — sticky droite */}
-                      <td className="p-2 text-center border-l-2 border-slate-200 bg-white"
-                          style={{ position: 'sticky', right: 0, zIndex: 10 }}>
+                      {/* À Commander */}
+                      <td className="p-2 text-center border-l-2 border-slate-200 bg-white">
                         <div className={`inline-flex items-center justify-center w-14 h-10 rounded-xl font-black text-lg shadow-sm transition-all
                           ${toOrder > 0
                             ? calculationMode === 'margin'
@@ -773,6 +760,19 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                             : 'bg-slate-100 text-slate-300 scale-90 opacity-50'}`}>
                           {toOrder}
                         </div>
+                      </td>
+
+                      {/* Qté Réelle — sticky droite */}
+                      <td className="p-2 text-center bg-slate-50 border-l-2 border-slate-200"
+                          style={{ position: 'sticky', right: 0, zIndex: 10 }}>
+                        <input type="number"
+                          value={orderLineStates[p.id]?.realOrder ?? ''}
+                          onChange={e => updateOrderLineField(p.id, 'realOrder', e.target.value === '' ? '' : Number(e.target.value))}
+                          tabIndex={TAB_REAL_ORDER + rowIdx}
+                          onKeyDown={e => handleEnterKey(e, TAB_REAL_ORDER, rowIdx)}
+                          enterKeyHint="next" inputMode="numeric"
+                          className="w-full h-10 rounded-lg border border-slate-300 bg-white text-center font-black text-slate-700 text-sm outline-none focus:border-slate-500 transition-all shadow-sm"
+                          placeholder="-" />
                       </td>
                     </tr>
 
