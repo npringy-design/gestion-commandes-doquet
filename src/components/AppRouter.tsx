@@ -383,6 +383,8 @@ const AppRouter: React.FC<AppRouterProps> = ({
         setView={setView}
         dailyCovers={state.dailyCovers}
         setDailyCovers={state.setDailyCovers}
+        limonadeCovers={state.limonadeCovers}
+        setLimonadeCovers={state.setLimonadeCovers}
       />,
       'Chargement du journalier…'
     );

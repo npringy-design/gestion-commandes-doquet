@@ -10,6 +10,7 @@ const ORDER_LINE_FIELD_TO_COLUMN: Record<OrderLineField, keyof OrderLineStateFie
   targetStock: 'target_stock',
   packaging: 'packaging',
   margin: 'margin',
+  realOrder: 'real_order',
 };
 
 export const getOrderLineSaveId = (productId: string): string =>
@@ -38,6 +39,7 @@ export const mapOrderLineRowToState = (row: OrderLineStateRow): OrderLineState =
   targetStock: row.target_stock ?? '',
   packaging: row.packaging ?? '',
   margin: row.margin ?? undefined,
+  realOrder: row.real_order ?? '',
   updatedAt: row.updated_at,
 });
 

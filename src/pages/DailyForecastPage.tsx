@@ -5,20 +5,85 @@
 // =============================================================
 
 import React, { useMemo, useState } from 'react';
-import { View, MONTHS_DISPLAY_CONFIG } from '../constants';
+import { View, MONTHS_DISPLAY_CONFIG, CURRENT_SITE_ID } from '../constants';
 import AppNavTile from '../components/AppNavTile';
-import { DailyCoversState } from '../utils/dateHelpers';
+import { DailyCoversState, LimonadeCoversState } from '../utils/dateHelpers';
 import { useAuth } from '../auth/AuthProvider';
 import { canEditPreviCouverts } from '../lib/permissions';
 
 interface DailyForecastPageProps {
-  setView:        (v: View) => void;
-  dailyCovers:    DailyCoversState;
-  setDailyCovers: React.Dispatch<React.SetStateAction<DailyCoversState>>;
+  setView:             (v: View) => void;
+  dailyCovers:         DailyCoversState;
+  setDailyCovers:      React.Dispatch<React.SetStateAction<DailyCoversState>>;
+  limonadeCovers:      LimonadeCoversState;
+  setLimonadeCovers:   React.Dispatch<React.SetStateAction<LimonadeCoversState>>;
 }
 
+const IS_AU_BUREAU = CURRENT_SITE_ID === 'au_bureau_montevrain';
+
+interface LimonadeSectionProps {
+  selectedMonth:     string;
+  limonadeCovers:    LimonadeCoversState;
+  setLimonadeCovers: React.Dispatch<React.SetStateAction<LimonadeCoversState>>;
+  canEdit:           boolean;
+}
+
+const LimonadeSection: React.FC<LimonadeSectionProps> = ({
+  selectedMonth, limonadeCovers, setLimonadeCovers, canEdit,
+}) => {
+  const monthData = limonadeCovers[selectedMonth] || [];
+  const monthTotal = useMemo(
+    () => monthData.reduce((acc, v) => acc + (Number(v) || 0), 0),
+    [monthData]
+  );
+
+  const updateDay = (idx: number, val: string) => {
+    const newData: (number | '')[] = [...(limonadeCovers[selectedMonth] || Array(31).fill(''))];
+    newData[idx] = val === '' ? '' : Number(val);
+    setLimonadeCovers(prev => ({ ...prev, [selectedMonth]: newData }));
+  };
+
+  return (
+    <div className="mt-8 pt-6 border-t-2 border-cyan-100">
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div>
+          <h2 className="text-lg sm:text-xl font-black text-slate-800 uppercase tracking-tight">
+            Couverts <span className="text-cyan-600">Limonade</span>
+          </h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Un couvert Limonade = un client au menu limonade. Pas de distinction midi/soir.{' '}
+            <span className="italic">Limite : le ratio moyen ne distingue pas encore les clients Limonade.</span>
+          </p>
+        </div>
+        <div className="sm:ml-auto bg-cyan-50 rounded-2xl border border-cyan-200 px-4 py-2 shadow-sm shrink-0">
+          <p className="text-[10px] uppercase font-black text-cyan-700">Total</p>
+          <p className="text-lg font-black text-cyan-800">{monthTotal.toLocaleString('fr-FR')}</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-2 sm:gap-3">
+        {Array.from({ length: 31 }).map((_, i) => {
+          const val = monthData[i] ?? '';
+          return (
+            <div key={i} className="bg-white p-3 sm:p-4 rounded-2xl border-2 border-slate-100 hover:border-cyan-200 transition-colors">
+              <div className="text-[10px] font-black text-slate-400 mb-2 uppercase">Jour {i + 1}</div>
+              <input
+                type="number" inputMode="numeric"
+                value={val}
+                onChange={e => updateDay(i, e.target.value)}
+                disabled={!canEdit}
+                placeholder="—"
+                className="w-full bg-slate-50 rounded-lg p-1.5 font-black text-center text-slate-700 text-sm outline-none focus:bg-cyan-50 focus:text-cyan-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const DailyForecastPage: React.FC<DailyForecastPageProps> = ({
-  setView, dailyCovers, setDailyCovers,
+  setView, dailyCovers, setDailyCovers, limonadeCovers, setLimonadeCovers,
 }) => {
   const [selectedMonth, setSelectedMonth] = useState('jan');
   const { profile } = useAuth();
@@ -129,6 +194,15 @@ const DailyForecastPage: React.FC<DailyForecastPageProps> = ({
             );
           })}
         </div>
+
+        {IS_AU_BUREAU && (
+          <LimonadeSection
+            selectedMonth={selectedMonth}
+            limonadeCovers={limonadeCovers}
+            setLimonadeCovers={setLimonadeCovers}
+            canEdit={canEdit}
+          />
+        )}
       </div>
     </div>
   );

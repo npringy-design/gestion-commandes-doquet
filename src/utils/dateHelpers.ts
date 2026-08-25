@@ -13,6 +13,10 @@ export type { DailyCover };
 
 export type DailyCoversState = Record<string, DailyCover[]>;
 
+// Prévision Limonade : un seul chiffre par jour (pas de distinction midi/soir).
+// Isolé par site_id dans app_state, invisible sur les autres sites sans logique supplémentaire.
+export type LimonadeCoversState = Record<string, (number | '')[]>;
+
 // -----------------------------------------------------------
 // Calcule les prochaines dates importantes pour un fournisseur
 // (cut-off, livraison J, livraison J+1)
@@ -199,6 +203,29 @@ export const getForecastForWindow = (
   }
 
   return { total: totalMidi + totalSoir, midi: totalMidi, soir: totalSoir };
+};
+
+// -----------------------------------------------------------
+// Totalise les couverts Limonade (un chiffre/jour) sur une fenêtre.
+// Même logique que getForecastForWindow mais sans distinction midi/soir.
+// -----------------------------------------------------------
+export const getForecastLimonadeForWindow = (
+  endDate:        Date,
+  limonadeCovers: LimonadeCoversState,
+  now:            Date = new Date()
+): number => {
+  let total = 0;
+  const current = new Date(now);
+  current.setHours(0, 0, 0, 0);
+  const limit = new Date(endDate);
+  limit.setHours(23, 59, 59, 999);
+  while (current <= limit) {
+    const monthKey = MONTHS_ORDER[current.getMonth()];
+    const dayVal = limonadeCovers[monthKey]?.[current.getDate() - 1];
+    if (dayVal !== undefined && dayVal !== '') total += Number(dayVal) || 0;
+    current.setDate(current.getDate() + 1);
+  }
+  return total;
 };
 
 // -----------------------------------------------------------

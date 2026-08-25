@@ -53,6 +53,7 @@ export const useProductActions = ({
       .forEach((p) => {
         updateOrderLineField(p.id, 'stock', '');
         updateOrderLineField(p.id, 'upcomingDelivery', '');
+        updateOrderLineField(p.id, 'realOrder', '');
       });
     setShowResetConfirm(false);
   }, [products, setShowResetConfirm, updateOrderLineField, view]);
