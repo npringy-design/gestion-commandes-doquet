@@ -492,9 +492,9 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
             {isMobile && (
               <colgroup>
                 <col style={{ width: '38%' }} />
-                <col style={{ width: '26%' }} />
-                <col style={{ width: '22%' }} />
-                <col style={{ width: '14%' }} />
+                <col style={{ width: '24%' }} />
+                <col style={{ width: '18%' }} />
+                <col style={{ width: '20%' }} />
               </colgroup>
             )}
             <thead>
@@ -529,9 +529,10 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                 </th>
 
                 {/* Colonne À Commander — sticky droite */}
-                <th className="px-2 lg:px-4 bg-slate-900 text-white font-black uppercase text-[10px] lg:text-xs tracking-widest text-center whitespace-nowrap"
+                <th className="px-2 lg:px-4 bg-slate-900 text-white font-black uppercase text-[10px] lg:text-xs tracking-widest text-center"
                     style={{ position: 'sticky', right: 0, zIndex: 20, minWidth: '80px' }}>
-                  À Cmd.
+                  <span className="lg:hidden leading-tight">Sug.<br/>Réel</span>
+                  <span className="hidden lg:inline">À Cmd.</span>
                 </th>
               </tr>
             </thead>
@@ -716,16 +717,23 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                           : 'bg-slate-100 text-slate-300 scale-90 opacity-50'}`}>
                         {toOrder}
                       </div>
-                      {/* Mobile : Sugg. + input réel empilés */}
-                      <div className="lg:hidden flex flex-col items-center gap-1">
-                        <span className="text-[9px] font-black text-slate-400 uppercase leading-none">Sugg. : {toOrder}</span>
+                      {/* Mobile : badge coloré + input Réel empilés */}
+                      <div className="lg:hidden flex flex-col items-center gap-1 py-0.5">
+                        <div className={`inline-flex items-center justify-center w-9 h-7 rounded-lg font-black text-sm shadow-sm transition-all
+                          ${toOrder > 0
+                            ? calculationMode === 'margin'
+                              ? 'bg-orange-500 text-white shadow-orange-200'
+                              : 'bg-blue-600 text-white shadow-blue-200'
+                            : 'bg-slate-100 text-slate-400 opacity-60'}`}>
+                          {toOrder}
+                        </div>
                         <input
                           type="number"
                           value={orderLineStates[p.id]?.realOrder ?? ''}
                           onChange={e => updateOrderLineField(p.id, 'realOrder', e.target.value === '' ? '' : Number(e.target.value))}
                           tabIndex={TAB_REAL_ORDER + rowIdx}
                           inputMode="numeric"
-                          className="w-full h-8 rounded-lg border border-slate-300 bg-white text-center font-black text-slate-700 text-xs outline-none focus:border-slate-500 transition-all shadow-sm"
+                          className="w-full h-9 rounded-lg border border-slate-300 bg-white text-center font-black text-slate-700 text-sm outline-none focus:border-slate-500 transition-all shadow-sm"
                           placeholder="-"
                         />
                       </div>
