@@ -18,7 +18,7 @@ import {
 } from '../data';
 import { SupplierConfig, PrepBatch, PrepItem, PrepImportsByMonth, PrepForecastsByDate, PrepSheetStocks, OrderTemplateRow, OrderTemplatesBySupplier } from '../types';
 import { MONTHS_ORDER, View, SupplierId } from '../constants';
-import { DailyCoversState } from '../utils/dateHelpers';
+import { DailyCoversState, LimonadeCoversState } from '../utils/dateHelpers';
 import { getImportedValueForProduct, extractAllNamesFromCsvs, matchesImportedProductName } from '../utils/csvHelpers';
 import {
   createInitialProducts,
@@ -116,6 +116,9 @@ export const useAppState = () => {
 
   const [dailyCovers, setDailyCovers] =
     useState<DailyCoversState>(DAILY_COVERS_INITIAL);
+
+  const [limonadeCovers, setLimonadeCovers] =
+    useState<LimonadeCoversState>({});
 
   const [detailedInventory, setDetailedInventory] =
     useState<Record<string, string>>({});
@@ -220,6 +223,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
   const { supabaseLoaded, syncStatus, orderLineStates, updateOrderLineField, deleteOrderLineForProduct } = useCloudSync({
     covers,
     dailyCovers,
+    limonadeCovers,
     detailedInventory,
     salesHtByMonth,
     costMatterByMonth,
@@ -240,6 +244,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     orderTemplatesBySupplier,
     setCovers,
     setDailyCovers,
+    setLimonadeCovers,
     setDetailedInventory,
     setSalesHtByMonth,
     setCostMatterByMonth,
@@ -622,6 +627,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     nextDeliveryDateBySupplier, setNextDeliveryDateBySupplier,
     covers, setCovers,
     dailyCovers, setDailyCovers,
+    limonadeCovers, setLimonadeCovers,
     orderLineStates,
     detailedInventory, setDetailedInventory,
     salesHtByMonth, setSalesHtByMonth,

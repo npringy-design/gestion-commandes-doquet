@@ -15,7 +15,7 @@ import type {
   SupplierConfig,
 } from '../types';
 import type { ProductWithHistory } from '../data';
-import type { DailyCoversState } from '../utils/dateHelpers';
+import type { DailyCoversState, LimonadeCoversState } from '../utils/dateHelpers';
 import type {
   RatioProductMonthUnfreezeMap,
   RatioSupplierMonthFreezeMap,
@@ -37,6 +37,7 @@ import {
 export type PersistedAppState = {
   covers: Record<string, number>;
   dailyCovers: DailyCoversState;
+  limonadeCovers: LimonadeCoversState;
   detailedInventory: Record<string, string>;
   salesHtByMonth: Record<string, number>;
   costMatterByMonth: Record<string, number>;
@@ -75,6 +76,7 @@ type UseAppStatePersistenceParams = PersistedAppState & {
 export const useAppStatePersistence = ({
   covers,
   dailyCovers,
+  limonadeCovers,
   detailedInventory,
   salesHtByMonth,
   costMatterByMonth,
@@ -169,6 +171,7 @@ export const useAppStatePersistence = ({
 
   useEffect(() => { persistAppState('covers', covers); }, [covers, persistAppState]);
   useEffect(() => { persistAppState('dailyCovers', dailyCovers); }, [dailyCovers, persistAppState]);
+  useEffect(() => { persistAppState('limonadeCovers', limonadeCovers); }, [limonadeCovers, persistAppState]);
   useEffect(() => {
     persistAppState('inventory', detailedInventory, APP_STATE_SAVE_DEBOUNCE_MS_BY_KEY.inventory);
   }, [detailedInventory, persistAppState]);

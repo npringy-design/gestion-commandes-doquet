@@ -8,8 +8,8 @@
 // =============================================================
 
 import React from 'react';
-import { View, SupplierId } from '../constants';
-import { getDeliveryDates, getForecastForWindow } from '../utils/dateHelpers';
+import { View, SupplierId, CURRENT_SITE_ID } from '../constants';
+import { getDeliveryDates, getForecastForWindow, getForecastLimonadeForWindow } from '../utils/dateHelpers';
 import { calculateOrder, calculateTargetOrder, capitalizeFirstLetter, toNumber } from '../utils/calculations';
 import { ResetConfirmModal } from '../components/Modals';
 import WindowsCalendar from '../components/WindowsCalendar';
@@ -62,7 +62,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
     deliveryDateBySupplier, setDeliveryDateBySupplier,
     nextDeliveryDateBySupplier, setNextDeliveryDateBySupplier,
     orderLineStates, updateOrderLineField,
-    supplierConfigs, products, dailyCovers,
+    supplierConfigs, products, dailyCovers, limonadeCovers,
     performReset, updateProductValue, getProductStats,
   } = state;
 
@@ -158,6 +158,15 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
 
   const windowForecast = calculationMode === 'target' ? targetWindowForecast : marginWindowForecast;
 
+  const IS_AU_BUREAU = CURRENT_SITE_ID === 'au_bureau_montevrain';
+  const limonadeWindow = IS_AU_BUREAU && currentConfig.includeLimonadeForecast
+    ? getForecastLimonadeForWindow(
+        calculationMode === 'target' ? targetForecastEnd : marginForecastEnd,
+        limonadeCovers
+      )
+    : 0;
+  const totalForecastCovers = windowForecast.total + limonadeWindow;
+
   // ─── Navigation "Suivant" mobile via tabIndex ordonné ──────────────────
   // La seule approche fiable sur Samsung Internet / Android / iOS :
   // on assigne un tabIndex explicite à chaque input.
@@ -173,6 +182,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
   const TAB_UPCOMING = 100;
   const TAB_STOCK_CASES = 200;
   const TAB_STOCK_PIECES = 300;
+  const TAB_REAL_ORDER = 400;
 
 
   const getStockSplit = (stockVal: number | '' | undefined, packagingVal: number | '') => {
@@ -448,7 +458,10 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
               {/* Couverts Prévus */}
               <div className="bg-indigo-50/50 px-6 py-3 rounded-2xl border border-indigo-100/50 flex flex-col items-center min-w-[120px]">
                 <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">Couverts Prévus</span>
-                <span className="font-black text-indigo-900 text-xl leading-none">{windowForecast.total}</span>
+                <span className="font-black text-indigo-900 text-xl leading-none">{totalForecastCovers}</span>
+                {limonadeWindow > 0 && (
+                  <span className="text-[9px] text-cyan-600 font-bold mt-0.5">dont {limonadeWindow} Limo.</span>
+                )}
               </div>
             </div>
 
@@ -473,7 +486,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
             className="w-full"
             style={isMobile
               ? { tableLayout: 'fixed', width: '100%' }
-              : { tableLayout: 'auto', minWidth: calculationMode === 'margin' ? '760px' : '840px' }
+              : { tableLayout: 'auto', minWidth: calculationMode === 'margin' ? '840px' : '920px' }
             }>
             {/* colgroup mobile : répartition % sur 4 colonnes visibles */}
             {isMobile && (
@@ -510,6 +523,11 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                   <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Colis.</th>
                 </>)}
 
+                {/* Colonne Qté Réelle — desktop uniquement */}
+                <th className="hidden lg:table-cell p-2 bg-slate-700 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">
+                  Qté<br/>Réelle
+                </th>
+
                 {/* Colonne À Commander — sticky droite */}
                 <th className="px-2 lg:px-4 bg-slate-900 text-white font-black uppercase text-[10px] lg:text-xs tracking-widest text-center whitespace-nowrap"
                     style={{ position: 'sticky', right: 0, zIndex: 20, minWidth: '80px' }}>
@@ -529,13 +547,13 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                 let displayInfo2: number | null = null;
 
                 if (calculationMode === 'margin') {
-                  const dynamicTheo   = Math.ceil(avgRatio * windowForecast.total);
+                  const dynamicTheo   = Math.ceil(avgRatio * totalForecastCovers);
                   const currentMargin = orderLineStates[p.id]?.margin ?? 30;
                   const res           = calculateOrder(dynamicTheo, upcomingInUnit, stockSafe, currentMargin, p.packaging);
                   toOrder      = res.toOrder;
                   displayInfo1 = dynamicTheo;
                 } else {
-                  const estimatedConso = Math.ceil(avgRatio * windowForecast.total);
+                  const estimatedConso = Math.ceil(avgRatio * totalForecastCovers);
                   const res            = calculateTargetOrder(targetSafe, p.stock, estimatedConso, p.packaging);
                   toOrder      = res.toOrder;
                   displayInfo1 = estimatedConso;
@@ -671,16 +689,45 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                       </td>
                     </>)}
 
+                    {/* Qté Réelle — desktop uniquement */}
+                    <td className="hidden lg:table-cell p-2 text-center bg-slate-50">
+                      <input
+                        type="number"
+                        value={orderLineStates[p.id]?.realOrder ?? ''}
+                        onChange={e => updateOrderLineField(p.id, 'realOrder', e.target.value === '' ? '' : Number(e.target.value))}
+                        tabIndex={TAB_REAL_ORDER + rowIdx}
+                        onKeyDown={e => handleEnterKey(e, TAB_REAL_ORDER, rowIdx)}
+                        enterKeyHint="next"
+                        inputMode="numeric"
+                        className="w-full h-10 rounded-lg border border-slate-300 bg-white text-center font-black text-slate-700 text-sm outline-none focus:border-slate-500 transition-all shadow-sm"
+                        placeholder="-"
+                      />
+                    </td>
+
                     {/* À Commander — sticky droite */}
                     <td className="p-2 text-center border-l-2 border-slate-200 bg-white"
                         style={{ position: 'sticky', right: 0, zIndex: 10 }}>
-                      <div className={`inline-flex items-center justify-center w-11 lg:w-14 h-9 lg:h-10 rounded-xl font-black text-lg shadow-sm transition-all
+                      {/* Desktop : badge calculé */}
+                      <div className={`hidden lg:inline-flex items-center justify-center w-14 h-10 rounded-xl font-black text-lg shadow-sm transition-all
                         ${toOrder > 0
                           ? calculationMode === 'margin'
                             ? 'bg-orange-500 text-white shadow-orange-200 scale-110'
                             : 'bg-blue-600 text-white shadow-blue-200 scale-110'
                           : 'bg-slate-100 text-slate-300 scale-90 opacity-50'}`}>
                         {toOrder}
+                      </div>
+                      {/* Mobile : Sugg. + input réel empilés */}
+                      <div className="lg:hidden flex flex-col items-center gap-1">
+                        <span className="text-[9px] font-black text-slate-400 uppercase leading-none">Sugg. : {toOrder}</span>
+                        <input
+                          type="number"
+                          value={orderLineStates[p.id]?.realOrder ?? ''}
+                          onChange={e => updateOrderLineField(p.id, 'realOrder', e.target.value === '' ? '' : Number(e.target.value))}
+                          tabIndex={TAB_REAL_ORDER + rowIdx}
+                          inputMode="numeric"
+                          className="w-full h-8 rounded-lg border border-slate-300 bg-white text-center font-black text-slate-700 text-xs outline-none focus:border-slate-500 transition-all shadow-sm"
+                          placeholder="-"
+                        />
                       </div>
                     </td>
                   </tr>

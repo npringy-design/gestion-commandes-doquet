@@ -4,7 +4,7 @@
 // =============================================================
 
 import React from 'react';
-import { View, DAYS_OF_WEEK, slugifySupplierId } from '../constants';
+import { View, DAYS_OF_WEEK, slugifySupplierId, CURRENT_SITE_ID } from '../constants';
 import AppNavTile from '../components/AppNavTile';
 import { SupplierConfig, DeliveryRule } from '../types';
 import { SUPPLIER_VISUAL_PRESETS, getSupplierVisual, DEFAULT_SUPPLIER_VISUAL_KEY } from '../lib/supplierVisuals';
@@ -32,6 +32,8 @@ const INITIAL_FORM: CreateSupplierForm = {
   deliveryDay: 3,
   visualKey: DEFAULT_SUPPLIER_VISUAL_KEY,
 };
+
+const IS_AU_BUREAU = CURRENT_SITE_ID === 'au_bureau_montevrain';
 
 const ChevronButton: React.FC<{ open: boolean; label?: string; onClick: () => void }> = ({ open, label = 'Ouvrir la galerie', onClick }) => (
   <button
@@ -414,6 +416,20 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                             placeholder="Ex. Boissons • Softs"
                           />
                         </div>
+                        {IS_AU_BUREAU && (
+                          <div className="mt-4 flex items-center gap-3">
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                className="sr-only peer"
+                                checked={!!config.includeLimonadeForecast}
+                                onChange={e => updateSupplier(config.id, { includeLimonadeForecast: e.target.checked })}
+                              />
+                              <div className="w-10 h-5 bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-5 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-500" />
+                            </label>
+                            <span className="text-white/80 text-xs font-bold uppercase tracking-widest">Inclure prév. Limonade dans les calculs</span>
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 flex-wrap justify-end">
                         <label className="text-white/70 text-xs font-black uppercase tracking-widest">Heure cut-off</label>

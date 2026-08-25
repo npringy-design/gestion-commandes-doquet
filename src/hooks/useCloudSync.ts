@@ -28,7 +28,7 @@ import type {
   OrderTemplatesBySupplier,
 } from '../types';
 import type { ProductWithHistory } from '../data';
-import type { DailyCoversState } from '../utils/dateHelpers';
+import type { DailyCoversState, LimonadeCoversState } from '../utils/dateHelpers';
 import type { AppStateSetterRegistry } from './appStateSyncModel';
 import type {
   RatioProductMonthUnfreezeMap,
@@ -48,6 +48,7 @@ import { useReliableSaveLifecycle } from './useReliableSaveLifecycle';
 type StateSetters = {
   setCovers: Dispatch<SetStateAction<Record<string, number>>>;
   setDailyCovers: Dispatch<SetStateAction<DailyCoversState>>;
+  setLimonadeCovers: Dispatch<SetStateAction<LimonadeCoversState>>;
   setDetailedInventory: Dispatch<SetStateAction<Record<string, string>>>;
   setSalesHtByMonth: Dispatch<SetStateAction<Record<string, number>>>;
   setCostMatterByMonth: Dispatch<SetStateAction<Record<string, number>>>;
@@ -75,6 +76,7 @@ type UseCloudSyncParams = PersistedAppState & StateSetters & {
 export const useCloudSync = ({
   covers,
   dailyCovers,
+  limonadeCovers,
   detailedInventory,
   salesHtByMonth,
   costMatterByMonth,
@@ -95,6 +97,7 @@ export const useCloudSync = ({
   orderTemplatesBySupplier,
   setCovers,
   setDailyCovers,
+  setLimonadeCovers,
   setDetailedInventory,
   setSalesHtByMonth,
   setCostMatterByMonth,
@@ -137,6 +140,7 @@ export const useCloudSync = ({
   const appStateSetters = useMemo<AppStateSetterRegistry>(() => ({
     covers: value => setCovers(value as Record<string, number>),
     dailyCovers: value => setDailyCovers(value as DailyCoversState),
+    limonadeCovers: value => setLimonadeCovers(value as LimonadeCoversState),
     inventory: value => setDetailedInventory(value as Record<string, string>),
     salesHtByMonth: value => setSalesHtByMonth(value as Record<string, number>),
     costMatterByMonth: value => setCostMatterByMonth(value as Record<string, number>),
@@ -159,6 +163,7 @@ export const useCloudSync = ({
     setCostMatterByMonth,
     setCovers,
     setDailyCovers,
+    setLimonadeCovers,
     setDeliveryDateBySupplier,
     setDetailedInventory,
     setNextDeliveryDateBySupplier,
@@ -236,6 +241,7 @@ export const useCloudSync = ({
   useAppStatePersistence({
     covers,
     dailyCovers,
+    limonadeCovers,
     detailedInventory,
     salesHtByMonth,
     costMatterByMonth,

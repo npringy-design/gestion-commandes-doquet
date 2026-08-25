@@ -1,6 +1,6 @@
 import type { ProductWithHistory } from '../data';
 import type { SupplierConfig } from '../types';
-import type { DailyCoversState } from '../utils/dateHelpers';
+import type { DailyCoversState, LimonadeCoversState } from '../utils/dateHelpers';
 import {
   mergeAndNormalizeProducts,
   mergeSupplierConfigsWithDefaults,
@@ -10,6 +10,7 @@ import { materializeGranularRatioProducts } from './ratioProductPersistenceModel
 export type WritableAppStateKey =
   | 'covers'
   | 'dailyCovers'
+  | 'limonadeCovers'
   | 'inventory'
   | 'salesHtByMonth'
   | 'costMatterByMonth'
@@ -48,6 +49,7 @@ export type AppStateSetterRegistry = Partial<
 const WRITABLE_APP_STATE_KEYS: readonly WritableAppStateKey[] = [
   'covers',
   'dailyCovers',
+  'limonadeCovers',
   'inventory',
   'salesHtByMonth',
   'costMatterByMonth',
