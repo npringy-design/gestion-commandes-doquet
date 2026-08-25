@@ -488,20 +488,28 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
               ? { tableLayout: 'fixed', width: '100%' }
               : { tableLayout: 'auto', minWidth: calculationMode === 'margin' ? '840px' : '920px' }
             }>
-            {/* colgroup mobile : répartition % sur 4 colonnes visibles */}
+            {/* colgroup mobile : 5 colonnes égales */}
             {isMobile && (
               <colgroup>
-                <col style={{ width: '38%' }} />
-                <col style={{ width: '24%' }} />
-                <col style={{ width: '18%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '20%' }} />
                 <col style={{ width: '20%' }} />
               </colgroup>
             )}
             <thead>
-              <tr className="text-left h-12 lg:h-16">
+              <tr className="text-left h-10 lg:h-16">
 
-                {/* Colonne Produit */}
-                <th className="px-3 lg:px-6 bg-[#2c1810] text-[#ffd700] font-black uppercase text-[10px] lg:text-xs tracking-widest"
+                {/* ── En-têtes mobile (5 colonnes égales) ── */}
+                <th className="lg:hidden p-1.5 bg-amber-600 text-white font-black uppercase text-[8px] tracking-widest text-center">Col.</th>
+                <th className="lg:hidden p-1.5 bg-emerald-600 text-white font-black uppercase text-[8px] tracking-widest text-center">Livr.</th>
+                <th className="lg:hidden p-1.5 bg-amber-500 text-white font-black uppercase text-[8px] tracking-widest text-center">Pcs.</th>
+                <th className="lg:hidden p-1.5 bg-slate-600 text-white font-black uppercase text-[8px] tracking-widest text-center">Réel</th>
+                <th className="lg:hidden p-1.5 bg-slate-900 text-white font-black uppercase text-[8px] tracking-widest text-center">Sug.</th>
+
+                {/* ── En-têtes desktop ── */}
+                <th className="hidden lg:table-cell px-6 bg-[#2c1810] text-[#ffd700] font-black uppercase text-xs tracking-widest"
                     style={{ position: 'sticky', left: 0, zIndex: 20 }}>
                   Produit
                 </th>
@@ -509,35 +517,32 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                 {calculationMode === 'margin' ? (<>
                   <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Besoin<br/>Théo.</th>
                   <th className="hidden lg:table-cell p-2 bg-emerald-600 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Livr.<br/>à venir</th>
-                  <th className="p-2 bg-amber-600 text-white font-black uppercase text-[10px] tracking-widest text-center">U. Colisage<br/>en stock</th>
-                  <th className="p-2 bg-amber-500 text-white font-black uppercase text-[10px] tracking-widest text-center">U. Pièce<br/>en stock</th>
+                  <th className="hidden lg:table-cell p-2 bg-amber-600 text-white font-black uppercase text-[10px] tracking-widest text-center">U. Colisage<br/>en stock</th>
+                  <th className="hidden lg:table-cell p-2 bg-amber-500 text-white font-black uppercase text-[10px] tracking-widest text-center">U. Pièce<br/>en stock</th>
                   <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Colis.</th>
                   <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Marge<br/>(%)</th>
                 </>) : (<>
                   <th className="hidden lg:table-cell p-2 bg-blue-600 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Cible<br/>(Unités)</th>
                   <th className="hidden lg:table-cell p-2 bg-emerald-600 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Livr.<br/>à venir</th>
-                  <th className="p-2 bg-amber-600 text-white font-black uppercase text-[10px] tracking-widest text-center">U. Colisage<br/>en stock</th>
-                  <th className="p-2 bg-amber-500 text-white font-black uppercase text-[10px] tracking-widest text-center">U. Pièce<br/>en stock</th>
+                  <th className="hidden lg:table-cell p-2 bg-amber-600 text-white font-black uppercase text-[10px] tracking-widest text-center">U. Colisage<br/>en stock</th>
+                  <th className="hidden lg:table-cell p-2 bg-amber-500 text-white font-black uppercase text-[10px] tracking-widest text-center">U. Pièce<br/>en stock</th>
                   <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Conso<br/>Estimée</th>
                   <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Manque</th>
                   <th className="hidden lg:table-cell p-2 bg-[#FDBA74] text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">Colis.</th>
                 </>)}
 
-                {/* Colonne Qté Réelle — desktop uniquement */}
                 <th className="hidden lg:table-cell p-2 bg-slate-700 text-white font-black uppercase text-[10px] tracking-widest text-center whitespace-nowrap">
                   Qté<br/>Réelle
                 </th>
 
-                {/* Colonne À Commander — sticky droite */}
-                <th className="px-2 lg:px-4 bg-slate-900 text-white font-black uppercase text-[10px] lg:text-xs tracking-widest text-center"
+                <th className="hidden lg:table-cell px-4 bg-slate-900 text-white font-black uppercase text-xs tracking-widest text-center whitespace-nowrap"
                     style={{ position: 'sticky', right: 0, zIndex: 20, minWidth: '80px' }}>
-                  <span className="lg:hidden leading-tight">Sug.<br/>Réel</span>
-                  <span className="hidden lg:inline">À Cmd.</span>
+                  À Cmd.
                 </th>
               </tr>
             </thead>
 
-            <tbody className="divide-y-2 divide-slate-200">
+            <tbody>
               {displayedProducts.map((p, rowIdx) => {
                 const { avgRatio } = getProductStats(p);
                 const stockSafe      = getStockSplit(p.stock, p.packaging).totalStock;
@@ -561,184 +566,217 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                   displayInfo2 = res.missing;
                 }
 
+                const badgeCls = toOrder > 0
+                  ? calculationMode === 'margin'
+                    ? 'bg-orange-500 text-white shadow-orange-200'
+                    : 'bg-blue-600 text-white shadow-blue-200'
+                  : 'bg-slate-100 text-slate-400 opacity-60';
+
                 return (
-                  <tr key={p.id} className="hover:bg-amber-50/40 transition-colors">
+                  <React.Fragment key={p.id}>
 
-                    {/* Nom produit — sticky gauche */}
-                    <td className="px-3 lg:px-6 py-3 font-['Roboto_Slab'] font-bold text-slate-800 text-xs lg:text-sm border-r-2 border-slate-100 bg-white overflow-hidden"
-                        style={{ position: 'sticky', left: 0, zIndex: 10 }}>
-                      <span className="block truncate">{capitalizeFirstLetter(p.name)}</span>
-                      {p.storageUnit && (
-                        <span className="block truncate text-[10px] font-semibold text-gray-400">{p.storageUnit}</span>
-                      )}
-                    </td>
-
-                    {calculationMode === 'margin' ? (<>
-                      <td className="hidden lg:table-cell p-2 text-center font-bold text-slate-700 text-sm bg-[#FFE8CC] whitespace-nowrap">{displayInfo1}</td>
-                      <td className="hidden lg:table-cell p-2 bg-emerald-50/20">
-                        <input type="number" value={p.upcomingDelivery}
-                          onChange={e => updateProductValue(p.id, 'upcomingDelivery', e.target.value)}
-                          tabIndex={TAB_UPCOMING + rowIdx}
-                          onKeyDown={e => handleEnterKey(e, TAB_UPCOMING, rowIdx)}
-                          enterKeyHint="next"
-                          inputMode="numeric"
-                          className="w-14 lg:w-full h-9 lg:h-10 rounded-lg border border-emerald-200/50 bg-white text-emerald-700 text-center font-black text-sm outline-none focus:border-emerald-400 transition-all shadow-sm"
-                          placeholder="-" />
+                    {/* ══ MOBILE — ligne nom produit ══ */}
+                    <tr className="lg:hidden border-t-2 border-amber-200/50">
+                      <td colSpan={5} className="px-3 py-2 bg-amber-50 font-['Roboto_Slab'] font-bold text-slate-800 text-xs">
+                        {capitalizeFirstLetter(p.name)}
+                        {p.storageUnit && (
+                          <span className="ml-1.5 text-[10px] font-semibold text-gray-400">{p.storageUnit}</span>
+                        )}
                       </td>
+                    </tr>
 
-                      <td className="p-2 bg-amber-50/20">
-                        <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockCases}
+                    {/* ══ MOBILE — ligne champs (Col. | Livr. | Pcs. | Réel | Sug.) ══ */}
+                    <tr className="lg:hidden border-b border-slate-100">
+                      {/* 1. Stock colisage */}
+                      <td className="p-1.5 bg-amber-50/30">
+                        <input type="number"
+                          value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockCases}
                           onChange={e => updateStockFromSplit(p.id, p.packaging, e.target.value, String(getStockSplit(p.stock, p.packaging).stockPieces))}
                           tabIndex={TAB_STOCK_CASES + rowIdx}
                           onKeyDown={e => handleEnterKey(e, TAB_STOCK_CASES, rowIdx)}
-                          enterKeyHint="next"
-                          inputMode="numeric"
-                          className="w-full h-10 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
+                          enterKeyHint="next" inputMode="numeric"
+                          className="w-full h-9 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
                           placeholder="-" />
                       </td>
-
-                      <td className="p-2 bg-amber-50/20">
-                        <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockPieces}
-                          onChange={e => updateStockFromSplit(p.id, p.packaging, String(getStockSplit(p.stock, p.packaging).stockCases), e.target.value)}
-                          tabIndex={TAB_STOCK_PIECES + rowIdx}
-                          onKeyDown={e => handleEnterKey(e, TAB_STOCK_PIECES, rowIdx)}
-                          enterKeyHint="next"
-                          inputMode="numeric"
-                          className="w-full h-10 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
-                          placeholder="-" />
-                      </td>
-
-                      <td className="hidden lg:table-cell p-2 text-center bg-[#FFE8CC]">
-                        <input type="number" value={p.packaging} disabled={commandeOnly}
-                          onChange={e => updateProductValue(p.id, 'packaging', e.target.value)}
-                          className={`w-12 lg:w-16 text-center border border-slate-200 rounded-lg font-bold text-sm outline-none py-1 ${commandeOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/50 text-slate-600'}`} />
-                      </td>
-
-                      <td className="hidden lg:table-cell p-2 text-center bg-[#FFE8CC]">
-                        <select
-                          value={orderLineStates[p.id]?.margin ?? 30}
-                          disabled={commandeOnly}
-                          onChange={e => updateOrderLineField(p.id, 'margin', Number(e.target.value))}
-                          className={`border border-slate-300 font-bold text-xs py-1 px-1 rounded-lg outline-none shadow-sm ${commandeOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/80 text-slate-700 cursor-pointer'}`}
-                        >
-                          {[0,5,10,15,20,25,30,35,40,45,50].map(o => <option key={o} value={o}>{o}%</option>)}
-                        </select>
-                      </td>
-
-                    </>) : (<>
-                      <td className="hidden lg:table-cell p-2 relative bg-blue-50/20">
-                        <input type="number" value={p.targetStock} disabled={commandeOnly}
-                          onChange={e => updateProductValue(p.id, 'targetStock', e.target.value)}
-                          className={`w-14 lg:w-full h-9 lg:h-10 rounded-lg border border-blue-200/50 text-center font-black text-sm outline-none transition-all shadow-sm ${commandeOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white text-blue-700 focus:border-blue-400'}`}
-                          placeholder="-" />
-                        {toNumber(p.packaging) > 1 && targetSafe > 0 && (
-                          <div className="absolute top-2 right-2 text-[8px] font-bold text-blue-400 bg-blue-50 px-1 py-0.5 rounded pointer-events-none hidden lg:block">
-                            {(targetSafe / toNumber(p.packaging) || 1).toFixed(1)} cs
-                          </div>
-                        )}
-                      </td>
-
-                      <td className="hidden lg:table-cell p-2 bg-emerald-50/20">
-                        <input type="number" value={p.upcomingDelivery}
+                      {/* 2. Livr. à venir */}
+                      <td className="p-1.5 bg-emerald-50/20">
+                        <input type="number"
+                          value={p.upcomingDelivery ?? ''}
                           onChange={e => updateProductValue(p.id, 'upcomingDelivery', e.target.value)}
                           tabIndex={TAB_UPCOMING + rowIdx}
                           onKeyDown={e => handleEnterKey(e, TAB_UPCOMING, rowIdx)}
-                          enterKeyHint="next"
-                          inputMode="numeric"
-                          className="w-14 lg:w-full h-9 lg:h-10 rounded-lg border border-emerald-200/50 bg-white text-emerald-700 text-center font-black text-sm outline-none focus:border-emerald-400 transition-all shadow-sm"
+                          enterKeyHint="next" inputMode="numeric"
+                          className="w-full h-9 rounded-lg border border-emerald-200/50 bg-white text-emerald-700 text-center font-black text-sm outline-none focus:border-emerald-400 transition-all shadow-sm"
                           placeholder="-" />
                       </td>
-
-                      <td className="p-2 bg-amber-50/20">
-                        <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockCases}
-                          onChange={e => updateStockFromSplit(p.id, p.packaging, e.target.value, String(getStockSplit(p.stock, p.packaging).stockPieces))}
-                          tabIndex={TAB_STOCK_CASES + rowIdx}
-                          onKeyDown={e => handleEnterKey(e, TAB_STOCK_CASES, rowIdx)}
-                          enterKeyHint="next"
-                          inputMode="numeric"
-                          className="w-full h-10 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
-                          placeholder="-" />
-                      </td>
-
-                      <td className="p-2 bg-amber-50/20">
-                        <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockPieces}
+                      {/* 3. Stock pièces */}
+                      <td className="p-1.5 bg-amber-50/30">
+                        <input type="number"
+                          value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockPieces}
                           onChange={e => updateStockFromSplit(p.id, p.packaging, String(getStockSplit(p.stock, p.packaging).stockCases), e.target.value)}
                           tabIndex={TAB_STOCK_PIECES + rowIdx}
                           onKeyDown={e => handleEnterKey(e, TAB_STOCK_PIECES, rowIdx)}
-                          enterKeyHint="next"
-                          inputMode="numeric"
-                          className="w-full h-10 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
+                          enterKeyHint="next" inputMode="numeric"
+                          className="w-full h-9 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
                           placeholder="-" />
                       </td>
-
-                      <td className="hidden lg:table-cell p-2 text-center bg-[#FFE8CC] whitespace-nowrap">
-                        <span className="text-slate-600 font-bold text-sm">{displayInfo1}</span>
-                      </td>
-
-                      <td className="hidden lg:table-cell p-2 text-center bg-[#FFE8CC]">
-                        {displayInfo2 !== null && displayInfo2 > 0 ? (
-                          <span className="text-red-600 font-black bg-white/50 border border-red-200 px-1.5 py-0.5 rounded text-xs">-{displayInfo2}</span>
-                        ) : (
-                          <span className="text-slate-400 text-sm">-</span>
-                        )}
-                      </td>
-
-                      <td className="hidden lg:table-cell p-2 text-center bg-[#FFE8CC]">
-                        <input type="number" value={p.packaging} disabled={commandeOnly}
-                          onChange={e => updateProductValue(p.id, 'packaging', e.target.value)}
-                          className={`w-12 lg:w-16 text-center border border-slate-200 rounded-lg font-bold text-sm outline-none py-1 ${commandeOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/50 text-slate-600'}`} />
-                      </td>
-                    </>)}
-
-                    {/* Qté Réelle — desktop uniquement */}
-                    <td className="hidden lg:table-cell p-2 text-center bg-slate-50">
-                      <input
-                        type="number"
-                        value={orderLineStates[p.id]?.realOrder ?? ''}
-                        onChange={e => updateOrderLineField(p.id, 'realOrder', e.target.value === '' ? '' : Number(e.target.value))}
-                        tabIndex={TAB_REAL_ORDER + rowIdx}
-                        onKeyDown={e => handleEnterKey(e, TAB_REAL_ORDER, rowIdx)}
-                        enterKeyHint="next"
-                        inputMode="numeric"
-                        className="w-full h-10 rounded-lg border border-slate-300 bg-white text-center font-black text-slate-700 text-sm outline-none focus:border-slate-500 transition-all shadow-sm"
-                        placeholder="-"
-                      />
-                    </td>
-
-                    {/* À Commander — sticky droite */}
-                    <td className="p-2 text-center border-l-2 border-slate-200 bg-white"
-                        style={{ position: 'sticky', right: 0, zIndex: 10 }}>
-                      {/* Desktop : badge calculé */}
-                      <div className={`hidden lg:inline-flex items-center justify-center w-14 h-10 rounded-xl font-black text-lg shadow-sm transition-all
-                        ${toOrder > 0
-                          ? calculationMode === 'margin'
-                            ? 'bg-orange-500 text-white shadow-orange-200 scale-110'
-                            : 'bg-blue-600 text-white shadow-blue-200 scale-110'
-                          : 'bg-slate-100 text-slate-300 scale-90 opacity-50'}`}>
-                        {toOrder}
-                      </div>
-                      {/* Mobile : badge coloré + input Réel empilés */}
-                      <div className="lg:hidden flex flex-col items-center gap-1 py-0.5">
-                        <div className={`inline-flex items-center justify-center w-9 h-7 rounded-lg font-black text-sm shadow-sm transition-all
-                          ${toOrder > 0
-                            ? calculationMode === 'margin'
-                              ? 'bg-orange-500 text-white shadow-orange-200'
-                              : 'bg-blue-600 text-white shadow-blue-200'
-                            : 'bg-slate-100 text-slate-400 opacity-60'}`}>
-                          {toOrder}
-                        </div>
-                        <input
-                          type="number"
+                      {/* 4. Réel */}
+                      <td className="p-1.5 bg-slate-50/50">
+                        <input type="number"
                           value={orderLineStates[p.id]?.realOrder ?? ''}
                           onChange={e => updateOrderLineField(p.id, 'realOrder', e.target.value === '' ? '' : Number(e.target.value))}
                           tabIndex={TAB_REAL_ORDER + rowIdx}
                           inputMode="numeric"
                           className="w-full h-9 rounded-lg border border-slate-300 bg-white text-center font-black text-slate-700 text-sm outline-none focus:border-slate-500 transition-all shadow-sm"
-                          placeholder="-"
-                        />
-                      </div>
-                    </td>
-                  </tr>
+                          placeholder="-" />
+                      </td>
+                      {/* 5. Suggéré (badge) */}
+                      <td className="p-1.5">
+                        <div className={`flex items-center justify-center h-9 rounded-xl font-black text-base shadow-sm ${badgeCls}`}>
+                          {toOrder}
+                        </div>
+                      </td>
+                    </tr>
+
+                    {/* ══ DESKTOP — ligne unique ══ */}
+                    <tr className="hidden lg:table-row hover:bg-amber-50/40 transition-colors border-t-2 border-slate-200">
+
+                      {/* Nom produit — sticky gauche */}
+                      <td className="px-6 py-3 font-['Roboto_Slab'] font-bold text-slate-800 text-sm border-r-2 border-slate-100 bg-white overflow-hidden"
+                          style={{ position: 'sticky', left: 0, zIndex: 10 }}>
+                        <span className="block truncate">{capitalizeFirstLetter(p.name)}</span>
+                        {p.storageUnit && (
+                          <span className="block truncate text-[10px] font-semibold text-gray-400">{p.storageUnit}</span>
+                        )}
+                      </td>
+
+                      {calculationMode === 'margin' ? (<>
+                        <td className="p-2 text-center font-bold text-slate-700 text-sm bg-[#FFE8CC] whitespace-nowrap">{displayInfo1}</td>
+                        <td className="p-2 bg-emerald-50/20">
+                          <input type="number" value={p.upcomingDelivery}
+                            onChange={e => updateProductValue(p.id, 'upcomingDelivery', e.target.value)}
+                            tabIndex={TAB_UPCOMING + rowIdx}
+                            onKeyDown={e => handleEnterKey(e, TAB_UPCOMING, rowIdx)}
+                            enterKeyHint="next" inputMode="numeric"
+                            className="w-full h-10 rounded-lg border border-emerald-200/50 bg-white text-emerald-700 text-center font-black text-sm outline-none focus:border-emerald-400 transition-all shadow-sm"
+                            placeholder="-" />
+                        </td>
+                        <td className="p-2 bg-amber-50/20">
+                          <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockCases}
+                            onChange={e => updateStockFromSplit(p.id, p.packaging, e.target.value, String(getStockSplit(p.stock, p.packaging).stockPieces))}
+                            tabIndex={TAB_STOCK_CASES + rowIdx}
+                            onKeyDown={e => handleEnterKey(e, TAB_STOCK_CASES, rowIdx)}
+                            enterKeyHint="next" inputMode="numeric"
+                            className="w-full h-10 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
+                            placeholder="-" />
+                        </td>
+                        <td className="p-2 bg-amber-50/20">
+                          <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockPieces}
+                            onChange={e => updateStockFromSplit(p.id, p.packaging, String(getStockSplit(p.stock, p.packaging).stockCases), e.target.value)}
+                            tabIndex={TAB_STOCK_PIECES + rowIdx}
+                            onKeyDown={e => handleEnterKey(e, TAB_STOCK_PIECES, rowIdx)}
+                            enterKeyHint="next" inputMode="numeric"
+                            className="w-full h-10 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
+                            placeholder="-" />
+                        </td>
+                        <td className="p-2 text-center bg-[#FFE8CC]">
+                          <input type="number" value={p.packaging} disabled={commandeOnly}
+                            onChange={e => updateProductValue(p.id, 'packaging', e.target.value)}
+                            className={`w-16 text-center border border-slate-200 rounded-lg font-bold text-sm outline-none py-1 ${commandeOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/50 text-slate-600'}`} />
+                        </td>
+                        <td className="p-2 text-center bg-[#FFE8CC]">
+                          <select
+                            value={orderLineStates[p.id]?.margin ?? 30}
+                            disabled={commandeOnly}
+                            onChange={e => updateOrderLineField(p.id, 'margin', Number(e.target.value))}
+                            className={`border border-slate-300 font-bold text-xs py-1 px-1 rounded-lg outline-none shadow-sm ${commandeOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/80 text-slate-700 cursor-pointer'}`}
+                          >
+                            {[0,5,10,15,20,25,30,35,40,45,50].map(o => <option key={o} value={o}>{o}%</option>)}
+                          </select>
+                        </td>
+                      </>) : (<>
+                        <td className="p-2 relative bg-blue-50/20">
+                          <input type="number" value={p.targetStock} disabled={commandeOnly}
+                            onChange={e => updateProductValue(p.id, 'targetStock', e.target.value)}
+                            className={`w-full h-10 rounded-lg border border-blue-200/50 text-center font-black text-sm outline-none transition-all shadow-sm ${commandeOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white text-blue-700 focus:border-blue-400'}`}
+                            placeholder="-" />
+                          {toNumber(p.packaging) > 1 && targetSafe > 0 && (
+                            <div className="absolute top-2 right-2 text-[8px] font-bold text-blue-400 bg-blue-50 px-1 py-0.5 rounded pointer-events-none">
+                              {(targetSafe / toNumber(p.packaging) || 1).toFixed(1)} cs
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-2 bg-emerald-50/20">
+                          <input type="number" value={p.upcomingDelivery}
+                            onChange={e => updateProductValue(p.id, 'upcomingDelivery', e.target.value)}
+                            tabIndex={TAB_UPCOMING + rowIdx}
+                            onKeyDown={e => handleEnterKey(e, TAB_UPCOMING, rowIdx)}
+                            enterKeyHint="next" inputMode="numeric"
+                            className="w-full h-10 rounded-lg border border-emerald-200/50 bg-white text-emerald-700 text-center font-black text-sm outline-none focus:border-emerald-400 transition-all shadow-sm"
+                            placeholder="-" />
+                        </td>
+                        <td className="p-2 bg-amber-50/20">
+                          <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockCases}
+                            onChange={e => updateStockFromSplit(p.id, p.packaging, e.target.value, String(getStockSplit(p.stock, p.packaging).stockPieces))}
+                            tabIndex={TAB_STOCK_CASES + rowIdx}
+                            onKeyDown={e => handleEnterKey(e, TAB_STOCK_CASES, rowIdx)}
+                            enterKeyHint="next" inputMode="numeric"
+                            className="w-full h-10 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
+                            placeholder="-" />
+                        </td>
+                        <td className="p-2 bg-amber-50/20">
+                          <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockPieces}
+                            onChange={e => updateStockFromSplit(p.id, p.packaging, String(getStockSplit(p.stock, p.packaging).stockCases), e.target.value)}
+                            tabIndex={TAB_STOCK_PIECES + rowIdx}
+                            onKeyDown={e => handleEnterKey(e, TAB_STOCK_PIECES, rowIdx)}
+                            enterKeyHint="next" inputMode="numeric"
+                            className="w-full h-10 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
+                            placeholder="-" />
+                        </td>
+                        <td className="p-2 text-center bg-[#FFE8CC] whitespace-nowrap">
+                          <span className="text-slate-600 font-bold text-sm">{displayInfo1}</span>
+                        </td>
+                        <td className="p-2 text-center bg-[#FFE8CC]">
+                          {displayInfo2 !== null && displayInfo2 > 0 ? (
+                            <span className="text-red-600 font-black bg-white/50 border border-red-200 px-1.5 py-0.5 rounded text-xs">-{displayInfo2}</span>
+                          ) : (
+                            <span className="text-slate-400 text-sm">-</span>
+                          )}
+                        </td>
+                        <td className="p-2 text-center bg-[#FFE8CC]">
+                          <input type="number" value={p.packaging} disabled={commandeOnly}
+                            onChange={e => updateProductValue(p.id, 'packaging', e.target.value)}
+                            className={`w-16 text-center border border-slate-200 rounded-lg font-bold text-sm outline-none py-1 ${commandeOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/50 text-slate-600'}`} />
+                        </td>
+                      </>)}
+
+                      {/* Qté Réelle */}
+                      <td className="p-2 text-center bg-slate-50">
+                        <input type="number"
+                          value={orderLineStates[p.id]?.realOrder ?? ''}
+                          onChange={e => updateOrderLineField(p.id, 'realOrder', e.target.value === '' ? '' : Number(e.target.value))}
+                          tabIndex={TAB_REAL_ORDER + rowIdx}
+                          onKeyDown={e => handleEnterKey(e, TAB_REAL_ORDER, rowIdx)}
+                          enterKeyHint="next" inputMode="numeric"
+                          className="w-full h-10 rounded-lg border border-slate-300 bg-white text-center font-black text-slate-700 text-sm outline-none focus:border-slate-500 transition-all shadow-sm"
+                          placeholder="-" />
+                      </td>
+
+                      {/* À Commander — sticky droite */}
+                      <td className="p-2 text-center border-l-2 border-slate-200 bg-white"
+                          style={{ position: 'sticky', right: 0, zIndex: 10 }}>
+                        <div className={`inline-flex items-center justify-center w-14 h-10 rounded-xl font-black text-lg shadow-sm transition-all
+                          ${toOrder > 0
+                            ? calculationMode === 'margin'
+                              ? 'bg-orange-500 text-white shadow-orange-200 scale-110'
+                              : 'bg-blue-600 text-white shadow-blue-200 scale-110'
+                            : 'bg-slate-100 text-slate-300 scale-90 opacity-50'}`}>
+                          {toOrder}
+                        </div>
+                      </td>
+                    </tr>
+
+                  </React.Fragment>
                 );
               })}
             </tbody>
