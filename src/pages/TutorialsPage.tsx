@@ -24,6 +24,42 @@ interface TutorialConfig {
 
 const TUTORIAL_SECTIONS: TutorialConfig[] = [
   {
+    key: 'import-inventaire',
+    title: 'Import Inventaire',
+    description:
+      "Exporter le rapport d'inventaire depuis Adoria et l'importer dans la page Paramètres pour alimenter le Calcul vente ratio.",
+    steps: [
+      {
+        text: 'Dans Adoria, cliquer sur "Rapports" dans le menu de navigation en haut.',
+        image: '/tutorials/import-inventaire/step1-adoria-rapports.png',
+      },
+      {
+        text: 'Dérouler la section "STOCKS ET RATIOS DE GESTION" et cliquer sur "Analyse du coût matière et ventes par produit".',
+        image: '/tutorials/import-inventaire/step2-adoria-stocks-ratios.png',
+      },
+      {
+        text: 'Configurer la période : du 1er au dernier jour du mois souhaité. Régler le regroupement sur "Zone de stock" et sélectionner "Part de Démarque inconnue". Cliquer sur "Valider".',
+        image: '/tutorials/import-inventaire/step3-adoria-config.png',
+      },
+      {
+        text: 'Sur le rapport généré, cliquer sur "Exporter le rapport (.xls)" en haut à droite.',
+        image: '/tutorials/import-inventaire/step4-adoria-export.png',
+      },
+      {
+        text: 'Dans la page Paramètres, sélectionner le mois concerné dans la liste à gauche, puis cliquer sur "Importer" dans la carte Inventaire.',
+        image: '/tutorials/import-inventaire/step5-parametres-importer.png',
+      },
+      {
+        text: 'Dans la modale, glisser-déposer le fichier exporté depuis Adoria ou cliquer pour le parcourir.',
+        image: '/tutorials/import-inventaire/step6-modal-import.png',
+      },
+      {
+        text: "L'inventaire passe au statut Importé (point vert). Le mois affiche PARTIEL si la production n'est pas encore importée.",
+        image: '/tutorials/import-inventaire/step7-importe.png',
+      },
+    ],
+  },
+  {
     key: 'trame-commande',
     title: 'Trame commande',
     description:
