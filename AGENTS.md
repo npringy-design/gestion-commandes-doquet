@@ -2,6 +2,10 @@
 
 Avant toute modification :
 
+0. exécuter `git fetch origin` puis vérifier que la branche locale
+   `codex-setup-staging-workflow` n'est **pas** en retard ou divergée
+   par rapport à `origin/codex-setup-staging-workflow`. Si elle a divergé,
+   s'arrêter et resynchroniser avant de commencer tout travail.
 1. lire `TEST_ENVIRONMENT_CHANGELOG.md` ;
 2. lire `docs/FEUILLE_DE_ROUTE_QUALITE_2026.md` ;
 3. lire `docs/SUIVI_QUALITE_2026.md` ;
