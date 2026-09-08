@@ -98,6 +98,7 @@ export const useCloudSync = ({
   orderTemplateRows,
   orderTemplatesBySupplier,
   setCovers,
+  setLimonadeCoversRealized,
   setDailyCovers,
   setLimonadeCovers,
   setDetailedInventory,
