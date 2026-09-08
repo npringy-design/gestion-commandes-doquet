@@ -16,7 +16,7 @@ import {
   ProductWithHistory,
   DAILY_COVERS_INITIAL,
 } from '../data';
-import { SupplierConfig, PrepBatch, PrepItem, PrepImportsByMonth, PrepForecastsByDate, PrepSheetStocks, OrderTemplateRow, OrderTemplatesBySupplier } from '../types';
+import { SupplierConfig, PrepBatch, PrepItem, PrepImportsByMonth, ImportPeriodByMonth, PrepForecastsByDate, PrepSheetStocks, OrderTemplateRow, OrderTemplatesBySupplier } from '../types';
 import { MONTHS_ORDER, View, SupplierId } from '../constants';
 import { DailyCoversState, LimonadeCoversState } from '../utils/dateHelpers';
 import { getImportedValueForProduct, extractAllNamesFromCsvs, matchesImportedProductName } from '../utils/csvHelpers';
@@ -126,8 +126,8 @@ export const useAppState = () => {
   const [detailedInventory, setDetailedInventory] =
     useState<Record<string, string>>({});
 
-  const [inventoryImportedAt, setInventoryImportedAt] =
-    useState<Record<string, string>>({});
+  const [inventoryPeriod, setInventoryPeriod] =
+    useState<ImportPeriodByMonth>({});
 
   const [salesHtByMonth, setSalesHtByMonth] =
     useState<Record<string, number>>(INITIAL_COVERS);
@@ -195,8 +195,8 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
   const [prepImportsByMonth, setPrepImportsByMonth] =
     useState<PrepImportsByMonth>({});
 
-  const [prepImportImportedAt, setPrepImportImportedAt] =
-    useState<Record<string, string>>({});
+  const [prepImportPeriod, setPrepImportPeriod] =
+    useState<ImportPeriodByMonth>({});
 
   const [prepSheetStocks, setPrepSheetStocks] =
     useState<PrepSheetStocks>({});
@@ -235,7 +235,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     dailyCovers,
     limonadeCovers,
     detailedInventory,
-    inventoryImportedAt,
+    inventoryPeriod,
     salesHtByMonth,
     costMatterByMonth,
     validatedMonths: ratioValidatedMonths,
@@ -248,7 +248,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     products: visibleProducts,
     prepItems,
     prepImportsByMonth,
-    prepImportImportedAt,
+    prepImportPeriod,
     prepSheetStocks,
     prepBatches,
     prepForecasts,
@@ -259,7 +259,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     setDailyCovers,
     setLimonadeCovers,
     setDetailedInventory,
-    setInventoryImportedAt,
+    setInventoryPeriod,
     setSalesHtByMonth,
     setCostMatterByMonth,
     setValidatedMonths: setRatioValidatedMonths,
@@ -272,7 +272,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     setProducts: setProductsWithoutDeleted,
     setPrepItems,
     setPrepImportsByMonth,
-    setPrepImportImportedAt,
+    setPrepImportPeriod,
     setPrepSheetStocks,
     setPrepBatches,
     setPrepForecasts,
@@ -655,7 +655,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     limonadeCovers, setLimonadeCovers,
     orderLineStates,
     detailedInventory, setDetailedInventory,
-    inventoryImportedAt, setInventoryImportedAt,
+    inventoryPeriod, setInventoryPeriod,
     salesHtByMonth, setSalesHtByMonth,
     costMatterByMonth, setCostMatterByMonth,
     validatedMonths,
@@ -669,7 +669,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     products: mergedProducts, setProducts: setProductsWithoutDeleted,
     prepItems, setPrepItems,
     prepImportsByMonth, setPrepImportsByMonth,
-    prepImportImportedAt, setPrepImportImportedAt,
+    prepImportPeriod, setPrepImportPeriod,
     prepSheetStocks, setPrepSheetStocks,
     prepBatches, setPrepBatches,
     prepForecasts, setPrepForecasts,

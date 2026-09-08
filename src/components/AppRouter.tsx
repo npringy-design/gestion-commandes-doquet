@@ -338,12 +338,12 @@ const AppRouter: React.FC<AppRouterProps> = ({
         setCostMatterByMonth={state.setCostMatterByMonth}
         detailedInventory={state.detailedInventory}
         setDetailedInventory={state.setDetailedInventory}
-        inventoryImportedAt={state.inventoryImportedAt}
-        setInventoryImportedAt={state.setInventoryImportedAt}
+        inventoryPeriod={state.inventoryPeriod}
+        setInventoryPeriod={state.setInventoryPeriod}
         prepImportsByMonth={state.prepImportsByMonth}
         setPrepImportsByMonth={state.setPrepImportsByMonth}
-        prepImportImportedAt={state.prepImportImportedAt}
-        setPrepImportImportedAt={state.setPrepImportImportedAt}
+        prepImportPeriod={state.prepImportPeriod}
+        setPrepImportPeriod={state.setPrepImportPeriod}
         validatedMonths={state.validatedMonths}
         supplierConfigs={state.supplierConfigs}
       />,

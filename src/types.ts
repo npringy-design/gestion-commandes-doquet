@@ -105,6 +105,8 @@ export interface PrepItem {
 }
 
 export type PrepImportsByMonth = Record<string, string>;
+export interface ImportPeriod { from: string; to: string; } // Dates "JJ/MM/AAAA" lues dans la colonne "Période du"/"Période au" du fichier importé
+export type ImportPeriodByMonth = Record<string, ImportPeriod>;
 export type PrepForecastsByDate = Record<string, number>;
 export type PrepSheetStocks = Record<string, number>;
 

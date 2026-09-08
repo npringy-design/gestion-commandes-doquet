@@ -192,6 +192,34 @@ export const hasImportedProductMatch = (
 export const matchesImportedProductName = (searchName: string, importName: string): boolean =>
   isConfidentImportMatch(searchName, importName);
 
+const PERIOD_FROM_COLUMN_CANDIDATES = ['periode du'];
+const PERIOD_TO_COLUMN_CANDIDATES = ['periode au'];
+const PERIOD_DATE_PATTERN = /^(\d{2}\/\d{2}\/\d{4})/;
+
+// Lit les colonnes "Période du"/"Période au" du fichier importé (répétées sur
+// chaque ligne) pour connaître le mois réel couvert par l'inventaire/la
+// production, indépendamment de la date à laquelle l'utilisateur importe le
+// fichier. Ne doit jamais faire planter l'import : renvoie null si la colonne
+// ou la donnée est absente, un fichier sans cette colonne reste importable.
+export const extractPeriodFromCsv = (csvData: string): { from: string; to: string } | null => {
+  if (!csvData) return null;
+
+  const rows = parseCSV(csvData);
+  if (rows.length < 2) return null;
+
+  const header = rows[0].map((h) => h.trim());
+  const fromIdx = findHeaderIndex(header, PERIOD_FROM_COLUMN_CANDIDATES);
+  const toIdx = findHeaderIndex(header, PERIOD_TO_COLUMN_CANDIDATES);
+  if (fromIdx === -1 || toIdx === -1) return null;
+
+  const dataRow = rows[1];
+  const fromMatch = String(dataRow[fromIdx] || '').trim().match(PERIOD_DATE_PATTERN);
+  const toMatch = String(dataRow[toIdx] || '').trim().match(PERIOD_DATE_PATTERN);
+  if (!fromMatch || !toMatch) return null;
+
+  return { from: fromMatch[1], to: toMatch[1] };
+};
+
 export const buildImportedValueLookup = (
   csvData: string | undefined,
   valueColumnCandidates: string[] = DEFAULT_VALUE_COLUMN_CANDIDATES,

@@ -5,10 +5,10 @@
 // =============================================================
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { readFileAsCSV } from '../utils/csvHelpers';
+import { readFileAsCSV, extractPeriodFromCsv } from '../utils/csvHelpers';
 import { validateImportFile } from '../utils/importFileValidation';
 import { useToast } from '../components/Toast';
-import { View, MONTHS_DISPLAY_CONFIG } from '../constants';
+import { View, MONTHS_DISPLAY_CONFIG, MONTH_KEY_TO_NAME } from '../constants';
 import { ImportModal } from '../components/Modals';
 import AppNavTile from '../components/AppNavTile';
 import AiAssistantDrawer from '../components/AiAssistantDrawer';
@@ -21,7 +21,7 @@ import {
   canImportData,
 } from '../lib/permissions';
 import { hasLimonadeSupplier } from '../lib/limonade';
-import { SupplierConfig } from '../types';
+import { SupplierConfig, ImportPeriod, ImportPeriodByMonth } from '../types';
 
 interface StatsPageProps {
   setView: (v: View) => void;
@@ -35,12 +35,12 @@ interface StatsPageProps {
   setCostMatterByMonth: React.Dispatch<React.SetStateAction<Record<string, number>>>;
   detailedInventory: Record<string, string>;
   setDetailedInventory: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  inventoryImportedAt: Record<string, string>;
-  setInventoryImportedAt: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  inventoryPeriod: ImportPeriodByMonth;
+  setInventoryPeriod: React.Dispatch<React.SetStateAction<ImportPeriodByMonth>>;
   prepImportsByMonth: Record<string, string>;
   setPrepImportsByMonth: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  prepImportImportedAt: Record<string, string>;
-  setPrepImportImportedAt: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  prepImportPeriod: ImportPeriodByMonth;
+  setPrepImportPeriod: React.Dispatch<React.SetStateAction<ImportPeriodByMonth>>;
   validatedMonths: Record<string, boolean>;
   prepValidatedMonths?: Record<string, boolean>;
   supplierConfigs: Record<string, SupplierConfig>;
@@ -66,17 +66,32 @@ const formatDisplayValue = (field: EditableField, value: number) => {
 
 const isIntegerField = (field: EditableField) => field === 'covers' || field === 'limonadeCoversRealized';
 
-const formatImportedAt = (isoTimestamp: string | undefined): string => {
-  if (!isoTimestamp) return '';
-  const date = new Date(isoTimestamp);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleString('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+const parseFrDate = (value: string): Date | null => {
+  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return null;
+  const [, day, month, year] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const monthKeyFromDate = (date: Date): string | undefined => MONTHS_DISPLAY_CONFIG[date.getMonth()]?.key;
+
+// "Période : 01/01/2026 → 31/01/2026", ou juste "Janvier 2026" si from/to
+// tombent dans le même mois. Vide si aucune période n'a pu être extraite du fichier.
+const formatImportPeriod = (period: ImportPeriod | undefined): string => {
+  if (!period?.from || !period?.to) return '';
+  const fromDate = parseFrDate(period.from);
+  const toDate = parseFrDate(period.to);
+
+  if (fromDate && toDate
+    && fromDate.getFullYear() === toDate.getFullYear()
+    && fromDate.getMonth() === toDate.getMonth()) {
+    const monthKey = monthKeyFromDate(fromDate);
+    const monthName = monthKey ? MONTH_KEY_TO_NAME[monthKey] : '';
+    if (monthName) return `${monthName} ${fromDate.getFullYear()}`;
+  }
+
+  return `Période : ${period.from} → ${period.to}`;
 };
 
 const getRawValue = (value: number, allowDecimals = true) => {
@@ -103,12 +118,12 @@ const StatsPage: React.FC<StatsPageProps> = ({
   setCostMatterByMonth,
   detailedInventory,
   setDetailedInventory,
-  inventoryImportedAt,
-  setInventoryImportedAt,
+  inventoryPeriod,
+  setInventoryPeriod,
   prepImportsByMonth,
   setPrepImportsByMonth,
-  prepImportImportedAt,
-  setPrepImportImportedAt,
+  prepImportPeriod,
+  setPrepImportPeriod,
   validatedMonths,
   prepValidatedMonths = {},
   supplierConfigs,
@@ -159,11 +174,30 @@ const StatsPage: React.FC<StatsPageProps> = ({
       await validateImportFile(file, 'tabular');
       const content = await readFileAsCSV(file);
       const targetMonth = resolveImportTargetMonth(modalState.month, modalState.target);
+      const period = extractPeriodFromCsv(content);
+
+      // La colonne "Période du" du fichier reflète le mois réel des données,
+      // indépendamment de la date/carte sur laquelle l'utilisateur importe.
+      let periodMismatchWarning: string | null = null;
+      const fromDate = period ? parseFrDate(period.from) : null;
+      if (fromDate) {
+        const extractedMonthKey = monthKeyFromDate(fromDate);
+        if (extractedMonthKey && extractedMonthKey !== modalState.month) {
+          const extractedLabel = MONTH_KEY_TO_NAME[extractedMonthKey] || extractedMonthKey;
+          const targetLabel = MONTH_KEY_TO_NAME[modalState.month] || modalState.month;
+          const targetYear = new Date().getFullYear();
+          periodMismatchWarning = `⚠️ Le fichier importé correspond à ${extractedLabel} ${fromDate.getFullYear()}, mais tu l'as déposé sur la carte ${targetLabel} ${targetYear} — vérifie le mois.`;
+        }
+      }
 
       if (modalState.target === 'inventory') {
         setDetailedInventory((prev) => ({ ...prev, [targetMonth]: content }));
-        setInventoryImportedAt((prev) => ({ ...prev, [targetMonth]: new Date().toISOString() }));
-        if (validatedMonths[targetMonth]) {
+        if (period) {
+          setInventoryPeriod((prev) => ({ ...prev, [targetMonth]: period }));
+        }
+        if (periodMismatchWarning) {
+          showToast(periodMismatchWarning, 'warning');
+        } else if (validatedMonths[targetMonth]) {
           showToast(
             `✓ Inventaire ${targetMonth.toUpperCase()} importé — ⚠️ Ce mois est figé dans Calcul vente ratio. Rendez-vous dans Calcul vente ratio et défigeez puis refigeez le mois fournisseur par fournisseur pour mettre à jour les calculs.`,
             'warning'
@@ -173,8 +207,14 @@ const StatsPage: React.FC<StatsPageProps> = ({
         }
       } else {
         setPrepImportsByMonth((prev) => ({ ...prev, [targetMonth]: content }));
-        setPrepImportImportedAt((prev) => ({ ...prev, [targetMonth]: new Date().toISOString() }));
-        showToast(`✓ Production ${targetMonth.toUpperCase()} importée`, 'success');
+        if (period) {
+          setPrepImportPeriod((prev) => ({ ...prev, [targetMonth]: period }));
+        }
+        if (periodMismatchWarning) {
+          showToast(periodMismatchWarning, 'warning');
+        } else {
+          showToast(`✓ Production ${targetMonth.toUpperCase()} importée`, 'success');
+        }
       }
       setModalState(null);
     } catch (err) {
@@ -190,7 +230,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
       delete next[monthKey];
       return next;
     });
-    setInventoryImportedAt((prev) => {
+    setInventoryPeriod((prev) => {
       if (!prev?.[monthKey]) return prev;
       const next = { ...prev };
       delete next[monthKey];
@@ -206,7 +246,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
       delete next[monthKey];
       return next;
     });
-    setPrepImportImportedAt((prev) => {
+    setPrepImportPeriod((prev) => {
       if (!prev?.[monthKey]) return prev;
       const next = { ...prev };
       delete next[monthKey];
@@ -350,8 +390,8 @@ const StatsPage: React.FC<StatsPageProps> = ({
 
   const selectedHasImport = !!detailedInventory[selectedMonth.key];
   const selectedProductionImported = !!prepImportsByMonth[selectedMonth.key];
-  const selectedInventoryImportedAtLabel = formatImportedAt(inventoryImportedAt[selectedMonth.key]);
-  const selectedProductionImportedAtLabel = formatImportedAt(prepImportImportedAt[selectedMonth.key]);
+  const selectedInventoryPeriodLabel = formatImportPeriod(inventoryPeriod[selectedMonth.key]);
+  const selectedProductionPeriodLabel = formatImportPeriod(prepImportPeriod[selectedMonth.key]);
   const monthsToDisplay = showAllMonths ? MONTHS_DISPLAY_CONFIG : MONTHS_DISPLAY_CONFIG.slice(0, 6);
   const getAiContext = React.useCallback(() => {
     const monthRows = MONTHS_DISPLAY_CONFIG.map((month) => {
@@ -605,9 +645,9 @@ const StatsPage: React.FC<StatsPageProps> = ({
                             {selectedHasImport ? 'Importé' : 'Non importé'}
                           </span>
                         </div>
-                        {selectedHasImport && selectedInventoryImportedAtLabel && (
+                        {selectedHasImport && selectedInventoryPeriodLabel && (
                           <p className="mt-0.5 text-xs text-[#9A806A]">
-                            Importé le {selectedInventoryImportedAtLabel}
+                            {selectedInventoryPeriodLabel}
                           </p>
                         )}
                       </div>
@@ -650,9 +690,9 @@ const StatsPage: React.FC<StatsPageProps> = ({
                             {selectedProductionImported ? 'Importé' : 'Non importé'}
                           </span>
                         </div>
-                        {selectedProductionImported && selectedProductionImportedAtLabel && (
+                        {selectedProductionImported && selectedProductionPeriodLabel && (
                           <p className="mt-0.5 text-xs text-[#9A806A]">
-                            Importé le {selectedProductionImportedAtLabel}
+                            {selectedProductionPeriodLabel}
                           </p>
                         )}
                       </div>

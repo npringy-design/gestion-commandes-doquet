@@ -22,6 +22,7 @@ import type {
   PrepBatch,
   PrepItem,
   PrepImportsByMonth,
+  ImportPeriodByMonth,
   PrepForecastsByDate,
   PrepSheetStocks,
   OrderTemplateRow,
@@ -51,7 +52,7 @@ type StateSetters = {
   setDailyCovers: Dispatch<SetStateAction<DailyCoversState>>;
   setLimonadeCovers: Dispatch<SetStateAction<LimonadeCoversState>>;
   setDetailedInventory: Dispatch<SetStateAction<Record<string, string>>>;
-  setInventoryImportedAt: Dispatch<SetStateAction<Record<string, string>>>;
+  setInventoryPeriod: Dispatch<SetStateAction<ImportPeriodByMonth>>;
   setSalesHtByMonth: Dispatch<SetStateAction<Record<string, number>>>;
   setCostMatterByMonth: Dispatch<SetStateAction<Record<string, number>>>;
   setValidatedMonths: Dispatch<SetStateAction<Record<string, boolean>>>;
@@ -64,7 +65,7 @@ type StateSetters = {
   setProducts: Dispatch<SetStateAction<ProductWithHistory[]>>;
   setPrepItems: Dispatch<SetStateAction<PrepItem[]>>;
   setPrepImportsByMonth: Dispatch<SetStateAction<PrepImportsByMonth>>;
-  setPrepImportImportedAt: Dispatch<SetStateAction<Record<string, string>>>;
+  setPrepImportPeriod: Dispatch<SetStateAction<ImportPeriodByMonth>>;
   setPrepSheetStocks: Dispatch<SetStateAction<PrepSheetStocks>>;
   setPrepBatches: Dispatch<SetStateAction<PrepBatch[]>>;
   setPrepForecasts: Dispatch<SetStateAction<PrepForecastsByDate>>;
@@ -82,7 +83,7 @@ export const useCloudSync = ({
   dailyCovers,
   limonadeCovers,
   detailedInventory,
-  inventoryImportedAt,
+  inventoryPeriod,
   salesHtByMonth,
   costMatterByMonth,
   validatedMonths,
@@ -95,7 +96,7 @@ export const useCloudSync = ({
   products,
   prepItems,
   prepImportsByMonth,
-  prepImportImportedAt,
+  prepImportPeriod,
   prepSheetStocks,
   prepBatches,
   prepForecasts,
@@ -106,7 +107,7 @@ export const useCloudSync = ({
   setDailyCovers,
   setLimonadeCovers,
   setDetailedInventory,
-  setInventoryImportedAt,
+  setInventoryPeriod,
   setSalesHtByMonth,
   setCostMatterByMonth,
   setValidatedMonths,
@@ -119,7 +120,7 @@ export const useCloudSync = ({
   setProducts,
   setPrepItems,
   setPrepImportsByMonth,
-  setPrepImportImportedAt,
+  setPrepImportPeriod,
   setPrepSheetStocks,
   setPrepBatches,
   setPrepForecasts,
@@ -152,7 +153,7 @@ export const useCloudSync = ({
     dailyCovers: value => setDailyCovers(value as DailyCoversState),
     limonadeCovers: value => setLimonadeCovers(value as LimonadeCoversState),
     inventory: value => setDetailedInventory(value as Record<string, string>),
-    inventoryImportedAt: value => setInventoryImportedAt(value as Record<string, string>),
+    inventoryPeriod: value => setInventoryPeriod(value as ImportPeriodByMonth),
     salesHtByMonth: value => setSalesHtByMonth(value as Record<string, number>),
     costMatterByMonth: value => setCostMatterByMonth(value as Record<string, number>),
     validatedMonths: value => setValidatedMonths(value as Record<string, boolean>),
@@ -165,7 +166,7 @@ export const useCloudSync = ({
     products: value => setProducts(value as ProductWithHistory[]),
     prepItems: value => setPrepItems(value as PrepItem[]),
     prepImportsByMonth: value => setPrepImportsByMonth(value as PrepImportsByMonth),
-    prepImportImportedAt: value => setPrepImportImportedAt(value as Record<string, string>),
+    prepImportPeriod: value => setPrepImportPeriod(value as ImportPeriodByMonth),
     prepSheetStocks: value => setPrepSheetStocks(value as PrepSheetStocks),
     prepBatches: value => setPrepBatches(value as PrepBatch[]),
     prepForecasts: value => setPrepForecasts(value as PrepForecastsByDate),
@@ -185,7 +186,7 @@ export const useCloudSync = ({
     setPrepBatches,
     setPrepForecasts,
     setPrepImportsByMonth,
-    setPrepImportImportedAt,
+    setPrepImportPeriod,
     setPrepItems,
     setPrepSheetStocks,
     setPrepValidatedMonths,
@@ -195,7 +196,7 @@ export const useCloudSync = ({
     setValidatedMonths,
     setRatioValidatedMonthsBySupplier,
     setRatioProductUnfrozenMonths,
-    setInventoryImportedAt,
+    setInventoryPeriod,
   ]);
 
   const {
@@ -259,7 +260,7 @@ export const useCloudSync = ({
     dailyCovers,
     limonadeCovers,
     detailedInventory,
-    inventoryImportedAt,
+    inventoryPeriod,
     salesHtByMonth,
     costMatterByMonth,
     validatedMonths,
@@ -272,7 +273,7 @@ export const useCloudSync = ({
     products,
     prepItems,
     prepImportsByMonth,
-    prepImportImportedAt,
+    prepImportPeriod,
     prepSheetStocks,
     prepBatches,
     prepForecasts,
