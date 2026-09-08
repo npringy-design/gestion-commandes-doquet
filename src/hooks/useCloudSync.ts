@@ -47,6 +47,7 @@ import { useReliableSaveLifecycle } from './useReliableSaveLifecycle';
 
 type StateSetters = {
   setCovers: Dispatch<SetStateAction<Record<string, number>>>;
+  setLimonadeCoversRealized: Dispatch<SetStateAction<Record<string, number>>>;
   setDailyCovers: Dispatch<SetStateAction<DailyCoversState>>;
   setLimonadeCovers: Dispatch<SetStateAction<LimonadeCoversState>>;
   setDetailedInventory: Dispatch<SetStateAction<Record<string, string>>>;
@@ -75,6 +76,7 @@ type UseCloudSyncParams = PersistedAppState & StateSetters & {
 
 export const useCloudSync = ({
   covers,
+  limonadeCoversRealized,
   dailyCovers,
   limonadeCovers,
   detailedInventory,
@@ -139,6 +141,7 @@ export const useCloudSync = ({
 
   const appStateSetters = useMemo<AppStateSetterRegistry>(() => ({
     covers: value => setCovers(value as Record<string, number>),
+    limonadeCoversRealized: value => setLimonadeCoversRealized(value as Record<string, number>),
     dailyCovers: value => setDailyCovers(value as DailyCoversState),
     limonadeCovers: value => setLimonadeCovers(value as LimonadeCoversState),
     inventory: value => setDetailedInventory(value as Record<string, string>),
@@ -162,6 +165,7 @@ export const useCloudSync = ({
   }), [
     setCostMatterByMonth,
     setCovers,
+    setLimonadeCoversRealized,
     setDailyCovers,
     setLimonadeCovers,
     setDeliveryDateBySupplier,
@@ -240,6 +244,7 @@ export const useCloudSync = ({
 
   useAppStatePersistence({
     covers,
+    limonadeCoversRealized,
     dailyCovers,
     limonadeCovers,
     detailedInventory,

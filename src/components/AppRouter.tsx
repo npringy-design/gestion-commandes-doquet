@@ -330,6 +330,8 @@ const AppRouter: React.FC<AppRouterProps> = ({
         setView={setView}
         covers={state.covers}
         setCovers={state.setCovers}
+        limonadeCoversRealized={state.limonadeCoversRealized}
+        setLimonadeCoversRealized={state.setLimonadeCoversRealized}
         salesHtByMonth={state.salesHtByMonth}
         setSalesHtByMonth={state.setSalesHtByMonth}
         costMatterByMonth={state.costMatterByMonth}
@@ -339,6 +341,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
         prepImportsByMonth={state.prepImportsByMonth}
         setPrepImportsByMonth={state.setPrepImportsByMonth}
         validatedMonths={state.validatedMonths}
+        supplierConfigs={state.supplierConfigs}
       />,
       'Chargement des paramètres…'
     );
@@ -385,6 +388,7 @@ const AppRouter: React.FC<AppRouterProps> = ({
         setDailyCovers={state.setDailyCovers}
         limonadeCovers={state.limonadeCovers}
         setLimonadeCovers={state.setLimonadeCovers}
+        supplierConfigs={state.supplierConfigs}
       />,
       'Chargement du journalier…'
     );

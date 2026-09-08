@@ -36,6 +36,7 @@ import {
 
 export type PersistedAppState = {
   covers: Record<string, number>;
+  limonadeCoversRealized: Record<string, number>;
   dailyCovers: DailyCoversState;
   limonadeCovers: LimonadeCoversState;
   detailedInventory: Record<string, string>;
@@ -75,6 +76,7 @@ type UseAppStatePersistenceParams = PersistedAppState & {
 // gérées séparément par useOrderLineSync afin de conserver leur granularité.
 export const useAppStatePersistence = ({
   covers,
+  limonadeCoversRealized,
   dailyCovers,
   limonadeCovers,
   detailedInventory,
@@ -170,6 +172,7 @@ export const useAppStatePersistence = ({
   ]);
 
   useEffect(() => { persistAppState('covers', covers); }, [covers, persistAppState]);
+  useEffect(() => { persistAppState('limonadeCoversRealized', limonadeCoversRealized); }, [limonadeCoversRealized, persistAppState]);
   useEffect(() => { persistAppState('dailyCovers', dailyCovers); }, [dailyCovers, persistAppState]);
   useEffect(() => { persistAppState('limonadeCovers', limonadeCovers); }, [limonadeCovers, persistAppState]);
   useEffect(() => {

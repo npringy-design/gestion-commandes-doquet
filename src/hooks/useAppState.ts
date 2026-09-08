@@ -114,6 +114,9 @@ export const useAppState = () => {
   const [covers, setCovers] =
     useState<Record<string, number>>(INITIAL_COVERS);
 
+  const [limonadeCoversRealized, setLimonadeCoversRealized] =
+    useState<Record<string, number>>({});
+
   const [dailyCovers, setDailyCovers] =
     useState<DailyCoversState>(DAILY_COVERS_INITIAL);
 
@@ -222,6 +225,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
 
   const { supabaseLoaded, syncStatus, orderLineStates, updateOrderLineField, deleteOrderLineForProduct } = useCloudSync({
     covers,
+    limonadeCoversRealized,
     dailyCovers,
     limonadeCovers,
     detailedInventory,
@@ -243,6 +247,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     orderTemplateRows,
     orderTemplatesBySupplier,
     setCovers,
+    setLimonadeCoversRealized,
     setDailyCovers,
     setLimonadeCovers,
     setDetailedInventory,
@@ -417,7 +422,11 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
         val = 0;
       }
 
-      const c = covers[m] || 1;
+      const supplierConfig = supplierConfigs[supplierId];
+      const denom = supplierConfig?.includeLimonadeForecast
+        ? (covers[m] || 0) + (limonadeCoversRealized[m] || 0)
+        : covers[m];
+      const c = denom || 1;
       r = isValidated && snapshot ? Number(snapshot.ratio || 0) : val / c;
 
       mS[m] = { value: val, isImported: !isValidated && isWorkMonth && importedVal !== null, isValidated };
@@ -427,7 +436,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     });
 
     return { avgRatio: countR > 0 ? totalR / countR : 0, mR, mS };
-  }, [covers, detailedInventory, getRatioWorkMonthForSupplier, ratioProductUnfrozenMonths, ratioValidatedMonths, ratioValidatedMonthsBySupplier]);
+  }, [covers, limonadeCoversRealized, supplierConfigs, detailedInventory, getRatioWorkMonthForSupplier, ratioProductUnfrozenMonths, ratioValidatedMonths, ratioValidatedMonthsBySupplier]);
 
   const isRatioSupplierMonthFrozen = useCallback((supplierId: string, month: string) => (
     resolveRatioSupplierMonthFrozen(
@@ -467,7 +476,12 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     const salesValue = roundRatioImportedValue(importedValue)
       ?? previousSnapshot?.salesValue
       ?? Number(product.salesHistory[month] || 0);
-    const monthCovers = covers[month] || 1;
+    const supplierId = String(product.supplierId || 'doquet');
+    const supplierConfig = supplierConfigs[supplierId];
+    const denom = supplierConfig?.includeLimonadeForecast
+      ? (covers[month] || 0) + (limonadeCoversRealized[month] || 0)
+      : covers[month];
+    const monthCovers = denom || 1;
     const ratio = salesValue / monthCovers;
     const searchName = String(product.searchName || '');
     const mappingId = normalizeRatioMappingId(searchName);
@@ -491,7 +505,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
         },
       },
     } as ProductWithRatioSnapshots;
-  }, [covers, detailedInventory]);
+  }, [covers, limonadeCoversRealized, supplierConfigs, detailedInventory]);
 
   // Le bouton général agit uniquement sur le fournisseur affiché.
   const toggleValidateMonth = (m: string, supplierId: string = ratioTab) => {
@@ -626,6 +640,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     deliveryDateBySupplier, setDeliveryDateBySupplier,
     nextDeliveryDateBySupplier, setNextDeliveryDateBySupplier,
     covers, setCovers,
+    limonadeCoversRealized, setLimonadeCoversRealized,
     dailyCovers, setDailyCovers,
     limonadeCovers, setLimonadeCovers,
     orderLineStates,

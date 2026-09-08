@@ -8,7 +8,7 @@
 // =============================================================
 
 import React from 'react';
-import { View, SupplierId, CURRENT_SITE_ID } from '../constants';
+import { View, SupplierId } from '../constants';
 import { getDeliveryDates, getForecastForWindow, getForecastLimonadeForWindow } from '../utils/dateHelpers';
 import { calculateOrder, calculateTargetOrder, capitalizeFirstLetter, toNumber } from '../utils/calculations';
 import { ResetConfirmModal } from '../components/Modals';
@@ -158,8 +158,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
 
   const windowForecast = calculationMode === 'target' ? targetWindowForecast : marginWindowForecast;
 
-  const IS_AU_BUREAU = CURRENT_SITE_ID === 'au_bureau_montevrain';
-  const limonadeWindow = IS_AU_BUREAU && currentConfig.includeLimonadeForecast
+  const limonadeWindow = currentConfig.includeLimonadeForecast
     ? getForecastLimonadeForWindow(
         calculationMode === 'target' ? targetForecastEnd : marginForecastEnd,
         limonadeCovers

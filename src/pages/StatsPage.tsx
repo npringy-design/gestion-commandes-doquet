@@ -20,11 +20,15 @@ import {
   canEditSettingsFields,
   canImportData,
 } from '../lib/permissions';
+import { hasLimonadeSupplier } from '../lib/limonade';
+import { SupplierConfig } from '../types';
 
 interface StatsPageProps {
   setView: (v: View) => void;
   covers: Record<string, number>;
   setCovers: React.Dispatch<React.SetStateAction<Record<string, number>>>;
+  limonadeCoversRealized: Record<string, number>;
+  setLimonadeCoversRealized: React.Dispatch<React.SetStateAction<Record<string, number>>>;
   salesHtByMonth: Record<string, number>;
   setSalesHtByMonth: React.Dispatch<React.SetStateAction<Record<string, number>>>;
   costMatterByMonth: Record<string, number>;
@@ -35,9 +39,10 @@ interface StatsPageProps {
   setPrepImportsByMonth: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   validatedMonths: Record<string, boolean>;
   prepValidatedMonths?: Record<string, boolean>;
+  supplierConfigs: Record<string, SupplierConfig>;
 }
 
-type EditableField = 'sales' | 'cm' | 'covers';
+type EditableField = 'sales' | 'cm' | 'covers' | 'limonadeCoversRealized';
 type CellKey = `${string}-${EditableField}`;
 
 const formatNumber = (value: number, maxDecimals = 2) => {
@@ -55,6 +60,8 @@ const formatDisplayValue = (field: EditableField, value: number) => {
   return formatNumber(value, 0);
 };
 
+const isIntegerField = (field: EditableField) => field === 'covers' || field === 'limonadeCoversRealized';
+
 const getRawValue = (value: number, allowDecimals = true) => {
   if (!Number.isFinite(value) || value === 0) return '';
   return allowDecimals ? String(value).replace('.', ',') : String(Math.trunc(value));
@@ -71,6 +78,8 @@ const StatsPage: React.FC<StatsPageProps> = ({
   setView,
   covers,
   setCovers,
+  limonadeCoversRealized,
+  setLimonadeCoversRealized,
   salesHtByMonth,
   setSalesHtByMonth,
   costMatterByMonth,
@@ -81,7 +90,9 @@ const StatsPage: React.FC<StatsPageProps> = ({
   setPrepImportsByMonth,
   validatedMonths,
   prepValidatedMonths = {},
+  supplierConfigs,
 }) => {
+  const showLimonade = hasLimonadeSupplier(supplierConfigs);
   const { profile } = useAuth();
   const canImport = canImportData(profile);
   const canRemoveImport = canDeleteImport(profile);
@@ -177,6 +188,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
   const getValue = (monthKey: string, field: EditableField) => {
     if (field === 'sales') return salesHtByMonth[monthKey] || 0;
     if (field === 'cm') return costMatterByMonth[monthKey] || 0;
+    if (field === 'limonadeCoversRealized') return limonadeCoversRealized[monthKey] || 0;
     return covers[monthKey] || 0;
   };
 
@@ -185,6 +197,8 @@ const StatsPage: React.FC<StatsPageProps> = ({
       setSalesHtByMonth((prev) => ({ ...prev, [monthKey]: value }));
     } else if (field === 'cm') {
       setCostMatterByMonth((prev) => ({ ...prev, [monthKey]: value }));
+    } else if (field === 'limonadeCoversRealized') {
+      setLimonadeCoversRealized((prev) => ({ ...prev, [monthKey]: value }));
     } else {
       setCovers((prev) => ({ ...prev, [monthKey]: value }));
     }
@@ -194,7 +208,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
     if (!canEditFields) return;
     const cellKey: CellKey = `${monthKey}-${field}`;
     const val = getValue(monthKey, field);
-    const allowDecimals = field !== 'covers';
+    const allowDecimals = !isIntegerField(field);
     setDrafts((prev) => ({ ...prev, [cellKey]: getRawValue(val, allowDecimals) }));
     setActiveCell(cellKey);
 
@@ -210,7 +224,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
   const commitEdit = (monthKey: string, field: EditableField) => {
     const cellKey: CellKey = `${monthKey}-${field}`;
     const draft = drafts[cellKey] ?? '';
-    const allowDecimals = field !== 'covers';
+    const allowDecimals = !isIntegerField(field);
     const newVal = parseInputValue(draft, allowDecimals);
 
     setValue(monthKey, field, newVal);
@@ -251,7 +265,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
         <input
           ref={(el) => (cellRefs.current[cellKey] = el)}
           type="text"
-          inputMode={field === 'covers' ? 'numeric' : 'decimal'}
+          inputMode={isIntegerField(field) ? 'numeric' : 'decimal'}
           value={draft}
           onChange={(e) => setDrafts((prev) => ({ ...prev, [cellKey]: e.target.value }))}
           onBlur={() => commitEdit(monthKey, field)}
@@ -295,7 +309,8 @@ const StatsPage: React.FC<StatsPageProps> = ({
   const selectedHasNumbers = !!(
     getValue(selectedMonth.key, 'sales') ||
     getValue(selectedMonth.key, 'cm') ||
-    getValue(selectedMonth.key, 'covers')
+    getValue(selectedMonth.key, 'covers') ||
+    getValue(selectedMonth.key, 'limonadeCoversRealized')
   );
 
   const selectedHasImport = !!detailedInventory[selectedMonth.key];
@@ -522,6 +537,12 @@ const StatsPage: React.FC<StatsPageProps> = ({
                   <label className="mb-2 block text-sm font-medium text-gray-700">Couverts</label>
                   {renderEditableInput(selectedMonth.key, selectedMonthIndex, 'covers', '0', 'text-lg')}
                 </div>
+                {showLimonade && (
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">Couverts Limonade réalisés</label>
+                    {renderEditableInput(selectedMonth.key, selectedMonthIndex, 'limonadeCoversRealized', '0', 'text-lg')}
+                  </div>
+                )}
               </div>
             </section>
 
@@ -674,6 +695,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
                       <th className="pb-3 pr-4 font-semibold text-gray-900">CA HT</th>
                       <th className="pb-3 pr-4 font-semibold text-gray-900">Coût %</th>
                       <th className="pb-3 pr-4 font-semibold text-gray-900">Couverts</th>
+                      {showLimonade && <th className="pb-3 pr-4 font-semibold text-gray-900">Cvts Limo.</th>}
                       <th className="pb-3 font-semibold text-gray-900">État</th>
                     </tr>
                   </thead>
@@ -682,6 +704,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
                       const sales = getValue(month.key, 'sales');
                       const cm = getValue(month.key, 'cm');
                       const couverts = getValue(month.key, 'covers');
+                      const limoCouverts = showLimonade ? getValue(month.key, 'limonadeCoversRealized') : 0;
                       const isLocked = false;
                       const hasImport = !!detailedInventory[month.key];
 
@@ -697,11 +720,16 @@ const StatsPage: React.FC<StatsPageProps> = ({
                           <td className="py-3 pr-4 text-gray-700">
                             {couverts ? formatNumber(couverts, 0) : '-'}
                           </td>
+                          {showLimonade && (
+                            <td className="py-3 pr-4 text-gray-700">
+                              {limoCouverts ? formatNumber(limoCouverts, 0) : '-'}
+                            </td>
+                          )}
                           <td className="py-3">
                             <div className="flex items-center gap-2">
                               {isLocked && (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
-                                  🔒 Validé
+                                  Validé
                                 </span>
                               )}
                               {!isLocked && hasImport && (
@@ -709,12 +737,12 @@ const StatsPage: React.FC<StatsPageProps> = ({
                                   ✓ Importé
                                 </span>
                               )}
-                              {!isLocked && !hasImport && (sales || cm || couverts) && (
+                              {!isLocked && !hasImport && (sales || cm || couverts || limoCouverts) && (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700">
                                   ✓ Saisi
                                 </span>
                               )}
-                              {!isLocked && !hasImport && !sales && !cm && !couverts && (
+                              {!isLocked && !hasImport && !sales && !cm && !couverts && !limoCouverts && (
                                 <span className="text-xs text-gray-400">Vide</span>
                               )}
                             </div>

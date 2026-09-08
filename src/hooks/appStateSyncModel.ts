@@ -9,6 +9,7 @@ import { materializeGranularRatioProducts } from './ratioProductPersistenceModel
 
 export type WritableAppStateKey =
   | 'covers'
+  | 'limonadeCoversRealized'
   | 'dailyCovers'
   | 'limonadeCovers'
   | 'inventory'
@@ -48,6 +49,7 @@ export type AppStateSetterRegistry = Partial<
 
 const WRITABLE_APP_STATE_KEYS: readonly WritableAppStateKey[] = [
   'covers',
+  'limonadeCoversRealized',
   'dailyCovers',
   'limonadeCovers',
   'inventory',

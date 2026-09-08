@@ -5,11 +5,13 @@
 // =============================================================
 
 import React, { useMemo, useState } from 'react';
-import { View, MONTHS_DISPLAY_CONFIG, CURRENT_SITE_ID } from '../constants';
+import { View, MONTHS_DISPLAY_CONFIG } from '../constants';
 import AppNavTile from '../components/AppNavTile';
 import { DailyCoversState, LimonadeCoversState } from '../utils/dateHelpers';
 import { useAuth } from '../auth/AuthProvider';
 import { canEditPreviCouverts } from '../lib/permissions';
+import { hasLimonadeSupplier } from '../lib/limonade';
+import { SupplierConfig } from '../types';
 
 interface DailyForecastPageProps {
   setView:             (v: View) => void;
@@ -17,9 +19,8 @@ interface DailyForecastPageProps {
   setDailyCovers:      React.Dispatch<React.SetStateAction<DailyCoversState>>;
   limonadeCovers:      LimonadeCoversState;
   setLimonadeCovers:   React.Dispatch<React.SetStateAction<LimonadeCoversState>>;
+  supplierConfigs:     Record<string, SupplierConfig>;
 }
-
-const IS_AU_BUREAU = CURRENT_SITE_ID === 'au_bureau_montevrain';
 
 interface LimonadeSectionProps {
   selectedMonth:     string;
@@ -83,7 +84,7 @@ const LimonadeSection: React.FC<LimonadeSectionProps> = ({
 };
 
 const DailyForecastPage: React.FC<DailyForecastPageProps> = ({
-  setView, dailyCovers, setDailyCovers, limonadeCovers, setLimonadeCovers,
+  setView, dailyCovers, setDailyCovers, limonadeCovers, setLimonadeCovers, supplierConfigs,
 }) => {
   const [selectedMonth, setSelectedMonth] = useState('jan');
   const { profile } = useAuth();
@@ -195,7 +196,7 @@ const DailyForecastPage: React.FC<DailyForecastPageProps> = ({
           })}
         </div>
 
-        {IS_AU_BUREAU && (
+        {hasLimonadeSupplier(supplierConfigs) && (
           <LimonadeSection
             selectedMonth={selectedMonth}
             limonadeCovers={limonadeCovers}

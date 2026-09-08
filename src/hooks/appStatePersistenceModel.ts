@@ -8,6 +8,7 @@ export const APP_STATE_SAVE_DEBOUNCE_MS_BY_KEY: Record<string, number> = {
   deliveryDateBySupplier: 1200,
   nextDeliveryDateBySupplier: 1200,
   covers: 2000,
+  limonadeCoversRealized: 2000,
   dailyCovers: 2500,
   salesHtByMonth: 2500,
   costMatterByMonth: 2500,
