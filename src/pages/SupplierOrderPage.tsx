@@ -229,6 +229,92 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
     }
   };
 
+  // ── Brouillon Col./Pcs. ──────────────────────────────────────────────
+  // Tant qu'un champ Col. (colisage) ou Pcs. est en cours de saisie, on
+  // affiche le texte brut tapé (pas la valeur recalculée depuis p.stock),
+  // et on ne réécrit p.stock qu'au blur/Entrée. Sinon, taper "65" avec un
+  // conditionnement de 5 réaffiche aussitôt "13/0" dès la première touche.
+  type StockField = 'cases' | 'pieces';
+  const [stockDrafts, setStockDrafts] = React.useState<Record<string, string>>({});
+  const stockDraftKey = (productId: string, field: StockField) => `${productId}:${field}`;
+
+  const startStockDraft = (
+    productId: string,
+    field: StockField,
+    stockVal: number | '' | undefined,
+    packagingVal: number | ''
+  ) => {
+    const key = stockDraftKey(productId, field);
+    const split = getStockSplit(stockVal, packagingVal);
+    const initial = stockVal === '' ? '' : String(field === 'cases' ? split.stockCases : split.stockPieces);
+    setStockDrafts(prev => ({ ...prev, [key]: initial }));
+  };
+
+  const changeStockDraft = (productId: string, field: StockField, raw: string) => {
+    const key = stockDraftKey(productId, field);
+    setStockDrafts(prev => ({ ...prev, [key]: raw }));
+  };
+
+  const getStockFieldDisplayValue = (
+    productId: string,
+    field: StockField,
+    stockVal: number | '' | undefined,
+    packagingVal: number | ''
+  ): string => {
+    const key = stockDraftKey(productId, field);
+    if (key in stockDrafts) return stockDrafts[key];
+    if (stockVal === '') return '';
+    const split = getStockSplit(stockVal, packagingVal);
+    return String(field === 'cases' ? split.stockCases : split.stockPieces);
+  };
+
+  // Idempotent : un Entrée déclenche ce commit puis un blur naturel (focus
+  // qui bascule sur le champ suivant) peut le redéclencher sans effet,
+  // le brouillon ayant déjà été supprimé au premier passage.
+  const commitStockDraft = (
+    productId: string,
+    field: StockField,
+    packagingVal: number | '',
+    stockVal: number | '' | undefined
+  ) => {
+    const key = stockDraftKey(productId, field);
+    if (!(key in stockDrafts)) return;
+    const draftValue = stockDrafts[key];
+    const split = getStockSplit(stockVal, packagingVal);
+    const rawCases = field === 'cases' ? draftValue : String(split.stockCases);
+    const rawPieces = field === 'pieces' ? draftValue : String(split.stockPieces);
+    updateStockFromSplit(productId, packagingVal, rawCases, rawPieces);
+    setStockDrafts(prev => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const renderStockFieldInput = (
+    p: AppState['products'][number],
+    field: StockField,
+    tabIndexBase: number,
+    rowIdx: number,
+    heightClass: string
+  ) => (
+    <input
+      type="number"
+      value={getStockFieldDisplayValue(p.id, field, p.stock, p.packaging)}
+      onFocus={() => startStockDraft(p.id, field, p.stock, p.packaging)}
+      onChange={e => changeStockDraft(p.id, field, e.target.value)}
+      onBlur={() => commitStockDraft(p.id, field, p.packaging, p.stock)}
+      tabIndex={tabIndexBase + rowIdx}
+      onKeyDown={e => {
+        if (e.key === 'Enter') commitStockDraft(p.id, field, p.packaging, p.stock);
+        handleEnterKey(e, tabIndexBase, rowIdx);
+      }}
+      enterKeyHint="next" inputMode="numeric"
+      className={`w-full ${heightClass} rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm`}
+      placeholder="-"
+    />
+  );
+
   return (
     <div className="min-h-screen bg-[#FCEEB5] p-3 md:p-8 font-sans text-xs relative">
       {showResetConfirm && (
@@ -599,25 +685,11 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                       </td>
                       {/* 2. Stock colisage */}
                       <td className="p-1.5 bg-amber-50/30">
-                        <input type="number"
-                          value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockCases}
-                          onChange={e => updateStockFromSplit(p.id, p.packaging, e.target.value, String(getStockSplit(p.stock, p.packaging).stockPieces))}
-                          tabIndex={TAB_STOCK_CASES + rowIdx}
-                          onKeyDown={e => handleEnterKey(e, TAB_STOCK_CASES, rowIdx)}
-                          enterKeyHint="next" inputMode="numeric"
-                          className="w-full h-9 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
-                          placeholder="-" />
+                        {renderStockFieldInput(p, 'cases', TAB_STOCK_CASES, rowIdx, 'h-9')}
                       </td>
                       {/* 3. Stock pièces */}
                       <td className="p-1.5 bg-amber-50/30">
-                        <input type="number"
-                          value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockPieces}
-                          onChange={e => updateStockFromSplit(p.id, p.packaging, String(getStockSplit(p.stock, p.packaging).stockCases), e.target.value)}
-                          tabIndex={TAB_STOCK_PIECES + rowIdx}
-                          onKeyDown={e => handleEnterKey(e, TAB_STOCK_PIECES, rowIdx)}
-                          enterKeyHint="next" inputMode="numeric"
-                          className="w-full h-9 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
-                          placeholder="-" />
+                        {renderStockFieldInput(p, 'pieces', TAB_STOCK_PIECES, rowIdx, 'h-9')}
                       </td>
                       {/* 4. Suggéré (badge) */}
                       <td className="p-1.5">
@@ -661,22 +733,10 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                             placeholder="-" />
                         </td>
                         <td className="p-2 bg-amber-50/20">
-                          <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockCases}
-                            onChange={e => updateStockFromSplit(p.id, p.packaging, e.target.value, String(getStockSplit(p.stock, p.packaging).stockPieces))}
-                            tabIndex={TAB_STOCK_CASES + rowIdx}
-                            onKeyDown={e => handleEnterKey(e, TAB_STOCK_CASES, rowIdx)}
-                            enterKeyHint="next" inputMode="numeric"
-                            className="w-full h-10 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
-                            placeholder="-" />
+                          {renderStockFieldInput(p, 'cases', TAB_STOCK_CASES, rowIdx, 'h-10')}
                         </td>
                         <td className="p-2 bg-amber-50/20">
-                          <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockPieces}
-                            onChange={e => updateStockFromSplit(p.id, p.packaging, String(getStockSplit(p.stock, p.packaging).stockCases), e.target.value)}
-                            tabIndex={TAB_STOCK_PIECES + rowIdx}
-                            onKeyDown={e => handleEnterKey(e, TAB_STOCK_PIECES, rowIdx)}
-                            enterKeyHint="next" inputMode="numeric"
-                            className="w-full h-10 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
-                            placeholder="-" />
+                          {renderStockFieldInput(p, 'pieces', TAB_STOCK_PIECES, rowIdx, 'h-10')}
                         </td>
                         <td className="p-2 text-center bg-[#FFE8CC]">
                           <input type="number" value={p.packaging} disabled={commandeOnly}
@@ -715,22 +775,10 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                             placeholder="-" />
                         </td>
                         <td className="p-2 bg-amber-50/20">
-                          <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockCases}
-                            onChange={e => updateStockFromSplit(p.id, p.packaging, e.target.value, String(getStockSplit(p.stock, p.packaging).stockPieces))}
-                            tabIndex={TAB_STOCK_CASES + rowIdx}
-                            onKeyDown={e => handleEnterKey(e, TAB_STOCK_CASES, rowIdx)}
-                            enterKeyHint="next" inputMode="numeric"
-                            className="w-full h-10 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
-                            placeholder="-" />
+                          {renderStockFieldInput(p, 'cases', TAB_STOCK_CASES, rowIdx, 'h-10')}
                         </td>
                         <td className="p-2 bg-amber-50/20">
-                          <input type="number" value={p.stock === '' ? '' : getStockSplit(p.stock, p.packaging).stockPieces}
-                            onChange={e => updateStockFromSplit(p.id, p.packaging, String(getStockSplit(p.stock, p.packaging).stockCases), e.target.value)}
-                            tabIndex={TAB_STOCK_PIECES + rowIdx}
-                            onKeyDown={e => handleEnterKey(e, TAB_STOCK_PIECES, rowIdx)}
-                            enterKeyHint="next" inputMode="numeric"
-                            className="w-full h-10 rounded-lg border border-amber-200/50 bg-white text-center font-black text-amber-700 text-sm outline-none focus:border-amber-400 transition-all shadow-sm"
-                            placeholder="-" />
+                          {renderStockFieldInput(p, 'pieces', TAB_STOCK_PIECES, rowIdx, 'h-10')}
                         </td>
                         <td className="p-2 text-center bg-[#FFE8CC] whitespace-nowrap">
                           <span className="text-slate-600 font-bold text-sm">{displayInfo1}</span>
