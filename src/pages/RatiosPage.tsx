@@ -397,9 +397,6 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
     if (!MONTHS_ORDER.includes(displayMonthKey)) setDisplayMonthKey(workMonthKey);
   }, [displayMonthKey, workMonthKey]);
 
-  const isDisplayMonthValidated = state.isRatioSupplierMonthFrozen(safeRatioTab, displayMonthKey);
-  const frozenMonthsCount = MONTHS_ORDER.filter((month) => state.isRatioSupplierMonthFrozen(safeRatioTab, month)).length;
-
   const isLinkedProduct = React.useCallback(
     (p: any) => getProductLinkState(
       p,
@@ -489,20 +486,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
               </div>
             </div>
             <div className="rounded-2xl border border-[#EBC28A]/70 bg-[#FFF7EA]/14 p-2">
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#F7C05B]">Mois de vente — {MONTH_LABELS[displayMonthKey]}</p>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => state.toggleValidateMonth(displayMonthKey, safeRatioTab)}
-                    disabled={!canEdit}
-                    className="rounded-xl border border-[#D4922F] bg-[#FFF1DF] px-3 py-1.5 text-xs font-black text-[#3A2116] transition hover:bg-[#FFE8C2] disabled:opacity-50"
-                  >
-                    {isDisplayMonthValidated ? 'Défiger ce mois' : 'Figer ce mois'}
-                  </button>
-                  <p className="text-[11px] font-bold text-[#FFE1B8]">{frozenMonthsCount} mois figes</p>
-                </div>
-              </div>
+              <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#F7C05B]">Figer les mois de vente</p>
               <div className="grid grid-cols-6 gap-1.5 xl:grid-cols-12">
                 {MONTHS_ORDER.map((month) => {
                   const locked = state.isRatioSupplierMonthFrozen(safeRatioTab, month);
@@ -511,14 +495,16 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                     <button
                       key={`sales-month-${month}`}
                       type="button"
-                      onClick={() => setDisplayMonthKey(month)}
-                      className={`min-h-[42px] rounded-xl border px-2 py-1 text-[10px] font-black uppercase tracking-[0.07em] transition ${
+                      onClick={() => {
+                        setDisplayMonthKey(month);
+                        state.toggleValidateMonth(month, safeRatioTab);
+                      }}
+                      disabled={!canEdit}
+                      className={`min-h-[42px] rounded-xl border px-2 py-1 text-[10px] font-black uppercase tracking-[0.07em] transition disabled:opacity-50 ${
                         locked
-                          ? isSelected
-                            ? 'border-emerald-800 bg-emerald-700 text-white shadow-md ring-2 ring-emerald-300'
-                            : 'border-emerald-700 bg-emerald-600 text-white shadow-sm'
+                          ? 'border-emerald-700 bg-emerald-600 text-white shadow-sm'
                           : isSelected
-                            ? 'border-[#D8A640] bg-[#FFE8A8] text-[#5B321E] ring-2 ring-[#D8A640]'
+                            ? 'border-[#D8A640] bg-[#FFE8A8] text-[#5B321E]'
                             : 'border-[#EBC28A] bg-[#FFF7EA] text-[#2F1D14] hover:bg-white'
                       }`}
                     >

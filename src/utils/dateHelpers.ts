@@ -77,15 +77,15 @@ const nextFlexDelivery = (now: Date, cutoffTime: string): Date => {
 };
 
 const nextRuleDelivery = (now: Date, rules: DeliveryRule[], cutoffTime: string): Date => {
-  const cutoffMinutes = parseTimeToMinutes(cutoffTime);
   const nowDay = now.getDay();
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   let best: Date | null = null;
 
   for (const rule of rules) {
+    const ruleCutoffMinutes = parseTimeToMinutes(rule.cutoffTime || cutoffTime);
     // Jours jusqu'au cut-off (0 = aujourd'hui)
     let daysToCutoff = (rule.cutoffDay - nowDay + 7) % 7;
-    if (daysToCutoff === 0 && nowMinutes >= cutoffMinutes) {
+    if (daysToCutoff === 0 && nowMinutes >= ruleCutoffMinutes) {
       // Cut-off dépassé aujourd'hui → semaine prochaine
       daysToCutoff = 7;
     }

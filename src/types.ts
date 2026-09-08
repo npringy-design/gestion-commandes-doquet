@@ -68,6 +68,7 @@ export interface Calculations {
 export interface DeliveryRule {
   cutoffDay:   number; // Jour du cut-off (0=Dim … 6=Sam)
   deliveryDay: number; // Jour de livraison correspondant
+  cutoffTime?: string; // Heure limite "HH:mm" pour cette règle (repli sur SupplierConfig.cutoffTime si absent)
 }
 
 export interface SupplierConfig {

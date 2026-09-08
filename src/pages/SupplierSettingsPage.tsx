@@ -127,7 +127,7 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
 
   const addRule = (config: SupplierConfig) => {
     const rules = [...getRules(config)];
-    const last = rules[rules.length - 1] ?? { cutoffDay: config.cutoffDay, deliveryDay: config.deliveryDay };
+    const last = rules[rules.length - 1] ?? { cutoffDay: config.cutoffDay, deliveryDay: config.deliveryDay, cutoffTime: config.cutoffTime };
     rules.push({ ...last });
     updateSupplier(config.id, {
       deliveryRules: rules,
@@ -198,7 +198,7 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
       cutoffTime: form.cutoffTime,
       cutoffDay: form.cutoffDay,
       deliveryDay: form.deliveryDay,
-      deliveryRules: [{ cutoffDay: form.cutoffDay, deliveryDay: form.deliveryDay }],
+      deliveryRules: [{ cutoffDay: form.cutoffDay, deliveryDay: form.deliveryDay, cutoffTime: form.cutoffTime }],
       isArchived: false,
       createdAt: new Date().toISOString(),
     };
@@ -428,13 +428,6 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                           </div>
                       </div>
                       <div className="flex items-center gap-3 flex-wrap justify-end">
-                        <label className="text-white/70 text-xs font-black uppercase tracking-widest">Heure cut-off</label>
-                        <input
-                          type="time"
-                          value={config.cutoffTime}
-                          onChange={e => updateSupplier(config.id, { cutoffTime: e.target.value })}
-                          className="bg-white/10 text-white px-3 py-2 rounded-xl border border-white/10 outline-none focus:border-[#ffd700] font-bold text-sm"
-                        />
                         <button
                           onClick={() => archiveSupplier(config)}
                           className="px-4 py-2 rounded-xl bg-red-500/20 text-red-200 border border-red-300/20 text-xs font-black uppercase tracking-wide hover:bg-red-500/30"
@@ -449,6 +442,7 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                         <thead className="bg-white/10 text-white/80 uppercase text-[11px] tracking-widest">
                           <tr>
                             <th className="px-4 py-3 text-left">Cut-off jour</th>
+                            <th className="px-4 py-3 text-left">Heure</th>
                             <th className="px-4 py-3 text-left">Livraison jour</th>
                             <th className="px-4 py-3 text-right">Actions</th>
                           </tr>
@@ -456,7 +450,7 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                         <tbody>
                           {rules.length === 0 ? (
                             <tr className="border-t border-white/10">
-                              <td colSpan={3} className="px-4 py-5 text-center text-white/55 font-semibold">
+                              <td colSpan={4} className="px-4 py-5 text-center text-white/55 font-semibold">
                                 Aucune règle pour ce fournisseur. Clique sur <span className="text-[#ffd700]">+ Ajouter une règle</span>.
                               </td>
                             </tr>
@@ -473,6 +467,14 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                                       <option key={i} value={i} className="text-black">{d}</option>
                                     ))}
                                   </select>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <input
+                                    type="time"
+                                    value={rule.cutoffTime || config.cutoffTime}
+                                    onChange={e => updateRule(config, idx, { cutoffTime: e.target.value })}
+                                    className="w-full bg-white/10 text-white p-2 rounded-xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
+                                  />
                                 </td>
                                 <td className="px-4 py-3">
                                   <select
