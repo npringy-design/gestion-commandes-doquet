@@ -19,7 +19,7 @@ import {
 import { SupplierConfig, PrepBatch, PrepItem, PrepImportsByMonth, ImportPeriodByMonth, PrepForecastsByDate, PrepSheetStocks, OrderTemplateRow, OrderTemplatesBySupplier } from '../types';
 import { MONTHS_ORDER, View, SupplierId } from '../constants';
 import { DailyCoversState, LimonadeCoversState } from '../utils/dateHelpers';
-import { getImportedValueForProduct, extractAllNamesFromCsvs, matchesImportedProductName } from '../utils/csvHelpers';
+import { getImportedValueForProduct, extractAllNamesFromCsvs, matchesImportedProductName, extractPeriodFromCsv } from '../utils/csvHelpers';
 import {
   createInitialProducts,
   loadUiState,
@@ -280,6 +280,44 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     setOrderTemplatesBySupplier,
     onSaveError,
   });
+
+  // Rattrapage rétroactif des périodes (colonne "Période du"/"Période au" du
+  // fichier) pour les imports réalisés avant l'introduction de inventoryPeriod/
+  // prepImportPeriod : le contenu CSV brut est toujours là, donc la période
+  // peut être recalculée sans réimport. Ne s'exécute qu'une fois le cloud
+  // chargé (site déjà isolé par site_id côté Supabase) et n'écrit que les
+  // mois manquants — idempotent, silencieux si tout est déjà rattrapé.
+  useEffect(() => {
+    if (!supabaseLoaded) return;
+
+    setInventoryPeriod(prev => {
+      let changed = false;
+      const next = { ...prev };
+      Object.keys(detailedInventory).forEach(m => {
+        if (next[m] || !detailedInventory[m]) return;
+        const period = extractPeriodFromCsv(detailedInventory[m]);
+        if (period) {
+          next[m] = period;
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+
+    setPrepImportPeriod(prev => {
+      let changed = false;
+      const next = { ...prev };
+      Object.keys(prepImportsByMonth).forEach(m => {
+        if (next[m] || !prepImportsByMonth[m]) return;
+        const period = extractPeriodFromCsv(prepImportsByMonth[m]);
+        if (period) {
+          next[m] = period;
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [supabaseLoaded, detailedInventory, prepImportsByMonth, setInventoryPeriod, setPrepImportPeriod]);
 
   // Vue produits fusionnée : les champs opérationnels (stock/upcomingDelivery/
   // targetStock/packaging) viennent de order_line_states (une ligne par
