@@ -126,6 +126,9 @@ export const useAppState = () => {
   const [detailedInventory, setDetailedInventory] =
     useState<Record<string, string>>({});
 
+  const [inventoryImportedAt, setInventoryImportedAt] =
+    useState<Record<string, string>>({});
+
   const [salesHtByMonth, setSalesHtByMonth] =
     useState<Record<string, number>>(INITIAL_COVERS);
 
@@ -192,6 +195,9 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
   const [prepImportsByMonth, setPrepImportsByMonth] =
     useState<PrepImportsByMonth>({});
 
+  const [prepImportImportedAt, setPrepImportImportedAt] =
+    useState<Record<string, string>>({});
+
   const [prepSheetStocks, setPrepSheetStocks] =
     useState<PrepSheetStocks>({});
 
@@ -229,6 +235,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     dailyCovers,
     limonadeCovers,
     detailedInventory,
+    inventoryImportedAt,
     salesHtByMonth,
     costMatterByMonth,
     validatedMonths: ratioValidatedMonths,
@@ -241,6 +248,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     products: visibleProducts,
     prepItems,
     prepImportsByMonth,
+    prepImportImportedAt,
     prepSheetStocks,
     prepBatches,
     prepForecasts,
@@ -251,6 +259,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     setDailyCovers,
     setLimonadeCovers,
     setDetailedInventory,
+    setInventoryImportedAt,
     setSalesHtByMonth,
     setCostMatterByMonth,
     setValidatedMonths: setRatioValidatedMonths,
@@ -263,6 +272,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     setProducts: setProductsWithoutDeleted,
     setPrepItems,
     setPrepImportsByMonth,
+    setPrepImportImportedAt,
     setPrepSheetStocks,
     setPrepBatches,
     setPrepForecasts,
@@ -645,6 +655,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     limonadeCovers, setLimonadeCovers,
     orderLineStates,
     detailedInventory, setDetailedInventory,
+    inventoryImportedAt, setInventoryImportedAt,
     salesHtByMonth, setSalesHtByMonth,
     costMatterByMonth, setCostMatterByMonth,
     validatedMonths,
@@ -658,6 +669,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     products: mergedProducts, setProducts: setProductsWithoutDeleted,
     prepItems, setPrepItems,
     prepImportsByMonth, setPrepImportsByMonth,
+    prepImportImportedAt, setPrepImportImportedAt,
     prepSheetStocks, setPrepSheetStocks,
     prepBatches, setPrepBatches,
     prepForecasts, setPrepForecasts,

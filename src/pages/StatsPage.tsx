@@ -35,8 +35,12 @@ interface StatsPageProps {
   setCostMatterByMonth: React.Dispatch<React.SetStateAction<Record<string, number>>>;
   detailedInventory: Record<string, string>;
   setDetailedInventory: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  inventoryImportedAt: Record<string, string>;
+  setInventoryImportedAt: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   prepImportsByMonth: Record<string, string>;
   setPrepImportsByMonth: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  prepImportImportedAt: Record<string, string>;
+  setPrepImportImportedAt: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   validatedMonths: Record<string, boolean>;
   prepValidatedMonths?: Record<string, boolean>;
   supplierConfigs: Record<string, SupplierConfig>;
@@ -62,6 +66,19 @@ const formatDisplayValue = (field: EditableField, value: number) => {
 
 const isIntegerField = (field: EditableField) => field === 'covers' || field === 'limonadeCoversRealized';
 
+const formatImportedAt = (isoTimestamp: string | undefined): string => {
+  if (!isoTimestamp) return '';
+  const date = new Date(isoTimestamp);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 const getRawValue = (value: number, allowDecimals = true) => {
   if (!Number.isFinite(value) || value === 0) return '';
   return allowDecimals ? String(value).replace('.', ',') : String(Math.trunc(value));
@@ -86,8 +103,12 @@ const StatsPage: React.FC<StatsPageProps> = ({
   setCostMatterByMonth,
   detailedInventory,
   setDetailedInventory,
+  inventoryImportedAt,
+  setInventoryImportedAt,
   prepImportsByMonth,
   setPrepImportsByMonth,
+  prepImportImportedAt,
+  setPrepImportImportedAt,
   validatedMonths,
   prepValidatedMonths = {},
   supplierConfigs,
@@ -141,6 +162,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
 
       if (modalState.target === 'inventory') {
         setDetailedInventory((prev) => ({ ...prev, [targetMonth]: content }));
+        setInventoryImportedAt((prev) => ({ ...prev, [targetMonth]: new Date().toISOString() }));
         if (validatedMonths[targetMonth]) {
           showToast(
             `✓ Inventaire ${targetMonth.toUpperCase()} importé — ⚠️ Ce mois est figé dans Calcul vente ratio. Rendez-vous dans Calcul vente ratio et défigeez puis refigeez le mois fournisseur par fournisseur pour mettre à jour les calculs.`,
@@ -151,6 +173,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
         }
       } else {
         setPrepImportsByMonth((prev) => ({ ...prev, [targetMonth]: content }));
+        setPrepImportImportedAt((prev) => ({ ...prev, [targetMonth]: new Date().toISOString() }));
         showToast(`✓ Production ${targetMonth.toUpperCase()} importée`, 'success');
       }
       setModalState(null);
@@ -167,11 +190,23 @@ const StatsPage: React.FC<StatsPageProps> = ({
       delete next[monthKey];
       return next;
     });
+    setInventoryImportedAt((prev) => {
+      if (!prev?.[monthKey]) return prev;
+      const next = { ...prev };
+      delete next[monthKey];
+      return next;
+    });
   };
 
   const removeProductionImportForMonth = (monthKey: string) => {
     if (!canRemoveImport) return;
     setPrepImportsByMonth((prev) => {
+      if (!prev?.[monthKey]) return prev;
+      const next = { ...prev };
+      delete next[monthKey];
+      return next;
+    });
+    setPrepImportImportedAt((prev) => {
       if (!prev?.[monthKey]) return prev;
       const next = { ...prev };
       delete next[monthKey];
@@ -315,6 +350,8 @@ const StatsPage: React.FC<StatsPageProps> = ({
 
   const selectedHasImport = !!detailedInventory[selectedMonth.key];
   const selectedProductionImported = !!prepImportsByMonth[selectedMonth.key];
+  const selectedInventoryImportedAtLabel = formatImportedAt(inventoryImportedAt[selectedMonth.key]);
+  const selectedProductionImportedAtLabel = formatImportedAt(prepImportImportedAt[selectedMonth.key]);
   const monthsToDisplay = showAllMonths ? MONTHS_DISPLAY_CONFIG : MONTHS_DISPLAY_CONFIG.slice(0, 6);
   const getAiContext = React.useCallback(() => {
     const monthRows = MONTHS_DISPLAY_CONFIG.map((month) => {
@@ -568,6 +605,11 @@ const StatsPage: React.FC<StatsPageProps> = ({
                             {selectedHasImport ? 'Importé' : 'Non importé'}
                           </span>
                         </div>
+                        {selectedHasImport && selectedInventoryImportedAtLabel && (
+                          <p className="mt-0.5 text-xs text-[#9A806A]">
+                            Importé le {selectedInventoryImportedAtLabel}
+                          </p>
+                        )}
                       </div>
                       <button
                         onClick={() => canImport && setModalState({ month: selectedMonth.key, target: 'inventory' })}
@@ -608,6 +650,11 @@ const StatsPage: React.FC<StatsPageProps> = ({
                             {selectedProductionImported ? 'Importé' : 'Non importé'}
                           </span>
                         </div>
+                        {selectedProductionImported && selectedProductionImportedAtLabel && (
+                          <p className="mt-0.5 text-xs text-[#9A806A]">
+                            Importé le {selectedProductionImportedAtLabel}
+                          </p>
+                        )}
                       </div>
                       <button
                         onClick={() => canImport && setModalState({ month: selectedMonth.key, target: 'production' })}

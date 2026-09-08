@@ -40,6 +40,7 @@ export type PersistedAppState = {
   dailyCovers: DailyCoversState;
   limonadeCovers: LimonadeCoversState;
   detailedInventory: Record<string, string>;
+  inventoryImportedAt: Record<string, string>;
   salesHtByMonth: Record<string, number>;
   costMatterByMonth: Record<string, number>;
   validatedMonths: Record<string, boolean>;
@@ -52,6 +53,7 @@ export type PersistedAppState = {
   products: ProductWithHistory[];
   prepItems: PrepItem[];
   prepImportsByMonth: PrepImportsByMonth;
+  prepImportImportedAt: Record<string, string>;
   prepSheetStocks: PrepSheetStocks;
   prepBatches: PrepBatch[];
   prepForecasts: PrepForecastsByDate;
@@ -80,6 +82,7 @@ export const useAppStatePersistence = ({
   dailyCovers,
   limonadeCovers,
   detailedInventory,
+  inventoryImportedAt,
   salesHtByMonth,
   costMatterByMonth,
   validatedMonths,
@@ -92,6 +95,7 @@ export const useAppStatePersistence = ({
   products,
   prepItems,
   prepImportsByMonth,
+  prepImportImportedAt,
   prepSheetStocks,
   prepBatches,
   prepForecasts,
@@ -178,6 +182,9 @@ export const useAppStatePersistence = ({
   useEffect(() => {
     persistAppState('inventory', detailedInventory, APP_STATE_SAVE_DEBOUNCE_MS_BY_KEY.inventory);
   }, [detailedInventory, persistAppState]);
+  useEffect(() => {
+    persistAppState('inventoryImportedAt', inventoryImportedAt, APP_STATE_SAVE_DEBOUNCE_MS_BY_KEY.inventoryImportedAt);
+  }, [inventoryImportedAt, persistAppState]);
   useEffect(() => { persistAppState('salesHtByMonth', salesHtByMonth); }, [persistAppState, salesHtByMonth]);
   useEffect(() => { persistAppState('costMatterByMonth', costMatterByMonth); }, [costMatterByMonth, persistAppState]);
   useEffect(() => { persistAppState('validatedMonths', validatedMonths); }, [persistAppState, validatedMonths]);
@@ -232,6 +239,9 @@ export const useAppStatePersistence = ({
   useEffect(() => {
     persistAppState('prepImportsByMonth', prepImportsByMonth);
   }, [persistAppState, prepImportsByMonth]);
+  useEffect(() => {
+    persistAppState('prepImportImportedAt', prepImportImportedAt, APP_STATE_SAVE_DEBOUNCE_MS_BY_KEY.prepImportImportedAt);
+  }, [persistAppState, prepImportImportedAt]);
   useEffect(() => { persistAppState('prepSheetStocks', prepSheetStocks); }, [persistAppState, prepSheetStocks]);
   useEffect(() => { persistAppState('prepBatches', prepBatches); }, [persistAppState, prepBatches]);
   useEffect(() => { persistAppState('prepForecasts', prepForecasts); }, [persistAppState, prepForecasts]);

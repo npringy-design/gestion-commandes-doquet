@@ -13,6 +13,7 @@ export type WritableAppStateKey =
   | 'dailyCovers'
   | 'limonadeCovers'
   | 'inventory'
+  | 'inventoryImportedAt'
   | 'salesHtByMonth'
   | 'costMatterByMonth'
   | 'validatedMonths'
@@ -25,6 +26,7 @@ export type WritableAppStateKey =
   | 'products'
   | 'prepItems'
   | 'prepImportsByMonth'
+  | 'prepImportImportedAt'
   | 'prepSheetStocks'
   | 'prepBatches'
   | 'prepForecasts'
@@ -53,6 +55,7 @@ const WRITABLE_APP_STATE_KEYS: readonly WritableAppStateKey[] = [
   'dailyCovers',
   'limonadeCovers',
   'inventory',
+  'inventoryImportedAt',
   'salesHtByMonth',
   'costMatterByMonth',
   'validatedMonths',
@@ -65,6 +68,7 @@ const WRITABLE_APP_STATE_KEYS: readonly WritableAppStateKey[] = [
   'products',
   'prepItems',
   'prepImportsByMonth',
+  'prepImportImportedAt',
   'prepSheetStocks',
   'prepBatches',
   'prepForecasts',

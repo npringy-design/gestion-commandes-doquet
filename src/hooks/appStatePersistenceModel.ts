@@ -1,6 +1,8 @@
 export const CLOUD_ONLY_APP_STATE_KEYS = new Set<string>([
   'inventory',
   'prepImportsByMonth',
+  'inventoryImportedAt',
+  'prepImportImportedAt',
 ]);
 
 export const APP_STATE_SAVE_DEBOUNCE_MS_BY_KEY: Record<string, number> = {
@@ -22,7 +24,9 @@ export const APP_STATE_SAVE_DEBOUNCE_MS_BY_KEY: Record<string, number> = {
   prepSheetStocks: 1200,
   prepBatches: 3500,
   prepImportsByMonth: 5000,
+  prepImportImportedAt: 5000,
   inventory: 8000,
+  inventoryImportedAt: 8000,
   orderTemplateRows: 1500,
   orderTemplatesBySupplier: 800,
 };
