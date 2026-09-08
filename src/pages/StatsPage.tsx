@@ -5,7 +5,7 @@
 // =============================================================
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { readFileAsCSV, extractPeriodFromCsv } from '../utils/csvHelpers';
+import { readFileAsCSV, extractPeriodFromCsv, extractPeriodFromFilename } from '../utils/csvHelpers';
 import { validateImportFile } from '../utils/importFileValidation';
 import { useToast } from '../components/Toast';
 import { View, MONTHS_DISPLAY_CONFIG, MONTH_KEY_TO_NAME } from '../constants';
@@ -174,7 +174,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
       await validateImportFile(file, 'tabular');
       const content = await readFileAsCSV(file);
       const targetMonth = resolveImportTargetMonth(modalState.month, modalState.target);
-      const period = extractPeriodFromCsv(content);
+      const period = extractPeriodFromCsv(content) ?? extractPeriodFromFilename(file.name);
 
       // La colonne "Période du" du fichier reflète le mois réel des données,
       // indépendamment de la date/carte sur laquelle l'utilisateur importe.

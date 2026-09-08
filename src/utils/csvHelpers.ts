@@ -220,6 +220,16 @@ export const extractPeriodFromCsv = (csvData: string): { from: string; to: strin
   return { from: fromMatch[1], to: toMatch[1] };
 };
 
+// Repli quand le fichier n'a pas de colonne "Période du"/"Période au" dans
+// son contenu (ex: export Production) mais encode la période dans son nom,
+// au format AAAA-MM-JJ_AAAA-MM-JJ (ex: "..._2026-01-01_2026-01-31.csv").
+export const extractPeriodFromFilename = (fileName: string): { from: string; to: string } | null => {
+  const match = fileName.match(/(\d{4})-(\d{2})-(\d{2})_(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return null;
+  const [, y1, m1, d1, y2, m2, d2] = match;
+  return { from: `${d1}/${m1}/${y1}`, to: `${d2}/${m2}/${y2}` };
+};
+
 export const buildImportedValueLookup = (
   csvData: string | undefined,
   valueColumnCandidates: string[] = DEFAULT_VALUE_COLUMN_CANDIDATES,
