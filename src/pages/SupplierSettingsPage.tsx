@@ -449,7 +449,6 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                         <thead className="bg-white/10 text-white/80 uppercase text-[11px] tracking-widest">
                           <tr>
                             <th className="px-4 py-3 text-left">Cut-off jour</th>
-                            <th className="px-4 py-3 text-left">Heure</th>
                             <th className="px-4 py-3 text-left">Livraison jour</th>
                             <th className="px-4 py-3 text-right">Actions</th>
                           </tr>
@@ -457,7 +456,7 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                         <tbody>
                           {rules.length === 0 ? (
                             <tr className="border-t border-white/10">
-                              <td colSpan={4} className="px-4 py-5 text-center text-white/55 font-semibold">
+                              <td colSpan={3} className="px-4 py-5 text-center text-white/55 font-semibold">
                                 Aucune règle pour ce fournisseur. Clique sur <span className="text-[#ffd700]">+ Ajouter une règle</span>.
                               </td>
                             </tr>
@@ -474,14 +473,6 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
                                       <option key={i} value={i} className="text-black">{d}</option>
                                     ))}
                                   </select>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <input
-                                    type="time"
-                                    value={config.cutoffTime}
-                                    onChange={e => updateSupplier(config.id, { cutoffTime: e.target.value })}
-                                    className="w-full bg-white/10 text-white p-2 rounded-xl border border-white/10 outline-none focus:border-[#ffd700] font-bold"
-                                  />
                                 </td>
                                 <td className="px-4 py-3">
                                   <select

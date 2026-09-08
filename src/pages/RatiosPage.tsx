@@ -387,24 +387,18 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
 
   const activeSupplierLabel = supplierTabs.find(tab => tab.id === safeRatioTab)?.label ?? 'Fournisseur';
   const workMonthKey = String(state.getRatioWorkMonthForSupplier(safeRatioTab));
-  const isWorkMonthValidated = state.isRatioSupplierMonthFrozen(safeRatioTab, workMonthKey);
-  const [freezeMonthKey, setFreezeMonthKey] = React.useState<string>(workMonthKey);
   const [displayMonthKey, setDisplayMonthKey] = React.useState<string>(workMonthKey);
 
   React.useEffect(() => {
-    setFreezeMonthKey(workMonthKey);
     setDisplayMonthKey(workMonthKey);
   }, [workMonthKey]);
-
-  React.useEffect(() => {
-    if (!MONTHS_ORDER.includes(freezeMonthKey)) setFreezeMonthKey(workMonthKey);
-  }, [freezeMonthKey, workMonthKey]);
 
   React.useEffect(() => {
     if (!MONTHS_ORDER.includes(displayMonthKey)) setDisplayMonthKey(workMonthKey);
   }, [displayMonthKey, workMonthKey]);
 
-  const isSelectedFreezeMonthValidated = state.isRatioSupplierMonthFrozen(safeRatioTab, freezeMonthKey);
+  const isDisplayMonthValidated = state.isRatioSupplierMonthFrozen(safeRatioTab, displayMonthKey);
+  const frozenMonthsCount = MONTHS_ORDER.filter((month) => state.isRatioSupplierMonthFrozen(safeRatioTab, month)).length;
 
   const isLinkedProduct = React.useCallback(
     (p: any) => getProductLinkState(
@@ -483,11 +477,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
               <AiAssistantDrawer placement="inline" title="Assistant IA - Vente ratio" getContext={getAiContext} />
             </div>
 
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:min-w-[260px] [&>*:nth-child(1)]:hidden [&>*:nth-child(4)]:hidden [&>*:nth-child(5)]:hidden">
-              <div className="rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 shadow-sm">
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Mois</p>
-                <p className="mt-1 truncate text-sm font-black text-[#3A2116]">{state.importTargetMonth?.toUpperCase?.() ?? state.importTargetMonth}</p>
-              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:min-w-[260px]">
               <div className="rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 shadow-sm">
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">OK</p>
                 <p className="mt-1 text-sm font-black text-[#2F7A42]">{mappedProductsCount}</p>
@@ -496,73 +486,39 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">À revoir</p>
                 <p className="mt-1 text-sm font-black text-[#B5412D]">{alertProductsCount}</p>
               </div>
-              <button
-                onClick={() => state.toggleValidateMonth(workMonthKey, safeRatioTab)}
-                disabled={!canEdit}
-                className={`rounded-2xl border px-3 py-2.5 text-left shadow-sm transition disabled:opacity-50 ${isWorkMonthValidated ? 'border-[#6D8F4E] bg-[#F1F5E9]' : 'border-[#EBC28A] bg-[#FFF7EA] hover:bg-white'}`}
-              >
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">{isWorkMonthValidated ? 'Mois figé' : 'Fin de mois'}</p>
-                <p className="mt-1 text-sm font-black text-[#3A2116]">{isWorkMonthValidated ? 'Défiger' : 'Figer le mois'}</p>
-              </button>
-              <div className="rounded-2xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-2.5 shadow-sm">
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A85F2A]">Correction mois</p>
-                <div className="mt-1 flex items-center gap-2">
-                  <select
-                    value={freezeMonthKey}
-                    onChange={(e) => setFreezeMonthKey(e.target.value)}
-                    disabled={!canEdit}
-                    className="min-w-0 flex-1 rounded-xl border border-[#EBC28A] bg-[#FFFDF8] px-2 py-1 text-xs font-black text-[#3A2116] outline-none disabled:opacity-50"
-                  >
-                    {MONTHS_ORDER.map(m => (
-                      <option key={m} value={m}>{MONTH_LABELS[m]}</option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => state.toggleValidateMonth(freezeMonthKey, safeRatioTab)}
-                    disabled={!canEdit || !freezeMonthKey}
-                    className="rounded-xl border border-[#D4922F] bg-[#FFF1DF] px-2 py-1 text-xs font-black text-[#3A2116] transition hover:bg-[#FFE8C2] disabled:opacity-50"
-                  >
-                    {isSelectedFreezeMonthValidated ? 'Défiger' : 'Figer'}
-                  </button>
-                </div>
-              </div>
               </div>
             </div>
             <div className="rounded-2xl border border-[#EBC28A]/70 bg-[#FFF7EA]/14 p-2">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#F7C05B]">Figer les mois de vente</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#F7C05B]">Mois de vente — {MONTH_LABELS[displayMonthKey]}</p>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-[0.12em] text-[#FFE1B8]">Mois affiché</span>
-                  <select
-                    value={displayMonthKey}
-                    onChange={(e) => setDisplayMonthKey(e.target.value)}
-                    className="rounded-xl border border-[#EBC28A] bg-[#FFF7EA] px-3 py-1.5 text-xs font-black text-[#3A2116] outline-none"
+                  <button
+                    type="button"
+                    onClick={() => state.toggleValidateMonth(displayMonthKey, safeRatioTab)}
+                    disabled={!canEdit}
+                    className="rounded-xl border border-[#D4922F] bg-[#FFF1DF] px-3 py-1.5 text-xs font-black text-[#3A2116] transition hover:bg-[#FFE8C2] disabled:opacity-50"
                   >
-                    {MONTHS_ORDER.map(month => (
-                      <option key={`display-sales-${month}`} value={month}>{MONTH_LABELS[month]}</option>
-                    ))}
-                  </select>
-                  <p className="text-[11px] font-bold text-[#FFE1B8]">{MONTHS_ORDER.filter((month) => state.isRatioSupplierMonthFrozen(safeRatioTab, month)).length} mois figes</p>
+                    {isDisplayMonthValidated ? 'Défiger ce mois' : 'Figer ce mois'}
+                  </button>
+                  <p className="text-[11px] font-bold text-[#FFE1B8]">{frozenMonthsCount} mois figes</p>
                 </div>
               </div>
               <div className="grid grid-cols-6 gap-1.5 xl:grid-cols-12">
                 {MONTHS_ORDER.map((month) => {
                   const locked = state.isRatioSupplierMonthFrozen(safeRatioTab, month);
+                  const isSelected = month === displayMonthKey;
                   return (
                     <button
-                      key={`sales-freeze-${month}`}
+                      key={`sales-month-${month}`}
                       type="button"
-                      onClick={() => {
-                        setFreezeMonthKey(month);
-                        state.toggleValidateMonth(month, safeRatioTab);
-                      }}
-                      disabled={!canEdit}
-                      className={`min-h-[42px] rounded-xl border px-2 py-1 text-[10px] font-black uppercase tracking-[0.07em] transition disabled:opacity-50 ${
+                      onClick={() => setDisplayMonthKey(month)}
+                      className={`min-h-[42px] rounded-xl border px-2 py-1 text-[10px] font-black uppercase tracking-[0.07em] transition ${
                         locked
-                          ? 'border-emerald-700 bg-emerald-600 text-white shadow-sm'
-                          : month === displayMonthKey
-                            ? 'border-[#D8A640] bg-[#FFE8A8] text-[#5B321E]'
+                          ? isSelected
+                            ? 'border-emerald-800 bg-emerald-700 text-white shadow-md ring-2 ring-emerald-300'
+                            : 'border-emerald-700 bg-emerald-600 text-white shadow-sm'
+                          : isSelected
+                            ? 'border-[#D8A640] bg-[#FFE8A8] text-[#5B321E] ring-2 ring-[#D8A640]'
                             : 'border-[#EBC28A] bg-[#FFF7EA] text-[#2F1D14] hover:bg-white'
                       }`}
                     >
