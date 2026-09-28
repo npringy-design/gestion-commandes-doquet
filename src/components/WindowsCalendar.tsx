@@ -1,10 +1,11 @@
 // =============================================================
 // components/WindowsCalendar.tsx
-// Sélecteur de date — position absolute (pas de portal)
-// Le conteneur parent doit avoir position:relative
+// Sélecteur de date — rendu dans un portal (position fixed)
+// Ancré sur le bouton déclencheur (parent du composant)
 // =============================================================
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { DAYS_OF_WEEK_LABELS } from '../constants';
 
 interface WindowsCalendarProps {
@@ -16,12 +17,37 @@ interface WindowsCalendarProps {
   align?:       'left' | 'right';
 }
 
+const CALENDAR_WIDTH = 300;
+const VIEWPORT_MARGIN = 8;
+
 const WindowsCalendar: React.FC<WindowsCalendarProps> = ({
   selectedDate, onSelect, onClose, minDate, align = 'left',
 }) => {
   const [currentMonth, setCurrentMonth] = useState(selectedDate.getMonth());
   const [currentYear,  setCurrentYear]  = useState(selectedDate.getFullYear());
   const calendarRef = useRef<HTMLDivElement>(null);
+  const anchorRef = useRef<HTMLSpanElement>(null);
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const updatePosition = () => {
+      const anchor = anchorRef.current?.parentElement;
+      if (!anchor) return;
+      const rect = anchor.getBoundingClientRect();
+      let left = align === 'right' ? rect.right - CALENDAR_WIDTH : rect.left;
+      left = Math.min(left, window.innerWidth - CALENDAR_WIDTH - VIEWPORT_MARGIN);
+      left = Math.max(left, VIEWPORT_MARGIN);
+      const top = rect.bottom + 8;
+      setPosition({ top, left });
+    };
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [align]);
 
   // Fermer en cliquant en dehors — utilise mousedown sur document
   useEffect(() => {
@@ -62,10 +88,11 @@ const WindowsCalendar: React.FC<WindowsCalendarProps> = ({
     else setCurrentMonth(m => m + 1);
   };
 
-  return (
+  const calendar = (
     <div
       ref={calendarRef}
-      className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} top-full mt-2 z-[9999] bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.15)] border border-slate-100 p-5 w-[300px]`}
+      style={{ position: 'fixed', top: position?.top, left: position?.left, width: CALENDAR_WIDTH, visibility: position ? 'visible' : 'hidden' }}
+      className="z-[9999] bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.15)] border border-slate-100 p-5"
       // Stopper la propagation pour que le mousedown sur le calendrier
       // ne remonte pas au document et ne déclenche pas onClose
       onMouseDown={e => e.stopPropagation()}
@@ -125,6 +152,13 @@ const WindowsCalendar: React.FC<WindowsCalendarProps> = ({
         })}
       </div>
     </div>
+  );
+
+  return (
+    <>
+      <span ref={anchorRef} hidden />
+      {createPortal(calendar, document.body)}
+    </>
   );
 };
 
