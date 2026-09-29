@@ -32,7 +32,13 @@ const WindowsCalendar: React.FC<WindowsCalendarProps> = ({
   useLayoutEffect(() => {
     const updatePosition = () => {
       const anchor = anchorRef.current?.parentElement;
-      if (!anchor) return;
+      // offsetParent est null si l'ancre (ou un ancêtre) a display:none —
+      // évite d'afficher le calendrier en (0,0) pour le bloc mobile/desktop
+      // caché en CSS mais toujours monté dans le DOM.
+      if (!anchor || (anchor as HTMLElement).offsetParent === null) {
+        setPosition(null);
+        return;
+      }
       const rect = anchor.getBoundingClientRect();
       let left = align === 'right' ? rect.right - CALENDAR_WIDTH : rect.left;
       left = Math.min(left, window.innerWidth - CALENDAR_WIDTH - VIEWPORT_MARGIN);
