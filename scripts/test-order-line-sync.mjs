@@ -91,6 +91,7 @@ try {
     targetStock: 18,
     packaging: 6,
     margin: 30,
+    realOrder: '',
     updatedAt: '2026-07-15T08:15:00.000Z',
   });
 

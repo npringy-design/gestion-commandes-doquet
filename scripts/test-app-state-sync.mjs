@@ -9,10 +9,14 @@ const modelPath = join(process.cwd(), 'src', 'hooks', 'appStateSyncModel.ts');
 const cloudSyncPath = join(process.cwd(), 'src', 'hooks', 'useCloudSync.ts');
 const hydrationHookPath = join(process.cwd(), 'src', 'hooks', 'useAppStateHydration.ts');
 const coordinatorPath = join(process.cwd(), 'src', 'hooks', 'useCloudHydrationCoordinator.ts');
-const rawModelSource = readFileSync(modelPath, 'utf8');
-const cloudSyncSource = readFileSync(cloudSyncPath, 'utf8');
-const hydrationHookSource = readFileSync(hydrationHookPath, 'utf8');
-const coordinatorSource = readFileSync(coordinatorPath, 'utf8');
+// Normalise les fins de ligne (CRLF -> LF) : les remplacements ci-dessous
+// reposent sur des motifs terminés par \n, qui ne matcheraient pas sur un
+// checkout Windows (core.autocrlf) sans cette normalisation.
+const normalizeLineEndings = text => text.replace(/\r\n/g, '\n');
+const rawModelSource = normalizeLineEndings(readFileSync(modelPath, 'utf8'));
+const cloudSyncSource = normalizeLineEndings(readFileSync(cloudSyncPath, 'utf8'));
+const hydrationHookSource = normalizeLineEndings(readFileSync(hydrationHookPath, 'utf8'));
+const coordinatorSource = normalizeLineEndings(readFileSync(coordinatorPath, 'utf8'));
 const tempDir = mkdtempSync(join(tmpdir(), 'gestion-app-state-sync-'));
 
 try {

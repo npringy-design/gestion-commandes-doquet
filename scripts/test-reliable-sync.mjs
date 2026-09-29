@@ -24,10 +24,14 @@ class MemoryStorage {
 }
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+// Normalise les fins de ligne (CRLF -> LF) : les remplacements ci-dessous
+// reposent sur des motifs terminés par \n, qui ne matcheraient pas sur un
+// checkout Windows (core.autocrlf) sans cette normalisation.
+const normalizeLineEndings = text => text.replace(/\r\n/g, '\n');
 const sourcePath = join(process.cwd(), 'src', 'utils', 'reliableSaveQueue.ts');
-const rawSource = readFileSync(sourcePath, 'utf8');
-const cloudSyncSource = readFileSync(join(process.cwd(), 'src', 'hooks', 'useCloudSync.ts'), 'utf8');
-const lifecycleSource = readFileSync(join(process.cwd(), 'src', 'hooks', 'useReliableSaveLifecycle.ts'), 'utf8');
+const rawSource = normalizeLineEndings(readFileSync(sourcePath, 'utf8'));
+const cloudSyncSource = normalizeLineEndings(readFileSync(join(process.cwd(), 'src', 'hooks', 'useCloudSync.ts'), 'utf8'));
+const lifecycleSource = normalizeLineEndings(readFileSync(join(process.cwd(), 'src', 'hooks', 'useReliableSaveLifecycle.ts'), 'utf8'));
 const tempDir = mkdtempSync(join(tmpdir(), 'gestion-reliable-sync-'));
 const storage = new MemoryStorage();
 globalThis.window = { localStorage: storage };
