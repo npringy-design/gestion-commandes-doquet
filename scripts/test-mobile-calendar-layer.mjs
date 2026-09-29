@@ -14,13 +14,23 @@ assert.match(
 );
 assert.match(
   calendarSource,
-  /align === 'right' \? 'right-0' : 'left-0'/,
+  /align === 'right' \? rect\.right - CALENDAR_WIDTH : rect\.left/,
   'Le calendrier doit pouvoir rester dans l’écran depuis la colonne de droite',
 );
 assert.match(
   calendarSource,
-  /top-full mt-2 z-\[9999\]/,
-  'Le calendrier doit conserver sa priorité dans le bandeau qui le contient',
+  /createPortal\(calendar, document\.body\)/,
+  'Le calendrier doit être rendu dans un portal pour ne pas être bloqué par un ancêtre avec contexte d’empilement',
+);
+assert.match(
+  calendarSource,
+  /z-\[9999\]/,
+  'Le calendrier doit conserver sa priorité d’affichage au-dessus du reste de la page',
+);
+assert.match(
+  calendarSource,
+  /offsetParent === null/,
+  'Le calendrier ne doit pas se positionner sur une ancre masquée (bloc mobile/desktop caché en CSS)',
 );
 assert.doesNotMatch(
   orderPageSource,
