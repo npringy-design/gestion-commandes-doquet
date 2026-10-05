@@ -834,7 +834,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
 
             <p className="mb-4 text-sm text-[#6A432D]">
               Les modifications des produits existants sont enregistrées automatiquement et répercutées dans Commandes.
-              Le bouton de création apparaît uniquement lorsqu'une nouvelle ligne doit devenir un produit.
+              Le bouton de création reste toujours disponible : il crée les nouvelles lignes et retire les produits absents de la trame.
             </p>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -858,9 +858,9 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
               <button
                 type="button"
                 onClick={handleCreateProducts}
-                disabled={!canImport || !selectedSupplierId || orderTemplateRows.length === 0 || !hasRowsToCreate}
+                disabled={!canImport || !selectedSupplierId || orderTemplateRows.length === 0}
                 className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                  canImport && selectedSupplierId && orderTemplateRows.length > 0 && hasRowsToCreate
+                  canImport && selectedSupplierId && orderTemplateRows.length > 0
                     ? 'bg-[#C86F24] text-white shadow-[0_4px_0_#8B431C] hover:bg-[#B85F1D]'
                     : 'cursor-not-allowed bg-[#F4E8D8] text-[#9A806A]'
                 }`}
