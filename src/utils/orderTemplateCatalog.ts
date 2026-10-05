@@ -108,6 +108,7 @@ export interface OrderTemplateSyncResult {
   linkedRows: OrderTemplateRow[];
   updates: ProductUpdate[];
   creations: ProductWithHistory[];
+  removals: ProductWithHistory[];
   productIdsToOpen: string[];
   duplicateCount: number;
 }
@@ -127,15 +128,18 @@ export const mergeTemplateProductChanges = ({
   products,
   updates,
   creations,
+  removals,
   supplierId,
 }: {
   products: ProductWithHistory[];
   updates: ProductUpdate[];
   creations: ProductWithHistory[];
+  removals: ProductWithHistory[];
   supplierId: string;
 }): ProductWithHistory[] => {
   const updatesById = new Map(updates.map(update => [update.id, update]));
-  const nextProducts = products.map(product => {
+  const removedIds = new Set(removals.map(product => product.id));
+  const nextProducts = products.filter(product => !removedIds.has(product.id)).map(product => {
     const update = updatesById.get(product.id);
     return update ? { ...product, ...update } : product;
   });
@@ -234,10 +238,13 @@ export const synchronizeOrderTemplateProducts = ({
     linkedRows.push({ ...row, productId: id, article, storageUnit: storageUnit || '', packagingUnit });
   });
 
+  const removals = supplierProducts.filter(product => !usedProductIds.has(product.id));
+
   return {
     linkedRows,
     updates,
     creations,
+    removals,
     productIdsToOpen: Array.from(productIdsToOpen),
     duplicateCount,
   };

@@ -117,8 +117,24 @@ try {
       { ...result.creations[0], id: 'carpaccio', name: 'Carpaccio' },
       { ...result.creations[0], id: 'magret', name: 'Magret' },
     ],
+    removals: [],
     supplierId: 'bof',
   });
+  const withRemoval = catalog.mergeTemplateProductChanges({
+    products: [
+      { ...products[0], name: 'Entrecôte' },
+      { ...products[0], id: 'p2', name: 'Saumon' },
+    ],
+    updates: [],
+    creations: [],
+    removals: [{ ...products[0], id: 'p2', name: 'Saumon' }],
+    supplierId: 'bof',
+  });
+  assert.deepEqual(
+    withRemoval.map(product => product.name),
+    ['Entrecôte'],
+    'Les produits absents de la nouvelle trame doivent être supprimés du catalogue',
+  );
   assert.deepEqual(
     alphabeticallyInserted.filter(product => product.supplierId === 'bof').map(product => product.name),
     ['Carpaccio', 'Entrecôte', 'Magret', 'Saumon'],

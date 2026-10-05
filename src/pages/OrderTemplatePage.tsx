@@ -321,10 +321,18 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
       return;
     }
 
+    if (result.removals.length > 0) {
+      const proceed = window.confirm(
+        `${result.removals.length} produit(s) absent(s) de la nouvelle trame seront supprimés définitivement du catalogue :\n\n${result.removals.map(product => `- ${product.name}`).join('\n')}\n\nContinuer ?`
+      );
+      if (!proceed) return;
+    }
+
     setProducts(prev => mergeTemplateProductChanges({
       products: prev,
       updates: result.updates,
       creations: result.creations,
+      removals: result.removals,
       supplierId: selectedSupplierId,
     }));
     openNewRatioProducts(selectedSupplierId, result.productIdsToOpen);
@@ -342,7 +350,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     setOrderTemplateRows(result.linkedRows);
     setOrderTemplatesBySupplier(prev => ({ ...prev, [selectedSupplierId]: result.linkedRows }));
     showToast(
-      `✓ Trame enregistrée : ${result.creations.length} création(s), ${result.updates.length} mise(s) à jour`,
+      `✓ Trame enregistrée : ${result.creations.length} création(s), ${result.updates.length} mise(s) à jour, ${result.removals.length} suppression(s)`,
       'success',
     );
   }, [canImport, openNewRatioProducts, orderTemplateRows, products, selectedSupplierId, setOrderTemplateRows, setOrderTemplatesBySupplier, setProducts, showToast, updateOrderLineField]);
