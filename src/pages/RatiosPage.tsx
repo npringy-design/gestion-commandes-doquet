@@ -156,7 +156,6 @@ const ProductCard: React.FC<{
   const isFrozenDisplay = state.isRatioProductMonthFrozen(p.id, supplierId, displayMonthKey);
   const frozenSnapshot = isFrozenDisplay ? p.ratioSnapshots?.[displayMonthKey] : undefined;
   const displaySearchName = frozenSnapshot?.searchName ?? p.searchName;
-  const displayProductName = frozenSnapshot?.productName ?? p.name;
   const linkState = getProductLinkState(p, isFrozenDisplay, displayMonthKey, detailedInventory);
   const alert = linkState === 'unlinked';
   const stateStyle = LINK_STATE_STYLES[linkState];
@@ -282,10 +281,10 @@ const ProductCard: React.FC<{
               <div className="flex items-center gap-1">
                 <input
                   className="min-w-0 flex-1 rounded-xl border border-[#E2C39B] bg-[#FFFDF8] px-3 py-2 text-xs font-black uppercase text-[#24160F] outline-none focus:border-[#C86F24]"
-                  value={displayProductName}
+                  value={p.name}
                   placeholder="Nom visible dans les commandes..."
                   onChange={e => handleNameChange(p.id, e.target.value)}
-                  disabled={!canEdit || isFrozenDisplay}
+                  disabled={!canEdit}
                 />
               </div>
               {p.storageUnit && (
