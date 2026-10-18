@@ -37,3 +37,25 @@ export const reorderVisibleItems = <T extends OrderedItem>(
       : item
   ));
 };
+
+const compareNames = (a: string, b: string) =>
+  a.localeCompare(b, 'fr', { sensitivity: 'base', numeric: true });
+
+type NamedItem = OrderedItem & { name: string };
+
+// Trie A→Z les cartes visibles, sans bouger les autres. Renvoie `items` tel quel
+// (même référence) si les cartes visibles sont déjà triées.
+export const sortVisibleItemsAlphabetically = <T extends NamedItem>(
+  items: T[],
+  visibleIds: string[],
+): T[] => {
+  const visibleIdSet = new Set(visibleIds);
+  const visibleItems = items.filter(item => visibleIdSet.has(item.id));
+  const sortedVisibleItems = [...visibleItems].sort((a, b) => compareNames(a.name, b.name));
+  if (sortedVisibleItems.every((item, index) => item === visibleItems[index])) return items;
+
+  let visibleIndex = 0;
+  return items.map(item => (
+    visibleIdSet.has(item.id) ? sortedVisibleItems[visibleIndex++] : item
+  ));
+};

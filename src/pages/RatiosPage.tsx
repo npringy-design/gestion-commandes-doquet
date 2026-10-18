@@ -14,6 +14,7 @@ import { useAppState } from '../hooks/useAppState';
 import { useAuth } from '../auth/AuthProvider';
 import { canEditRatios } from '../lib/permissions';
 import { getImportedValueForProduct } from '../utils/csvHelpers';
+import { sortVisibleItemsAlphabetically } from '../utils/productOrder';
 
 type AppState = ReturnType<typeof useAppState>;
 
@@ -361,6 +362,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
     addNewProduct,
     deleteSelectedProducts,
     reorderProducts,
+    sortProductsAlphabetically,
   } = state;
 
   const supplierTabs: { id: SupplierId; label: string }[] = Object.values(supplierConfigs)
@@ -424,6 +426,11 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
   const displayedProductIds = React.useMemo(
     () => displayedRatioProducts.map(product => product.id),
     [displayedRatioProducts],
+  );
+
+  const isAlphabeticallySorted = React.useMemo(
+    () => sortVisibleItemsAlphabetically(displayedRatioProducts, displayedProductIds) === displayedRatioProducts,
+    [displayedProductIds, displayedRatioProducts],
   );
 
   const clearDragState = React.useCallback(() => {
@@ -551,6 +558,13 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
                   className={`rounded-[16px] border px-4 py-3 text-xs font-black uppercase tracking-[0.12em] shadow-sm transition ${showOnlyUnlinked ? 'border-[#2F1D14] bg-[#2F1D14] text-[#FFF7EA]' : 'border-[#D8AE77] bg-[#FFFDF8] text-[#6A432D] hover:bg-white'}`}
                 >
                   {showOnlyUnlinked ? 'Tous les produits' : 'Produits non liés'}
+                </button>
+                <button
+                  onClick={() => sortProductsAlphabetically(displayedProductIds)}
+                  disabled={!canEdit || isAlphabeticallySorted}
+                  className="rounded-[16px] border border-[#D8AE77] bg-[#FFFDF8] px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-[#6A432D] shadow-sm transition hover:bg-white disabled:opacity-50"
+                >
+                  Trier A→Z
                 </button>
                 <button
                   onClick={addNewProduct}

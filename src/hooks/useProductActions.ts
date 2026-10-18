@@ -3,7 +3,7 @@ import { ProductWithHistory } from '../data';
 import { SupplierId } from '../constants';
 import { OrderLineField } from '../types';
 import { getSupplierIdForResetView, getSupplierIdForView } from './appStateHelpers';
-import { reorderVisibleItems } from '../utils/productOrder';
+import { reorderVisibleItems, sortVisibleItemsAlphabetically } from '../utils/productOrder';
 
 type Setter<T> = Dispatch<SetStateAction<T>>;
 
@@ -96,6 +96,10 @@ export const useProductActions = ({
     setProducts(prev => reorderVisibleItems(prev, visibleIds, draggedId, targetId));
   }, [setProducts]);
 
+  const sortProductsAlphabetically = useCallback((visibleIds: string[]) => {
+    setProducts(prev => sortVisibleItemsAlphabetically(prev, visibleIds));
+  }, [setProducts]);
+
   const jumpProductTo = useCallback((id: string, pos: number) => {
     setProducts((prev) => {
       const idx = prev.findIndex((p) => p.id === id);
@@ -164,6 +168,7 @@ export const useProductActions = ({
     deleteSelectedProducts,
     toggleProductSelection,
     reorderProducts,
+    sortProductsAlphabetically,
     handleNameChange,
     updateSearchName,
     updateImportDivisor,

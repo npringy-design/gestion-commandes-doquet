@@ -646,6 +646,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     deleteSelectedProducts: deleteSelectedProductsBase,
     toggleProductSelection,
     reorderProducts,
+    sortProductsAlphabetically,
     handleNameChange,
     updateSearchName,
     updateImportDivisor,
@@ -739,6 +740,7 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     deleteSelectedProducts,
     toggleProductSelection,
     reorderProducts,
+    sortProductsAlphabetically,
     handleNameChange,
   };
 };
