@@ -210,7 +210,7 @@ const ProductCard: React.FC<{
           className="h-5 w-5 shrink-0 cursor-pointer accent-[#C86F24]"
         />
         <input
-          className={`min-w-0 flex-1 rounded-xl border bg-[#FFFDF8] px-3 py-2 text-sm font-black italic outline-none ${stateStyle.input}`}
+          className={`min-w-0 flex-1 rounded-xl border bg-[#FFFDF8] px-3 py-2 text-sm font-black italic outline-none disabled:pointer-events-none ${stateStyle.input}`}
           value={displaySearchName}
           placeholder="Nom produit dans l'import..."
           onChange={e => updateSearchName(p.id, e.target.value)}
@@ -226,7 +226,7 @@ const ProductCard: React.FC<{
               setMappingAnchorRect(nextOpen ? mappingButtonRef.current?.getBoundingClientRect() ?? null : null);
             }}
             disabled={!canEdit || isFrozenDisplay}
-            className={`flex h-9 w-9 items-center justify-center rounded-full ${stateStyle.dot} text-white shadow-sm transition hover:opacity-90 disabled:opacity-50`}
+            className={`flex h-9 w-9 items-center justify-center rounded-full ${stateStyle.dot} text-white shadow-sm transition hover:opacity-90 disabled:pointer-events-none disabled:opacity-50`}
             title={stateStyle.title}
           >
             <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
