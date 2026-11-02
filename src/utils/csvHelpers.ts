@@ -150,6 +150,13 @@ export const getImportedValueForProduct = (
     return roundImportedValue(exactTotal);
   }
 
+  // La recherche approchée peut franchir le seuil de confiance pour plusieurs
+  // lignes à la fois (ex: plusieurs parfums d'une même gamme ne différant que
+  // par un mot). Sommer des lignes qui désignent des produits différents
+  // donnerait un total faux : on ne somme que si toutes les lignes retenues
+  // partagent le même libellé normalisé, sinon on considère le résultat
+  // ambigu (liaison manuelle requise).
+  const matchedNames = new Set<string>();
   let hasMatch = false;
   const total = dataRows.reduce((sum, row) => {
     const rowName = nameIdx >= 0 ? String(row[nameIdx] || '') : '';
@@ -160,10 +167,12 @@ export const getImportedValueForProduct = (
     if (!isMatch || !row[valueIdx]) return sum;
 
     hasMatch = true;
+    if (nameIdx >= 0) matchedNames.add(normalizeExactText(rowName));
     return sum + parseNumber(row[valueIdx]);
   }, 0);
 
   if (!hasMatch) return null;
+  if (matchedNames.size > 1) return null;
 
   const div = importDivisor === '' || importDivisor === undefined ? 0 : Number(importDivisor);
   if (div && div > 0) return Math.ceil(total / div);
