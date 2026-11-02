@@ -519,11 +519,19 @@ useState<Record<string, SupplierConfig>>(() => mergeSupplierConfigsWithDefaults(
     month: string,
     importNamesForMonthList: string[],
   ): ProductWithHistory => {
-    const importedValue = getImportedValueForProduct(detailedInventory[month], product.searchName, product.importDivisor);
+    const csvDataForMonth = detailedInventory[month];
+    const importedValue = getImportedValueForProduct(csvDataForMonth, product.searchName, product.importDivisor);
     const previousSnapshot = getRatioSnapshot(product, month);
+    // Un CSV est chargé pour ce mois mais aucune correspondance fiable n'a
+    // été trouvée (absence de ligne, ou correspondance ambiguë entre
+    // plusieurs produits différents) : on ne doit pas reprendre un ancien
+    // snapshot/salesHistory potentiellement faux, mais figer 0 (non lié).
+    // Le repli sur l'historique ne vaut que quand ce mois n'a pas de CSV du
+    // tout (toggle de figeage sans réimport).
     const salesValue = roundRatioImportedValue(importedValue)
-      ?? previousSnapshot?.salesValue
-      ?? Number(product.salesHistory[month] || 0);
+      ?? (csvDataForMonth
+        ? 0
+        : (previousSnapshot?.salesValue ?? Number(product.salesHistory[month] || 0)));
     const supplierId = String(product.supplierId || 'doquet');
     const supplierConfig = supplierConfigs[supplierId];
     const denom = supplierConfig?.includeLimonadeForecast
