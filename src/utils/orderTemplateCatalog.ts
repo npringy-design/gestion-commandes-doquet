@@ -15,10 +15,11 @@ export const normalizeTemplateProductKey = (supplierId: string, name: string) =>
 );
 
 // Extrait le premier nombre trouvé dans l'unité de conditionnement
-// (ex: "carton x 24" -> 24), 1 par défaut si aucun nombre n'est présent.
+// (ex: "carton x 24" -> 24, "colis x 2.8" / "colis x 2,8" -> 2.8),
+// 1 par défaut si aucun nombre n'est présent.
 export const parseTemplatePackagingQuantity = (packagingUnit: string): number => {
-  const match = packagingUnit.match(/(\d+)/);
-  return match ? parseInt(match[1], 10) : 1;
+  const match = packagingUnit.match(/(\d+(?:[.,]\d+)?)/);
+  return match ? parseFloat(match[1].replace(',', '.')) : 1;
 };
 
 export const buildTemplateRowsFromProducts = (
