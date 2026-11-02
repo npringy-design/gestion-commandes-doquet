@@ -12,24 +12,32 @@ import {
   type OrderAnomaly,
 } from '../utils/orderAnomalies';
 
-const ORDER_HEADER_MARKER = 'À Cmd';
-
-const isOrderTable = (table: HTMLTableElement): boolean =>
-  Array.from(table.querySelectorAll('th')).some(header =>
-    (header.textContent ?? '').replace(/\s+/g, ' ').includes(ORDER_HEADER_MARKER)
-  );
-
-const findOrderProductCells = (): HTMLElement[] => {
-  const table = Array.from(document.querySelectorAll<HTMLTableElement>('table')).find(isOrderTable);
-  if (!table) return [];
-
-  return Array.from(table.querySelectorAll<HTMLTableRowElement>('tbody tr'))
-    .map(row => row.querySelector<HTMLElement>('td'))
-    .filter((cell): cell is HTMLElement => Boolean(cell));
+// Chaque produit a plusieurs <tr> dans le même tbody (ligne nom mobile,
+// ligne champs mobile, ligne desktop) basculées en CSS selon le breakpoint,
+// mais toutes présentes dans le DOM en même temps. Un ciblage positionnel
+// (n-ième <tr>) désynchronise donc rapidement l'alerte du bon produit.
+// On cible ici directement les cellules marquées par produit.
+const findOrderProductCellsByProductId = (): Map<string, HTMLElement[]> => {
+  const result = new Map<string, HTMLElement[]>();
+  document.querySelectorAll<HTMLElement>('[data-order-product-cell]').forEach(cell => {
+    const productId = cell.dataset.orderProductCell;
+    if (!productId) return;
+    const cells = result.get(productId) ?? [];
+    cells.push(cell);
+    result.set(productId, cells);
+  });
+  return result;
 };
 
-const sameElements = (left: HTMLElement[], right: HTMLElement[]): boolean =>
-  left.length === right.length && left.every((element, index) => element === right[index]);
+const sameCellMap = (left: Map<string, HTMLElement[]>, right: Map<string, HTMLElement[]>): boolean => {
+  if (left.size !== right.size) return false;
+  for (const [productId, cells] of left) {
+    const otherCells = right.get(productId);
+    if (!otherCells || otherCells.length !== cells.length) return false;
+    if (cells.some((cell, index) => cell !== otherCells[index])) return false;
+  }
+  return true;
+};
 
 type ProductWithRatioSnapshots = {
   ratioSnapshots?: Record<string, { isLinked?: boolean }>;
@@ -123,7 +131,7 @@ interface OrderAnomalyGuardProps {
 }
 
 const OrderAnomalyGuard: React.FC<OrderAnomalyGuardProps> = ({ state }) => {
-  const [productCells, setProductCells] = React.useState<HTMLElement[]>([]);
+  const [productCellsByProductId, setProductCellsByProductId] = React.useState<Map<string, HTMLElement[]>>(new Map());
   const supplierId = state.view;
   const isSupplierView = !RESERVED_VIEWS.has(supplierId as never);
   const displayedProducts = React.useMemo(
@@ -139,8 +147,8 @@ const OrderAnomalyGuard: React.FC<OrderAnomalyGuardProps> = ({ state }) => {
       if (frameId !== null) cancelAnimationFrame(frameId);
       frameId = requestAnimationFrame(() => {
         frameId = null;
-        const nextCells = isSupplierView ? findOrderProductCells() : [];
-        setProductCells(previous => sameElements(previous, nextCells) ? previous : nextCells);
+        const nextCells = isSupplierView ? findOrderProductCellsByProductId() : new Map<string, HTMLElement[]>();
+        setProductCellsByProductId(previous => sameCellMap(previous, nextCells) ? previous : nextCells);
       });
     };
 
@@ -259,16 +267,16 @@ const OrderAnomalyGuard: React.FC<OrderAnomalyGuardProps> = ({ state }) => {
 
   return (
     <>
-      {displayedProducts.map((product, index) => {
-        const cell = productCells[index];
+      {displayedProducts.flatMap(product => {
+        const cells = productCellsByProductId.get(product.id);
         const anomalies = anomaliesByProductId.get(product.id);
-        if (!cell || !anomalies?.length) return null;
+        if (!cells?.length || !anomalies?.length) return [];
 
-        return createPortal(
+        return cells.map((cell, cellIndex) => createPortal(
           <OrderAnomalyIndicator productName={product.name || 'Article sans nom'} anomalies={anomalies} />,
           cell,
-          `order-anomaly-${product.id}`
-        );
+          `order-anomaly-${product.id}-${cellIndex}`
+        ));
       })}
     </>
   );

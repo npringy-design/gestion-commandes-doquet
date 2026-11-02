@@ -662,7 +662,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
 
                     {/* ══ MOBILE — ligne nom produit ══ */}
                     <tr className="lg:hidden border-t-2 border-amber-200/50">
-                      <td colSpan={5} className="px-3 py-2 bg-amber-50 font-['Roboto_Slab'] font-bold text-slate-800 text-xs">
+                      <td data-order-product-cell={p.id} className="px-3 py-2 bg-amber-50 font-['Roboto_Slab'] font-bold text-slate-800 text-xs relative" colSpan={5}>
                         {capitalizeFirstLetter(p.name)}
                         {p.storageUnit && (
                           <span className="ml-1.5 text-[10px] font-semibold text-gray-400">{p.storageUnit}</span>
@@ -713,7 +713,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                     <tr className="hidden lg:table-row hover:bg-amber-50/40 transition-colors border-t-2 border-slate-200">
 
                       {/* Nom produit — sticky gauche */}
-                      <td className="px-6 py-3 font-['Roboto_Slab'] font-bold text-slate-800 text-sm border-r-2 border-slate-100 bg-white overflow-hidden"
+                      <td data-order-product-cell={p.id} className="px-6 py-3 font-['Roboto_Slab'] font-bold text-slate-800 text-sm border-r-2 border-slate-100 bg-white overflow-hidden"
                           style={{ position: 'sticky', left: 0, zIndex: 10 }}>
                         <span className="block truncate">{capitalizeFirstLetter(p.name)}</span>
                         {p.storageUnit && (
