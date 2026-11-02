@@ -320,6 +320,10 @@ const detectHeaderBounds = (words: ExtractedWord[]): ColumnBounds | null => {
 // réparti sur plusieurs lignes (wrap des libellés "Unité de Stock", etc.).
 const HEADER_WINDOW_MAX_LINES = 6;
 
+// Nombre maximal de lignes "en-tête" isolées précédentes à rattacher (ex :
+// "Code" séparé par l'OCR du reste de la ligne d'en-tête).
+const HEADER_LEADING_MAX_LINES = 4;
+
 // Vocabulaire strictement composé de libellés d'en-tête (colonnes Code/
 // Articles/Stock Tampon/Unité de Stock/Conditionnement + sous-colonnes
 // "A commander" répétées : Date/Stock/Cde.). Sert à absorber les lignes
@@ -381,8 +385,20 @@ export const extractRowsFromPageWords = (
     // une piste sérieuse (le mot "Articles"), pour éviter de déclencher une
     // fausse détection sur une ligne de données quelconque.
     if (lineJoined.includes('article')) {
+      // L'OCR peut isoler le mot "Code" dans un bloc distinct de celui des
+      // libellés "Articles / Stock / Unité", bien qu'il soit sur la même
+      // ligne visuelle d'en-tête : on inclut aussi les lignes précédentes
+      // purement "en-tête" (ex: "Code" isolé) dans la fenêtre de détection.
+      let leadStart = i;
+      while (
+        leadStart > 0 &&
+        i - leadStart < HEADER_LEADING_MAX_LINES &&
+        isHeaderLikeLine(lines[leadStart - 1])
+      ) {
+        leadStart -= 1;
+      }
       for (let windowSize = 1; windowSize <= HEADER_WINDOW_MAX_LINES && i + windowSize <= lines.length; windowSize++) {
-        const merged = lines.slice(i, i + windowSize).flat();
+        const merged = lines.slice(leadStart, i + windowSize).flat();
         const candidate = detectHeaderBounds(merged);
         if (candidate) {
           headerBounds = candidate;
