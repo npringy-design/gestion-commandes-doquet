@@ -1,12 +1,20 @@
 import type { ProductWithHistory } from '../data';
 import type { OrderTemplateRow, SupplierConfig } from '../types';
 
+// Ordre d'affichage choisi dans Paramètres fournisseurs (displayOrder) en
+// priorité ; les fournisseurs sans ordre défini (nouveaux, ou migrés avant
+// l'ajout de ce champ) sont placés après, triés par nom.
 export const getOrderTemplateSupplierOptions = (
   supplierConfigs: Record<string, SupplierConfig>,
 ): SupplierConfig[] => Object.entries(supplierConfigs)
   .map(([supplierId, config]) => ({ ...config, id: config.id || supplierId }))
   .filter(config => !config.isArchived)
-  .sort((left, right) => left.name.localeCompare(right.name, 'fr', { sensitivity: 'base' }));
+  .sort((left, right) => {
+    const leftOrder = left.displayOrder ?? Number.MAX_SAFE_INTEGER;
+    const rightOrder = right.displayOrder ?? Number.MAX_SAFE_INTEGER;
+    if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+    return left.name.localeCompare(right.name, 'fr', { sensitivity: 'base' });
+  });
 
 export const normalizeTemplateProductName = (name: string) => name.replace(/\s+/g, ' ').trim();
 

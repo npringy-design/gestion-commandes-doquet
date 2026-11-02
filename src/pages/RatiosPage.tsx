@@ -15,6 +15,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { canEditRatios } from '../lib/permissions';
 import { getImportedValueForProduct } from '../utils/csvHelpers';
 import { sortVisibleItemsAlphabetically } from '../utils/productOrder';
+import { getOrderTemplateSupplierOptions } from '../utils/orderTemplateCatalog';
 
 type AppState = ReturnType<typeof useAppState>;
 
@@ -365,8 +366,7 @@ const RatiosPage: React.FC<RatiosPageProps> = ({
     sortProductsAlphabetically,
   } = state;
 
-  const supplierTabs: { id: SupplierId; label: string }[] = Object.values(supplierConfigs)
-    .filter((config: SupplierConfig) => !config.isArchived)
+  const supplierTabs: { id: SupplierId; label: string }[] = getOrderTemplateSupplierOptions(supplierConfigs)
     .map((config: SupplierConfig) => ({ id: config.id, label: config.name }));
 
   const safeRatioTab = supplierTabs.some(tab => tab.id === ratioTab)

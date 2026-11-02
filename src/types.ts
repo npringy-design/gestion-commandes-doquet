@@ -84,6 +84,7 @@ export interface SupplierConfig {
   isArchived?:      boolean;
   createdAt?:       string;
   includeLimonadeForecast?: boolean;
+  displayOrder?:    number;         // Ordre d'affichage choisi dans Paramètres fournisseurs
 }
 
 

@@ -8,6 +8,7 @@ import { View } from '../constants';
 import AppNavTile from '../components/AppNavTile';
 import { SupplierConfig } from '../types';
 import { getSupplierVisual } from '../lib/supplierVisuals';
+import { getOrderTemplateSupplierOptions } from '../utils/orderTemplateCatalog';
 
 interface SuppliersPageProps {
   setView: (v: View) => void;
@@ -15,8 +16,7 @@ interface SuppliersPageProps {
 }
 
 const SuppliersPage: React.FC<SuppliersPageProps> = ({ setView, supplierConfigs }) => {
-  const cards = (Object.values(supplierConfigs) as import('../types').SupplierConfig[])
-    .filter(card => !card.isArchived)
+  const cards = getOrderTemplateSupplierOptions(supplierConfigs)
     .map(card => ({
       view: card.id as View,
       name: card.name,

@@ -8,6 +8,7 @@ import { View, DAYS_OF_WEEK, slugifySupplierId } from '../constants';
 import AppNavTile from '../components/AppNavTile';
 import { SupplierConfig, DeliveryRule } from '../types';
 import { SUPPLIER_VISUAL_PRESETS, getSupplierVisual, DEFAULT_SUPPLIER_VISUAL_KEY } from '../lib/supplierVisuals';
+import { getOrderTemplateSupplierOptions } from '../utils/orderTemplateCatalog';
 
 interface SupplierSettingsPageProps {
   setView:    (v: View) => void;
@@ -95,7 +96,7 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
   const [formError, setFormError] = React.useState('');
 
   const visibleConfigs = React.useMemo(
-    () => (Object.values(configs) as import('../types').SupplierConfig[]).filter((config) => !config.isArchived),
+    () => getOrderTemplateSupplierOptions(configs),
     [configs],
   );
 
@@ -106,6 +107,24 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
 
   const updateSupplier = (supplierId: string, patch: Partial<SupplierConfig>) => {
     setConfigs(prev => ({ ...prev, [supplierId]: { ...prev[supplierId], ...patch } }));
+  };
+
+  // Déplace un fournisseur d'un rang dans l'ordre d'affichage et renumérote
+  // tous les fournisseurs visibles (0..n-1) pour fixer un ordre explicite,
+  // y compris ceux qui n'en avaient pas encore (tri par nom jusqu'ici).
+  const moveSupplier = (supplierId: string, direction: -1 | 1) => {
+    const index = visibleConfigs.findIndex((config) => config.id === supplierId);
+    const targetIndex = index + direction;
+    if (index === -1 || targetIndex < 0 || targetIndex >= visibleConfigs.length) return;
+    const reordered = [...visibleConfigs];
+    [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
+    setConfigs((prev) => {
+      const next = { ...prev };
+      reordered.forEach((supplier, i) => {
+        next[supplier.id] = { ...next[supplier.id], displayOrder: i };
+      });
+      return next;
+    });
   };
 
   const toggleSupplierGallery = (supplierId: string) => {
@@ -368,12 +387,39 @@ const SupplierSettingsPage: React.FC<SupplierSettingsPageProps> = ({
         </div>
 
         <div className="space-y-6">
-          {visibleConfigs.map((config: SupplierConfig) => {
+          {visibleConfigs.map((config: SupplierConfig, index: number) => {
             const rules = getRules(config);
             const visual = getSupplierVisual(config.visualKey);
             const galleryOpen = Boolean(openSupplierGalleries[config.id]);
             return (
               <div key={config.id} className="bg-white/5 border border-white/10 p-4 sm:p-6 lg:p-8 rounded-[40px]">
+                <div className="flex items-center justify-end gap-2 mb-4">
+                  <span className="text-white/40 text-[10px] font-black uppercase tracking-widest mr-auto">Ordre d'affichage</span>
+                  <button
+                    type="button"
+                    onClick={() => moveSupplier(config.id, -1)}
+                    disabled={index === 0}
+                    title="Monter"
+                    aria-label="Monter"
+                    className="w-9 h-9 rounded-xl bg-white/10 text-white flex items-center justify-center hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" d="M5 15l7-7 7 7"/>
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveSupplier(config.id, 1)}
+                    disabled={index === visibleConfigs.length - 1}
+                    title="Descendre"
+                    aria-label="Descendre"
+                    className="w-9 h-9 rounded-xl bg-white/10 text-white flex items-center justify-center hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                  </button>
+                </div>
                 <div className="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)] gap-6 xl:gap-8">
                   <div>
                     <div
