@@ -122,24 +122,27 @@ const ROTATION_CANDIDATES: RotationDegrees[] = [0, 90, 180, 270];
 const OCR_RENDER_SCALE = 3;
 const LANDSCAPE_USEFUL_TABLE_WIDTH_RATIO = 0.48;
 
+// Sur un tableau pivoté dans une page portrait, la confiance OCR entre la
+// bonne orientation et une orientation voisine peut être très proche (quelques
+// points d'écart) : on garde donc aussi la 2e meilleure rotation, utilisée en
+// repli si l'en-tête du tableau reste introuvable avec la rotation retenue.
 const detectBestRotation = async (
   worker: any,
   canvas: HTMLCanvasElement,
   signal?: AbortSignal,
-): Promise<RotationDegrees> => {
-  let best: { degrees: RotationDegrees; confidence: number } = { degrees: 0, confidence: -1 };
+): Promise<{ rotationDegrees: RotationDegrees; alternateRotationDegrees: RotationDegrees }> => {
+  const scored: { degrees: RotationDegrees; confidence: number }[] = [];
 
   for (const degrees of ROTATION_CANDIDATES) {
     throwIfImportAborted(signal);
     const candidate = rotateCanvas(canvas, degrees);
     const { data } = await worker.recognize(candidate, {}, {});
     throwIfImportAborted(signal);
-    if (data.confidence > best.confidence) {
-      best = { degrees, confidence: data.confidence };
-    }
+    scored.push({ degrees, confidence: data.confidence });
   }
 
-  return best.degrees;
+  const [bestEntry, runnerUpEntry] = [...scored].sort((a, b) => b.confidence - a.confidence);
+  return { rotationDegrees: bestEntry.degrees, alternateRotationDegrees: runnerUpEntry.degrees };
 };
 
 const cropCanvas = (source: HTMLCanvasElement, crop: { x: number; y: number; width: number; height: number }): HTMLCanvasElement => {
@@ -407,6 +410,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
 
     const pagesWords: ExtractedWord[][] = [];
     let rotationDegrees: RotationDegrees = forcedRotation ?? 0;
+    let alternateRotationDegrees: RotationDegrees | undefined;
     let terminated = false;
     const terminateWorker = async () => {
       if (terminated) return;
@@ -436,8 +440,10 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
 
         if (pageNum === 1 && forcedRotation === undefined) {
           setStatusLabel('Détection de l’orientation du document…');
-          rotationDegrees = await detectBestRotation(worker, canvas, signal);
-          console.info(`[OrderTemplatePage] Rotation détectée : ${rotationDegrees}°`);
+          const detected = await detectBestRotation(worker, canvas, signal);
+          rotationDegrees = detected.rotationDegrees;
+          alternateRotationDegrees = detected.alternateRotationDegrees;
+          console.info(`[OrderTemplatePage] Rotation détectée : ${rotationDegrees}° (alternative : ${alternateRotationDegrees}°)`);
           setStatusLabel(`OCR automatique — page ${pageNum}/${pdf.numPages}`);
         }
 
@@ -475,7 +481,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
       await terminateWorker().catch(() => undefined);
     }
 
-    return { pagesWords, rotationDegrees };
+    return { pagesWords, rotationDegrees, alternateRotationDegrees };
   }, []);
 
   const handleFile = useCallback(async (file: File) => {
@@ -533,7 +539,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
           setStep('ocr');
           attemptedOcr = true;
           const automaticOcr = await extractViaOcr(pdf, controller.signal, 'auto');
-          const ocrPagesWords = automaticOcr.pagesWords;
+          let ocrPagesWords = automaticOcr.pagesWords;
           let ocrExtraction = extractRowsFromDocumentWords(ocrPagesWords);
 
           // Un PDF-image ou une première lecture encore incertaine bénéficie
@@ -557,6 +563,32 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
               incomplete: structuredExtraction.incompleteCodeCount,
               suspicious: structuredExtraction.suspiciousRowCount,
             });
+          }
+
+          // Sur ce type de document (tableau pivoté dans une page portrait),
+          // la rotation retenue et sa concurrente la plus proche ont parfois
+          // une confiance OCR très voisine. Si l'en-tête reste introuvable
+          // malgré la segmentation structurée ci-dessus, on retente une fois
+          // avec la rotation alternative avant d'abandonner.
+          if (!ocrExtraction.headerFound && automaticOcr.alternateRotationDegrees !== undefined) {
+            console.info('[OrderTemplatePage] En-tête introuvable, nouvel essai avec la rotation alternative :', automaticOcr.alternateRotationDegrees);
+            const alternateOcr = await extractViaOcr(
+              pdf,
+              controller.signal,
+              'auto',
+              automaticOcr.alternateRotationDegrees,
+            );
+            const alternateExtraction = extractRowsFromDocumentWords(alternateOcr.pagesWords);
+            console.info('[OrderTemplatePage] Qualité OCR rotation alternative :', {
+              score: scoreTemplateExtraction(alternateExtraction),
+              codes: alternateExtraction.codeCount,
+              rows: alternateExtraction.rows.length,
+              headerFound: alternateExtraction.headerFound,
+            });
+            if (alternateExtraction.headerFound) {
+              ocrPagesWords = alternateOcr.pagesWords;
+              ocrExtraction = alternateExtraction;
+            }
           }
           maximumDetectedCodeCount = Math.max(maximumDetectedCodeCount, ocrExtraction.codeCount);
           console.info('[OrderTemplatePage] Qualité OCR :', {
