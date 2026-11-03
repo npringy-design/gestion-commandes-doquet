@@ -23,6 +23,8 @@ export interface ExtractedWord {
   yTop: number;
   height?: number;
   lineId?: string;
+  // Confiance OCR du mot (0-100), absente pour le texte natif.
+  confidence?: number;
 }
 
 export interface ParsedTemplateRow {
@@ -97,7 +99,7 @@ const isPlausibleUnitFragment = (text: string): boolean => {
 };
 
 const UNIT_KEYWORD_PATTERN =
-  /\b(au|aux|a|l|unite|piece|pieces|kg|g|gr|ml|cl|l|litre|litres|bac|carton|colis|sachet|sac|boite|pot|seau|barquette|poche|bidon|bouteille|portion|plaquette|plaque|brique|bombe|pack|lot)\b/;
+  /\b(au|aux|a|l|unite|piece|pieces|kg|g|gr|ml|cl|l|litre|litres|bac|carton|colis|sachet|sac|boite|pot|seau|barquette|poche|bidon|bouteille|flacon|bocal|paquet|plateau|tube|gourde|tranche|portion|plaquette|plaque|brique|bombe|pack|lot)\b/;
 
 const isPlausibleUnitValue = (text: string): boolean => {
   const normalized = normalize(text)
@@ -193,10 +195,64 @@ const inferStorageUnitFromArticle = (article: string): string => {
 const isUnambiguousStorageOnlyValue = (value: string): boolean =>
   /^(?:au\s+kg|au\s+l|a\s+l\s+unite|a\s+lunite)$/i.test(normalizeLooseUnitText(value));
 
+const KNOWN_UNIT_WORDS = [
+  'bouteille', 'barquette', 'carton', 'sachet', 'flacon', 'bidon', 'paquet',
+  'plateau', 'brique', 'boite', 'bocal', 'seau', 'poche', 'plaque', 'tranche',
+  'gourde', 'pièce', 'colis',
+];
+
+const editDistance = (a: string, b: string): number => {
+  const previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= a.length; i += 1) {
+    let diagonal = previous[0];
+    previous[0] = i;
+    for (let j = 1; j <= b.length; j += 1) {
+      const above = previous[j];
+      previous[j] = Math.min(
+        previous[j] + 1,
+        previous[j - 1] + 1,
+        diagonal + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+      diagonal = above;
+    }
+  }
+  return previous[b.length];
+};
+
+// Une unité d'un seul mot, presque identique à une unité connue (« boutellle »),
+// est une erreur de reconnaissance : on la ramène à l'unité connue. Les mots
+// courts (< 5 lettres) sont exclus pour ne jamais deviner une unité ambiguë.
+const snapUnitToKnownWord = (value: string): string => {
+  const loose = normalizeLooseUnitText(value);
+  if (!loose || loose.includes(' ') || loose.length < 5) return value;
+  const known = KNOWN_UNIT_WORDS.map((word) => normalizeLooseUnitText(word));
+  if (known.includes(loose)) return value;
+  const index = known.findIndex((word) => word.length >= 5 && editDistance(loose, word) === 1);
+  return index >= 0 ? KNOWN_UNIT_WORDS[index] : value;
+};
+
+// Une ligne OCR dont la confiance moyenne est très basse est un fragment
+// illisible (« sosie de pou pren nue ») : l'importer pollue le libellé voisin.
+const LOW_CONFIDENCE_LINE_THRESHOLD = 45;
+
+export const dropLowConfidenceOcrLines = (words: ExtractedWord[]): ExtractedWord[] => {
+  const lines = new Map<string, ExtractedWord[]>();
+  words.forEach((word) => {
+    if (word.lineId === undefined || word.confidence === undefined) return;
+    lines.set(word.lineId, [...(lines.get(word.lineId) ?? []), word]);
+  });
+  return words.filter((word) => {
+    const line = word.lineId === undefined ? undefined : lines.get(word.lineId);
+    if (!line || line.length < 2) return true;
+    const mean = line.reduce((total, item) => total + (item.confidence ?? 0), 0) / line.length;
+    return mean >= LOW_CONFIDENCE_LINE_THRESHOLD;
+  });
+};
+
 const repairParsedRow = (row: ParsedTemplateRow): ParsedTemplateRow => {
   const article = cleanImportedArticleText(row.article);
-  let storageUnit = cleanImportedStorageUnit(row.storageUnit);
-  let packagingUnit = cleanImportedPackagingUnit(row.packagingUnit);
+  let storageUnit = snapUnitToKnownWord(cleanImportedStorageUnit(row.storageUnit));
+  let packagingUnit = snapUnitToKnownWord(cleanImportedPackagingUnit(row.packagingUnit));
 
   if (!storageUnit && isUnambiguousStorageOnlyValue(packagingUnit)) {
     storageUnit = cleanImportedStorageUnit(packagingUnit);
@@ -782,7 +838,9 @@ export const mergeOcrExtractions = (
       !primaryCodes.has(row.sourceCode) &&
       !hasEquivalentArticle(rows, row.article)
     ) {
-      rows.push(repairParsedRow(row));
+      // Un fragment douteux sans correspondance n'est pas une vraie ligne.
+      const repaired = repairParsedRow(row);
+      if (!isSuspiciousParsedRow(repaired)) rows.push(repaired);
     }
   });
 
@@ -850,7 +908,8 @@ export const mergeTemplateExtractions = (
       !nativeCodes.has(ocrRow.sourceCode) &&
       !hasEquivalentArticle(rows, ocrRow.article)
     ) {
-      rows.push(repairParsedRow(ocrRow));
+      const repaired = repairParsedRow(ocrRow);
+      if (!isSuspiciousParsedRow(repaired)) rows.push(repaired);
     }
   });
 

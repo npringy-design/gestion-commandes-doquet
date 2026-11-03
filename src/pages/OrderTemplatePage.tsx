@@ -24,6 +24,7 @@ import {
   extractRowsFromDocumentWords,
   mergeOcrExtractions,
   mergeTemplateExtractions,
+  dropLowConfidenceOcrLines,
   separateUnreadableRows,
   scoreTemplateExtraction,
 } from '../utils/orderTemplateParser';
@@ -470,13 +471,14 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
                   yTop: word.bbox.y0,
                   height: Math.max(1, word.bbox.y1 - word.bbox.y0),
                   lineId,
+                  confidence: word.confidence,
                 });
               });
             });
           });
         });
 
-        pagesWords.push(words);
+        pagesWords.push(dropLowConfidenceOcrLines(words));
       }
     } finally {
       signal?.removeEventListener('abort', abortWorker);
@@ -648,7 +650,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
       const codeCount = Math.max(selectedCodeCount, maximumDetectedCodeCount);
       const incompleteCodeCount = Math.max(
         selectedIncompleteCodeCount,
-        Math.max(0, codeCount - parsedRows.length),
+        Math.max(0, codeCount - parsedRows.length - droppedRowCount),
       );
       const needsReview = selectedNeedsReview || incompleteCodeCount > 0;
       console.info('[OrderTemplatePage] En-tête détecté :', headerFound, pagesDebug, {

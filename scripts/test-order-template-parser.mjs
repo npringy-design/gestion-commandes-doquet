@@ -43,6 +43,7 @@ try {
     mergeTemplateExtractions,
     scoreTemplateExtraction,
     separateUnreadableRows,
+    dropLowConfidenceOcrLines,
   } = await import(pathToFileURL(compiledPath).href);
 
   const header = [
@@ -356,6 +357,30 @@ try {
   ], 2, 1));
   assert.deepEqual(separated.rows.map((row) => row.sourceCode), ['OK1']);
   assert.deepEqual(separated.droppedRows.map((row) => row.sourceCode), ['KO1']);
+
+  // 4. Lignes OCR très peu fiables écartées, unités quasi connues corrigées,
+  // fragments douteux sans correspondance jamais promus en ligne.
+  const confidenceWords = [
+    ...['sosie', 'de', 'pou'].map((text, i) => ({ text, x: i, yTop: 1, lineId: 'l1', confidence: 0 })),
+    ...['jus', 'de', 'veau'].map((text, i) => ({ text, x: i, yTop: 2, lineId: 'l2', confidence: 95 })),
+    { text: 'seul', x: 0, yTop: 3, lineId: 'l3', confidence: 10 },
+    { text: 'natif', x: 0, yTop: 4 },
+  ];
+  assert.deepEqual(
+    dropLowConfidenceOcrLines(confidenceWords).map((word) => word.text),
+    ['jus', 'de', 'veau', 'seul', 'natif'],
+    'Seules les lignes de plusieurs mots à faible confiance moyenne sont écartées',
+  );
+  const snapped = mergeOcrExtractions(
+    makeOcrResult([{ sourceCode: 'S1', article: 'Assaisonnement liquide bouteille 400 ml', storageUnit: 'au Kg', packagingUnit: 'boutellle' }], 1),
+    makeOcrResult([], 0),
+  );
+  assert.equal(snapped.rows[0].packagingUnit, 'bouteille', 'Une unité à une lettre près doit être ramenée à l’unité connue');
+  const fragmentOnly = mergeOcrExtractions(
+    makeOcrResult([{ sourceCode: 'A1', article: 'Beurre doux 250 g', storageUnit: 'au Kg', packagingUnit: 'carton x 6' }], 1),
+    makeOcrResult([{ sourceCode: 'F9', article: 'CNE AE 10500410', storageUnit: 'aa', packagingUnit: 'sem' }], 1),
+  );
+  assert.deepEqual(fragmentOnly.rows.map((row) => row.sourceCode), ['A1'], 'Un fragment douteux ne doit pas devenir une ligne');
 
   console.log('Parser trame commande OK : codes, bandes multilignes, fusion OCR, unités et qualité protégés.');
 } finally {
