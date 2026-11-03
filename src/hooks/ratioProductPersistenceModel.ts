@@ -37,12 +37,23 @@ const isProduct = (value: unknown): value is ProductWithHistory => {
   return typeof candidate.id === 'string' && typeof candidate.name === 'string';
 };
 
+export type GranularRatioReconstruction = {
+  products: ProductWithHistory[] | undefined;
+  // Produits présents en lignes granulaires mais absents de la liste d'ordre
+  // (sauvegarde partielle), recollés en fin de liste dans un ordre déterministe.
+  orphanIds: string[];
+};
+
+const compareOrphanProducts = (left: ProductWithHistory, right: ProductWithHistory): number =>
+  left.name.localeCompare(right.name, 'fr', { numeric: true })
+  || left.id.localeCompare(right.id, 'fr', { numeric: true });
+
 // Recompose la liste visible à partir de l'ancien blob (filet de migration),
 // des lignes granulaires plus récentes et de la petite liste d'ordre.
 // Une ligne granulaire gagne toujours sur sa copie historique.
-export const mergeGranularRatioProducts = (
+export const reconstructGranularRatioProducts = (
   values: Record<string, unknown>,
-): ProductWithHistory[] | undefined => {
+): GranularRatioReconstruction => {
   const legacyProducts = Array.isArray(values.products)
     ? values.products.filter(isProduct)
     : [];
@@ -77,7 +88,7 @@ export const mergeGranularRatioProducts = (
   const hasGranularOrder = Array.isArray(rawOrder);
 
   if (!hasGranularRows && !hasGranularOrder) {
-    return legacyProducts.length > 0 ? legacyProducts : undefined;
+    return { products: legacyProducts.length > 0 ? legacyProducts : undefined, orphanIds: [] };
   }
 
   const result: ProductWithHistory[] = [];
@@ -91,17 +102,42 @@ export const mergeGranularRatioProducts = (
   };
 
   order.forEach(append);
-  if (hasGranularOrder) {
-    // Une liste d'ordre écrite par la nouvelle version contient tous les
-    // produits actifs. On récupère seulement les lignes granulaires orphelines
-    // (sauvegarde partielle), sans ressusciter une copie historique supprimée.
-    granularIds.forEach(append);
-  } else {
-    legacyProducts.forEach(product => append(product.id));
-    granularIds.forEach(append);
-  }
+  if (!hasGranularOrder) legacyProducts.forEach(product => append(product.id));
 
-  return result;
+  // Une liste d'ordre écrite par la nouvelle version contient tous les produits
+  // actifs. Les lignes granulaires restantes sont orphelines (sauvegarde
+  // partielle) : on les recolle sans ressusciter une copie historique supprimée,
+  // triées par nom plutôt que dans l'ordre brut d'itération de l'objet.
+  const orphans: ProductWithHistory[] = [];
+  granularIds.forEach(id => {
+    if (added.has(id) || deletedIds.has(id)) return;
+    const product = byId.get(id);
+    if (product) orphans.push(product);
+  });
+  orphans.sort(compareOrphanProducts);
+  orphans.forEach(product => append(product.id));
+
+  return { products: result, orphanIds: hasGranularOrder ? orphans.map(product => product.id) : [] };
+};
+
+export const mergeGranularRatioProducts = (
+  values: Record<string, unknown>,
+): ProductWithHistory[] | undefined => reconstructGranularRatioProducts(values).products;
+
+// Rejoue la réécriture de la liste d'ordre tant qu'elle n'a pas pu être
+// enregistrée (hydratation encore en cours, chargement cloud non terminé).
+export const RATIO_ORDER_REPAIR_RETRY_DELAYS_MS = [700, 2000, 5000];
+
+export const runRatioOrderRepair = (
+  attempt: () => boolean,
+  schedule: (callback: () => void, delayMs: number) => unknown = (callback, delayMs) => setTimeout(callback, delayMs),
+  delaysMs: number[] = RATIO_ORDER_REPAIR_RETRY_DELAYS_MS,
+): void => {
+  const [delayMs, ...remainingDelays] = delaysMs;
+  if (delayMs === undefined) return;
+  schedule(() => {
+    if (!attempt()) runRatioOrderRepair(attempt, schedule, remainingDelays);
+  }, delayMs);
 };
 
 export const materializeGranularRatioProducts = (

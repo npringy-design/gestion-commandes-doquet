@@ -132,6 +132,7 @@ export const useCloudSync = ({
   const lastCloudUpdatedAtByKey = useRef<Record<string, string>>({});
   const localTsByKey = useRef<Record<string, string>>({});
   const lastPersistedSignatureByKey = useRef<Record<string, string>>({});
+  const repairRatioProductOrderRef = useRef<((order: string[]) => boolean) | null>(null);
 
   const {
     syncStatus,
@@ -208,6 +209,7 @@ export const useCloudSync = ({
     lastCloudUpdatedAtByKey,
     localTsByKey,
     lastPersistedSignatureByKey,
+    repairRatioProductOrderRef,
   });
 
   const {
@@ -285,6 +287,7 @@ export const useCloudSync = ({
     lastCloudUpdatedAtByKey,
     localTsByKey,
     lastPersistedSignatureByKey,
+    repairRatioProductOrderRef,
     markSaveStarted,
     markSaveConfirmed,
     markSavePending,

@@ -89,6 +89,56 @@ try {
   assert.match(persistenceSource, /persistAppState\(RATIO_PRODUCT_ORDER_KEY, currentOrder/,
     'Le glisser-déposer doit sauvegarder seulement la petite liste d’ordre');
 
+  // Orphelins : recollés triés par nom (et non selon l'ordre brut des clés),
+  // identiques quel que soit l'ordre d'insertion, et signalés pour réécriture.
+  const orphanZ = product('z', 'Zeste 10');
+  const orphanY = product('y', 'Zeste 2');
+  const orphanX = product('x', 'Amande');
+  const orphanValues = (keys) => Object.fromEntries([
+    [model.RATIO_PRODUCT_ORDER_KEY, ['a']],
+    ...keys.map(item => [model.getRatioProductStateKey(item.id), item]),
+  ]);
+  const firstRebuild = model.reconstructGranularRatioProducts(
+    orphanValues([legacyA, orphanZ, orphanY, orphanX]),
+  );
+  const secondRebuild = model.reconstructGranularRatioProducts(
+    orphanValues([orphanX, orphanY, legacyA, orphanZ]),
+  );
+  assert.deepEqual(firstRebuild.products.map(item => item.id), ['a', 'x', 'y', 'z'],
+    'Les orphelins doivent être triés par nom avec comparaison numérique après la liste d’ordre');
+  assert.deepEqual(secondRebuild.products.map(item => item.id), ['a', 'x', 'y', 'z'],
+    'L’ordre reconstitué ne doit pas dépendre de l’ordre d’itération des clés');
+  assert.deepEqual(firstRebuild.orphanIds, ['x', 'y', 'z'],
+    'Les orphelins recollés doivent être signalés pour réécrire la liste d’ordre');
+  assert.deepEqual(
+    model.reconstructGranularRatioProducts({
+      [model.RATIO_PRODUCT_ORDER_KEY]: ['a', 'x'],
+      [model.getRatioProductStateKey('a')]: legacyA,
+      [model.getRatioProductStateKey('x')]: orphanX,
+    }).orphanIds,
+    [],
+    'Aucun orphelin ne doit être signalé quand la liste d’ordre est complète',
+  );
+
+  // La réécriture de l'ordre est rejouée jusqu'à ce qu'elle soit possible.
+  const scheduled = [];
+  let attempts = 0;
+  model.runRatioOrderRepair(
+    () => { attempts += 1; return attempts >= 2; },
+    (callback, delayMs) => scheduled.push({ callback, delayMs }),
+    [10, 20, 30],
+  );
+  scheduled.shift().callback();
+  assert.equal(scheduled.length, 1, 'Une écriture impossible doit être retentée plus tard');
+  scheduled.shift().callback();
+  assert.equal(attempts, 2);
+  assert.equal(scheduled.length, 0, 'Plus aucune tentative après une écriture réussie');
+
+  const hydrationSource = readFileSync(join(root, 'src', 'hooks', 'useAppStateHydration.ts'), 'utf8');
+  assert.match(hydrationSource, /console\.info\(/, 'Les orphelins recollés doivent être visibles en console');
+  assert.match(persistenceSource, /persistAppState\(RATIO_PRODUCT_ORDER_KEY, order, 0\)/,
+    'La liste d’ordre reconstituée doit être réécrite sans délai');
+
   console.log('Persistance vente ratio OK : une ligne par produit, ordre séparé et ancien bloc compatible.');
 } finally {
   rmSync(tempDir, { recursive: true, force: true });

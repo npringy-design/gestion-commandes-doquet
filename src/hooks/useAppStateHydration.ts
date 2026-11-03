@@ -5,7 +5,11 @@ import {
   type AppStateCloudRow,
   type AppStateSetterRegistry,
 } from './appStateSyncModel';
-import { materializeGranularRatioProducts } from './ratioProductPersistenceModel';
+import {
+  RATIO_PRODUCT_ORDER_KEY,
+  reconstructGranularRatioProducts,
+  runRatioOrderRepair,
+} from './ratioProductPersistenceModel';
 
 type UseAppStateHydrationParams = {
   setters: AppStateSetterRegistry;
@@ -13,6 +17,9 @@ type UseAppStateHydrationParams = {
   lastCloudUpdatedAtByKey: MutableRefObject<Record<string, string>>;
   localTsByKey: MutableRefObject<Record<string, string>>;
   lastPersistedSignatureByKey: MutableRefObject<Record<string, string>>;
+  // Renseignée par la persistance : réécrit la liste d'ordre des produits ratio
+  // et retourne false tant que l'écriture n'est pas possible.
+  repairRatioProductOrderRef: MutableRefObject<((order: string[]) => boolean) | null>;
 };
 
 export const useAppStateHydration = ({
@@ -21,6 +28,7 @@ export const useAppStateHydration = ({
   lastCloudUpdatedAtByKey,
   localTsByKey,
   lastPersistedSignatureByKey,
+  repairRatioProductOrderRef,
 }: UseAppStateHydrationParams) => {
   const applyValues = useCallback((values: Record<string, unknown>, releaseDelayMs: number) => {
     if (Object.keys(values).length === 0) return [];
@@ -54,14 +62,26 @@ export const useAppStateHydration = ({
 
   const hydrateAppStateRows = useCallback((rows: AppStateCloudRow[] | null | undefined) => {
     const snapshot = buildAppStateSnapshot(rows, localTsByKey.current);
-    const values = materializeGranularRatioProducts(snapshot.values);
+    const { products, orphanIds } = reconstructGranularRatioProducts(snapshot.values);
+    const values = products ? { ...snapshot.values, products } : snapshot.values;
 
     Object.assign(lastCloudUpdatedAtByKey.current, snapshot.updatedAtByKey);
     Object.assign(lastPersistedSignatureByKey.current, snapshot.signaturesByKey);
     applyValues(values, 600);
 
+    if (products && orphanIds.length > 0) {
+      // L'ordre reconstitué est réécrit pour que la prochaine lecture ne retombe
+      // plus sur le même repositionnement des produits orphelins.
+      const order = products.map(product => product.id);
+      console.info(
+        `[Ratio] ${orphanIds.length} produit(s) orphelin(s) recollé(s), réécriture de ${RATIO_PRODUCT_ORDER_KEY}.`,
+        orphanIds,
+      );
+      runRatioOrderRepair(() => repairRatioProductOrderRef.current?.(order) ?? false);
+    }
+
     return values;
-  }, [applyValues, lastCloudUpdatedAtByKey, lastPersistedSignatureByKey, localTsByKey]);
+  }, [applyValues, lastCloudUpdatedAtByKey, lastPersistedSignatureByKey, localTsByKey, repairRatioProductOrderRef]);
 
   return {
     applyCloudAppStateValue,

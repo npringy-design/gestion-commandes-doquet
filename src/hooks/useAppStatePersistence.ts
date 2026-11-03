@@ -69,6 +69,7 @@ type UseAppStatePersistenceParams = PersistedAppState & {
   lastCloudUpdatedAtByKey: MutableRefObject<Record<string, string>>;
   localTsByKey: MutableRefObject<Record<string, string>>;
   lastPersistedSignatureByKey: MutableRefObject<Record<string, string>>;
+  repairRatioProductOrderRef: MutableRefObject<((order: string[]) => boolean) | null>;
   markSaveStarted: (id: string, ts: string) => void;
   markSaveConfirmed: NonNullable<ReliableSaveCallbacks['onSaved']>;
   markSavePending: NonNullable<ReliableSaveCallbacks['onPending']>;
@@ -108,6 +109,7 @@ export const useAppStatePersistence = ({
   lastCloudUpdatedAtByKey,
   localTsByKey,
   lastPersistedSignatureByKey,
+  repairRatioProductOrderRef,
   markSaveStarted,
   markSaveConfirmed,
   markSavePending,
@@ -175,6 +177,18 @@ export const useAppStatePersistence = ({
     markSaveStarted,
     supabaseLoaded,
   ]);
+
+  // Réécriture immédiate de la liste d'ordre des produits ratio après le
+  // recollage d'orphelins à l'hydratation. Impossible tant que l'hydratation ou
+  // le chargement cloud n'est pas terminé : l'appelant réessaie alors plus tard.
+  useEffect(() => {
+    repairRatioProductOrderRef.current = (order: string[]) => {
+      if (!supabaseLoaded || isHydratingFromCloud.current) return false;
+      persistAppState(RATIO_PRODUCT_ORDER_KEY, order, 0);
+      return true;
+    };
+    return () => { repairRatioProductOrderRef.current = null; };
+  }, [isHydratingFromCloud, persistAppState, repairRatioProductOrderRef, supabaseLoaded]);
 
   useEffect(() => { persistAppState('covers', covers); }, [covers, persistAppState]);
   useEffect(() => { persistAppState('limonadeCoversRealized', limonadeCoversRealized); }, [limonadeCoversRealized, persistAppState]);
