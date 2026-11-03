@@ -393,6 +393,23 @@ try {
   assert.equal(ordered.codeCount, 4);
   assert.equal(ordered.incompleteCodeCount, 0);
 
+  // 6. Codes à préfixe, unités « botte » / « filet » et lecture « Ke » de « Kg ».
+  const prefixedResult = extractRowsFromDocumentWords([[
+    ...header,
+    ...articleLine({ yTop: 100, code: '123872', article: 'Orange à jus filet 2 Kg', storageUnit: 'Ke', packagingUnit: 'filet' }),
+    ...articleLine({ yTop: 160, code: 'COJ-123217', article: 'Fruits de la passion colis 2 Kg', packagingUnit: 'colis' }),
+    ...articleLine({ yTop: 220, code: '153806', article: 'Cébette botte 300 G', packagingUnit: 'botte' }),
+  ]]);
+  assert.deepEqual(
+    prefixedResult.rows.map((row) => row.sourceCode),
+    ['123872', 'COJ-123217', '153806'],
+    'Un code à préfixe lettres + tiret doit ancrer sa ligne',
+  );
+  assert.equal(prefixedResult.rows[0].storageUnit, 'au Kg', '« Ke » est une lecture de « Kg »');
+  assert.equal(prefixedResult.rows[0].packagingUnit, 'filet', '« filet » est une unité valide');
+  assert.equal(prefixedResult.rows[2].packagingUnit, 'botte', '« botte » ne doit pas être corrigée en « boîte »');
+  assert.equal(prefixedResult.suspiciousRowCount, 0, 'Aucune de ces lignes ne doit être jugée illisible');
+
   console.log('Parser trame commande OK : codes, bandes multilignes, fusion OCR, unités et qualité protégés.');
 } finally {
   rmSync(tempDir, { recursive: true, force: true });

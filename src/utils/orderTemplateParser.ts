@@ -80,7 +80,8 @@ const COLUMN_MARGIN = 15;
 // Code+Articles, est traité comme la valeur de la colonne "Code". Une ligne
 // wrappée commençant par un grammage séparé (ex: "400 g PUIGRENIER") doit
 // toutefois rester une continuation de l'article, pas devenir un nouveau code.
-const CODE_VALUE_PATTERN = /^\d{3,}$/;
+// Code numérique, ou code précédé d'un préfixe lettres + tiret (« COJ-123217 »).
+const CODE_VALUE_PATTERN = /^(?:\d{3,}|[A-Za-z]{2,6}-\d{3,})$/;
 const ARTICLE_QUANTITY_VALUE_PATTERN = /^\d{1,4}(?:[.,]\d+)?$/;
 const ARTICLE_QUANTITY_UNIT_PATTERN = /^(?:g|gr|kg|ml|cl|l)$/i;
 
@@ -99,7 +100,7 @@ const isPlausibleUnitFragment = (text: string): boolean => {
 };
 
 const UNIT_KEYWORD_PATTERN =
-  /\b(au|aux|a|l|unite|piece|pieces|kg|g|gr|ml|cl|l|litre|litres|bac|carton|colis|sachet|sac|boite|pot|seau|barquette|poche|bidon|bouteille|flacon|bocal|paquet|plateau|tube|gourde|tranche|portion|plaquette|plaque|brique|bombe|pack|lot)\b/;
+  /\b(au|aux|a|l|unite|piece|pieces|kg|g|gr|ml|cl|l|litre|litres|bac|carton|colis|sachet|sac|boite|pot|seau|barquette|poche|bidon|bouteille|botte|filet|flacon|bocal|paquet|plateau|tube|gourde|tranche|portion|plaquette|plaque|brique|bombe|pack|lot)\b/;
 
 const isPlausibleUnitValue = (text: string): boolean => {
   const normalized = normalize(text)
@@ -138,7 +139,7 @@ const cleanImportedStorageUnit = (text: string): string => {
   if (/\btranche\b/.test(loose)) return 'tranche';
   if (/\bpieces?\b|\bpiece\b|\bpi\s*ce\b/.test(loose)) return 'pièce';
   if (/\bunite?\b|\bunit\b/.test(loose)) return "à l'unité";
-  if (/\bkg\b|\bka\b|\bfe\b|\bra\b/.test(loose)) return 'au Kg';
+  if (/\bkg\b|\bka\b|\bke\b|\bkq\b|\bfe\b|\bra\b/.test(loose)) return 'au Kg';
   if (/\bl\b/.test(loose)) return 'au L';
   if (/\bau\b|\baux\b/.test(loose) || loose === 'a') return 'au Kg';
 
@@ -198,7 +199,7 @@ const isUnambiguousStorageOnlyValue = (value: string): boolean =>
 const KNOWN_UNIT_WORDS = [
   'bouteille', 'barquette', 'carton', 'sachet', 'flacon', 'bidon', 'paquet',
   'plateau', 'brique', 'boite', 'bocal', 'seau', 'poche', 'plaque', 'tranche',
-  'gourde', 'pièce', 'colis',
+  'gourde', 'pièce', 'colis', 'botte', 'filet', 'cagette', 'caisse', 'panier',
 ];
 
 const editDistance = (a: string, b: string): number => {
