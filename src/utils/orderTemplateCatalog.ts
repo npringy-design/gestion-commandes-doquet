@@ -65,7 +65,9 @@ export const linkTemplateRowsToExistingProducts = (
 
 export type ProductUpdate = {
   id: string;
-  name: string;
+  // Absent : le nom affiché n'est plus resynchronisé depuis la trame une
+  // fois le produit créé (il reste modifiable librement, ex. depuis Ratios).
+  name?: string;
   storageUnit?: string;
   packagingUnit: string;
   packaging: number;
@@ -94,18 +96,17 @@ export const getLinkedTemplateProductUpdates = ({
     const existing = productsById.get(row.productId);
     if (!existing) return [];
 
-    const name = normalizeTemplateProductName(row.article) || existing.name;
+    // Le nom affiché n'est plus réécrit ici : une fois le produit créé, il
+    // reste modifiable sans que la trame ne le réécrase (ex. depuis Ratios).
     const storageUnit = row.storageUnit.trim() || undefined;
     const packagingUnit = row.packagingUnit.trim();
     const packaging = parseTemplatePackagingQuantity(packagingUnit);
-    const hasChanged = existing.name !== name
-      || (existing.storageUnit || '') !== (storageUnit || '')
+    const hasChanged = (existing.storageUnit || '') !== (storageUnit || '')
       || (existing.packagingUnit || '') !== packagingUnit
       || existing.packaging !== packaging;
 
     return hasChanged ? [{
       id: existing.id,
-      name,
       storageUnit,
       packagingUnit,
       packaging,
@@ -220,9 +221,11 @@ export const synchronizeOrderTemplateProducts = ({
       // créé lors d'un essai précédent mais encore masqué par les mois figés.
       // Elle doit alors le réactiver comme une création, sans ouvrir les autres.
       if (!explicitlyLinkedProduct) productIdsToOpen.add(existing.id);
+      // Nom affiché non réécrit pour un produit déjà existant (voir
+      // getLinkedTemplateProductUpdates) : seul un nouveau produit reçoit
+      // son nom depuis le texte de la trame (ci-dessous, dans `creations`).
       updates.push({
         id: existing.id,
-        name: article,
         storageUnit,
         packagingUnit,
         packaging,
