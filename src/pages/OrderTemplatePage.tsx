@@ -1,12 +1,12 @@
 // =============================================================
 // pages/OrderTemplatePage.tsx
-// Import d'un PDF Adoria "Bon de préparation de commande" et extraction
-// d'un tableau Articles / Unité de stockage / Unité de conditionnement.
+// Import d'un PDF de trame de commande (bon de préparation, bon de commande)
+// de n'importe quel fournisseur : article, unité de stockage et unité de
+// conditionnement de chaque produit.
 //
-// Flux :
-//  1. Extraction texte via pdf.js (rapide, fiable sur PDF natif).
-//  2. Si le PDF est un scan vectorisé (aucun caractère extrait), repli
-//     sur un rendu canvas + OCR tesseract.js (langue française).
+// Flux : chaque page est rendue en image par pdf.js puis lue côté serveur
+// par un modèle vision (/api/order-template-extract), qui identifie les
+// colonnes par leur sens. Les lignes incertaines sont surlignées pour contrôle.
 // =============================================================
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -19,14 +19,12 @@ import { useAuth } from '../auth/AuthProvider';
 import { canAccessRatiosPage } from '../lib/permissions';
 import { OrderLineField, OrderTemplateRow, OrderTemplatesBySupplier, SupplierConfig } from '../types';
 import { ProductWithHistory } from '../data';
+import { finalizeExtraction, runPageExtractions } from '../utils/orderTemplateExtraction';
 import {
-  ExtractedWord,
-  extractRowsFromDocumentWords,
-  mergeOcrExtractions,
-  mergeTemplateExtractions,
-  separateUnreadableRows,
-  scoreTemplateExtraction,
-} from '../utils/orderTemplateParser';
+  isFatalOrderTemplateError,
+  requestOrderTemplatePage,
+} from '../utils/orderTemplateExtractionClient';
+import { assertOrderTemplatePageCount, renderOrderTemplatePage } from '../utils/orderTemplatePdfPages';
 import { validateImportFile } from '../utils/importFileValidation';
 import {
   IMPORT_PROCESSING_TIMEOUTS,
@@ -62,113 +60,19 @@ interface OrderTemplatePageProps {
   supabaseLoaded: boolean;
 }
 
-type ProcessingStep = 'idle' | 'reading' | 'ocr' | 'done' | 'error';
+type ProcessingStep = 'idle' | 'reading' | 'analysing' | 'done' | 'error';
 
 interface ImportQualityReport {
-  mode: 'texte' | 'OCR' | 'texte + OCR';
-  attemptedOcr: boolean;
+  mode: 'vision';
   rowCount: number;
-  codeCount: number;
-  incompleteCodeCount: number;
-  suspiciousRowCount: number;
-  droppedRowCount: number;
+  declaredRowCount: number;
+  flaggedRowCount: number;
+  failedPages: number[];
   needsReview: boolean;
 }
 
 const makeRowId = () => `row_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 const TEMPLATE_AUTO_SAVE_DELAY_MS = 400;
-
-const extractWordsFromTextItem = (item: any, viewportHeight: number): ExtractedWord | null => {
-  const text = typeof item.str === 'string' ? item.str.trim() : '';
-  if (!text) return null;
-  const x = item.transform[4];
-  const y = item.transform[5];
-  const height = Math.abs(Number(item.height ?? item.transform?.[3] ?? 0));
-  return { text, x, yTop: viewportHeight - y, height };
-};
-
-type RotationDegrees = 0 | 90 | 180 | 270;
-
-// Certains PDF "Print to PDF" (ex: export Adoria) dessinent le contenu
-// pivoté dans le flux, sans poser le flag /Rotate de la page : pdf.js les
-// rend donc "sur le côté". On détecte la rotation nécessaire une seule fois
-// (page 1) en comparant la confiance OCR sur les 4 orientations possibles.
-const rotateCanvas = (source: HTMLCanvasElement, degrees: RotationDegrees): HTMLCanvasElement => {
-  if (degrees === 0) return source;
-
-  const rotated = document.createElement('canvas');
-  const context = rotated.getContext('2d');
-  if (!context) throw new Error('Contexte 2D introuvable.');
-
-  if (degrees === 180) {
-    rotated.width = source.width;
-    rotated.height = source.height;
-    context.translate(rotated.width, rotated.height);
-    context.rotate(Math.PI);
-  } else if (degrees === 90) {
-    rotated.width = source.height;
-    rotated.height = source.width;
-    context.translate(rotated.width, 0);
-    context.rotate(Math.PI / 2);
-  } else {
-    rotated.width = source.height;
-    rotated.height = source.width;
-    context.translate(0, rotated.height);
-    context.rotate(-Math.PI / 2);
-  }
-
-  context.drawImage(source, 0, 0);
-  return rotated;
-};
-
-const ROTATION_CANDIDATES: RotationDegrees[] = [0, 90, 180, 270];
-const OCR_RENDER_SCALE = 3;
-const LANDSCAPE_USEFUL_TABLE_WIDTH_RATIO = 0.48;
-
-// Sur un tableau pivoté dans une page portrait, la confiance OCR entre la
-// bonne orientation et une orientation voisine peut être très proche (quelques
-// points d'écart) : on garde donc aussi la 2e meilleure rotation, utilisée en
-// repli si l'en-tête du tableau reste introuvable avec la rotation retenue.
-const detectBestRotation = async (
-  worker: any,
-  canvas: HTMLCanvasElement,
-  signal?: AbortSignal,
-): Promise<{ rotationDegrees: RotationDegrees; alternateRotationDegrees: RotationDegrees }> => {
-  const scored: { degrees: RotationDegrees; confidence: number }[] = [];
-
-  for (const degrees of ROTATION_CANDIDATES) {
-    throwIfImportAborted(signal);
-    const candidate = rotateCanvas(canvas, degrees);
-    const { data } = await worker.recognize(candidate, {}, {});
-    throwIfImportAborted(signal);
-    scored.push({ degrees, confidence: data.confidence });
-  }
-
-  const [bestEntry, runnerUpEntry] = [...scored].sort((a, b) => b.confidence - a.confidence);
-  return { rotationDegrees: bestEntry.degrees, alternateRotationDegrees: runnerUpEntry.degrees };
-};
-
-const cropCanvas = (source: HTMLCanvasElement, crop: { x: number; y: number; width: number; height: number }): HTMLCanvasElement => {
-  const cropped = document.createElement('canvas');
-  const context = cropped.getContext('2d');
-  if (!context) throw new Error('Contexte 2D introuvable.');
-
-  cropped.width = Math.max(1, Math.floor(crop.width));
-  cropped.height = Math.max(1, Math.floor(crop.height));
-  context.drawImage(source, crop.x, crop.y, crop.width, crop.height, 0, 0, cropped.width, cropped.height);
-  return cropped;
-};
-
-const cropOrderTemplateOcrArea = (source: HTMLCanvasElement): HTMLCanvasElement => {
-  if (source.width <= source.height) return source;
-
-  return cropCanvas(source, {
-    x: 0,
-    y: 0,
-    width: source.width * LANDSCAPE_USEFUL_TABLE_WIDTH_RATIO,
-    height: source.height,
-  });
-};
 
 const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
   setView,
@@ -193,15 +97,17 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
 
   const [step, setStep] = useState<ProcessingStep>('idle');
   const [statusLabel, setStatusLabel] = useState('');
-  const [ocrProgress, setOcrProgress] = useState(0);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
   const [importQualityReport, setImportQualityReport] = useState<ImportQualityReport | null>(null);
+  // Lignes importées à contrôler, surlignées dans le tableau. Non persisté.
+  const [flaggedRowIds, setFlaggedRowIds] = useState<Set<string>>(() => new Set());
   const supplierOptions = useMemo(
     () => getOrderTemplateSupplierOptions(supplierConfigs),
     [supplierConfigs]
   );
   const selectedSupplierId: SupplierId | '' = supplierOptions.some((config) => config.id === ratioTab) ? ratioTab : '';
 
-  const isProcessing = step === 'reading' || step === 'ocr';
+  const isProcessing = step === 'reading' || step === 'analysing';
   // Fournisseur auquel appartient le tableau de travail affiché. Tant qu'il ne
   // correspond pas au fournisseur sélectionné, rien n'est enregistré.
   const [hydratedSupplierId, setHydratedSupplierId] = useState<SupplierId | ''>('');
@@ -300,6 +206,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     setOrderTemplateRows(resolveTemplateRowsForSupplier(orderTemplatesBySupplier, products, supplierId));
     setHydratedSupplierId(supplierId);
     setImportQualityReport(null);
+    setFlaggedRowIds(new Set());
   }, [orderTemplateRows, orderTemplatesBySupplier, products, selectedSupplierId, setOrderTemplateRows, setOrderTemplatesBySupplier, setRatioTab]);
 
   const handleCreateProducts = useCallback(() => {
@@ -363,144 +270,18 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     );
   }, [canImport, openNewRatioProducts, orderTemplateRows, products, selectedSupplierId, setOrderTemplateRows, setOrderTemplatesBySupplier, setProducts, showToast, updateOrderLineField]);
 
-  const extractViaText = useCallback(async (pdf: any, signal?: AbortSignal) => {
-    const pagesWords: ExtractedWord[][] = [];
-    let totalChars = 0;
-
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      throwIfImportAborted(signal);
-      setStatusLabel(`Lecture du texte — page ${pageNum}/${pdf.numPages}`);
-      const page = await pdf.getPage(pageNum);
-      const viewport = page.getViewport({ scale: 1 });
-      const textContent = await page.getTextContent();
-      throwIfImportAborted(signal);
-      const words: ExtractedWord[] = [];
-
-      (textContent.items as any[]).forEach((item) => {
-        const word = extractWordsFromTextItem(item, viewport.height);
-        if (word) {
-          words.push(word);
-          totalChars += word.text.length;
-        }
-      });
-
-      pagesWords.push(words);
-    }
-
-    return { pagesWords, totalChars };
-  }, []);
-
-  const extractViaOcr = useCallback(async (
-    pdf: any,
-    signal?: AbortSignal,
-    segmentation: 'auto' | 'single-block' = 'auto',
-    forcedRotation?: RotationDegrees,
-  ) => {
-    const { createWorker, PSM } = await import('tesseract.js');
-    setStatusLabel('Préparation de la reconnaissance de texte (OCR)…');
-    const worker = await createWorker('fra', undefined, {
-      logger: (m: { status: string; progress: number }) => {
-        if (m.status === 'recognizing text') {
-          setOcrProgress(Math.round(m.progress * 100));
-        }
-      },
-    });
-    // Le mode par défaut de Tesseract traite l'image comme un bloc de texte
-    // unique. Il convient aux documents simples mais mélange les cellules des
-    // tableaux denses. AUTO détecte les blocs et colonnes avant de reconnaître
-    // les mots, sans dépendre d'un fournisseur ou d'un gabarit précis.
-    await worker.setParameters({
-      tessedit_pageseg_mode: segmentation === 'auto' ? PSM.AUTO : PSM.SINGLE_BLOCK,
-    });
-
-    const pagesWords: ExtractedWord[][] = [];
-    let rotationDegrees: RotationDegrees = forcedRotation ?? 0;
-    let alternateRotationDegrees: RotationDegrees | undefined;
-    let terminated = false;
-    const terminateWorker = async () => {
-      if (terminated) return;
-      terminated = true;
-      await worker.terminate();
-    };
-    const abortWorker = () => { void terminateWorker().catch(() => undefined); };
-    signal?.addEventListener('abort', abortWorker, { once: true });
-
-    try {
-      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-        throwIfImportAborted(signal);
-        setOcrProgress(0);
-        setStatusLabel(
-          `${segmentation === 'auto' ? 'OCR automatique' : 'OCR structure'} — page ${pageNum}/${pdf.numPages}`,
-        );
-        const page = await pdf.getPage(pageNum);
-        const viewport = page.getViewport({ scale: OCR_RENDER_SCALE });
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.ceil(viewport.width);
-        canvas.height = Math.ceil(viewport.height);
-
-        const context = canvas.getContext('2d');
-        if (!context) throw new Error('Contexte 2D introuvable.');
-        await page.render({ canvasContext: context, canvas, viewport }).promise;
-        throwIfImportAborted(signal);
-
-        if (pageNum === 1 && forcedRotation === undefined) {
-          setStatusLabel('Détection de l’orientation du document…');
-          const detected = await detectBestRotation(worker, canvas, signal);
-          rotationDegrees = detected.rotationDegrees;
-          alternateRotationDegrees = detected.alternateRotationDegrees;
-          console.info(`[OrderTemplatePage] Rotation détectée : ${rotationDegrees}° (alternative : ${alternateRotationDegrees}°)`);
-          setStatusLabel(`OCR automatique — page ${pageNum}/${pdf.numPages}`);
-        }
-
-        const orientedCanvas = rotateCanvas(canvas, rotationDegrees);
-        const ocrCanvas = cropOrderTemplateOcrArea(orientedCanvas);
-        const { data } = await worker.recognize(ocrCanvas, {}, { blocks: true });
-        throwIfImportAborted(signal);
-        const words: ExtractedWord[] = [];
-        let ocrLineIndex = 0;
-
-        (data.blocks ?? []).forEach((block) => {
-          block.paragraphs.forEach((paragraph) => {
-            paragraph.lines.forEach((line) => {
-              const lineId = `${segmentation}-page-${pageNum}-line-${ocrLineIndex}`;
-              ocrLineIndex += 1;
-              line.words.forEach((word) => {
-                const text = word.text.trim();
-                if (!text) return;
-                words.push({
-                  text,
-                  x: word.bbox.x0,
-                  yTop: word.bbox.y0,
-                  height: Math.max(1, word.bbox.y1 - word.bbox.y0),
-                  lineId,
-                  confidence: word.confidence,
-                });
-              });
-            });
-          });
-        });
-
-        pagesWords.push(words);
-      }
-    } finally {
-      signal?.removeEventListener('abort', abortWorker);
-      await terminateWorker().catch(() => undefined);
-    }
-
-    return { pagesWords, rotationDegrees, alternateRotationDegrees };
-  }, []);
-
   const handleFile = useCallback(async (file: File) => {
     if (!canImport || isProcessing) return;
     pdfAbortControllerRef.current?.abort();
     const controller = new AbortController();
     pdfAbortControllerRef.current = controller;
     let loadingTask: ReturnType<typeof getDocument> | null = null;
-    let pdf: any = null;
 
     setStep('reading');
-    setOcrProgress(0);
-    setStatusLabel('Lecture du fichier PDF…');
+    setStatusLabel('Lecture du PDF…');
+    setAnalysisProgress(0);
+    setImportQualityReport(null);
+    setFlaggedRowIds(new Set());
 
     try {
       await validateImportFile(file, 'order-template-pdf');
@@ -512,194 +293,94 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
       );
       throwIfImportAborted(controller.signal);
       loadingTask = getDocument({ data: arrayBuffer });
-      pdf = await withImportTimeout(
+      const loadedPdf = await withImportTimeout(
         loadingTask.promise,
         IMPORT_PROCESSING_TIMEOUTS.pdfLoad,
         'L’ouverture du PDF a dépassé 20 secondes.',
         () => { controller.abort(); void loadingTask?.destroy(); },
       );
 
-      const processed = await withImportTimeout((async () => {
-        const { pagesWords, totalChars } = await extractViaText(pdf, controller.signal);
-        let finalPagesWords = pagesWords;
-        let extraction = extractRowsFromDocumentWords(pagesWords);
-        let usedOcr = false;
-        let hybridMode = false;
-        let attemptedOcr = false;
-        let maximumDetectedCodeCount = extraction.codeCount;
+      const pageCount = loadedPdf.numPages;
+      assertOrderTemplatePageCount(pageCount);
 
-        console.info(`[OrderTemplatePage] Extraction texte : ${pdf.numPages} page(s), ${totalChars} caractère(s) trouvé(s).`);
-        console.info('[OrderTemplatePage] Qualité texte natif :', {
-          score: scoreTemplateExtraction(extraction),
-          codes: extraction.codeCount,
-          rows: extraction.rows.length,
-          incomplete: extraction.incompleteCodeCount,
-          suspicious: extraction.suspiciousRowCount,
-        });
+      setStep('analysing');
+      setStatusLabel(`Analyse de la page 1/${pageCount}`);
 
-        // Un PDF peut exposer beaucoup de caractères tout en ayant une table
-        // mal encodée ou des cellules positionnées sur des baselines distinctes.
-        // On relance alors automatiquement une lecture visuelle OCR, puis on
-        // conserve objectivement la version la plus complète et la plus saine.
-        if (totalChars < 20 || extraction.needsReview) {
-          setStep('ocr');
-          attemptedOcr = true;
-          const automaticOcr = await extractViaOcr(pdf, controller.signal, 'auto');
-          let ocrPagesWords = automaticOcr.pagesWords;
-          let ocrExtraction = extractRowsFromDocumentWords(ocrPagesWords);
-
-          // Un PDF-image ou une première lecture encore incertaine bénéficie
-          // d'une deuxième segmentation. AUTO privilégie la fidélité des
-          // blocs de texte ; SINGLE_BLOCK conserve souvent mieux les codes et
-          // cellules d'un tableau quadrillé. La fusion se fait ensuite par
-          // code article et ignore les fragments sans code.
-          if (totalChars < 20 || ocrExtraction.needsReview) {
-            const structuredOcr = await extractViaOcr(
-              pdf,
-              controller.signal,
-              'single-block',
-              automaticOcr.rotationDegrees,
-            );
-            const structuredExtraction = extractRowsFromDocumentWords(structuredOcr.pagesWords);
-            ocrExtraction = mergeOcrExtractions(ocrExtraction, structuredExtraction);
-            console.info('[OrderTemplatePage] Qualité OCR structure :', {
-              score: scoreTemplateExtraction(structuredExtraction),
-              codes: structuredExtraction.codeCount,
-              rows: structuredExtraction.rows.length,
-              incomplete: structuredExtraction.incompleteCodeCount,
-              suspicious: structuredExtraction.suspiciousRowCount,
-            });
-          }
-
-          // Sur ce type de document (tableau pivoté dans une page portrait),
-          // la rotation retenue et sa concurrente la plus proche ont parfois
-          // une confiance OCR très voisine. Si l'en-tête reste introuvable
-          // malgré la segmentation structurée ci-dessus, on retente une fois
-          // avec la rotation alternative avant d'abandonner.
-          if (!ocrExtraction.headerFound && automaticOcr.alternateRotationDegrees !== undefined) {
-            console.info('[OrderTemplatePage] En-tête introuvable, nouvel essai avec la rotation alternative :', automaticOcr.alternateRotationDegrees);
-            const alternateOcr = await extractViaOcr(
-              pdf,
-              controller.signal,
-              'auto',
-              automaticOcr.alternateRotationDegrees,
-            );
-            const alternateExtraction = extractRowsFromDocumentWords(alternateOcr.pagesWords);
-            console.info('[OrderTemplatePage] Qualité OCR rotation alternative :', {
-              score: scoreTemplateExtraction(alternateExtraction),
-              codes: alternateExtraction.codeCount,
-              rows: alternateExtraction.rows.length,
-              headerFound: alternateExtraction.headerFound,
-            });
-            if (alternateExtraction.headerFound) {
-              ocrPagesWords = alternateOcr.pagesWords;
-              ocrExtraction = alternateExtraction;
-            }
-          }
-          maximumDetectedCodeCount = Math.max(maximumDetectedCodeCount, ocrExtraction.codeCount);
-          console.info('[OrderTemplatePage] Qualité OCR :', {
-            score: scoreTemplateExtraction(ocrExtraction),
-            codes: ocrExtraction.codeCount,
-            rows: ocrExtraction.rows.length,
-            incomplete: ocrExtraction.incompleteCodeCount,
-            suspicious: ocrExtraction.suspiciousRowCount,
-          });
-
-          if (totalChars < 20 || extraction.rows.length === 0) {
-            finalPagesWords = ocrPagesWords;
-            extraction = ocrExtraction;
-            usedOcr = true;
-          } else {
-            // Sur un PDF natif, l'OCR ne remplace plus toute la table. Il ne
-            // fait que compléter les cellules ou codes absents, afin de ne pas
-            // transformer les accents, marques ou fins de libellés pourtant
-            // correctement encodés dans le document.
-            extraction = mergeTemplateExtractions(extraction, ocrExtraction);
-            usedOcr = true;
-            hybridMode = true;
-          }
-        }
-
-        return { finalPagesWords, extraction, usedOcr, hybridMode, attemptedOcr, maximumDetectedCodeCount };
-      })(), IMPORT_PROCESSING_TIMEOUTS.pdfProcessing,
-      'Le traitement du PDF a dépassé 2 minutes et a été arrêté.',
-      () => { controller.abort(); void pdf?.destroy(); });
-
-      const {
-        finalPagesWords,
-        extraction,
-        usedOcr,
-        hybridMode,
-        attemptedOcr,
-        maximumDetectedCodeCount,
-      } = processed;
-
-      finalPagesWords.forEach((words, idx) => {
-        console.info(`[OrderTemplatePage] Page ${idx + 1} (${usedOcr ? 'OCR' : 'texte'}) : ${words.length} mot(s) positionné(s).`);
-      });
-
-      const {
-        rows: parsedRows,
-        droppedRows = [],
-        headerFound,
-        pagesDebug,
-        codeCount: selectedCodeCount,
-        incompleteCodeCount: selectedIncompleteCodeCount,
-        suspiciousRowCount,
-        needsReview: selectedNeedsReview,
-      } = separateUnreadableRows(extraction);
-      const droppedRowCount = droppedRows.length;
-      const codeCount = Math.max(selectedCodeCount, maximumDetectedCodeCount);
-      const incompleteCodeCount = Math.max(
-        selectedIncompleteCodeCount,
-        Math.max(0, codeCount - parsedRows.length - droppedRowCount),
+      const { outcomes, firstError } = await withImportTimeout(
+        runPageExtractions({
+          pageCount,
+          concurrency: 3,
+          shouldStop: () => controller.signal.aborted,
+          isFatalError: isFatalOrderTemplateError,
+          onPageDone: (_pageNumber, doneCount) => {
+            setAnalysisProgress(Math.round((doneCount / pageCount) * 100));
+            setStatusLabel(`Analyse de la page ${Math.min(pageCount, doneCount + 1)}/${pageCount}`);
+          },
+          extractPage: async ({ pageNumber, columnHint }) => {
+            const rendered = await renderOrderTemplatePage(loadedPdf, pageNumber, controller.signal);
+            return requestOrderTemplatePage({
+              pageImage: rendered.pageImage,
+              pageNumber,
+              pageCount,
+              nativeText: rendered.nativeText,
+              columnHint,
+            }, controller.signal);
+          },
+        }),
+        IMPORT_PROCESSING_TIMEOUTS.pdfAnalysis,
+        'L’analyse du PDF a dépassé 4 minutes et a été arrêtée.',
+        () => { controller.abort(); void loadingTask?.destroy(); },
       );
-      const needsReview = selectedNeedsReview || incompleteCodeCount > 0;
-      console.info('[OrderTemplatePage] En-tête détecté :', headerFound, pagesDebug, {
-        selectedMode: usedOcr ? 'OCR' : 'texte',
-        attemptedOcr,
-      });
-      setImportQualityReport({
-        mode: hybridMode ? 'texte + OCR' : usedOcr ? 'OCR' : 'texte',
-        attemptedOcr,
-        rowCount: parsedRows.length,
-        codeCount,
-        incompleteCodeCount,
-        suspiciousRowCount,
-        droppedRowCount,
-        needsReview,
-      });
+      throwIfImportAborted(controller.signal);
 
-      if (parsedRows.length === 0) {
-        if (!headerFound) {
-          showToast(
-            "En-tête du tableau introuvable dans ce PDF (Articles / Unité de Stock / Conditionnement). Vérifiez le fichier ou saisissez manuellement.",
-            'warning'
-          );
-        } else {
-          showToast('En-tête trouvé mais aucune ligne exploitable en dessous. Vérifiez le fichier ou saisissez manuellement.', 'warning');
-        }
-      } else if (needsReview) {
-        const reviewReasons = [
-          incompleteCodeCount > 0 ? `${incompleteCodeCount} code(s) sans article complet` : '',
-          suspiciousRowCount > 0 ? `${suspiciousRowCount} ligne(s) à contrôler` : '',
-          droppedRowCount > 0 ? `${droppedRowCount} ligne(s) illisible(s) à ressaisir manuellement` : '',
-        ].filter(Boolean).join(', ');
-        showToast(
-          `⚠ ${parsedRows.length} ligne(s) récupérée(s), mais la lecture reste incertaine${reviewReasons ? ` : ${reviewReasons}` : ''}. Contrôlez le tableau avant de créer les produits.`,
-          'warning'
-        );
-      } else {
-        showToast(`✓ ${parsedRows.length} ligne(s) importée(s)`, 'success');
-      }
-
-      setOrderTemplateRows(parsedRows.map((row) => ({
+      const { rows: extractedRows, flaggedIndexes, report } = finalizeExtraction(outcomes);
+      const importedRows: OrderTemplateRow[] = extractedRows.map((row) => ({
         id: makeRowId(),
-        sourceCode: row.sourceCode,
+        sourceCode: row.code || undefined,
         article: row.article,
         storageUnit: row.storageUnit,
         packagingUnit: row.packagingUnit,
-      })));
+      }));
+
+      const needsReview = report.flaggedRowCount > 0
+        || report.failedPages.length > 0
+        || report.rowCount !== report.declaredRowCount;
+      setImportQualityReport({
+        mode: 'vision',
+        rowCount: report.rowCount,
+        declaredRowCount: report.declaredRowCount,
+        flaggedRowCount: report.flaggedRowCount,
+        failedPages: report.failedPages,
+        needsReview,
+      });
+
+      const errorMessage = firstError === null
+        ? ''
+        : toSafeImportErrorMessage(firstError, 'L’analyse de certaines pages a échoué.');
+
+      if (importedRows.length === 0) {
+        // Le tableau existant n'est pas écrasé par un import qui n'a rien produit.
+        showToast(
+          errorMessage || 'Aucune ligne produit trouvée dans ce PDF. Vérifie le fichier ou saisis la trame manuellement.',
+          errorMessage ? 'error' : 'warning',
+        );
+      } else {
+        setOrderTemplateRows(importedRows);
+        setFlaggedRowIds(new Set(flaggedIndexes.map((index) => importedRows[index].id)));
+
+        if (needsReview) {
+          const reviewReasons = [
+            report.flaggedRowCount > 0 ? `${report.flaggedRowCount} ligne(s) surlignée(s) à contrôler` : '',
+            report.failedPages.length > 0 ? `page(s) ${report.failedPages.join(', ')} non analysée(s)` : '',
+          ].filter(Boolean).join(', ');
+          showToast(
+            `⚠ ${importedRows.length} ligne(s) importée(s)${reviewReasons ? ` : ${reviewReasons}` : ''}. ${errorMessage}`.trim(),
+            'warning',
+          );
+        } else {
+          showToast(`✓ ${importedRows.length} ligne(s) importée(s)`, 'success');
+        }
+      }
       setStep('done');
     } catch (err) {
       if (pdfAbortControllerRef.current === controller) {
@@ -712,15 +393,15 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
       }
     } finally {
       controller.abort();
-      if (pdf) await pdf.destroy().catch(() => undefined);
-      else if (loadingTask) await loadingTask.destroy().catch(() => undefined);
+      // Détruire la tâche de chargement libère aussi le document et son Worker.
+      if (loadingTask) await loadingTask.destroy().catch(() => undefined);
       if (pdfAbortControllerRef.current === controller) {
         pdfAbortControllerRef.current = null;
         setStatusLabel('');
-        setOcrProgress(0);
+        setAnalysisProgress(0);
       }
     }
-  }, [canImport, isProcessing, extractViaText, extractViaOcr, setOrderTemplateRows, showToast]);
+  }, [canImport, isProcessing, setOrderTemplateRows, showToast]);
 
   const onFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -745,6 +426,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     if (!window.confirm('Vider entièrement la trame de commande ?')) return;
     setOrderTemplateRows([]);
     setImportQualityReport(null);
+    setFlaggedRowIds(new Set());
   };
 
   return (
@@ -792,9 +474,9 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
             </div>
 
             <p className="mb-4 text-sm text-[#6A432D]">
-              Importe un PDF Adoria « Bon de préparation de commande ». Les colonnes Code, Articles, Unité de stockage
-              et Conditionnement servent à reconstruire chaque ligne logique. Si la lecture texte paraît incomplète,
-              l'application relance automatiquement une lecture visuelle OCR et affiche clairement tout contrôle restant.
+              Importe le PDF d'une trame de commande, quel que soit le fournisseur. Chaque page est lue visuellement :
+              l'application repère les colonnes article, unité de stockage et conditionnement d'après leur sens, sans
+              dépendre des intitulés ni de l'ordre. Les lignes incertaines sont surlignées pour que tu les contrôles.
             </p>
 
             <input
@@ -832,11 +514,11 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
             {isProcessing && (
               <div className="mt-4 rounded-lg bg-white/60 p-3">
                 <p className="text-sm font-semibold text-[#6A432D]">{statusLabel || 'Traitement en cours…'}</p>
-                {step === 'ocr' && (
+                {step === 'analysing' && (
                   <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[#F4E8D8]">
                     <div
                       className="h-full rounded-full bg-[#C86F24] transition-all"
-                      style={{ width: `${ocrProgress}%` }}
+                      style={{ width: `${analysisProgress}%` }}
                     />
                   </div>
                 )}
@@ -852,21 +534,15 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
                 }`}
               >
                 <p className="font-black">
-                  {importQualityReport.needsReview ? 'Lecture à contrôler' : 'Lecture vérifiée'} — {importQualityReport.mode}
-                  {importQualityReport.attemptedOcr ? ' après comparaison automatique avec l’OCR' : ''}
+                  {importQualityReport.needsReview ? 'Lecture à contrôler' : 'Lecture vérifiée'} — lecture visuelle des pages
                 </p>
                 <p className="mt-1">
-                  {importQualityReport.codeCount > 0
-                    ? `${importQualityReport.codeCount} code(s) détecté(s), ${importQualityReport.rowCount} ligne(s) restituée(s).`
-                    : `${importQualityReport.rowCount} ligne(s) restituée(s).`}
-                  {importQualityReport.incompleteCodeCount > 0
-                    ? ` ${importQualityReport.incompleteCodeCount} code(s) restent incomplets.`
+                  {importQualityReport.declaredRowCount} ligne(s) comptée(s) sur le PDF, {importQualityReport.rowCount} ligne(s) restituée(s).
+                  {importQualityReport.flaggedRowCount > 0
+                    ? ` ${importQualityReport.flaggedRowCount} ligne(s) surlignée(s) à contrôler : cellule vide, lecture incertaine ou nombre de lignes de la page différent.`
                     : ''}
-                  {importQualityReport.suspiciousRowCount > 0
-                    ? ` ${importQualityReport.suspiciousRowCount} ligne(s) présentent encore un texte ou une unité atypique.`
-                    : ''}
-                  {importQualityReport.droppedRowCount > 0
-                    ? ` ${importQualityReport.droppedRowCount} ligne(s) illisible(s) à ressaisir manuellement.`
+                  {importQualityReport.failedPages.length > 0
+                    ? ` Page(s) non analysée(s) : ${importQualityReport.failedPages.join(', ')}.`
                     : ''}
                 </p>
               </div>
@@ -983,7 +659,10 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
                   </thead>
                   <tbody>
                     {orderTemplateRows.map((row) => (
-                      <tr key={row.id} className="border-b border-[#E8D8C8]">
+                      <tr
+                        key={row.id}
+                        className={`border-b border-[#E8D8C8] ${flaggedRowIds.has(row.id) ? 'bg-amber-100' : ''}`}
+                      >
                         <td className="py-2 pr-4">
                           <textarea
                             value={row.article}

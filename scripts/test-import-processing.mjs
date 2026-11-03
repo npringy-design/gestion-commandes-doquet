@@ -133,43 +133,20 @@ try {
   assert.match(csvSource, /readSpreadsheetAsCsv\(file\)/, 'Les classeurs mensuels doivent passer par le Worker');
   assert.match(workerSource, /XLSX\.read\(buffer/, 'Le parsing XLSX doit vivre dans le Worker');
   assert.match(takeRateSource, /buildMarginCatalogInWorker\(file, controller\.signal\)/);
-  assert.match(pdfSource, /IMPORT_PROCESSING_TIMEOUTS\.pdfProcessing/);
-  assert.match(pdfSource, /await pdf\.destroy\(\)/);
-  assert.match(pdfSource, /await terminateWorker\(\)/);
+  assert.match(pdfSource, /IMPORT_PROCESSING_TIMEOUTS\.pdfAnalysis/,
+    'L’analyse vision de toutes les pages doit avoir un délai maximal');
+  assert.match(pdfSource, /await loadingTask\.destroy\(\)/,
+    'Le document pdf.js doit être libéré après l’import');
+  assert.match(pdfSource, /controller\.abort\(\)/, 'L’import doit pouvoir être annulé');
   assert.match(
     pdfSource,
-    /segmentation === 'auto' \? PSM\.AUTO : PSM\.SINGLE_BLOCK/,
-    'L OCR doit pouvoir comparer segmentation automatique et bloc structuré',
+    /runPageExtractions\(/,
+    'Les pages doivent être analysées par la lecture vision, page 1 puis pages suivantes en parallèle',
   );
   assert.match(
     pdfSource,
-    /mergeOcrExtractions\(ocrExtraction, structuredExtraction\)/,
-    'Les deux segmentations OCR doivent être fusionnées par code article',
-  );
-  assert.match(
-    pdfSource,
-    /totalChars < 20 \|\| extraction\.needsReview/,
-    'Une extraction textuelle incomplète ou suspecte doit déclencher automatiquement le repli OCR',
-  );
-  assert.match(
-    pdfSource,
-    /mergeTemplateExtractions\(extraction, ocrExtraction\)/,
-    'Le texte natif et l OCR doivent être fusionnés cellule par cellule',
-  );
-  assert.match(
-    pdfSource,
-    /extraction\.rows\.length === 0/,
-    'L OCR complet ne doit remplacer le texte natif que lorsque celui-ci ne produit aucune ligne',
-  );
-  assert.match(
-    pdfSource,
-    /mode: hybridMode \? 'texte \+ OCR'/,
-    'Le rapport doit rendre visible la fusion texte et OCR',
-  );
-  assert.match(
-    pdfSource,
-    /maximumDetectedCodeCount/,
-    'Le contrôle final doit conserver le plus grand nombre de codes détecté par les deux lectures',
+    /mode: 'vision'/,
+    'Le rapport doit indiquer que la trame a été lue visuellement',
   );
   assert.match(
     pdfSource,
@@ -177,7 +154,7 @@ try {
     'Une lecture encore incertaine doit rester visible pour un utilisateur sans accès au code',
   );
 
-  console.log('Robustesse imports OK : Workers, timeout, OCR adaptatif, qualité visible, nettoyage et erreurs protégés.');
+  console.log('Robustesse imports OK : Workers, timeout, lecture vision, qualité visible, nettoyage et erreurs protégés.');
 } finally {
   rmSync(tempDir, { recursive: true, force: true });
 }

@@ -3,6 +3,7 @@ export const IMPORT_PROCESSING_TIMEOUTS = {
   spreadsheet: 30_000,
   pdfLoad: 20_000,
   pdfProcessing: 120_000,
+  pdfAnalysis: 240_000,
 } as const;
 
 export type ImportProcessingErrorCode = 'timeout' | 'cancelled' | 'processing_failed';
