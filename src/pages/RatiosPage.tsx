@@ -107,6 +107,13 @@ const LINK_STATE_STYLES: Record<LinkState, {
   },
 };
 
+const onEnterBlur: React.KeyboardEventHandler<HTMLInputElement> = (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    event.currentTarget.blur();
+  }
+};
+
 const formatWholeVisual = (value: unknown) => {
   const numeric = Number(value || 0);
   if (!Number.isFinite(numeric) || numeric <= 0) return '–';
@@ -215,6 +222,7 @@ const ProductCard: React.FC<{
           value={displaySearchName}
           placeholder="Nom produit dans l'import..."
           onChange={e => updateSearchName(p.id, e.target.value)}
+          onMouseDown={e => e.stopPropagation()}
           disabled={!canEdit || isFrozenDisplay}
         />
         <div className="relative z-[70] shrink-0 overflow-visible">
@@ -283,9 +291,12 @@ const ProductCard: React.FC<{
               <div className="flex items-center gap-1">
                 <input
                   className="min-w-0 flex-1 rounded-xl border border-[#E2C39B] bg-[#FFFDF8] px-3 py-2 text-xs font-black uppercase text-[#24160F] outline-none focus:border-[#C86F24]"
-                  value={p.name}
+                  key={`${p.id}-name-${p.name}`}
+                  defaultValue={p.name}
                   placeholder="Nom visible dans les commandes..."
-                  onChange={e => handleNameChange(p.id, e.target.value)}
+                  onBlur={e => { if (e.target.value !== p.name) handleNameChange(p.id, e.target.value); }}
+                  onKeyDown={onEnterBlur}
+                  onMouseDown={e => e.stopPropagation()}
                   disabled={!canEdit}
                 />
               </div>
