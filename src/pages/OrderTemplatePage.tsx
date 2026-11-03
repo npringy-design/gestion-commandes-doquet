@@ -24,6 +24,7 @@ import {
   extractRowsFromDocumentWords,
   mergeOcrExtractions,
   mergeTemplateExtractions,
+  separateUnreadableRows,
   scoreTemplateExtraction,
 } from '../utils/orderTemplateParser';
 import { validateImportFile } from '../utils/importFileValidation';
@@ -69,6 +70,7 @@ interface ImportQualityReport {
   codeCount: number;
   incompleteCodeCount: number;
   suspiciousRowCount: number;
+  droppedRowCount: number;
   needsReview: boolean;
 }
 
@@ -634,13 +636,15 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
 
       const {
         rows: parsedRows,
+        droppedRows = [],
         headerFound,
         pagesDebug,
         codeCount: selectedCodeCount,
         incompleteCodeCount: selectedIncompleteCodeCount,
         suspiciousRowCount,
         needsReview: selectedNeedsReview,
-      } = extraction;
+      } = separateUnreadableRows(extraction);
+      const droppedRowCount = droppedRows.length;
       const codeCount = Math.max(selectedCodeCount, maximumDetectedCodeCount);
       const incompleteCodeCount = Math.max(
         selectedIncompleteCodeCount,
@@ -658,6 +662,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
         codeCount,
         incompleteCodeCount,
         suspiciousRowCount,
+        droppedRowCount,
         needsReview,
       });
 
@@ -674,6 +679,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
         const reviewReasons = [
           incompleteCodeCount > 0 ? `${incompleteCodeCount} code(s) sans article complet` : '',
           suspiciousRowCount > 0 ? `${suspiciousRowCount} ligne(s) à contrôler` : '',
+          droppedRowCount > 0 ? `${droppedRowCount} ligne(s) illisible(s) à ressaisir manuellement` : '',
         ].filter(Boolean).join(', ');
         showToast(
           `⚠ ${parsedRows.length} ligne(s) récupérée(s), mais la lecture reste incertaine${reviewReasons ? ` : ${reviewReasons}` : ''}. Contrôlez le tableau avant de créer les produits.`,
@@ -854,6 +860,9 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
                     : ''}
                   {importQualityReport.suspiciousRowCount > 0
                     ? ` ${importQualityReport.suspiciousRowCount} ligne(s) présentent encore un texte ou une unité atypique.`
+                    : ''}
+                  {importQualityReport.droppedRowCount > 0
+                    ? ` ${importQualityReport.droppedRowCount} ligne(s) illisible(s) à ressaisir manuellement.`
                     : ''}
                 </p>
               </div>

@@ -50,6 +50,9 @@ export interface DocumentExtractionResult {
   incompleteCodeCount: number;
   suspiciousRowCount: number;
   needsReview: boolean;
+  // Lignes illisibles écartées de `rows` (voir `separateUnreadableRows`),
+  // à ressaisir manuellement plutôt qu'importées silencieusement.
+  droppedRows?: ParsedTemplateRow[];
 }
 
 interface ColumnBounds {
@@ -233,6 +236,32 @@ const isSuspiciousParsedRow = (row: ParsedTemplateRow): boolean =>
   !row.packagingUnit.trim() ||
   !isPlausibleUnitValue(row.storageUnit) ||
   !isPlausibleUnitValue(row.packagingUnit);
+
+// Une ligne secondaire sans code correspondant en primaire peut quand même
+// décrire un article déjà retenu (code mal lu par l'une des deux lectures).
+// Égalité stricte après normalisation : aucune distance d'édition disponible.
+const hasEquivalentArticle = (rows: ParsedTemplateRow[], article: string): boolean => {
+  const target = normalizeLooseUnitText(article);
+  if (!target) return false;
+  return rows.some((row) => normalizeLooseUnitText(row.article) === target);
+};
+
+// Retire de `rows` les lignes illisibles pour qu'elles ne soient pas importées
+// telles quelles ; elles sont conservées dans `droppedRows` pour que l'UI les signale.
+export const separateUnreadableRows = (
+  result: DocumentExtractionResult,
+): DocumentExtractionResult => {
+  const rows = result.rows.filter((row) => !isSuspiciousParsedRow(row));
+  const droppedRows = result.rows.filter(isSuspiciousParsedRow);
+  if (droppedRows.length === 0) return { ...result, droppedRows: [] };
+  return {
+    ...result,
+    rows,
+    droppedRows,
+    suspiciousRowCount: 0,
+    needsReview: true,
+  };
+};
 
 // Regroupe les mots d'une page en lignes en fonction de leur proximité verticale.
 // Tolérance généreuse car les bbox OCR (rendu canvas) sont moins régulières
@@ -748,7 +777,13 @@ export const mergeOcrExtractions = (
     });
 
   secondary.rows.forEach((row) => {
-    if (row.sourceCode && !primaryCodes.has(row.sourceCode)) rows.push(repairParsedRow(row));
+    if (
+      row.sourceCode &&
+      !primaryCodes.has(row.sourceCode) &&
+      !hasEquivalentArticle(rows, row.article)
+    ) {
+      rows.push(repairParsedRow(row));
+    }
   });
 
   const codeCount = Math.max(firstResult.codeCount, secondResult.codeCount);
@@ -795,15 +830,26 @@ export const mergeTemplateExtractions = (
     return repairParsedRow({
       sourceCode: nativeRow.sourceCode || ocrRow?.sourceCode,
       // Ne jamais remplacer un texte PDF existant par une reconnaissance
-      // visuelle moins fidèle. Elle peut seulement combler une valeur vide.
-      article: nativeRow.article || ocrRow?.article || '',
+      // visuelle moins fidèle, sauf si ce texte est corrompu et que l'OCR
+      // propose un libellé sain. Elle peut sinon combler une valeur vide.
+      article:
+        nativeRow.article &&
+        isSuspiciousArticleText(nativeRow.article) &&
+        ocrRow?.article &&
+        !isSuspiciousArticleText(ocrRow.article)
+          ? ocrRow.article
+          : nativeRow.article || ocrRow?.article || '',
       storageUnit: nativeRow.storageUnit || ocrRow?.storageUnit || '',
       packagingUnit: nativeRow.packagingUnit || ocrRow?.packagingUnit || '',
     });
   });
 
   ocrResult.rows.forEach((ocrRow) => {
-    if (ocrRow.sourceCode && !nativeCodes.has(ocrRow.sourceCode)) {
+    if (
+      ocrRow.sourceCode &&
+      !nativeCodes.has(ocrRow.sourceCode) &&
+      !hasEquivalentArticle(rows, ocrRow.article)
+    ) {
       rows.push(repairParsedRow(ocrRow));
     }
   });

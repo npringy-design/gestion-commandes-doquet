@@ -42,6 +42,7 @@ try {
     mergeOcrExtractions,
     mergeTemplateExtractions,
     scoreTemplateExtraction,
+    separateUnreadableRows,
   } = await import(pathToFileURL(compiledPath).href);
 
   const header = [
@@ -323,6 +324,38 @@ try {
     ['A100', 'B200'],
     'Les lignes doivent rester alignées par code article',
   );
+
+  // 1. Un libellé natif corrompu est remplacé par l'OCR sain.
+  const garbledNative = mergeTemplateExtractions(
+    makeOcrResult([{ sourceCode: 'Z1', article: 'Cr? me ??', storageUnit: 'au Kg', packagingUnit: 'carton x 6' }], 1, 1),
+    makeOcrResult([{ sourceCode: 'Z1', article: 'Crème fraîche entière 5 L', storageUnit: 'au Kg', packagingUnit: 'carton x 6' }], 1),
+  );
+  assert.equal(garbledNative.rows[0].article, 'Crème fraîche entière 5 L', 'Un libellé natif suspect doit céder la place à un OCR sain');
+
+  // 2. Une ligne secondaire sans code correspondant ne duplique pas un article déjà retenu.
+  const duplicateNative = mergeTemplateExtractions(
+    makeOcrResult([{ sourceCode: 'A1', article: 'Beurre doux 250 g', storageUnit: 'au Kg', packagingUnit: 'carton x 6' }], 1),
+    makeOcrResult([{ sourceCode: 'A1-OCR', article: 'BEURRE doux 250 g', storageUnit: 'au Kg', packagingUnit: 'carton x 6' }], 1),
+  );
+  assert.equal(duplicateNative.rows.length, 1, 'Un article quasi identique ne doit pas être dupliqué (natif + OCR)');
+  const duplicateOcr = mergeOcrExtractions(
+    makeOcrResult([{ sourceCode: 'A1', article: 'Beurre doux 250 g', storageUnit: 'au Kg', packagingUnit: 'carton x 6' }], 1),
+    makeOcrResult([{ sourceCode: 'A1X', article: 'Beurre  doux 250g', storageUnit: 'au Kg', packagingUnit: 'carton x 6' }], 1),
+  );
+  assert.equal(duplicateOcr.rows.length, 2, 'Une normalisation différente reste distincte (égalité stricte)');
+  const duplicateOcrSame = mergeOcrExtractions(
+    makeOcrResult([{ sourceCode: 'A1', article: 'Beurre doux 250 g', storageUnit: 'au Kg', packagingUnit: 'carton x 6' }], 1),
+    makeOcrResult([{ sourceCode: 'A1X', article: 'Beurre doux 250 g', storageUnit: 'au Kg', packagingUnit: 'carton x 6' }], 1),
+  );
+  assert.equal(duplicateOcrSame.rows.length, 1, 'Un article identique ne doit pas être dupliqué (OCR + OCR)');
+
+  // 3. Les lignes illisibles sont écartées et tracées.
+  const separated = separateUnreadableRows(makeOcrResult([
+    { sourceCode: 'OK1', article: 'Produit lisible', storageUnit: 'au Kg', packagingUnit: 'carton x 6' },
+    { sourceCode: 'KO1', article: 'Pro? ??', storageUnit: 'au Kg', packagingUnit: 'carton x 6' },
+  ], 2, 1));
+  assert.deepEqual(separated.rows.map((row) => row.sourceCode), ['OK1']);
+  assert.deepEqual(separated.droppedRows.map((row) => row.sourceCode), ['KO1']);
 
   console.log('Parser trame commande OK : codes, bandes multilignes, fusion OCR, unités et qualité protégés.');
 } finally {
