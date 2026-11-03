@@ -19,6 +19,7 @@ import {
   rotateCanvas,
   type OcrWorker,
 } from './orderTemplatePdfSource';
+import { mapColumnsToReferenceColumns } from './columnMapping';
 import { buildTable, type TableLayout } from './pdfTableLayout';
 import {
   analyseTable,
@@ -29,8 +30,6 @@ import {
   type TableStructure,
 } from './rasterTable';
 
-// Écart maximal entre les traits verticaux de deux pages pour une même colonne.
-const COLUMN_MATCH_TOLERANCE = 8;
 const MAX_WORKERS = 4;
 
 export interface RasterProgress {
@@ -50,7 +49,7 @@ export interface RasterSession {
   readRemainingPages: (
     roles: ColumnRole[],
     reference: TableLayout,
-  ) => Promise<{ layouts: TableLayout[]; wordPages: number[] }>;
+  ) => Promise<{ layouts: TableLayout[]; wordPages: number[]; unmatchedPages: number[] }>;
   dispose: () => Promise<void>;
 }
 
@@ -310,17 +309,6 @@ export const createRasterScanSession = ({
     return buildTable(content.words, content.grid, hint);
   };
 
-  const mapColumns = (structure: TableStructure, reference: TableLayout): number[] =>
-    Array.from({ length: columnCountOf(structure) }, (_, index) => {
-      const left = structure.columnEdges[index];
-      const right = structure.columnEdges[index + 1];
-      const match = reference.columns.find(
-        (column) => Math.abs(column.xStart - left) <= COLUMN_MATCH_TOLERANCE
-          && Math.abs(column.xEnd - right) <= COLUMN_MATCH_TOLERANCE,
-      );
-      return match ? match.index : -1;
-    });
-
   return {
     pageCount,
 
@@ -364,6 +352,7 @@ export const createRasterScanSession = ({
     async readRemainingPages(roles, reference) {
       const layouts: TableLayout[] = [];
       const wordPages: number[] = [];
+      const unmatchedPages: number[] = [];
 
       for (let pageNumber = 2; pageNumber <= pageCount; pageNumber += 1) {
         throwIfImportAborted(signal);
@@ -379,7 +368,14 @@ export const createRasterScanSession = ({
           continue;
         }
 
-        const mapping = mapColumns(structure, reference);
+        // Les largeurs de colonnes changent d'une page à l'autre, pas leur nombre.
+        const mapping = mapColumnsToReferenceColumns(structure.columnEdges, reference.columns);
+        // Jamais de perte silencieuse : une colonne à rôle sans équivalent sur
+        // cette page rend la page à vérifier.
+        const hasUnmatchedRoleColumn = roles.some(
+          (role, referenceIndex) => role !== 'ignore' && !mapping.includes(referenceIndex),
+        );
+        if (hasUnmatchedRoleColumn) unmatchedPages.push(pageNumber);
         const columns = mapping
           .map((referenceIndex, index) => (referenceIndex >= 0 && (roles[referenceIndex] ?? 'ignore') !== 'ignore' ? index : -1))
           .filter((index) => index >= 0);
@@ -391,7 +387,7 @@ export const createRasterScanSession = ({
         layouts.push(buildLayout(structure, null, results, positions));
         release(page);
       }
-      return { layouts, wordPages };
+      return { layouts, wordPages, unmatchedPages };
     },
 
     dispose,

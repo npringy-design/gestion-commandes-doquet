@@ -122,7 +122,10 @@ try {
   assert.match(rasterScan, /PSM\.SINGLE_BLOCK/);
   assert.match(rasterScan, /PSM\.SINGLE_COLUMN/);
   assert.match(rasterScan, /createScheduler\(\)/);
-  assert.match(rasterScan, /COLUMN_MATCH_TOLERANCE = 8/, 'Colonnes des pages suivantes rattachées à 8 px près');
+  assert.match(rasterScan, /mapColumnsToReferenceColumns\(structure\.columnEdges, reference\.columns\)/,
+    'Les colonnes des pages suivantes sont associées par rang ou recouvrement');
+  assert.doesNotMatch(rasterScan, /COLUMN_MATCH_TOLERANCE/, 'Plus de tolérance fixe de position entre pages');
+  assert.match(rasterScan, /unmatchedPages\.push\(pageNumber\)/, 'Une page aux colonnes non reconnues est signalée');
   assert.match(rasterScan, /readCellText\(\{/);
   assert.match(rasterScan, /cellHasInk\(/, 'Seules les cellules qui portent de l’encre sont lues');
   assert.match(rasterScan, /analyseTable\(gray\)/);

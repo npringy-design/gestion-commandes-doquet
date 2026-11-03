@@ -325,6 +325,8 @@ Nouvelle voie pour les PDF sans texte natif (moins de 20 caractères), qui rempl
 
 Mesures locales du 3 novembre 2026 sur les cinq PDF (26 pages), lecture rejouée avec Tesseract sous Node : structure détectée en 80 à 360 ms par page, nombre de lignes exact sur chaque PDF (80, 29, 10, 56, 33), 3 lignes à contrôler sur 208 (1,4 %), 2 cellules à lectures divergentes sur 832. Durée de lecture de 1 s (Socopa) à 18 s (Épisaveurs) avec trois workers ; non mesurée dans le navigateur. Le délai de cette voie est de 8 minutes (`pdfScanOcr`).
 
+Correctif de l'association des colonnes entre pages (recette partielle sur TEST : lignes sans article ni unité de stockage sur Domafrais viande/BOF) : Adoria ajuste la largeur des colonnes à chaque page imprimée, les traits Article et Unité de stock se déplacent jusqu'à 44 px d'une page d'en-tête à l'autre, et l'ancienne tolérance de 8 px laissait ces colonnes sans équivalent, donc jamais lues. `src/utils/columnMapping.ts` associe désormais par rang quand le nombre de colonnes est identique, sinon par recouvrement d'au moins la moitié de la plus petite colonne. Une page dont une colonne à rôle n'a pas d'équivalent est listée dans le rapport (« Page n : colonnes non reconnues, lignes à vérifier ») et compte comme à contrôler. Rejeu local du cas : avec l'ancienne tolérance, pages 3 et 4 non reconnues et 16 lignes sur 33 à contrôler ; avec le nouveau calcul, 33 lignes dont 0 à contrôler. Test `test-column-mapping` ajouté à `npm run verify`.
+
 Nettoyage du lot 2, uniquement après la recette : code devenu inutile de la voie scannée (fusion natif/OCR de `orderTemplateParser.ts`, `mergeOcrExtractions`), dont les restes de la lecture vision payante s'il en subsiste.
 
 ## Backlog hors pourcentage

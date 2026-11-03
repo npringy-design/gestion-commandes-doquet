@@ -89,6 +89,8 @@ interface ImportQualityReport {
   mode: ImportMode;
   rowCount: number;
   flaggedRowCount: number;
+  // Pages dont une colonne à rôle n'a pas été reconnue : lignes à vérifier.
+  unmatchedPages: number[];
   needsReview: boolean;
 }
 
@@ -346,7 +348,11 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
   }, [canImport, openNewRatioProducts, orderTemplateRows, products, selectedSupplierId, setOrderTemplateRows, setOrderTemplatesBySupplier, setProducts, showToast, updateOrderLineField]);
 
   // Importe les lignes d'une lecture avec les rôles de colonnes retenus.
-  const importWithRoles = useCallback((pending: PendingImport, roles: ColumnRole[]): boolean => {
+  const importWithRoles = useCallback((
+    pending: PendingImport,
+    roles: ColumnRole[],
+    unmatchedPages: number[] = [],
+  ): boolean => {
     const extracted = extractTemplateRows(pending.layouts, roles, pending.headerTexts);
     const importedRows: OrderTemplateRow[] = extracted.rows.map((row) => ({
       id: makeRowId(),
@@ -356,11 +362,12 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
       packagingUnit: row.packagingUnit,
     }));
 
-    const needsReview = extracted.flaggedCount > 0 || pending.scanned;
+    const needsReview = extracted.flaggedCount > 0 || pending.scanned || unmatchedPages.length > 0;
     setImportQualityReport({
       mode: pending.mode,
       rowCount: importedRows.length,
       flaggedRowCount: extracted.flaggedCount,
+      unmatchedPages,
       needsReview,
     });
 
@@ -381,7 +388,12 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
       saveStoredColumnMapping(selectedSupplierId, buildStoredMapping(pending.headerTexts, roles));
     }
 
-    if (needsReview) {
+    if (unmatchedPages.length > 0) {
+      showToast(
+        `⚠ ${importedRows.length} ligne(s) importée(s) : ${unmatchedPages.map((page) => `page ${page}`).join(', ')} — colonnes non reconnues, lignes à vérifier`,
+        'warning',
+      );
+    } else if (needsReview) {
       showToast(
         extracted.flaggedCount > 0
           ? `⚠ ${importedRows.length} ligne(s) importée(s) : ${extracted.flaggedCount} surlignée(s) à contrôler`
@@ -583,7 +595,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
             'warning',
           );
         }
-        const imported = importWithRoles(pending, roles);
+        const imported = importWithRoles(pending, roles, result.unmatchedPages);
         setPendingImport({ ...pending, imported, editing: !imported });
         setStep('done');
       } catch (err) {
@@ -835,6 +847,11 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
                 <p className="mt-1">
                   {importQualityReport.rowCount} ligne(s) lue(s), {importQualityReport.flaggedRowCount} à contrôler
                   {importQualityReport.flaggedRowCount > 0 ? ' (surlignées, avec la raison sous l’article).' : '.'}
+                  {importQualityReport.unmatchedPages.map((page) => (
+                    <span key={page} className="mt-1 block font-semibold">
+                      Page {page} : colonnes non reconnues, lignes à vérifier
+                    </span>
+                  ))}
                 </p>
               </div>
             )}
