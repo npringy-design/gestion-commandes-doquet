@@ -24,7 +24,6 @@ import {
   extractRowsFromDocumentWords,
   mergeOcrExtractions,
   mergeTemplateExtractions,
-  dropLowConfidenceOcrLines,
   separateUnreadableRows,
   scoreTemplateExtraction,
 } from '../utils/orderTemplateParser';
@@ -481,7 +480,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
           });
         });
 
-        pagesWords.push(dropLowConfidenceOcrLines(words));
+        pagesWords.push(words);
       }
     } finally {
       signal?.removeEventListener('abort', abortWorker);

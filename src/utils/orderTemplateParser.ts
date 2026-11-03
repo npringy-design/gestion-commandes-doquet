@@ -32,6 +32,9 @@ export interface ParsedTemplateRow {
   article: string;
   storageUnit: string;
   packagingUnit: string;
+  // Confiance OCR minimale (0-100) de chaque cellule d'unité ; absente pour le
+  // texte natif ou une cellule vide, considérée alors comme fiable.
+  cellConfidence?: { article?: number; storageUnit?: number; packagingUnit?: number };
 }
 
 export interface PageExtractionDebug {
@@ -80,8 +83,10 @@ const COLUMN_MARGIN = 15;
 // Code+Articles, est traité comme la valeur de la colonne "Code". Une ligne
 // wrappée commençant par un grammage séparé (ex: "400 g PUIGRENIER") doit
 // toutefois rester une continuation de l'article, pas devenir un nouveau code.
-// Code numérique, ou code précédé d'un préfixe lettres + tiret (« COJ-123217 »).
-const CODE_VALUE_PATTERN = /^(?:\d{3,}|[A-Za-z]{2,6}-\d{3,})$/;
+// Code numérique, ou précédé d'un préfixe de lettres (« COJ-123217 »). Seul son
+// alignement dans la colonne Code en fait un code : un grammage de continuation
+// ne s'y trouve pas.
+const CODE_VALUE_PATTERN = /^(?:[A-Za-z]{1,6}[-_.]?)?\d{3,}$/;
 const ARTICLE_QUANTITY_VALUE_PATTERN = /^\d{1,4}(?:[.,]\d+)?$/;
 const ARTICLE_QUANTITY_UNIT_PATTERN = /^(?:g|gr|kg|ml|cl|l)$/i;
 
@@ -139,7 +144,7 @@ const cleanImportedStorageUnit = (text: string): string => {
   if (/\btranche\b/.test(loose)) return 'tranche';
   if (/\bpieces?\b|\bpiece\b|\bpi\s*ce\b/.test(loose)) return 'pièce';
   if (/\bunite?\b|\bunit\b/.test(loose)) return "à l'unité";
-  if (/\bkg\b|\bka\b|\bke\b|\bkq\b|\bfe\b|\bra\b/.test(loose)) return 'au Kg';
+  if (/\bkg\b|\bka\b|\bfe\b|\bra\b/.test(loose)) return 'au Kg';
   if (/\bl\b/.test(loose)) return 'au L';
   if (/\bau\b|\baux\b/.test(loose) || loose === 'a') return 'au Kg';
 
@@ -196,12 +201,6 @@ const inferStorageUnitFromArticle = (article: string): string => {
 const isUnambiguousStorageOnlyValue = (value: string): boolean =>
   /^(?:au\s+kg|au\s+l|a\s+l\s+unite|a\s+lunite)$/i.test(normalizeLooseUnitText(value));
 
-const KNOWN_UNIT_WORDS = [
-  'bouteille', 'barquette', 'carton', 'sachet', 'flacon', 'bidon', 'paquet',
-  'plateau', 'brique', 'boite', 'bocal', 'seau', 'poche', 'plaque', 'tranche',
-  'gourde', 'pièce', 'colis', 'botte', 'filet', 'cagette', 'caisse', 'panier',
-];
-
 const editDistance = (a: string, b: string): number => {
   const previous = Array.from({ length: b.length + 1 }, (_, index) => index);
   for (let i = 1; i <= a.length; i += 1) {
@@ -220,40 +219,23 @@ const editDistance = (a: string, b: string): number => {
   return previous[b.length];
 };
 
-// Une unité d'un seul mot, presque identique à une unité connue (« boutellle »),
-// est une erreur de reconnaissance : on la ramène à l'unité connue. Les mots
-// courts (< 5 lettres) sont exclus pour ne jamais deviner une unité ambiguë.
-const snapUnitToKnownWord = (value: string): string => {
-  const loose = normalizeLooseUnitText(value);
-  if (!loose || loose.includes(' ') || loose.length < 5) return value;
-  const known = KNOWN_UNIT_WORDS.map((word) => normalizeLooseUnitText(word));
-  if (known.includes(loose)) return value;
-  const index = known.findIndex((word) => word.length >= 5 && editDistance(loose, word) === 1);
-  return index >= 0 ? KNOWN_UNIT_WORDS[index] : value;
-};
-
-// Une ligne OCR dont la confiance moyenne est très basse est un fragment
-// illisible (« sosie de pou pren nue ») : l'importer pollue le libellé voisin.
+// Une ligne OCR dont la confiance moyenne est très basse est illisible
+// (« sosie de pou pren nue ») : son texte n'est pas repris dans le libellé voisin,
+// mais la ligne de tableau correspondante est signalée à contrôler plutôt que
+// laissée tronquée sans avertissement.
 const LOW_CONFIDENCE_LINE_THRESHOLD = 45;
 
-export const dropLowConfidenceOcrLines = (words: ExtractedWord[]): ExtractedWord[] => {
-  const lines = new Map<string, ExtractedWord[]>();
-  words.forEach((word) => {
-    if (word.lineId === undefined || word.confidence === undefined) return;
-    lines.set(word.lineId, [...(lines.get(word.lineId) ?? []), word]);
-  });
-  return words.filter((word) => {
-    const line = word.lineId === undefined ? undefined : lines.get(word.lineId);
-    if (!line || line.length < 2) return true;
-    const mean = line.reduce((total, item) => total + (item.confidence ?? 0), 0) / line.length;
-    return mean >= LOW_CONFIDENCE_LINE_THRESHOLD;
-  });
+const meanConfidence = (words: ExtractedWord[]): number | undefined => {
+  const values = words
+    .map((word) => word.confidence)
+    .filter((value): value is number => typeof value === 'number');
+  return values.length > 0 ? values.reduce((total, value) => total + value, 0) / values.length : undefined;
 };
 
 const repairParsedRow = (row: ParsedTemplateRow): ParsedTemplateRow => {
   const article = cleanImportedArticleText(row.article);
-  let storageUnit = snapUnitToKnownWord(cleanImportedStorageUnit(row.storageUnit));
-  let packagingUnit = snapUnitToKnownWord(cleanImportedPackagingUnit(row.packagingUnit));
+  let storageUnit = cleanImportedStorageUnit(row.storageUnit);
+  let packagingUnit = cleanImportedPackagingUnit(row.packagingUnit);
 
   if (!storageUnit && isUnambiguousStorageOnlyValue(packagingUnit)) {
     storageUnit = cleanImportedStorageUnit(packagingUnit);
@@ -287,12 +269,132 @@ const isSuspiciousArticleText = (article: string): boolean => {
   return false;
 };
 
+// Une valeur d'unité est lisible si elle ressemble à un mot ou un court groupe de
+// mots. Aucune liste d'unités : un conditionnement inédit n'est donc pas suspect.
+const isReadableUnitValue = (text: string): boolean => {
+  const normalized = normalizeLooseUnitText(text);
+  if (!normalized || /[?�]/.test(text)) return false;
+  if (normalized.split(' ').length > 5) return false;
+  return normalized.replace(/ /g, '').length >= 2 || /^[lga]$/.test(normalized);
+};
+
+// Au-dessus : lecture OCR fiable, qui sert de référence. En dessous du second
+// seuil : lecture trop incertaine pour ne pas être signalée à l'utilisateur.
+const RELIABLE_CELL_CONFIDENCE = 85;
+const UNRELIABLE_CELL_CONFIDENCE = 70;
+// Un mot de libellé de confiance inférieure à ce seuil (« eur » à la place de
+// « Oeuf PRE ») rend la ligne à contrôler, sans modifier le texte lu.
+const UNRELIABLE_ARTICLE_CONFIDENCE = 40;
+
 const isSuspiciousParsedRow = (row: ParsedTemplateRow): boolean =>
   isSuspiciousArticleText(row.article) ||
   !row.storageUnit.trim() ||
   !row.packagingUnit.trim() ||
-  !isPlausibleUnitValue(row.storageUnit) ||
-  !isPlausibleUnitValue(row.packagingUnit);
+  !isReadableUnitValue(row.storageUnit) ||
+  !isReadableUnitValue(row.packagingUnit) ||
+  (row.cellConfidence?.article ?? 100) < UNRELIABLE_ARTICLE_CONFIDENCE ||
+  (row.cellConfidence?.storageUnit ?? 100) < UNRELIABLE_CELL_CONFIDENCE ||
+  (row.cellConfidence?.packagingUnit ?? 100) < UNRELIABLE_CELL_CONFIDENCE;
+
+const getArticleWords = (article: string): string[] =>
+  normalizeLooseUnitText(article).split(' ').filter((word) => /[a-z]{3,}/.test(word));
+
+// Libellé lisible : au moins un vrai mot. Un tableau ne contient jamais de ligne
+// sans lettres (numéro, bordure) : elle est un fragment et non un produit.
+const hasReadableArticle = (article: string): boolean => getArticleWords(article).length >= 1;
+
+// Libellé substantiel : un mot long, ou plusieurs mots. Sert à juger une ligne
+// retrouvée par une seule des deux lectures, sans code correspondant ailleurs.
+const hasSubstantialArticle = (article: string): boolean => {
+  const words = getArticleWords(article);
+  return words.some((word) => word.replace(/[^a-z]/g, '').length >= 4) || words.length >= 2;
+};
+
+// Ligne issue d'une lecture secondaire sans correspondance : elle n'est retenue
+// que si elle ressemble à une vraie ligne de tableau.
+const isCredibleSecondaryRow = (row: ParsedTemplateRow): boolean =>
+  hasSubstantialArticle(row.article) && !isSuspiciousParsedRow(row);
+
+const mergeCellConfidence = (
+  primary: ParsedTemplateRow,
+  secondary: ParsedTemplateRow | undefined,
+  articleSource: ParsedTemplateRow | undefined,
+): ParsedTemplateRow['cellConfidence'] => ({
+  article: articleSource?.cellConfidence?.article,
+  storageUnit: primary.storageUnit ? primary.cellConfidence?.storageUnit : secondary?.cellConfidence?.storageUnit,
+  packagingUnit: primary.packagingUnit ? primary.cellConfidence?.packagingUnit : secondary?.cellConfidence?.packagingUnit,
+});
+
+// Une valeur d'unité lue avec une confiance faible (« Ke » pour « au Kg ») est
+// ramenée à la valeur très proche lue de façon fiable dans le même document, si
+// elle est unique. Une lecture fiable n'est jamais modifiée : aucune liste
+// d'unités, seul le document lui-même sert de référence.
+const reconcileUnitsWithReliableValues = (rows: ParsedTemplateRow[]): ParsedTemplateRow[] => {
+  let result = rows;
+
+  (['storageUnit', 'packagingUnit'] as const).forEach((field) => {
+    const reliable = new Map<string, { count: number; display: string }>();
+    result.forEach((row) => {
+      const confidence = row.cellConfidence?.[field];
+      if (confidence !== undefined && confidence < RELIABLE_CELL_CONFIDENCE) return;
+      const key = normalizeLooseUnitText(row[field]);
+      if (!key) return;
+      const entry = reliable.get(key);
+      if (entry) entry.count += 1;
+      else reliable.set(key, { count: 1, display: row[field] });
+    });
+    const references = [...reliable.entries()].filter(([, entry]) => entry.count >= 2);
+
+    result = result.map((row) => {
+      const confidence = row.cellConfidence?.[field];
+      if (confidence === undefined || confidence >= RELIABLE_CELL_CONFIDENCE) return row;
+      const key = normalizeLooseUnitText(row[field]);
+      if (!key) return row;
+
+      const confirmed = { ...row.cellConfidence, [field]: undefined };
+      if ((reliable.get(key)?.count ?? 0) >= 2) return { ...row, cellConfidence: confirmed };
+
+      // Valeur de référence entourée d'un ou deux mots parasites (« Là pièce »).
+      const tokens = key.split(' ');
+      for (let length = tokens.length - 1; length >= 1 && tokens.length - length <= 2; length -= 1) {
+        const matches = new Set<string>();
+        for (let start = 0; start + length <= tokens.length; start += 1) {
+          const candidate = tokens.slice(start, start + length).join(' ');
+          if ((reliable.get(candidate)?.count ?? 0) >= 2) matches.add(candidate);
+        }
+        if (matches.size === 1) {
+          const [match] = [...matches];
+          return { ...row, [field]: reliable.get(match)!.display, cellConfidence: confirmed };
+        }
+        if (matches.size > 1) return row;
+      }
+
+      const maxDistance = Math.max(1, Math.floor(key.length / 5));
+      let best: { display: string } | null = null;
+      let bestDistance = Infinity;
+      let tie = false;
+      for (const [referenceKey, entry] of references) {
+        const candidates = [referenceKey];
+        if (!key.includes(' ')) {
+          candidates.push(...referenceKey.split(' ').filter((token) => token.length >= 2));
+        }
+        const distance = Math.min(...candidates.map((candidate) => editDistance(key, candidate)));
+        if (distance < bestDistance) {
+          best = entry;
+          bestDistance = distance;
+          tie = false;
+        } else if (distance === bestDistance && entry !== best) {
+          tie = true;
+        }
+      }
+
+      if (!best || tie || bestDistance > maxDistance) return row;
+      return { ...row, [field]: (best as { display: string }).display, cellConfidence: confirmed };
+    });
+  });
+
+  return result;
+};
 
 // Une ligne secondaire sans code correspondant en primaire peut quand même
 // décrire un article déjà retenu (code mal lu par l'une des deux lectures).
@@ -331,19 +433,20 @@ const insertInDocumentOrder = (
   rows.push(newRow);
 };
 
-// Retire de `rows` les lignes illisibles pour qu'elles ne soient pas importées
-// telles quelles ; elles sont conservées dans `droppedRows` pour que l'UI les signale.
+// Retire de `rows` les fragments sans libellé exploitable ; elles sont conservées
+// dans `droppedRows` pour que l'UI les signale. Une ligne dont seules les unités
+// sont incertaines reste dans le tableau, modifiable, et est signalée à contrôler.
 export const separateUnreadableRows = (
   result: DocumentExtractionResult,
 ): DocumentExtractionResult => {
-  const rows = result.rows.filter((row) => !isSuspiciousParsedRow(row));
-  const droppedRows = result.rows.filter(isSuspiciousParsedRow);
+  const rows = result.rows.filter((row) => hasReadableArticle(row.article));
+  const droppedRows = result.rows.filter((row) => !hasReadableArticle(row.article));
   if (droppedRows.length === 0) return { ...result, droppedRows: [] };
   return {
     ...result,
     rows,
     droppedRows,
-    suspiciousRowCount: 0,
+    suspiciousRowCount: rows.filter(isSuspiciousParsedRow).length,
     needsReview: true,
   };
 };
@@ -473,7 +576,42 @@ interface LineInfo {
   packagingUnit: string;
   isAnchor: boolean;
   codeValue: string;
+  articleConfidence?: number;
+  storageConfidence?: number;
+  packagingConfidence?: number;
+  unreadable?: boolean;
 }
+
+const minConfidence = (words: ExtractedWord[]): number | undefined => {
+  const values = words
+    .map((word) => word.confidence)
+    .filter((value): value is number => typeof value === 'number');
+  return values.length > 0 ? Math.min(...values) : undefined;
+};
+
+const minDefined = (a: number | undefined, b: number | undefined): number | undefined =>
+  a === undefined ? b : b === undefined ? a : Math.min(a, b);
+
+// Fragments d'une cellule répartie sur plusieurs lignes : texte joint et plus
+// faible confiance parmi eux.
+const joinFragments = (
+  fragments: string[],
+  confidences: (number | undefined)[],
+): { text: string; confidence: number | undefined } => ({
+  text: fragments.join(' ').trim(),
+  confidence: confidences.reduce<number | undefined>((lowest, value) => minDefined(lowest, value), undefined),
+});
+
+const pushUnitFragment = (
+  fragments: string[],
+  confidences: (number | undefined)[],
+  value: string,
+  confidence: number | undefined,
+): void => {
+  const before = fragments.length;
+  pushUniqueUnitFragment(fragments, value);
+  if (fragments.length > before) confidences.push(confidence);
+};
 
 // Traite les mots d'une page et renvoie les lignes de tableau détectées.
 // `carriedBounds` permet de garder les colonnes détectées sur une page
@@ -603,6 +741,20 @@ export const extractRowsFromPageWords = (
     const joined = sorted.map((w) => w.text).join(' ');
     if (isNoiseLine(joined)) return;
 
+    const lineConfidence = meanConfidence(sorted);
+    if (sorted.length >= 2 && lineConfidence !== undefined && lineConfidence < LOW_CONFIDENCE_LINE_THRESHOLD) {
+      lineInfos.push({
+        yTop: line[0].yTop,
+        articleText: '',
+        storageUnit: '',
+        packagingUnit: '',
+        isAnchor: false,
+        codeValue: '',
+        unreadable: true,
+      });
+      return;
+    }
+
     let articleWords = sorted.filter((w) => w.x < articleEnd);
     let isAnchorFromCode = false;
     let codeValue = '';
@@ -619,12 +771,10 @@ export const extractRowsFromPageWords = (
       isAnchorFromCode = true;
     }
 
-    const rawStorageUnit = sorted
-      .filter((w) => w.x >= adjustedUnitStart && w.x < adjustedConditionStart)
-      .map((w) => w.text)
-      .join(' ')
-      .trim();
-    const rawPackagingUnit = sorted.filter((w) => w.x >= adjustedConditionStart).map((w) => w.text).join(' ').trim();
+    const storageWords = sorted.filter((w) => w.x >= adjustedUnitStart && w.x < adjustedConditionStart);
+    const packagingWords = sorted.filter((w) => w.x >= adjustedConditionStart);
+    const rawStorageUnit = storageWords.map((w) => w.text).join(' ').trim();
+    const rawPackagingUnit = packagingWords.map((w) => w.text).join(' ').trim();
     const storageUnit = cleanImportedStorageUnit(rawStorageUnit);
     const packagingUnit = cleanImportedPackagingUnit(rawPackagingUnit);
     const articleText = articleWords.map((w) => w.text).join(' ').trim();
@@ -642,6 +792,9 @@ export const extractRowsFromPageWords = (
       // convertirait à tort en "au Kg".
       storageUnit: rawStorageUnit,
       packagingUnit: rawPackagingUnit,
+      articleConfidence: minConfidence(articleWords),
+      storageConfidence: minConfidence(storageWords),
+      packagingConfidence: minConfidence(packagingWords),
       codeValue,
       // La présence du code suffit à ancrer la ligne logique. Le PDF peut
       // positionner le code, l'article et les unités sur des baselines
@@ -668,6 +821,7 @@ export const extractRowsFromPageWords = (
           article: l.articleText,
           storageUnit: cleanImportedStorageUnit(l.storageUnit) || inferStorageUnitFromArticle(l.articleText),
           packagingUnit: cleanImportedPackagingUnit(l.packagingUnit),
+          cellConfidence: { storageUnit: l.storageConfidence, packagingUnit: l.packagingConfidence },
         });
       }
     });
@@ -675,6 +829,9 @@ export const extractRowsFromPageWords = (
     const articleTextByAnchorPos: string[][] = anchorIndices.map(() => []);
     const storageUnitByAnchorPos: string[][] = anchorIndices.map(() => []);
     const packagingUnitByAnchorPos: string[][] = anchorIndices.map(() => []);
+    const articleConfidenceByAnchorPos: (number | undefined)[] = anchorIndices.map(() => undefined);
+    const storageFragmentConfidences: (number | undefined)[][] = anchorIndices.map(() => []);
+    const packagingFragmentConfidences: (number | undefined)[][] = anchorIndices.map(() => []);
 
     // La distance admissible dépend de l'espacement réel des codes. Elle
     // s'adapte donc aussi bien aux coordonnées pdf.js qu'aux coordonnées OCR
@@ -709,26 +866,46 @@ export const extractRowsFromPageWords = (
       // qu'une vraie suite de valeur ("=" , "a", "R 9", "A"...).
       const isOwnAnchorLine = idx === anchorIndices[nearestPos];
 
+      if (line.unreadable) articleConfidenceByAnchorPos[nearestPos] = 0;
+      articleConfidenceByAnchorPos[nearestPos] = minDefined(
+        articleConfidenceByAnchorPos[nearestPos],
+        line.articleConfidence,
+      );
       if (line.articleText) articleTextByAnchorPos[nearestPos].push(line.articleText);
       if (line.storageUnit && (isOwnAnchorLine || isPlausibleUnitFragment(line.storageUnit))) {
-        pushUniqueUnitFragment(storageUnitByAnchorPos[nearestPos], line.storageUnit);
+        pushUnitFragment(
+          storageUnitByAnchorPos[nearestPos],
+          storageFragmentConfidences[nearestPos],
+          line.storageUnit,
+          line.storageConfidence,
+        );
       }
       if (line.packagingUnit && (isOwnAnchorLine || isPlausibleUnitFragment(line.packagingUnit))) {
-        pushUniqueUnitFragment(packagingUnitByAnchorPos[nearestPos], line.packagingUnit);
+        pushUnitFragment(
+          packagingUnitByAnchorPos[nearestPos],
+          packagingFragmentConfidences[nearestPos],
+          line.packagingUnit,
+          line.packagingConfidence,
+        );
       }
     });
 
     anchorIndices.forEach((_anchorIdx, pos) => {
       const article = articleTextByAnchorPos[pos].join('\n').trim();
-      const storageUnit =
-        cleanImportedStorageUnit(storageUnitByAnchorPos[pos].join(' ').trim()) ||
-        inferStorageUnitFromArticle(article);
+      const storageCell = joinFragments(storageUnitByAnchorPos[pos], storageFragmentConfidences[pos]);
+      const packagingCell = joinFragments(packagingUnitByAnchorPos[pos], packagingFragmentConfidences[pos]);
+      const storageUnit = cleanImportedStorageUnit(storageCell.text) || inferStorageUnitFromArticle(article);
       if (article) {
         rows.push({
           sourceCode: lineInfos[anchorIndices[pos]].codeValue || undefined,
           article,
           storageUnit,
-          packagingUnit: cleanImportedPackagingUnit(packagingUnitByAnchorPos[pos].join(' ').trim()),
+          packagingUnit: cleanImportedPackagingUnit(packagingCell.text),
+          cellConfidence: {
+            article: articleConfidenceByAnchorPos[pos],
+            storageUnit: storageCell.confidence,
+            packagingUnit: packagingCell.confidence,
+          },
         });
       }
     });
@@ -773,17 +950,18 @@ export const extractRowsFromDocumentWords = (
     rows.push(...result.rows);
   });
 
+  const reconciledRows = reconcileUnitsWithReliableValues(rows);
   const codeCount = pagesDebug.reduce((total, page) => total + page.codeCount, 0);
   const incompleteCodeCount = pagesDebug.reduce((total, page) => total + page.incompleteCodeCount, 0);
-  const suspiciousRowCount = pagesDebug.reduce((total, page) => total + page.suspiciousRowCount, 0);
+  const suspiciousRowCount = reconciledRows.filter(isSuspiciousParsedRow).length;
   const needsReview =
     !headerFound ||
-    rows.length === 0 ||
+    reconciledRows.length === 0 ||
     incompleteCodeCount > 0 ||
     suspiciousRowCount > 0;
 
   return {
-    rows,
+    rows: reconciledRows,
     headerFound,
     pagesDebug,
     codeCount,
@@ -849,15 +1027,15 @@ export const mergeOcrExtractions = (
       const secondaryRow = primaryRow.sourceCode
         ? secondaryByCode.get(primaryRow.sourceCode)
         : undefined;
-      const article = secondaryRow &&
-        scoreOcrArticleCandidate(secondaryRow.article) > scoreOcrArticleCandidate(primaryRow.article)
-        ? secondaryRow.article
-        : primaryRow.article;
+      const secondaryArticleWins = Boolean(secondaryRow) &&
+        scoreOcrArticleCandidate(secondaryRow!.article) > scoreOcrArticleCandidate(primaryRow.article);
+      const article = secondaryArticleWins ? secondaryRow!.article : primaryRow.article;
       return repairParsedRow({
         sourceCode: primaryRow.sourceCode || secondaryRow?.sourceCode,
         article,
         storageUnit: primaryRow.storageUnit || secondaryRow?.storageUnit || '',
         packagingUnit: primaryRow.packagingUnit || secondaryRow?.packagingUnit || '',
+        cellConfidence: mergeCellConfidence(primaryRow, secondaryRow, secondaryArticleWins ? secondaryRow : primaryRow),
       });
     });
 
@@ -869,7 +1047,7 @@ export const mergeOcrExtractions = (
     ) {
       // Un fragment douteux sans correspondance n'est pas une vraie ligne.
       const repaired = repairParsedRow(row);
-      if (!isSuspiciousParsedRow(repaired)) insertInDocumentOrder(rows, secondary.rows, secondaryIndex, repaired);
+      if (isCredibleSecondaryRow(repaired)) insertInDocumentOrder(rows, secondary.rows, secondaryIndex, repaired);
     }
   });
 
@@ -916,20 +1094,26 @@ export const mergeTemplateExtractions = (
       ? ocrByCode.get(nativeRow.sourceCode)
       : ocrResult.rows[index];
 
+    const ocrArticleWins = Boolean(
+      nativeRow.article &&
+      isSuspiciousArticleText(nativeRow.article) &&
+      ocrRow?.article &&
+      !isSuspiciousArticleText(ocrRow.article),
+    );
+
     return repairParsedRow({
       sourceCode: nativeRow.sourceCode || ocrRow?.sourceCode,
       // Ne jamais remplacer un texte PDF existant par une reconnaissance
       // visuelle moins fidèle, sauf si ce texte est corrompu et que l'OCR
       // propose un libellé sain. Elle peut sinon combler une valeur vide.
-      article:
-        nativeRow.article &&
-        isSuspiciousArticleText(nativeRow.article) &&
-        ocrRow?.article &&
-        !isSuspiciousArticleText(ocrRow.article)
-          ? ocrRow.article
-          : nativeRow.article || ocrRow?.article || '',
+      article: ocrArticleWins ? ocrRow!.article : nativeRow.article || ocrRow?.article || '',
       storageUnit: nativeRow.storageUnit || ocrRow?.storageUnit || '',
       packagingUnit: nativeRow.packagingUnit || ocrRow?.packagingUnit || '',
+      cellConfidence: mergeCellConfidence(
+        nativeRow,
+        ocrRow,
+        ocrArticleWins || !nativeRow.article ? ocrRow : nativeRow,
+      ),
     });
   });
 
@@ -940,7 +1124,7 @@ export const mergeTemplateExtractions = (
       !hasEquivalentArticle(rows, ocrRow.article)
     ) {
       const repaired = repairParsedRow(ocrRow);
-      if (!isSuspiciousParsedRow(repaired)) insertInDocumentOrder(rows, ocrResult.rows, ocrIndex, repaired);
+      if (isCredibleSecondaryRow(repaired)) insertInDocumentOrder(rows, ocrResult.rows, ocrIndex, repaired);
     }
   });
 

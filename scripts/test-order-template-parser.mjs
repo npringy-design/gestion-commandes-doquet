@@ -43,7 +43,6 @@ try {
     mergeTemplateExtractions,
     scoreTemplateExtraction,
     separateUnreadableRows,
-    dropLowConfidenceOcrLines,
   } = await import(pathToFileURL(compiledPath).href);
 
   const header = [
@@ -350,32 +349,15 @@ try {
   );
   assert.equal(duplicateOcrSame.rows.length, 1, 'Un article identique ne doit pas être dupliqué (OCR + OCR)');
 
-  // 3. Les lignes illisibles sont écartées et tracées.
+  // 3. Les fragments sans libellé sont écartés et tracés.
   const separated = separateUnreadableRows(makeOcrResult([
     { sourceCode: 'OK1', article: 'Produit lisible', storageUnit: 'au Kg', packagingUnit: 'carton x 6' },
-    { sourceCode: 'KO1', article: 'Pro? ??', storageUnit: 'au Kg', packagingUnit: 'carton x 6' },
+    { sourceCode: 'KO1', article: '45468 ??', storageUnit: 'au Kg', packagingUnit: 'carton x 6' },
   ], 2, 1));
   assert.deepEqual(separated.rows.map((row) => row.sourceCode), ['OK1']);
   assert.deepEqual(separated.droppedRows.map((row) => row.sourceCode), ['KO1']);
 
-  // 4. Lignes OCR très peu fiables écartées, unités quasi connues corrigées,
-  // fragments douteux sans correspondance jamais promus en ligne.
-  const confidenceWords = [
-    ...['sosie', 'de', 'pou'].map((text, i) => ({ text, x: i, yTop: 1, lineId: 'l1', confidence: 0 })),
-    ...['jus', 'de', 'veau'].map((text, i) => ({ text, x: i, yTop: 2, lineId: 'l2', confidence: 95 })),
-    { text: 'seul', x: 0, yTop: 3, lineId: 'l3', confidence: 10 },
-    { text: 'natif', x: 0, yTop: 4 },
-  ];
-  assert.deepEqual(
-    dropLowConfidenceOcrLines(confidenceWords).map((word) => word.text),
-    ['jus', 'de', 'veau', 'seul', 'natif'],
-    'Seules les lignes de plusieurs mots à faible confiance moyenne sont écartées',
-  );
-  const snapped = mergeOcrExtractions(
-    makeOcrResult([{ sourceCode: 'S1', article: 'Assaisonnement liquide bouteille 400 ml', storageUnit: 'au Kg', packagingUnit: 'boutellle' }], 1),
-    makeOcrResult([], 0),
-  );
-  assert.equal(snapped.rows[0].packagingUnit, 'bouteille', 'Une unité à une lettre près doit être ramenée à l’unité connue');
+  // 4. Un fragment douteux sans correspondance n'est jamais promu en ligne.
   const fragmentOnly = mergeOcrExtractions(
     makeOcrResult([{ sourceCode: 'A1', article: 'Beurre doux 250 g', storageUnit: 'au Kg', packagingUnit: 'carton x 6' }], 1),
     makeOcrResult([{ sourceCode: 'F9', article: 'CNE AE 10500410', storageUnit: 'aa', packagingUnit: 'sem' }], 1),
@@ -393,22 +375,78 @@ try {
   assert.equal(ordered.codeCount, 4);
   assert.equal(ordered.incompleteCodeCount, 0);
 
-  // 6. Codes à préfixe, unités « botte » / « filet » et lecture « Ke » de « Kg ».
+  // 6. Codes à préfixe : seul l'alignement dans la colonne Code compte.
   const prefixedResult = extractRowsFromDocumentWords([[
     ...header,
-    ...articleLine({ yTop: 100, code: '123872', article: 'Orange à jus filet 2 Kg', storageUnit: 'Ke', packagingUnit: 'filet' }),
+    ...articleLine({ yTop: 100, code: '123872', article: 'Orange à jus filet 2 Kg', packagingUnit: 'filet' }),
     ...articleLine({ yTop: 160, code: 'COJ-123217', article: 'Fruits de la passion colis 2 Kg', packagingUnit: 'colis' }),
     ...articleLine({ yTop: 220, code: '153806', article: 'Cébette botte 300 G', packagingUnit: 'botte' }),
   ]]);
   assert.deepEqual(
     prefixedResult.rows.map((row) => row.sourceCode),
     ['123872', 'COJ-123217', '153806'],
-    'Un code à préfixe lettres + tiret doit ancrer sa ligne',
+    'Un code à préfixe de lettres doit ancrer sa ligne',
   );
-  assert.equal(prefixedResult.rows[0].storageUnit, 'au Kg', '« Ke » est une lecture de « Kg »');
-  assert.equal(prefixedResult.rows[0].packagingUnit, 'filet', '« filet » est une unité valide');
-  assert.equal(prefixedResult.rows[2].packagingUnit, 'botte', '« botte » ne doit pas être corrigée en « boîte »');
-  assert.equal(prefixedResult.suspiciousRowCount, 0, 'Aucune de ces lignes ne doit être jugée illisible');
+  assert.equal(prefixedResult.suspiciousRowCount, 0, 'Un conditionnement inédit n’est pas une erreur de lecture');
+  assert.equal(prefixedResult.rows[2].packagingUnit, 'botte', 'Aucune liste d’unités ne doit réécrire « botte »');
+
+  // 7. Réconciliation par confiance OCR : seule une lecture peu fiable est corrigée,
+  // et seulement vers une valeur lue de façon fiable dans le même document.
+  const confidenceLine = ({
+    yTop, code, article, storage = 'au Kg', packaging = '', articleConfidence = 96, storageConfidence = 96, packagingConfidence = 96,
+  }) => [
+    ...wordsAt(code, 20, yTop).map((word) => ({ ...word, confidence: 96 })),
+    ...wordsAt(article, 100, yTop).map((word) => ({ ...word, confidence: articleConfidence })),
+    ...wordsAt(storage, 310, yTop).map((word) => ({ ...word, confidence: storageConfidence })),
+    ...wordsAt(packaging, 470, yTop).map((word) => ({ ...word, confidence: packagingConfidence })),
+  ];
+  const reconciled = extractRowsFromDocumentWords([[
+    ...header,
+    ...confidenceLine({ yTop: 100, code: '100001', article: 'Banane moyenne colis', packaging: 'colis' }),
+    ...confidenceLine({ yTop: 160, code: '100002', article: 'Citron jaune colis', packaging: 'colis' }),
+    ...confidenceLine({ yTop: 220, code: '100003', article: 'Citron vert colis', packaging: 'colis' }),
+    ...confidenceLine({ yTop: 280, code: '100004', article: 'Tomate grosse colis', storage: 'Ke', storageConfidence: 50, packaging: 'colis' }),
+    ...confidenceLine({ yTop: 340, code: '100005', article: 'Assaisonnement agrumes', packaging: 'bouteille' }),
+    ...confidenceLine({ yTop: 400, code: '100006', article: 'Assaisonnement fumé', packaging: 'bouteille' }),
+    ...confidenceLine({ yTop: 460, code: '100007', article: 'Assaisonnement citron', packaging: 'boutellle', packagingConfidence: 82 }),
+    ...confidenceLine({ yTop: 520, code: '100008', article: 'Camembert fermier pièce', packaging: 'pièce' }),
+    ...confidenceLine({ yTop: 580, code: '100009', article: 'Reblochon fermier pièce', packaging: 'pièce' }),
+    ...confidenceLine({ yTop: 640, code: '100010', article: 'Grana Padano pièce', packaging: 'Là pièce', packagingConfidence: 40 }),
+  ]]);
+  const byCode = Object.fromEntries(reconciled.rows.map((row) => [row.sourceCode, row]));
+  assert.equal(byCode['100004'].storageUnit, 'au Kg', '« Ke » lu à faible confiance est ramené à « au Kg » lu ailleurs');
+  assert.equal(byCode['100007'].packagingUnit, 'bouteille', 'Une faute de lecture est ramenée à la valeur fiable du document');
+  assert.equal(byCode['100010'].packagingUnit, 'pièce', 'Un mot parasite autour d’une valeur de référence est retiré');
+  assert.equal(reconciled.suspiciousRowCount, 0, 'Les lectures corrigées ne doivent plus être signalées');
+
+  const reliableRare = extractRowsFromDocumentWords([[
+    ...header,
+    ...confidenceLine({ yTop: 100, code: '200001', article: 'Ciboulette entière', packaging: 'boîte' }),
+    ...confidenceLine({ yTop: 160, code: '200002', article: 'Persil plat entier', packaging: 'boîte' }),
+    ...confidenceLine({ yTop: 220, code: '200003', article: 'Thym sec entier', packaging: 'boîte' }),
+    ...confidenceLine({ yTop: 280, code: '200004', article: 'Cébette botte entière', packaging: 'botte' }),
+  ]]);
+  assert.equal(
+    reliableRare.rows.find((row) => row.sourceCode === '200004').packagingUnit,
+    'botte',
+    'Une lecture fiable n’est jamais modifiée, même proche d’une valeur plus fréquente',
+  );
+
+  // 8. Une ligne OCR illisible n'est pas reprise dans le libellé et le signale.
+  const unreadableLine = extractRowsFromDocumentWords([[
+    ...header,
+    ...confidenceLine({ yTop: 100, code: '300001', article: 'Jus de veau lié', packaging: 'boîte' }),
+    ...wordsAt('sosie de pou pren', 100, 125).map((word) => ({ ...word, confidence: 5 })),
+    ...confidenceLine({ yTop: 160, code: '300002', article: 'Fond de volaille', packaging: 'boîte' }),
+  ]]);
+  const unreadableRow = unreadableLine.rows.find((row) => row.sourceCode === '300001');
+  assert.doesNotMatch(unreadableRow.article, /sosie/, 'Le texte illisible ne doit pas polluer le libellé');
+  assert.equal(unreadableLine.suspiciousRowCount, 1, 'La ligne dont le libellé est incomplet doit être signalée');
+  assert.equal(
+    separateUnreadableRows(unreadableLine).rows.length,
+    2,
+    'Une ligne signalée reste dans le tableau pour être contrôlée',
+  );
 
   console.log('Parser trame commande OK : codes, bandes multilignes, fusion OCR, unités et qualité protégés.');
 } finally {
