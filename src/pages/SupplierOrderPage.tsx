@@ -64,6 +64,7 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
     orderLineStates, updateOrderLineField,
     supplierConfigs, products, dailyCovers, limonadeCovers,
     performReset, updateProductValue, getProductStats,
+    sortProductsAlphabetically,
   } = state;
 
   const [activeNextCalendar, setActiveNextCalendar] = React.useState(false);
@@ -596,7 +597,17 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
                 {/* ── En-têtes desktop ── */}
                 <th className="hidden lg:table-cell px-6 bg-[#2c1810] text-[#ffd700] font-black uppercase text-xs tracking-widest"
                     style={{ position: 'sticky', left: 0, zIndex: 20 }}>
-                  Produit
+                  <button
+                    type="button"
+                    onClick={() => sortProductsAlphabetically(displayedProducts.map(p => p.id))}
+                    title="Trier les produits par ordre alphabétique"
+                    className="flex items-center gap-1.5 hover:text-white transition-colors"
+                  >
+                    Produit
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7h10M3 12h6M3 17h3M16 5v14m0 0l-3-3m3 3l3-3"/>
+                    </svg>
+                  </button>
                 </th>
 
                 {calculationMode === 'margin' ? (<>
