@@ -147,6 +147,17 @@ const ProductCard: React.FC<{
   onDragEnd,
 }) => {
   const [expanded, setExpanded] = useState(false);
+  // Une carte `draggable` capte le clic-glissé même à l'intérieur d'un champ de
+  // saisie : le déplacement de la carte l'emporte sur la sélection de texte.
+  // Pendant le survol ou la saisie d'un champ, la carte n'est donc plus déplaçable.
+  const [textFieldActive, setTextFieldActive] = useState(false);
+  const textFieldDragGuard = {
+    onMouseEnter: () => setTextFieldActive(true),
+    onMouseLeave: (event: React.MouseEvent<HTMLInputElement>) => {
+      if (document.activeElement !== event.currentTarget) setTextFieldActive(false);
+    },
+    onFocus: () => setTextFieldActive(true),
+  };
   const mappingButtonRef = React.useRef<HTMLButtonElement | null>(null);
   const [mappingAnchorRect, setMappingAnchorRect] = React.useState<DOMRect | null>(null);
   const {
@@ -182,7 +193,7 @@ const ProductCard: React.FC<{
 
   return (
     <div
-      draggable={canEdit}
+      draggable={canEdit && !textFieldActive}
       onDragStart={(event) => {
         if (!canEdit || isInteractiveDragTarget(event.target)) {
           event.preventDefault();
@@ -223,6 +234,8 @@ const ProductCard: React.FC<{
           placeholder="Nom produit dans l'import..."
           onChange={e => updateSearchName(p.id, e.target.value)}
           onMouseDown={e => e.stopPropagation()}
+          {...textFieldDragGuard}
+          onBlur={() => setTextFieldActive(false)}
           disabled={!canEdit || isFrozenDisplay}
         />
         <div className="relative z-[70] shrink-0 overflow-visible">
@@ -294,7 +307,11 @@ const ProductCard: React.FC<{
                   key={`${p.id}-name-${p.name}`}
                   defaultValue={p.name}
                   placeholder="Nom visible dans les commandes..."
-                  onBlur={e => { if (e.target.value !== p.name) handleNameChange(p.id, e.target.value); }}
+                  {...textFieldDragGuard}
+                  onBlur={e => {
+                    setTextFieldActive(false);
+                    if (e.target.value !== p.name) handleNameChange(p.id, e.target.value);
+                  }}
                   onKeyDown={onEnterBlur}
                   onMouseDown={e => e.stopPropagation()}
                   disabled={!canEdit}

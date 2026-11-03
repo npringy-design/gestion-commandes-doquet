@@ -71,7 +71,12 @@ try {
     'Un déplacement invalide ne doit déclencher aucune sauvegarde',
   );
 
-  assert.match(pageSource, /draggable=\{canEdit\}/, 'Les cartes modifiables doivent être déplaçables');
+  assert.match(pageSource, /draggable=\{canEdit && !textFieldActive\}/, 'Les cartes modifiables doivent etre deplacables, sauf pendant la saisie dans un champ');
+  assert.equal(
+    (pageSource.match(/\.\.\.textFieldDragGuard/g) ?? []).length,
+    2,
+    'Les deux champs de texte de la carte doivent suspendre le deplacement pour permettre la selection de texte',
+  );
   assert.match(pageSource, /onDrop=\{dropProductCard\}/, 'Le dépôt doit appliquer le nouvel ordre');
   assert.doesNotMatch(pageSource, /moveProduct\(p\.id, '(?:up|down)'\)/, 'Les anciennes flèches doivent être retirées');
 
