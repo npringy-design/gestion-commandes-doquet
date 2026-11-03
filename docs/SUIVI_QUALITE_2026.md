@@ -290,6 +290,25 @@ Confirmation Docker officielle du 19 juillet 2026 : le workflow GitHub Actions `
 
 Validation utilisateur et promotion production du 19 juillet 2026 : `main` a été avancée sans divergence sur `d8bc739c853070a8fd4d9dea72b249b594e704e2`. Les déploiements Vercel TEST et production sont `READY`. Le run GitHub Actions production `29687057950` confirme de nouveau la suite applicative complète et le rejeu Docker. Cette promotion ne déclenche aucune migration distante ; le `supabase db push --dry-run` sur Supabase TEST demeure la seule confirmation ouverte.
 
+## Chantier fonctionnel — Lot 1 : import de la trame par lecture vision (hors pourcentage)
+
+Demandé explicitement pour remplacer le flux pdf.js-positions + tesseract + `orderTemplateParser`. Ce chantier ne modifie ni les lots de la feuille de route ni la progression globale (20 %).
+
+- [x] API `api/order-template-extract.ts` : session active, quota dédié de 40 requêtes / 5 min, corps limité à 3 Mo, JPEG obligatoire, délai de 45 s, réponse validée par type guard, un nouvel essai si le schéma est invalide, erreurs du fournisseur jamais relayées ;
+- [x] `src/utils/orderTemplateExtraction.ts` : types, type guard, assemblage verbatim des pages, dédoublonnage inter-pages, règles de signalement, orchestration page 1 puis trois pages en parallèle ;
+- [x] `src/utils/orderTemplatePdfPages.ts` : rendu JPEG (côté long 1800 px, qualité 0,85) et texte natif, limite de 15 pages ;
+- [x] `OrderTemplatePage` : ancien flux OCR retiré, lignes à contrôler surlignées, rapport `vision`, pages en échec listées, aucun repli sur l'ancien parseur ;
+- [x] tests `test-order-template-extraction` et `test-order-template-extract-security` ajoutés à `npm run verify` ;
+- [x] `maxDuration` de 60 s configuré pour la fonction dans `vercel.json`, `OPENAI_TEMPLATE_MODEL` documenté dans `.env.example` ;
+- [x] `npm run verify` vert ;
+- [ ] variable `OPENAI_API_KEY` présente sur le projet Vercel TEST (absente au contrôle du 3 novembre 2026) et compte API OpenAI crédité ;
+- [ ] validation de Nicolas sur au moins trois PDF réels de fournisseurs différents ;
+- [ ] promotion sur `main`, uniquement après cette validation.
+
+Le lot 2 (suppression de `orderTemplateParser.ts`, de son test et de `tesseract.js`) n'est pas commencé : il suit la validation ci-dessus.
+
+Publication TEST : commit `7754a6f67475d6fe3bf5541175b6508290928f7c`. Les tests de l'API simulent le fournisseur : aucun appel réel au modèle vision n'a encore été exécuté.
+
 ## Backlog hors pourcentage
 
 - Étendre progressivement la sauvegarde granulaire à l'ensemble des autres
