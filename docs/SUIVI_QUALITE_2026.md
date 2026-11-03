@@ -292,7 +292,7 @@ Validation utilisateur et promotion production du 19 juillet 2026 : `main` a ét
 
 ## Chantier fonctionnel — Lot 1 : import de la trame déterministe (hors pourcentage)
 
-Remplace le flux pdf.js-positions + tesseract + `orderTemplateParser` par une lecture déterministe, sans IA, sans API externe et sans nouvelle dépendance. Ce chantier ne modifie ni les lots de la feuille de route ni la progression globale (20 %). Une première version par lecture vision (API OpenAI) a été abandonnée avant toute validation : ses fichiers (`api/order-template-extract.ts`, client, rendu JPEG, tests, configuration `maxDuration`, variable `OPENAI_TEMPLATE_MODEL`) ont été retirés.
+Remplace l'ancien flux de lecture positionnelle (supprimé au lot 2) par une lecture déterministe, sans IA, sans API externe et sans nouvelle dépendance. Ce chantier ne modifie ni les lots de la feuille de route ni la progression globale (20 %). Une première version par lecture vision (API OpenAI) a été abandonnée avant toute validation : ses fichiers (`api/order-template-extract.ts`, client, rendu JPEG, tests, configuration `maxDuration`, variable `OPENAI_TEMPLATE_MODEL`) ont été retirés.
 
 - [x] `src/utils/pdfTableLayout.ts` : orientation dominante du texte, traits fins de la liste d'opérateurs pdf.js (transformations courantes appliquées, format de tracé actuel et historique), grille, colonnes par espaces, tableau (une bande = un produit avec grille, produit ancré sur le Code sans grille) ;
 - [x] `src/utils/orderTemplateColumnRoles.ts` : rôles article / unité de stockage / conditionnement / code / ignorer, synonymes sans accent ni casse, confiance `sure` ou `unsure`, en-têtes répétés ignorés, mémorisation `orderTemplateColumnMapping:{supplierId}` en localStorage protégé par try/catch ;
@@ -307,7 +307,7 @@ Remplace le flux pdf.js-positions + tesseract + `orderTemplateParser` par une le
 
 Constat du 3 novembre 2026 : les cinq PDF Adoria fournis n'ont aucun texte natif (le texte est converti en tracés vectoriels) ; ils passent donc tous par la voie OCR, avec la grille vectorielle du PDF. Lecture locale de ces cinq PDF : toutes les lignes sont restituées (80, 29, 10, 56 et 33 produits), les unités mal lues par l'OCR (« Ke », « aul ») sont signalées et non corrigées.
 
-Le lot 2 (suppression de `orderTemplateParser.ts`, de son test et de `tesseract.js` si plus nécessaire) n'est pas commencé : `tesseract.js` reste nécessaire à la voie des PDF scannés.
+Le lot 2 (suppression de l'ancien parseur positionnel) est décrit plus bas ; `tesseract.js` reste nécessaire à la voie des PDF sans texte natif.
 
 ## Chantier fonctionnel — Lot 1bis : grille d'image et OCR cellule par cellule (hors pourcentage)
 
@@ -327,9 +327,21 @@ Mesures locales du 3 novembre 2026 sur les cinq PDF (26 pages), lecture rejouée
 
 Correctif de l'association des colonnes entre pages (recette partielle sur TEST : lignes sans article ni unité de stockage sur Domafrais viande/BOF) : Adoria ajuste la largeur des colonnes à chaque page imprimée, les traits Article et Unité de stock se déplacent jusqu'à 44 px d'une page d'en-tête à l'autre, et l'ancienne tolérance de 8 px laissait ces colonnes sans équivalent, donc jamais lues. `src/utils/columnMapping.ts` associe désormais par rang quand le nombre de colonnes est identique, sinon par recouvrement d'au moins la moitié de la plus petite colonne. Une page dont une colonne à rôle n'a pas d'équivalent est listée dans le rapport (« Page n : colonnes non reconnues, lignes à vérifier ») et compte comme à contrôler. Rejeu local du cas : avec l'ancienne tolérance, pages 3 et 4 non reconnues et 16 lignes sur 33 à contrôler ; avec le nouveau calcul, 33 lignes dont 0 à contrôler. Test `test-column-mapping` ajouté à `npm run verify`.
 
-Nettoyage du lot 2, uniquement après la recette : code devenu inutile de la voie scannée (fusion natif/OCR de `orderTemplateParser.ts`, `mergeOcrExtractions`), dont les restes de la lecture vision payante s'il en subsiste.
+## Chantier technique — Lot 2 : suppression de l'ancien parseur positionnel (hors pourcentage)
+
+Étape purement technique, sans changement visible attendu.
+
+- [x] suppression de `src/utils/orderTemplateParser.ts` (1151 lignes, importé par aucun fichier de `src/`) et de `scripts/test-order-template-parser.mjs`, avec le script et l'entrée de `npm run verify` ;
+- [x] `tesseract.js` conservé : il sert à `orderTemplateRasterScan.ts` et à `orderTemplatePdfSource.ts` ; aucune dépendance modifiée ;
+- [x] garde-fous contre la réintroduction de l'ancienne logique conservés dans `test-pdf-table-layout` et `test-cell-ocr` ;
+- [x] documentation des trames réduite à une note de remplacement ;
+- [x] `npm run verify` vert ;
+- [ ] non-régression manuelle de Nicolas sur TEST : `Domafrais_viande_et_bof` = 33 lignes, peu de lignes à contrôler ;
+- [ ] promotion sur `main`, uniquement après ce feu vert.
 
 ## Backlog hors pourcentage
+
+- Examiner séparément des exports sans usage externe repérés lors du lot 2, sans les supprimer ni les refactorer d'ici là : `detectColumnsByWhitespace`, `toUprightFrame` et `getDominantTextAngle` dans `pdfTableLayout.ts` ; `findHeaderRowIndex`, `getHeaderTexts` et `getColumnMappingStorageKey` dans `orderTemplateColumnRoles.ts` ; `findRulings` dans `rasterTable.ts`.
 
 - Étendre progressivement la sauvegarde granulaire à l'ensemble des autres
   données métier encore persistées par blocs complets. Chaque page devra être
