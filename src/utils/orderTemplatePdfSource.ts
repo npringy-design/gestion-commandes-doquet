@@ -5,7 +5,15 @@
 // Aucune fusion entre texte natif et OCR : un document est lu par une seule voie.
 
 import { OPS, type PDFDocumentProxy } from 'pdfjs-dist';
-import { throwIfImportAborted } from './importProcessing';
+import { ImportProcessingError, throwIfImportAborted } from './importProcessing';
+import {
+  ROTATION_CANDIDATES,
+  isSidewaysWords,
+  pickBestRotation,
+  rotatePoint,
+  type RotationCandidate,
+  type RotationDegrees,
+} from './ocrOrientation';
 import {
   buildGrid,
   buildTable,
@@ -101,11 +109,8 @@ export const readNativePages = async (
 // OCR
 // ---------------------------------------------------------------------------
 
-type RotationDegrees = 0 | 90 | 180 | 270;
-
 const OCR_RENDER_SCALE = 3;
 const ROTATION_DETECTION_MAX_SIDE = 1400;
-const ROTATION_CANDIDATES: RotationDegrees[] = [0, 90, 180, 270];
 
 // Certains PDF « Imprimer en PDF » dessinent le tableau pivoté dans le flux
 // sans poser /Rotate : pdf.js les rend « sur le côté ».
@@ -135,21 +140,6 @@ const rotateCanvas = (source: HTMLCanvasElement, degrees: RotationDegrees): HTML
   return rotated;
 };
 
-// Même rotation, appliquée à un point de l'image d'origine (largeur `width`,
-// hauteur `height`) : donne sa position dans l'image tournée.
-const rotatePoint = (
-  x: number,
-  y: number,
-  degrees: RotationDegrees,
-  width: number,
-  height: number,
-): { x: number; y: number } => {
-  if (degrees === 90) return { x: height - y, y: x };
-  if (degrees === 180) return { x: width - x, y: height - y };
-  if (degrees === 270) return { x: y, y: width - x };
-  return { x, y };
-};
-
 const downscaleForDetection = (source: HTMLCanvasElement): HTMLCanvasElement => {
   const longSide = Math.max(source.width, source.height);
   if (longSide <= ROTATION_DETECTION_MAX_SIDE) return source;
@@ -176,19 +166,45 @@ interface OcrBlock {
   paragraphs: { lines: { words: { text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }[] }[] }[];
 }
 
+// Mots d'un résultat OCR, avec leurs dimensions.
+const collectOcrWords = (blocks: OcrBlock[] | null | undefined) => {
+  const words: { text: string; width: number; height: number }[] = [];
+  (blocks ?? []).forEach((block) => {
+    block.paragraphs.forEach((paragraph) => {
+      paragraph.lines.forEach((line) => {
+        line.words.forEach((word) => {
+          words.push({
+            text: word.text,
+            width: word.bbox.x1 - word.bbox.x0,
+            height: word.bbox.y1 - word.bbox.y0,
+          });
+        });
+      });
+    });
+  });
+  return words;
+};
+
+// L'orientation retenue est celle qui lit la page à l'endroit avec la meilleure
+// confiance : une page lue de côté ou à l'envers peut avoir une confiance
+// presque égale, mais ses mots sont alors plus hauts que larges.
 const detectBestRotation = async (
   worker: OcrWorker,
   canvas: HTMLCanvasElement,
   signal?: AbortSignal,
 ): Promise<RotationDegrees> => {
   const reduced = downscaleForDetection(canvas);
-  let best: { degrees: RotationDegrees; confidence: number } | null = null;
+  const candidates: RotationCandidate[] = [];
   for (const degrees of ROTATION_CANDIDATES) {
     throwIfImportAborted(signal);
-    const { data } = await worker.recognize(rotateCanvas(reduced, degrees), {}, { blocks: false });
-    if (!best || data.confidence > best.confidence) best = { degrees, confidence: data.confidence };
+    const { data } = await worker.recognize(rotateCanvas(reduced, degrees), {}, { blocks: true });
+    candidates.push({
+      degrees,
+      confidence: data.confidence,
+      sideways: isSidewaysWords(collectOcrWords(data.blocks)),
+    });
   }
-  return best?.degrees ?? 0;
+  return pickBestRotation(candidates);
 };
 
 // Barres de bordure de tableau que l'OCR accole aux mots ou lit comme mots isolés.
@@ -241,6 +257,13 @@ export const readScannedPages = async (
 
       const { data } = await ocrWorker.recognize(oriented, {}, { blocks: true });
       throwIfImportAborted(signal);
+
+      if (isSidewaysWords(collectOcrWords(data.blocks))) {
+        throw new ImportProcessingError(
+          'processing_failed',
+          'La page n’a pas pu être remise à l’endroit pour la lecture visuelle. Saisis la trame manuellement.',
+        );
+      }
 
       const words: PdfWord[] = [];
       (data.blocks ?? []).forEach((block) => {

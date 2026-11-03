@@ -7,7 +7,7 @@ import ts from 'typescript';
 
 const root = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), 'gestion-pdf-table-layout-'));
-const moduleNames = ['pdfTableLayout', 'orderTemplateColumnRoles', 'orderTemplateRowExtraction'];
+const moduleNames = ['pdfTableLayout', 'orderTemplateColumnRoles', 'orderTemplateRowExtraction', 'ocrOrientation'];
 
 try {
   writeFileSync(join(tempDir, 'package.json'), JSON.stringify({ type: 'module' }), 'utf8');
@@ -34,6 +34,7 @@ try {
   const layoutLib = await import(pathToFileURL(join(tempDir, 'pdfTableLayout.mjs')).href);
   const rolesLib = await import(pathToFileURL(join(tempDir, 'orderTemplateColumnRoles.mjs')).href);
   const rowsLib = await import(pathToFileURL(join(tempDir, 'orderTemplateRowExtraction.mjs')).href);
+  const orientationLib = await import(pathToFileURL(join(tempDir, 'ocrOrientation.mjs')).href);
 
   // Aucune correction sémantique d'unité, aucune IA, aucune API dans ces modules.
   const forbidden = /cleanImported|snapUnitToKnownWord|inferStorageUnitFromArticle|mergeOcrExtractions|mergeTemplateExtractions|openai|fetch\(/i;
@@ -405,6 +406,48 @@ try {
   const withEmptyColumns = { ...codeLayout, columns: [...codeLayout.columns, { index: 5, headerText: '', xStart: 500, xEnd: 600 }], rows: codeLayout.rows.map((row) => [...row, '']) };
   assert.ok(!rolesLib.getNonEmptyColumnIndexes(withEmptyColumns, 1).includes(5), 'Une colonne de saisie vide n’est pas affichée');
 
+  // --- Orientation d'une page lue par OCR ------------------------------------
+  const shape = (text, width, height) => ({ text, width, height });
+  const wideWords = Array.from({ length: 10 }, (_, index) => shape(`mot${index}`, 40, 12));
+  const tallWords = Array.from({ length: 10 }, (_, index) => shape(`mot${index}`, 12, 40));
+  assert.equal(orientationLib.isSidewaysWords(wideWords), false);
+  assert.equal(orientationLib.isSidewaysWords(tallWords), true, 'Des mots plus hauts que larges : page lue de côté');
+  assert.equal(orientationLib.isSidewaysWords(tallWords.slice(0, 3)), false, 'Trop peu de mots pour conclure');
+  assert.equal(orientationLib.isSidewaysWords([...tallWords.map((word) => ({ ...word, text: 'a' })), ...wideWords.slice(0, 2)]), false,
+    'Les mots de moins de 3 caractères ne comptent pas');
+
+  // Cas réel : la lecture de côté (180°) a une confiance égale à la lecture à l'endroit (90°)
+  assert.equal(
+    orientationLib.pickBestRotation([
+      { degrees: 0, confidence: 42, sideways: true },
+      { degrees: 90, confidence: 93, sideways: false },
+      { degrees: 180, confidence: 93.5, sideways: true },
+      { degrees: 270, confidence: 46, sideways: false },
+    ]),
+    90,
+    'Une orientation lue de côté n’est jamais retenue, même avec la meilleure confiance',
+  );
+  assert.equal(orientationLib.pickBestRotation([
+    { degrees: 0, confidence: 80, sideways: false },
+    { degrees: 90, confidence: 80, sideways: false },
+  ]), 0, 'À égalité, la première orientation est gardée');
+  assert.equal(orientationLib.pickBestRotation([
+    { degrees: 0, confidence: 30, sideways: true },
+    { degrees: 180, confidence: 60, sideways: true },
+  ]), 180, 'Si aucune orientation n’est sûre, la plus confiante est retenue');
+  assert.equal(orientationLib.pickBestRotation([]), 0);
+
+  // Position d'un point après rotation horaire (image de 100 x 60)
+  const at = (x, y, degrees) => orientationLib.rotatePoint(x, y, degrees, 100, 60);
+  assert.deepEqual(at(0, 0, 0), { x: 0, y: 0 });
+  assert.deepEqual(at(0, 0, 90), { x: 60, y: 0 }, 'Rotation horaire de 90° : le coin haut-gauche passe en haut à droite');
+  assert.deepEqual(at(100, 0, 90), { x: 60, y: 100 });
+  assert.deepEqual(at(0, 60, 90), { x: 0, y: 0 });
+  assert.deepEqual(at(0, 0, 180), { x: 100, y: 60 });
+  assert.deepEqual(at(0, 0, 270), { x: 0, y: 100 }, 'Rotation de 270° : le coin haut-gauche passe en bas à gauche');
+  assert.deepEqual(at(100, 0, 270), { x: 0, y: 0 });
+  assert.deepEqual(at(0, 60, 270), { x: 60, y: 100 });
+
   // Intégration dans la page : confirmation, mémorisation, surlignage, scan
   const pageSource = readFileSync(join(root, 'src', 'pages', 'OrderTemplatePage.tsx'), 'utf8');
   assert.match(pageSource, /await validateImportFile\(file, 'order-template-pdf'\)/);
@@ -418,6 +461,8 @@ try {
     'La page ne doit appeler ni l’ancien parseur ni une API externe');
   const sourceFile = readFileSync(join(root, 'src', 'utils', 'orderTemplatePdfSource.ts'), 'utf8');
   assert.match(sourceFile, /NATIVE_TEXT_MIN_CHARS = 20/);
+  assert.match(sourceFile, /pickBestRotation\(candidates\)/, 'L’orientation est choisie sans se fier à la seule confiance');
+  assert.match(sourceFile, /isSidewaysWords\(collectOcrWords\(data\.blocks\)\)/, 'Une page encore lue de côté est refusée plutôt que mal importée');
   assert.match(sourceFile, /import\('tesseract\.js'\)/, 'Tesseract reste chargé à la demande pour les PDF scannés');
   assert.doesNotMatch(sourceFile, /fetch\(|openai/i);
 
