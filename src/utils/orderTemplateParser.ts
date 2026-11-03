@@ -302,6 +302,34 @@ const hasEquivalentArticle = (rows: ParsedTemplateRow[], article: string): boole
   return rows.some((row) => normalizeLooseUnitText(row.article) === target);
 };
 
+// Insère une ligne issue d'une lecture secondaire à sa place dans le document :
+// juste après la ligne qui la précède dans cette lecture (ou juste avant celle
+// qui la suit), au lieu de la rejeter en fin de tableau.
+const insertInDocumentOrder = (
+  rows: ParsedTemplateRow[],
+  sourceRows: ParsedTemplateRow[],
+  sourceIndex: number,
+  newRow: ParsedTemplateRow,
+): void => {
+  const positionOf = (candidate: ParsedTemplateRow) =>
+    candidate.sourceCode ? rows.findIndex((row) => row.sourceCode === candidate.sourceCode) : -1;
+  for (let i = sourceIndex - 1; i >= 0; i -= 1) {
+    const position = positionOf(sourceRows[i]);
+    if (position >= 0) {
+      rows.splice(position + 1, 0, newRow);
+      return;
+    }
+  }
+  for (let i = sourceIndex + 1; i < sourceRows.length; i += 1) {
+    const position = positionOf(sourceRows[i]);
+    if (position >= 0) {
+      rows.splice(position, 0, newRow);
+      return;
+    }
+  }
+  rows.push(newRow);
+};
+
 // Retire de `rows` les lignes illisibles pour qu'elles ne soient pas importées
 // telles quelles ; elles sont conservées dans `droppedRows` pour que l'UI les signale.
 export const separateUnreadableRows = (
@@ -832,7 +860,7 @@ export const mergeOcrExtractions = (
       });
     });
 
-  secondary.rows.forEach((row) => {
+  secondary.rows.forEach((row, secondaryIndex) => {
     if (
       row.sourceCode &&
       !primaryCodes.has(row.sourceCode) &&
@@ -840,12 +868,14 @@ export const mergeOcrExtractions = (
     ) {
       // Un fragment douteux sans correspondance n'est pas une vraie ligne.
       const repaired = repairParsedRow(row);
-      if (!isSuspiciousParsedRow(repaired)) rows.push(repaired);
+      if (!isSuspiciousParsedRow(repaired)) insertInDocumentOrder(rows, secondary.rows, secondaryIndex, repaired);
     }
   });
 
-  const codeCount = Math.max(firstResult.codeCount, secondResult.codeCount);
   const returnedCodeCount = new Set(rows.map((row) => row.sourceCode).filter(Boolean)).size;
+  // Les deux lectures se complètent : le total détecté ne peut pas être
+  // inférieur au nombre de codes réellement restitués par leur union.
+  const codeCount = Math.max(firstResult.codeCount, secondResult.codeCount, returnedCodeCount);
   const incompleteCodeCount = Math.max(0, codeCount - returnedCodeCount);
   const suspiciousRowCount = rows.filter(isSuspiciousParsedRow).length;
   const headerFound = firstResult.headerFound || secondResult.headerFound;
@@ -902,19 +932,19 @@ export const mergeTemplateExtractions = (
     });
   });
 
-  ocrResult.rows.forEach((ocrRow) => {
+  ocrResult.rows.forEach((ocrRow, ocrIndex) => {
     if (
       ocrRow.sourceCode &&
       !nativeCodes.has(ocrRow.sourceCode) &&
       !hasEquivalentArticle(rows, ocrRow.article)
     ) {
       const repaired = repairParsedRow(ocrRow);
-      if (!isSuspiciousParsedRow(repaired)) rows.push(repaired);
+      if (!isSuspiciousParsedRow(repaired)) insertInDocumentOrder(rows, ocrResult.rows, ocrIndex, repaired);
     }
   });
 
-  const codeCount = Math.max(nativeResult.codeCount, ocrResult.codeCount);
   const returnedCodeCount = new Set(rows.map((row) => row.sourceCode).filter(Boolean)).size;
+  const codeCount = Math.max(nativeResult.codeCount, ocrResult.codeCount, returnedCodeCount);
   const incompleteCodeCount = Math.max(0, codeCount - returnedCodeCount);
   const suspiciousRowCount = rows.filter(isSuspiciousParsedRow).length;
   const headerFound = nativeResult.headerFound || ocrResult.headerFound;

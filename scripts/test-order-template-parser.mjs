@@ -382,6 +382,17 @@ try {
   );
   assert.deepEqual(fragmentOnly.rows.map((row) => row.sourceCode), ['A1'], 'Un fragment douteux ne doit pas devenir une ligne');
 
+  // 5. Une ligne retrouvée par la lecture secondaire garde sa place dans le document
+  // et le total détecté inclut l'union des deux lectures.
+  const mk = (code, article) => ({ sourceCode: code, article, storageUnit: 'au Kg', packagingUnit: 'carton x 6' });
+  const ordered = mergeTemplateExtractions(
+    makeOcrResult([mk('T1', 'Tabasco rouge 60 ml'), mk('P3', 'Pomme deshydrate barquette')], 2),
+    makeOcrResult([mk('T1', 'Tabasco rouge 60 ml'), mk('A2', 'Ananas deshydrate barquette'), mk('C2', 'Citron vert deshydrate'), mk('P3', 'Pomme deshydrate barquette')], 4),
+  );
+  assert.deepEqual(ordered.rows.map((row) => row.sourceCode), ['T1', 'A2', 'C2', 'P3'], 'L’ordre du PDF doit être conservé');
+  assert.equal(ordered.codeCount, 4);
+  assert.equal(ordered.incompleteCodeCount, 0);
+
   console.log('Parser trame commande OK : codes, bandes multilignes, fusion OCR, unités et qualité protégés.');
 } finally {
   rmSync(tempDir, { recursive: true, force: true });
