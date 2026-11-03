@@ -320,8 +320,8 @@ Nouvelle voie pour les PDF sans texte natif (moins de 20 caractères), qui rempl
 - [x] `OrderTemplatePage` : progression « page n/N, cellule k/M », raison du signalement sous l'article, rapport « N lignes lues, M à contrôler », session et document libérés, repli sur la lecture visuelle par colonnes quand aucun quadrillage n'est détecté ;
 - [x] tests `test-raster-table`, `test-cell-reading` et `test-cell-ocr` ajoutés à `npm run verify` ;
 - [x] `npm run verify` vert ;
-- [ ] recette de Nicolas sur TEST avec les cinq PDF Adoria : 56 (Domafrais surgelé), 10 (Socopa), 80 (Épisaveurs), 29 (Terre Azur) et 33 (Domafrais viande/BOF) lignes attendues, environ 2 % à contrôler, aucune ligne transposée ;
-- [ ] promotion sur `main`, uniquement après cette recette.
+- [x] recette de Nicolas sur TEST avec les cinq PDF Adoria : 56 (Domafrais surgelé), 10 (Socopa), 80 (Épisaveurs), 29 (Terre Azur) et 33 (Domafrais viande/BOF) lignes attendues, environ 2 % à contrôler, aucune ligne transposée ; validation reçue après le correctif d'association des colonnes (commit TEST `2648c88`) ;
+- [x] promotion sur `main` autorisée après cette recette.
 
 Mesures locales du 3 novembre 2026 sur les cinq PDF (26 pages), lecture rejouée avec Tesseract sous Node : structure détectée en 80 à 360 ms par page, nombre de lignes exact sur chaque PDF (80, 29, 10, 56, 33), 3 lignes à contrôler sur 208 (1,4 %), 2 cellules à lectures divergentes sur 832. Durée de lecture de 1 s (Socopa) à 18 s (Épisaveurs) avec trois workers ; non mesurée dans le navigateur. Le délai de cette voie est de 8 minutes (`pdfScanOcr`).
 
