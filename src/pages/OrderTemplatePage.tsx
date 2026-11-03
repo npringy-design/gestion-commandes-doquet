@@ -4,9 +4,14 @@
 // de n'importe quel fournisseur : article, unité de stockage et unité de
 // conditionnement de chaque produit.
 //
-// Flux : chaque page est rendue en image par pdf.js puis lue côté serveur
-// par un modèle vision (/api/order-template-extract), qui identifie les
-// colonnes par leur sens. Les lignes incertaines sont surlignées pour contrôle.
+// Flux déterministe, sans IA ni API externe :
+//  1. texte natif pdf.js, orientation de la page, grille tracée dans le PDF ou
+//     colonnes détectées par les espaces ;
+//  2. PDF scanné (moins de 20 caractères de texte natif) : mots lus par OCR
+//     Tesseract, mêmes colonnes, confirmation toujours obligatoire ;
+//  3. rôle de chaque colonne proposé, confirmé par l'utilisateur quand il
+//     est ambigu, puis mémorisé par fournisseur ;
+//  4. valeurs recopiées telles quelles ; les lignes douteuses sont surlignées.
 // =============================================================
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -19,12 +24,27 @@ import { useAuth } from '../auth/AuthProvider';
 import { canAccessRatiosPage } from '../lib/permissions';
 import { OrderLineField, OrderTemplateRow, OrderTemplatesBySupplier, SupplierConfig } from '../types';
 import { ProductWithHistory } from '../data';
-import { finalizeExtraction, runPageExtractions } from '../utils/orderTemplateExtraction';
+import type { TableLayout } from '../utils/pdfTableLayout';
 import {
-  isFatalOrderTemplateError,
-  requestOrderTemplatePage,
-} from '../utils/orderTemplateExtractionClient';
-import { assertOrderTemplatePageCount, renderOrderTemplatePage } from '../utils/orderTemplatePdfPages';
+  NATIVE_TEXT_MIN_CHARS,
+  buildPageLayouts,
+  readNativePages,
+  readScannedPages,
+} from '../utils/orderTemplatePdfSource';
+import {
+  COLUMN_ROLES,
+  COLUMN_ROLE_LABELS,
+  applyStoredMapping,
+  buildStoredMapping,
+  getNonEmptyColumnIndexes,
+  getPreviewRows,
+  loadStoredColumnMapping,
+  saveStoredColumnMapping,
+  suggestColumnRoles,
+  type ColumnRole,
+  type ColumnRoleSuggestion,
+} from '../utils/orderTemplateColumnRoles';
+import { extractTemplateRows } from '../utils/orderTemplateRowExtraction';
 import { validateImportFile } from '../utils/importFileValidation';
 import {
   IMPORT_PROCESSING_TIMEOUTS,
@@ -60,15 +80,37 @@ interface OrderTemplatePageProps {
   supabaseLoaded: boolean;
 }
 
-type ProcessingStep = 'idle' | 'reading' | 'analysing' | 'done' | 'error';
+type ProcessingStep = 'idle' | 'reading' | 'ocr' | 'confirming' | 'done' | 'error';
+
+type ImportMode = 'grille' | 'colonnes' | 'scan';
 
 interface ImportQualityReport {
-  mode: 'vision';
+  mode: ImportMode;
   rowCount: number;
-  declaredRowCount: number;
   flaggedRowCount: number;
-  failedPages: number[];
   needsReview: boolean;
+}
+
+const IMPORT_MODE_LABELS: Record<ImportMode, string> = {
+  grille: 'grille du tableau détectée',
+  colonnes: 'colonnes détectées par les espaces',
+  scan: 'PDF scanné (lecture visuelle)',
+};
+
+// Lecture d'un PDF en attente de confirmation des colonnes, ou déjà importée.
+interface PendingImport {
+  layouts: TableLayout[];
+  mode: ImportMode;
+  scanned: boolean;
+  suggestion: ColumnRoleSuggestion;
+  roles: ColumnRole[];
+  headerTexts: string[];
+  // Tous les rôles sont sûrs (suggestion non ambiguë ou choix mémorisé).
+  allSure: boolean;
+  imported: boolean;
+  editing: boolean;
+  visibleColumns: number[];
+  previewRows: string[][];
 }
 
 const makeRowId = () => `row_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -101,13 +143,14 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
   const [importQualityReport, setImportQualityReport] = useState<ImportQualityReport | null>(null);
   // Lignes importées à contrôler, surlignées dans le tableau. Non persisté.
   const [flaggedRowIds, setFlaggedRowIds] = useState<Set<string>>(() => new Set());
+  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
   const supplierOptions = useMemo(
     () => getOrderTemplateSupplierOptions(supplierConfigs),
     [supplierConfigs]
   );
   const selectedSupplierId: SupplierId | '' = supplierOptions.some((config) => config.id === ratioTab) ? ratioTab : '';
 
-  const isProcessing = step === 'reading' || step === 'analysing';
+  const isProcessing = step === 'reading' || step === 'ocr';
   // Fournisseur auquel appartient le tableau de travail affiché. Tant qu'il ne
   // correspond pas au fournisseur sélectionné, rien n'est enregistré.
   const [hydratedSupplierId, setHydratedSupplierId] = useState<SupplierId | ''>('');
@@ -207,6 +250,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     setHydratedSupplierId(supplierId);
     setImportQualityReport(null);
     setFlaggedRowIds(new Set());
+    setPendingImport(null);
   }, [orderTemplateRows, orderTemplatesBySupplier, products, selectedSupplierId, setOrderTemplateRows, setOrderTemplatesBySupplier, setRatioTab]);
 
   const handleCreateProducts = useCallback(() => {
@@ -270,6 +314,52 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     );
   }, [canImport, openNewRatioProducts, orderTemplateRows, products, selectedSupplierId, setOrderTemplateRows, setOrderTemplatesBySupplier, setProducts, showToast, updateOrderLineField]);
 
+  // Importe les lignes d'une lecture avec les rôles de colonnes retenus.
+  const importWithRoles = useCallback((pending: PendingImport, roles: ColumnRole[]): boolean => {
+    const extracted = extractTemplateRows(pending.layouts, roles, pending.headerTexts);
+    const importedRows: OrderTemplateRow[] = extracted.rows.map((row) => ({
+      id: makeRowId(),
+      sourceCode: row.code || undefined,
+      article: row.article,
+      storageUnit: row.storageUnit,
+      packagingUnit: row.packagingUnit,
+    }));
+
+    const needsReview = extracted.flaggedCount > 0 || pending.scanned;
+    setImportQualityReport({
+      mode: pending.mode,
+      rowCount: importedRows.length,
+      flaggedRowCount: extracted.flaggedCount,
+      needsReview,
+    });
+
+    if (importedRows.length === 0) {
+      // Le tableau existant n'est pas écrasé par un import qui n'a rien produit.
+      showToast('Aucune ligne produit trouvée avec ces colonnes. Vérifie leur rôle ou saisis la trame manuellement.', 'warning');
+      return false;
+    }
+
+    setOrderTemplateRows(importedRows);
+    setFlaggedRowIds(new Set(
+      extracted.rows.flatMap((row, index) => (row.reasons.length > 0 ? [importedRows[index].id] : [])),
+    ));
+    if (selectedSupplierId) {
+      saveStoredColumnMapping(selectedSupplierId, buildStoredMapping(pending.headerTexts, roles));
+    }
+
+    if (needsReview) {
+      showToast(
+        extracted.flaggedCount > 0
+          ? `⚠ ${importedRows.length} ligne(s) importée(s) : ${extracted.flaggedCount} surlignée(s) à contrôler`
+          : `⚠ ${importedRows.length} ligne(s) importée(s) : lecture d’un PDF scanné à contrôler`,
+        'warning',
+      );
+    } else {
+      showToast(`✓ ${importedRows.length} ligne(s) importée(s)`, 'success');
+    }
+    return true;
+  }, [selectedSupplierId, setOrderTemplateRows, showToast]);
+
   const handleFile = useCallback(async (file: File) => {
     if (!canImport || isProcessing) return;
     pdfAbortControllerRef.current?.abort();
@@ -282,6 +372,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     setAnalysisProgress(0);
     setImportQualityReport(null);
     setFlaggedRowIds(new Set());
+    setPendingImport(null);
 
     try {
       await validateImportFile(file, 'order-template-pdf');
@@ -293,95 +384,79 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
       );
       throwIfImportAborted(controller.signal);
       loadingTask = getDocument({ data: arrayBuffer });
-      const loadedPdf = await withImportTimeout(
+      const pdf = await withImportTimeout(
         loadingTask.promise,
         IMPORT_PROCESSING_TIMEOUTS.pdfLoad,
         'L’ouverture du PDF a dépassé 20 secondes.',
         () => { controller.abort(); void loadingTask?.destroy(); },
       );
 
-      const pageCount = loadedPdf.numPages;
-      assertOrderTemplatePageCount(pageCount);
-
-      setStep('analysing');
-      setStatusLabel(`Analyse de la page 1/${pageCount}`);
-
-      const { outcomes, firstError } = await withImportTimeout(
-        runPageExtractions({
-          pageCount,
-          concurrency: 3,
-          shouldStop: () => controller.signal.aborted,
-          isFatalError: isFatalOrderTemplateError,
-          onPageDone: (_pageNumber, doneCount) => {
-            setAnalysisProgress(Math.round((doneCount / pageCount) * 100));
-            setStatusLabel(`Analyse de la page ${Math.min(pageCount, doneCount + 1)}/${pageCount}`);
-          },
-          extractPage: async ({ pageNumber, columnHint }) => {
-            const rendered = await renderOrderTemplatePage(loadedPdf, pageNumber, controller.signal);
-            return requestOrderTemplatePage({
-              pageImage: rendered.pageImage,
-              pageNumber,
-              pageCount,
-              nativeText: rendered.nativeText,
-              columnHint,
-            }, controller.signal);
-          },
-        }),
-        IMPORT_PROCESSING_TIMEOUTS.pdfAnalysis,
-        'L’analyse du PDF a dépassé 4 minutes et a été arrêtée.',
+      setStatusLabel('Lecture du tableau du PDF…');
+      const native = await withImportTimeout(
+        readNativePages(pdf, controller.signal),
+        IMPORT_PROCESSING_TIMEOUTS.pdfProcessing,
+        'La lecture du PDF a dépassé 2 minutes et a été arrêtée.',
         () => { controller.abort(); void loadingTask?.destroy(); },
       );
+
+      // Moins de 20 caractères de texte natif : PDF scanné ou texte converti en tracés.
+      const scanned = native.totalChars < NATIVE_TEXT_MIN_CHARS;
+      let pages = native.pages;
+      if (scanned) {
+        setStep('ocr');
+        pages = await withImportTimeout(
+          readScannedPages(pdf, {
+            signal: controller.signal,
+            onPage: (pageNumber, pageCount) => {
+              setStatusLabel(`Lecture visuelle — page ${pageNumber}/${pageCount}`);
+              setAnalysisProgress(Math.round(((pageNumber - 1) / pageCount) * 100));
+            },
+          }),
+          IMPORT_PROCESSING_TIMEOUTS.pdfScanOcr,
+          'La lecture visuelle du PDF a dépassé 4 minutes et a été arrêtée.',
+          () => { controller.abort(); void loadingTask?.destroy(); },
+        );
+      }
       throwIfImportAborted(controller.signal);
 
-      const { rows: extractedRows, flaggedIndexes, report } = finalizeExtraction(outcomes);
-      const importedRows: OrderTemplateRow[] = extractedRows.map((row) => ({
-        id: makeRowId(),
-        sourceCode: row.code || undefined,
-        article: row.article,
-        storageUnit: row.storageUnit,
-        packagingUnit: row.packagingUnit,
-      }));
-
-      const needsReview = report.flaggedRowCount > 0
-        || report.failedPages.length > 0
-        || report.rowCount !== report.declaredRowCount;
-      setImportQualityReport({
-        mode: 'vision',
-        rowCount: report.rowCount,
-        declaredRowCount: report.declaredRowCount,
-        flaggedRowCount: report.flaggedRowCount,
-        failedPages: report.failedPages,
-        needsReview,
-      });
-
-      const errorMessage = firstError === null
-        ? ''
-        : toSafeImportErrorMessage(firstError, 'L’analyse de certaines pages a échoué.');
-
-      if (importedRows.length === 0) {
-        // Le tableau existant n'est pas écrasé par un import qui n'a rien produit.
-        showToast(
-          errorMessage || 'Aucune ligne produit trouvée dans ce PDF. Vérifie le fichier ou saisis la trame manuellement.',
-          errorMessage ? 'error' : 'warning',
-        );
-      } else {
-        setOrderTemplateRows(importedRows);
-        setFlaggedRowIds(new Set(flaggedIndexes.map((index) => importedRows[index].id)));
-
-        if (needsReview) {
-          const reviewReasons = [
-            report.flaggedRowCount > 0 ? `${report.flaggedRowCount} ligne(s) surlignée(s) à contrôler` : '',
-            report.failedPages.length > 0 ? `page(s) ${report.failedPages.join(', ')} non analysée(s)` : '',
-          ].filter(Boolean).join(', ');
-          showToast(
-            `⚠ ${importedRows.length} ligne(s) importée(s)${reviewReasons ? ` : ${reviewReasons}` : ''}. ${errorMessage}`.trim(),
-            'warning',
-          );
-        } else {
-          showToast(`✓ ${importedRows.length} ligne(s) importée(s)`, 'success');
-        }
+      const layouts = buildPageLayouts(pages);
+      if (layouts.length === 0) {
+        showToast('Aucun tableau reconnu dans ce PDF. Vérifie le fichier ou saisis la trame manuellement.', 'warning');
+        setStep('done');
+        return;
       }
-      setStep('done');
+
+      const reference = layouts[0];
+      const suggestion = suggestColumnRoles(reference);
+      const storedRoles = selectedSupplierId
+        ? applyStoredMapping(loadStoredColumnMapping(selectedSupplierId), suggestion.headerTexts, suggestion.roles)
+        : null;
+      const roles = storedRoles ?? suggestion.roles;
+      const pending: PendingImport = {
+        layouts,
+        mode: scanned ? 'scan' : reference.source,
+        scanned,
+        suggestion,
+        roles,
+        headerTexts: suggestion.headerTexts,
+        allSure: storedRoles !== null || suggestion.overall === 'sure',
+        imported: false,
+        editing: false,
+        visibleColumns: getNonEmptyColumnIndexes(reference, suggestion.bodyStart),
+        previewRows: getPreviewRows(reference, suggestion.bodyStart),
+      };
+
+      if (scanned) showToast('PDF scanné : lecture moins fiable, contrôle obligatoire.', 'warning');
+
+      if (!scanned && pending.allSure) {
+        // Colonnes sûres : import direct, le résumé reste modifiable.
+        const imported = importWithRoles(pending, roles);
+        setPendingImport({ ...pending, imported });
+        setStep('done');
+      } else {
+        setPendingImport(pending);
+        setStep('confirming');
+      }
     } catch (err) {
       if (pdfAbortControllerRef.current === controller) {
         console.warn('[OrderTemplatePage] Import PDF refusé ou interrompu.');
@@ -401,7 +476,26 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
         setAnalysisProgress(0);
       }
     }
-  }, [canImport, isProcessing, setOrderTemplateRows, showToast]);
+  }, [canImport, importWithRoles, isProcessing, selectedSupplierId, showToast]);
+
+  // Un rôle ne peut désigner qu'une colonne : le choisir ailleurs libère l'ancienne.
+  const changeColumnRole = (columnIndex: number, role: ColumnRole) => {
+    setPendingImport((current) => {
+      if (!current) return current;
+      const roles = current.roles.map((existing, index) => {
+        if (index === columnIndex) return role;
+        return role !== 'ignore' && existing === role ? 'ignore' : existing;
+      });
+      return { ...current, roles };
+    });
+  };
+
+  const confirmImport = () => {
+    if (!pendingImport) return;
+    const imported = importWithRoles(pendingImport, pendingImport.roles);
+    setPendingImport({ ...pendingImport, imported, editing: !imported });
+    setStep('done');
+  };
 
   const onFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -427,6 +521,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     setOrderTemplateRows([]);
     setImportQualityReport(null);
     setFlaggedRowIds(new Set());
+    setPendingImport(null);
   };
 
   return (
@@ -474,9 +569,10 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
             </div>
 
             <p className="mb-4 text-sm text-[#6A432D]">
-              Importe le PDF d'une trame de commande, quel que soit le fournisseur. Chaque page est lue visuellement :
-              l'application repère les colonnes article, unité de stockage et conditionnement d'après leur sens, sans
-              dépendre des intitulés ni de l'ordre. Les lignes incertaines sont surlignées pour que tu les contrôles.
+              Importe le PDF d'une trame de commande, quel que soit le fournisseur. L'application lit le tableau,
+              propose le rôle de chaque colonne (article, unité de stockage, conditionnement) et te demande de le
+              confirmer quand elle hésite ; ton choix est mémorisé pour ce fournisseur. Les lignes douteuses sont
+              surlignées, jamais corrigées.
             </p>
 
             <input
@@ -514,13 +610,105 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
             {isProcessing && (
               <div className="mt-4 rounded-lg bg-white/60 p-3">
                 <p className="text-sm font-semibold text-[#6A432D]">{statusLabel || 'Traitement en cours…'}</p>
-                {step === 'analysing' && (
+                {step === 'ocr' && (
                   <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[#F4E8D8]">
                     <div
                       className="h-full rounded-full bg-[#C86F24] transition-all"
                       style={{ width: `${analysisProgress}%` }}
                     />
                   </div>
+                )}
+              </div>
+            )}
+
+            {!isProcessing && pendingImport && (
+              <div className="mt-4 rounded-lg border border-[#E2C39B] bg-white/70 p-3 text-sm text-[#2F1D14]">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-black">Colonnes de la trame</p>
+                  {pendingImport.imported && !pendingImport.editing && (
+                    <button
+                      type="button"
+                      onClick={() => setPendingImport({ ...pendingImport, editing: true })}
+                      className="rounded-lg border-2 border-[#E2C39B] bg-[#FFFDF8] px-3 py-1 text-xs font-black text-[#6A432D] transition hover:bg-white"
+                    >
+                      Modifier
+                    </button>
+                  )}
+                </div>
+
+                {pendingImport.scanned && (
+                  <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 font-semibold text-amber-900">
+                    PDF scanné : lecture moins fiable, contrôle obligatoire.
+                  </p>
+                )}
+
+                {pendingImport.imported && !pendingImport.editing && pendingImport.allSure && !pendingImport.scanned ? (
+                  <p className="mt-2 text-[#6A432D]">
+                    {([
+                      ['article', 'Article'],
+                      ['storageUnit', 'Unité de stockage'],
+                      ['packagingUnit', 'Conditionnement'],
+                    ] as const).map(([role, label]) => {
+                      const column = pendingImport.roles.indexOf(role);
+                      return `${label} : « ${column >= 0 ? pendingImport.headerTexts[column] || `colonne ${column + 1}` : 'aucune'} »`;
+                    }).join(' · ')}
+                  </p>
+                ) : (
+                  <>
+                    <p className="mt-2 text-[#6A432D]">
+                      {pendingImport.allSure && !pendingImport.scanned
+                        ? 'Vérifie le rôle de chaque colonne avant de réimporter.'
+                        : 'Confirme le rôle de chaque colonne avant l’import : l’application hésite ou le PDF est scanné.'}
+                    </p>
+                    <div className="mt-2 overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr>
+                            {pendingImport.visibleColumns.map((column) => (
+                              <th key={column} className="min-w-[140px] pb-2 pr-3 align-top">
+                                <span className="mb-1 block font-bold text-[#8B6B54]">
+                                  {pendingImport.headerTexts[column] || `Colonne ${column + 1}`}
+                                </span>
+                                <select
+                                  value={pendingImport.roles[column] ?? 'ignore'}
+                                  onChange={(event) => changeColumnRole(column, event.target.value as ColumnRole)}
+                                  className="w-full rounded-md border-2 border-[#E2C39B] bg-[#FFFDF8] px-2 py-1 text-xs font-semibold text-[#2F1D14] focus:border-[#B66A2C] focus:outline-none"
+                                >
+                                  {COLUMN_ROLES.map((role) => (
+                                    <option key={role} value={role}>{COLUMN_ROLE_LABELS[role]}</option>
+                                  ))}
+                                </select>
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pendingImport.previewRows.map((row, rowIndex) => (
+                            <tr key={rowIndex} className="border-t border-[#E8D8C8]">
+                              {pendingImport.visibleColumns.map((column) => (
+                                <td key={column} className="py-1 pr-3 align-top">{row[column]}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={confirmImport}
+                      disabled={!canImport || !pendingImport.roles.includes('article')}
+                      className={`mt-3 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                        canImport && pendingImport.roles.includes('article')
+                          ? 'bg-[#C86F24] text-white shadow-[0_4px_0_#8B431C] hover:bg-[#B85F1D]'
+                          : 'cursor-not-allowed bg-[#F4E8D8] text-[#9A806A]'
+                      }`}
+                    >
+                      {pendingImport.imported ? 'Réimporter avec ces colonnes' : 'Importer avec ces colonnes'}
+                    </button>
+                    {!pendingImport.roles.includes('article') && (
+                      <p className="mt-1 text-xs font-semibold text-[#9B3F21]">Désigne la colonne Article pour importer.</p>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -534,16 +722,13 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
                 }`}
               >
                 <p className="font-black">
-                  {importQualityReport.needsReview ? 'Lecture à contrôler' : 'Lecture vérifiée'} — lecture visuelle des pages
+                  {importQualityReport.needsReview ? 'Lecture à contrôler' : 'Lecture vérifiée'} — {IMPORT_MODE_LABELS[importQualityReport.mode]}
                 </p>
                 <p className="mt-1">
-                  {importQualityReport.declaredRowCount} ligne(s) comptée(s) sur le PDF, {importQualityReport.rowCount} ligne(s) restituée(s).
+                  {importQualityReport.rowCount} ligne(s) restituée(s)
                   {importQualityReport.flaggedRowCount > 0
-                    ? ` ${importQualityReport.flaggedRowCount} ligne(s) surlignée(s) à contrôler : cellule vide, lecture incertaine ou nombre de lignes de la page différent.`
-                    : ''}
-                  {importQualityReport.failedPages.length > 0
-                    ? ` Page(s) non analysée(s) : ${importQualityReport.failedPages.join(', ')}.`
-                    : ''}
+                    ? `, dont ${importQualityReport.flaggedRowCount} surlignée(s) à contrôler : cellule vide ou unité inattendue.`
+                    : '.'}
                 </p>
               </div>
             )}

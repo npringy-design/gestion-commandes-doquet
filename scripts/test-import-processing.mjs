@@ -133,28 +133,23 @@ try {
   assert.match(csvSource, /readSpreadsheetAsCsv\(file\)/, 'Les classeurs mensuels doivent passer par le Worker');
   assert.match(workerSource, /XLSX\.read\(buffer/, 'Le parsing XLSX doit vivre dans le Worker');
   assert.match(takeRateSource, /buildMarginCatalogInWorker\(file, controller\.signal\)/);
-  assert.match(pdfSource, /IMPORT_PROCESSING_TIMEOUTS\.pdfAnalysis/,
-    'L’analyse vision de toutes les pages doit avoir un délai maximal');
+  const pdfSourceFile = readFileSync(join(root, 'src', 'utils', 'orderTemplatePdfSource.ts'), 'utf8');
+
+  assert.match(pdfSource, /IMPORT_PROCESSING_TIMEOUTS\.pdfProcessing/,
+    'La lecture du texte natif doit avoir un délai maximal');
+  assert.match(pdfSource, /IMPORT_PROCESSING_TIMEOUTS\.pdfScanOcr/,
+    'La lecture visuelle d’un PDF scanné doit avoir un délai maximal');
   assert.match(pdfSource, /await loadingTask\.destroy\(\)/,
     'Le document pdf.js doit être libéré après l’import');
   assert.match(pdfSource, /controller\.abort\(\)/, 'L’import doit pouvoir être annulé');
-  assert.match(
-    pdfSource,
-    /runPageExtractions\(/,
-    'Les pages doivent être analysées par la lecture vision, page 1 puis pages suivantes en parallèle',
-  );
-  assert.match(
-    pdfSource,
-    /mode: 'vision'/,
-    'Le rapport doit indiquer que la trame a été lue visuellement',
-  );
-  assert.match(
-    pdfSource,
-    /Lecture à contrôler/,
-    'Une lecture encore incertaine doit rester visible pour un utilisateur sans accès au code',
-  );
+  assert.match(pdfSource, /readScannedPages\(/, 'Un PDF scanné doit passer par la lecture visuelle Tesseract');
+  assert.match(pdfSource, /Lecture à contrôler/,
+    'Une lecture encore incertaine doit rester visible pour un utilisateur sans accès au code');
+  assert.match(pdfSourceFile, /await terminate\(\)/, 'Le worker Tesseract doit être terminé après la lecture');
+  assert.match(pdfSourceFile, /signal\?\.addEventListener\('abort'/, 'L’annulation doit arrêter le worker Tesseract');
+  assert.match(pdfSourceFile, /PSM\.AUTO/, 'La segmentation automatique reste utilisée pour les tableaux denses');
 
-  console.log('Robustesse imports OK : Workers, timeout, lecture vision, qualité visible, nettoyage et erreurs protégés.');
+  console.log('Robustesse imports OK : Workers, timeout, lecture déterministe, qualité visible, nettoyage et erreurs protégés.');
 } finally {
   rmSync(tempDir, { recursive: true, force: true });
 }
