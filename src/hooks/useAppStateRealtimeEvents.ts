@@ -9,7 +9,7 @@ type UseAppStateRealtimeEventsParams = {
   localTsByKey: MutableRefObject<Record<string, string>>;
 };
 
-const isUserTyping = (): boolean => {
+export const isUserTyping = (): boolean => {
   const element = document?.activeElement as HTMLElement | null;
   if (!element) return false;
   const tag = element.tagName;
