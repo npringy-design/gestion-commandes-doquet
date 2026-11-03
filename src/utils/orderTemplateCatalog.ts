@@ -44,6 +44,26 @@ export const buildTemplateRowsFromProducts = (
       || (Number(product.packaging || 0) > 1 ? `conditionnement x ${product.packaging}` : 'pièce'),
   }));
 
+// Lignes à afficher pour un fournisseur : sa trame enregistrée, sinon une trame
+// reconstruite depuis ses produits. Jamais le tableau de travail en cours, qui
+// peut appartenir à un autre fournisseur après un changement d'onglet ailleurs.
+export const resolveTemplateRowsForSupplier = (
+  catalog: Record<string, OrderTemplateRow[] | undefined>,
+  products: ProductWithHistory[],
+  supplierId: string,
+): OrderTemplateRow[] => {
+  const savedRows = catalog[supplierId];
+  const rows = savedRows?.length ? savedRows : buildTemplateRowsFromProducts(products, supplierId);
+  return rows.map(row => ({ ...row }));
+};
+
+// L'ancienne trame unique ne se migre que tant qu'aucun fournisseur n'a de
+// trame enregistrée ; ensuite le tableau de travail ne doit plus être copié.
+export const shouldMigrateLegacyTemplate = (
+  catalog: Record<string, OrderTemplateRow[] | undefined>,
+  supplierIds: string[],
+): boolean => !supplierIds.some(supplierId => catalog[supplierId]?.length);
+
 export const linkTemplateRowsToExistingProducts = (
   rows: OrderTemplateRow[],
   products: ProductWithHistory[],

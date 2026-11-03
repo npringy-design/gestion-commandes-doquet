@@ -197,6 +197,22 @@ try {
   );
   assert.match(pageSource, /updateOrderLineField\(update\.id, 'packaging', update\.packaging\)/);
 
+  // Régression : le tableau de travail d'un fournisseur ne doit jamais être
+  // copié sous un autre (onglet fournisseur partagé avec Calcul vente ratio).
+  const episaveursRows = [{ id: 'r1', article: 'Sauce béchamel 1 L', storageUnit: 'au Kg', packagingUnit: 'brique' }];
+  const emptyCatalog = { epi: episaveursRows };
+  assert.equal(
+    catalog.shouldMigrateLegacyTemplate(emptyCatalog, ['epi', 'surgele']),
+    false,
+    'Dès qu’un fournisseur a une trame, la migration de l’ancienne trame unique est interdite',
+  );
+  assert.equal(catalog.shouldMigrateLegacyTemplate({}, ['epi', 'surgele']), true);
+  const surgeleRows = catalog.resolveTemplateRowsForSupplier(emptyCatalog, [], 'surgele');
+  assert.deepEqual(surgeleRows, [], 'Un fournisseur sans trame ne reprend jamais les lignes d’un autre');
+  const epiRows = catalog.resolveTemplateRowsForSupplier(emptyCatalog, [], 'epi');
+  assert.deepEqual(epiRows, episaveursRows);
+  assert.notEqual(epiRows[0], episaveursRows[0], 'Le tableau de travail doit être une copie du catalogue');
+
   console.log('Catalogue trames OK : réactivation ciblée, sauvegarde automatique, création et paramètres ratio conservés.');
 } finally {
   rmSync(tempDir, { recursive: true, force: true });

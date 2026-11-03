@@ -36,7 +36,8 @@ import {
   withImportTimeout,
 } from '../utils/importProcessing';
 import {
-  buildTemplateRowsFromProducts,
+  resolveTemplateRowsForSupplier,
+  shouldMigrateLegacyTemplate,
   getLinkedTemplateProductUpdates,
   getOrderTemplateSupplierOptions,
   linkTemplateRowsToExistingProducts,
@@ -202,7 +203,9 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
   const selectedSupplierId: SupplierId | '' = supplierOptions.some((config) => config.id === ratioTab) ? ratioTab : '';
 
   const isProcessing = step === 'reading' || step === 'ocr';
-  const legacyTemplateMigratedRef = useRef(false);
+  // Fournisseur auquel appartient le tableau de travail affiché. Tant qu'il ne
+  // correspond pas au fournisseur sélectionné, rien n'est enregistré.
+  const [hydratedSupplierId, setHydratedSupplierId] = useState<SupplierId | ''>('');
 
   const templateSupplierIds = useMemo(
     () => supplierOptions.map(config => config.id),
@@ -220,28 +223,30 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
 
   useEffect(() => () => pdfAbortControllerRef.current?.abort(), []);
 
-  // Migration non destructive de l'ancienne trame unique vers le catalogue
-  // fournisseur. On attend la fin du chargement cloud pour ne jamais sauver
-  // les valeurs initiales à la place des données réelles.
+  // À l'ouverture de la page, le tableau de travail est rechargé depuis la trame
+  // du fournisseur sélectionné : l'onglet fournisseur est partagé avec Calcul
+  // vente ratio et peut avoir changé depuis le dernier affichage de cette page.
+  // L'ancienne trame unique n'est migrée que si aucune trame n'existe encore.
+  // On attend la fin du chargement cloud pour ne jamais sauver les valeurs
+  // initiales à la place des données réelles.
   useEffect(() => {
-    if (legacyTemplateMigratedRef.current || !supabaseLoaded || !selectedSupplierId) return;
-    if (orderTemplatesBySupplier[selectedSupplierId]?.length) {
-      legacyTemplateMigratedRef.current = true;
-      return;
-    }
-    if (orderTemplateRows.length === 0) return;
+    if (!supabaseLoaded || !selectedSupplierId || hydratedSupplierId === selectedSupplierId) return;
 
-    const linkedRows = linkTemplateRowsToExistingProducts(orderTemplateRows, products, selectedSupplierId);
-    setOrderTemplateRows(linkedRows);
-    setOrderTemplatesBySupplier(prev => ({ ...prev, [selectedSupplierId]: linkedRows }));
-    legacyTemplateMigratedRef.current = true;
-  }, [orderTemplateRows, orderTemplatesBySupplier, products, selectedSupplierId, setOrderTemplateRows, setOrderTemplatesBySupplier, supabaseLoaded]);
+    if (orderTemplateRows.length > 0 && shouldMigrateLegacyTemplate(orderTemplatesBySupplier, templateSupplierIds)) {
+      const linkedRows = linkTemplateRowsToExistingProducts(orderTemplateRows, products, selectedSupplierId);
+      setOrderTemplateRows(linkedRows);
+      setOrderTemplatesBySupplier(prev => ({ ...prev, [selectedSupplierId]: linkedRows }));
+    } else {
+      setOrderTemplateRows(resolveTemplateRowsForSupplier(orderTemplatesBySupplier, products, selectedSupplierId));
+    }
+    setHydratedSupplierId(selectedSupplierId);
+  }, [hydratedSupplierId, orderTemplateRows, orderTemplatesBySupplier, products, selectedSupplierId, setOrderTemplateRows, setOrderTemplatesBySupplier, supabaseLoaded, templateSupplierIds]);
 
   // Les lignes déjà rattachées sont enregistrées automatiquement après une
   // courte pause de saisie. Le catalogue, le produit et le colisage utilisé
   // par la page Commandes évoluent ensemble, sans bouton de validation.
   useEffect(() => {
-    if (!canImport || !supabaseLoaded || !selectedSupplierId) return;
+    if (!canImport || !supabaseLoaded || !selectedSupplierId || hydratedSupplierId !== selectedSupplierId) return;
 
     const timeoutId = window.setTimeout(() => {
       setOrderTemplatesBySupplier(prev => {
@@ -274,6 +279,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     return () => window.clearTimeout(timeoutId);
   }, [
     canImport,
+    hydratedSupplierId,
     orderTemplateRows,
     products,
     selectedSupplierId,
@@ -291,12 +297,9 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
       setOrderTemplatesBySupplier(prev => ({ ...prev, [selectedSupplierId]: linkedCurrentRows }));
     }
 
-    const savedRows = orderTemplatesBySupplier[supplierId];
-    const nextRows = savedRows?.length
-      ? savedRows
-      : buildTemplateRowsFromProducts(products, supplierId);
     setRatioTab(supplierId);
-    setOrderTemplateRows(nextRows.map(row => ({ ...row })));
+    setOrderTemplateRows(resolveTemplateRowsForSupplier(orderTemplatesBySupplier, products, supplierId));
+    setHydratedSupplierId(supplierId);
     setImportQualityReport(null);
   }, [orderTemplateRows, orderTemplatesBySupplier, products, selectedSupplierId, setOrderTemplateRows, setOrderTemplatesBySupplier, setRatioTab]);
 
@@ -881,22 +884,11 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
             </p>
 
             <div className="flex flex-wrap items-center gap-3">
-              <select
-                value={selectedSupplierId}
-                onChange={(e) => {
-                  const supplierId = e.target.value as SupplierId;
-                  if (supplierId) openSupplierTemplate(supplierId);
-                }}
-                disabled={!canImport}
-                className="rounded-lg border-2 border-[#E2C39B] bg-[#FFFDF8] px-4 py-2 text-sm font-semibold text-[#2F1D14] focus:border-[#B66A2C] focus:outline-none disabled:cursor-not-allowed"
-              >
-                <option value="">Choisir un fournisseur…</option>
-                {supplierOptions.map((config) => (
-                  <option key={config.id} value={config.id}>
-                    {config.name}
-                  </option>
-                ))}
-              </select>
+              <span className="rounded-lg border-2 border-[#E2C39B] bg-[#FFFDF8] px-4 py-2 text-sm font-semibold text-[#2F1D14]">
+                {selectedSupplierId
+                  ? supplierConfigs[selectedSupplierId]?.name || selectedSupplierId
+                  : 'Choisis une trame ci-dessous'}
+              </span>
 
               <button
                 type="button"
