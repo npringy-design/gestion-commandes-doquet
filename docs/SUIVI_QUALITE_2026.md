@@ -336,6 +336,7 @@ Correctif de l'association des colonnes entre pages (recette partielle sur TEST 
 - [x] garde-fous contre la réintroduction de l'ancienne logique conservés dans `test-pdf-table-layout` et `test-cell-ocr` ;
 - [x] documentation des trames réduite à une note de remplacement ;
 - [x] `npm run verify` vert ;
+- [x] publication TEST : commit `dd4b4fc`, déploiement Vercel `dpl_3RRaSBjDTEQKAgpBkRwECf6KYgz6` (statut `READY` à confirmer) ;
 - [ ] non-régression manuelle de Nicolas sur TEST : `Domafrais_viande_et_bof` = 33 lignes, peu de lignes à contrôler ;
 - [ ] promotion sur `main`, uniquement après ce feu vert.
 
