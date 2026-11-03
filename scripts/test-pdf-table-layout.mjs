@@ -398,6 +398,22 @@ try {
   assert.equal(shiftedExtracted.rows.at(-1).article, 'Thym');
   assert.equal(shiftedExtracted.rows.at(-1).packagingUnit, 'sachet');
 
+  // Doutes relevés à la lecture OCR des cellules : repris dans les raisons de la ligne
+  const withReasons = {
+    ...codeLayout,
+    rows: [codeLayout.rows[0], ['100010', 'Sorbet 2,4 L', '', 'au Kg', 'bac'], ['100011', 'Pancake @11.5', '', 'au Kg', 'sac']],
+    cellReasons: [
+      codeLayout.columns.map(() => []),
+      codeLayout.columns.map((_, column) => (column === 1 ? ['lectures divergentes'] : [])),
+      codeLayout.columns.map((_, column) => (column === 1 ? ['lectures divergentes', 'symbole illisible'] : column === 2 ? ['cellule illisible'] : [])),
+    ],
+  };
+  const reasoned = rowsLib.extractTemplateRows([withReasons], rolesForCodeLayout, codeSuggestion.headerTexts);
+  assert.deepEqual(reasoned.rows[0].reasons, ['lectures divergentes']);
+  assert.deepEqual(reasoned.rows[1].reasons, ['lectures divergentes', 'symbole illisible'],
+    'Les doutes d’une colonne ignorée ne comptent pas, ceux des colonnes à rôle sont repris sans doublon');
+  assert.equal(reasoned.flaggedCount, 2);
+
   // Aperçu et colonnes visibles
   assert.equal(rolesLib.getPreviewRows(codeLayout, 1).length, 3);
   assert.equal(rolesLib.getPreviewRows(codeLayout, 1, 2).length, 2);

@@ -79,7 +79,9 @@ export const extractTemplateRows = (
 
     const cell = (row: string[], column: number): string => (column >= 0 ? compactText(row[column] ?? '') : '');
 
-    layout.rows.slice(resolveBodyStart(layout)).forEach((row) => {
+    const bodyStart = resolveBodyStart(layout);
+    layout.rows.slice(bodyStart).forEach((row, offset) => {
+      const rowIndex = bodyStart + offset;
       const article = cell(row, articleColumn);
       const storageUnit = cell(row, storageColumn);
       const packagingUnit = cell(row, packagingColumn);
@@ -96,7 +98,14 @@ export const extractTemplateRows = (
         return;
       }
 
+      // Doutes relevés à la lecture des cellules (OCR cellule par cellule).
       const reasons: string[] = [];
+      [articleColumn, storageColumn, packagingColumn, codeColumn].forEach((column) => {
+        if (column < 0) return;
+        (layout.cellReasons?.[rowIndex]?.[column] ?? []).forEach((reason) => {
+          if (!reasons.includes(reason)) reasons.push(reason);
+        });
+      });
       if (!article) reasons.push('article vide');
       if (!storageUnit) reasons.push('unité de stockage vide');
       else if (!isReferenceUnit(storageUnit)) reasons.push('unité de stockage inattendue');

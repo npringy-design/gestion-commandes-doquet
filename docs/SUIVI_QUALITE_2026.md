@@ -309,6 +309,24 @@ Constat du 3 novembre 2026 : les cinq PDF Adoria fournis n'ont aucun texte natif
 
 Le lot 2 (suppression de `orderTemplateParser.ts`, de son test et de `tesseract.js` si plus nécessaire) n'est pas commencé : `tesseract.js` reste nécessaire à la voie des PDF scannés.
 
+## Chantier fonctionnel — Lot 1bis : grille d'image et OCR cellule par cellule (hors pourcentage)
+
+Nouvelle voie pour les PDF sans texte natif (moins de 20 caractères), qui remplace la lecture de page entière puis le placement des mots par position (tableau lu transposé, unités illisibles). Gratuite, sans IA, sans appel externe, sans nouvelle dépendance ni migration. La voie du texte natif n'est pas touchée. Ne modifie ni la feuille de route ni la progression globale (20 %).
+
+- [x] `src/utils/rasterTable.ts` : traits du quadrillage détectés sur l'image remise à l'endroit, colonnes du corps, lignes, en-tête, cellules ;
+- [x] `src/utils/cellReading.ts` : réparation limitée aux mesures (« 700 mi » en « 700 ml »), vote entre lectures, symboles illisibles, raisons de doute ;
+- [x] `src/utils/cellOcr.ts` : recadrage avec 20 px de blanc, lectures A (échelle 1) et B (échelle 2), puis C (échelle 3) et D (échelle 1,5, colonne de texte) en cas de désaccord ;
+- [x] `src/utils/orderTemplateRasterScan.ts` : session de lecture (rotation réutilisée de la page 1, en-tête, cellules, workers Tesseract via `createScheduler`, au plus min(4, cœurs - 1)) ; la page 1 est lue avant la confirmation des colonnes, les autres pages après ;
+- [x] `OrderTemplatePage` : progression « page n/N, cellule k/M », raison du signalement sous l'article, rapport « N lignes lues, M à contrôler », session et document libérés, repli sur la lecture visuelle par colonnes quand aucun quadrillage n'est détecté ;
+- [x] tests `test-raster-table`, `test-cell-reading` et `test-cell-ocr` ajoutés à `npm run verify` ;
+- [x] `npm run verify` vert ;
+- [ ] recette de Nicolas sur TEST avec les cinq PDF Adoria : 56 (Domafrais surgelé), 10 (Socopa), 80 (Épisaveurs), 29 (Terre Azur) et 33 (Domafrais viande/BOF) lignes attendues, environ 2 % à contrôler, aucune ligne transposée ;
+- [ ] promotion sur `main`, uniquement après cette recette.
+
+Mesures locales du 3 novembre 2026 sur les cinq PDF (26 pages), lecture rejouée avec Tesseract sous Node : structure détectée en 80 à 360 ms par page, nombre de lignes exact sur chaque PDF (80, 29, 10, 56, 33), 3 lignes à contrôler sur 208 (1,4 %), 2 cellules à lectures divergentes sur 832. Durée de lecture de 1 s (Socopa) à 18 s (Épisaveurs) avec trois workers ; non mesurée dans le navigateur. Le délai de cette voie est de 8 minutes (`pdfScanOcr`).
+
+Nettoyage du lot 2, uniquement après la recette : code devenu inutile de la voie scannée (fusion natif/OCR de `orderTemplateParser.ts`, `mergeOcrExtractions`), dont les restes de la lecture vision payante s'il en subsiste.
+
 ## Backlog hors pourcentage
 
 - Étendre progressivement la sauvegarde granulaire à l'ensemble des autres

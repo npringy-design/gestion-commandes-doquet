@@ -4,7 +4,7 @@
 //    traits de la grille lus dans le PDF et ramenés dans l'image de l'OCR.
 // Aucune fusion entre texte natif et OCR : un document est lu par une seule voie.
 
-import { OPS, type PDFDocumentProxy } from 'pdfjs-dist';
+import { OPS, type PDFDocumentProxy, type PDFPageProxy } from 'pdfjs-dist';
 import { ImportProcessingError, throwIfImportAborted } from './importProcessing';
 import {
   ROTATION_CANDIDATES,
@@ -109,12 +109,12 @@ export const readNativePages = async (
 // OCR
 // ---------------------------------------------------------------------------
 
-const OCR_RENDER_SCALE = 3;
+export const OCR_RENDER_SCALE = 3;
 const ROTATION_DETECTION_MAX_SIDE = 1400;
 
 // Certains PDF « Imprimer en PDF » dessinent le tableau pivoté dans le flux
 // sans poser /Rotate : pdf.js les rend « sur le côté ».
-const rotateCanvas = (source: HTMLCanvasElement, degrees: RotationDegrees): HTMLCanvasElement => {
+export const rotateCanvas = (source: HTMLCanvasElement, degrees: RotationDegrees): HTMLCanvasElement => {
   if (degrees === 0) return source;
   const rotated = document.createElement('canvas');
   const context = rotated.getContext('2d');
@@ -153,7 +153,7 @@ const downscaleForDetection = (source: HTMLCanvasElement): HTMLCanvasElement => 
   return reduced;
 };
 
-interface OcrWorker {
+export interface OcrWorker {
   recognize: (
     image: HTMLCanvasElement,
     options: Record<string, never>,
@@ -188,7 +188,7 @@ const collectOcrWords = (blocks: OcrBlock[] | null | undefined) => {
 // L'orientation retenue est celle qui lit la page à l'endroit avec la meilleure
 // confiance : une page lue de côté ou à l'envers peut avoir une confiance
 // presque égale, mais ses mots sont alors plus hauts que larges.
-const detectBestRotation = async (
+export const detectBestRotation = async (
   worker: OcrWorker,
   canvas: HTMLCanvasElement,
   signal?: AbortSignal,
@@ -210,6 +210,65 @@ const detectBestRotation = async (
 // Barres de bordure de tableau que l'OCR accole aux mots ou lit comme mots isolés.
 const cleanOcrWordText = (text: string): string => text.replace(/^[\s|]+|[\s|]+$/g, '');
 const HAS_LETTER_OR_DIGIT = /[\p{L}\p{N}]/u;
+
+// Lit une page par OCR de page entière : mots dans l'image remise à l'endroit,
+// grille tracée dans le PDF ramenée dans la même image.
+export const readScannedPage = async (
+  page: PDFPageProxy,
+  worker: OcrWorker,
+  knownRotation: RotationDegrees | null,
+  signal?: AbortSignal,
+): Promise<{ content: PageContent; rotation: RotationDegrees }> => {
+  const viewport = page.getViewport({ scale: OCR_RENDER_SCALE });
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.ceil(viewport.width);
+  canvas.height = Math.ceil(viewport.height);
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Contexte 2D introuvable.');
+  await page.render({ canvasContext: context, canvas, viewport }).promise;
+  throwIfImportAborted(signal);
+
+  const degrees = knownRotation ?? await detectBestRotation(worker, canvas, signal);
+  const oriented = rotateCanvas(canvas, degrees);
+
+  const { data } = await worker.recognize(oriented, {}, { blocks: true });
+  throwIfImportAborted(signal);
+
+  if (isSidewaysWords(collectOcrWords(data.blocks))) {
+    throw new ImportProcessingError(
+      'processing_failed',
+      'La page n’a pas pu être remise à l’endroit pour la lecture visuelle. Saisis la trame manuellement.',
+    );
+  }
+
+  const words: PdfWord[] = [];
+  (data.blocks ?? []).forEach((block) => {
+    block.paragraphs.forEach((paragraph) => {
+      paragraph.lines.forEach((line) => {
+        line.words.forEach((word) => {
+          const text = cleanOcrWordText(word.text);
+          if (!text || !HAS_LETTER_OR_DIGIT.test(text)) return;
+          words.push({
+            text,
+            x: word.bbox.x0,
+            yTop: word.bbox.y0,
+            width: Math.max(1, word.bbox.x1 - word.bbox.x0),
+            height: Math.max(1, word.bbox.y1 - word.bbox.y0),
+          });
+        });
+      });
+    });
+  });
+
+  // La grille est lue dans le PDF (traits vectoriels) puis ramenée dans
+  // l'image tournée que l'OCR a lue.
+  const operatorList: PdfOperatorList = await page.getOperatorList();
+  const rulings = segmentsToRulings(extractRawSegments(operatorList, PDF_OPS), (x, y) => {
+    const [viewportX, viewportY] = viewport.convertToViewportPoint(x, y);
+    return rotatePoint(viewportX, viewportY, degrees, canvas.width, canvas.height);
+  });
+  return { content: { words, grid: buildGrid(rulings) }, rotation: degrees };
+};
 
 export const readScannedPages = async (
   pdf: PDFDocumentProxy,
@@ -242,56 +301,9 @@ export const readScannedPages = async (
       throwIfImportAborted(signal);
       onPage?.(pageNumber, pdf.numPages);
       const page = await pdf.getPage(pageNumber);
-      const viewport = page.getViewport({ scale: OCR_RENDER_SCALE });
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.ceil(viewport.width);
-      canvas.height = Math.ceil(viewport.height);
-      const context = canvas.getContext('2d');
-      if (!context) throw new Error('Contexte 2D introuvable.');
-      await page.render({ canvasContext: context, canvas, viewport }).promise;
-      throwIfImportAborted(signal);
-
-      if (rotation === null) rotation = await detectBestRotation(ocrWorker, canvas, signal);
-      const degrees = rotation;
-      const oriented = rotateCanvas(canvas, degrees);
-
-      const { data } = await ocrWorker.recognize(oriented, {}, { blocks: true });
-      throwIfImportAborted(signal);
-
-      if (isSidewaysWords(collectOcrWords(data.blocks))) {
-        throw new ImportProcessingError(
-          'processing_failed',
-          'La page n’a pas pu être remise à l’endroit pour la lecture visuelle. Saisis la trame manuellement.',
-        );
-      }
-
-      const words: PdfWord[] = [];
-      (data.blocks ?? []).forEach((block) => {
-        block.paragraphs.forEach((paragraph) => {
-          paragraph.lines.forEach((line) => {
-            line.words.forEach((word) => {
-              const text = cleanOcrWordText(word.text);
-              if (!text || !HAS_LETTER_OR_DIGIT.test(text)) return;
-              words.push({
-                text,
-                x: word.bbox.x0,
-                yTop: word.bbox.y0,
-                width: Math.max(1, word.bbox.x1 - word.bbox.x0),
-                height: Math.max(1, word.bbox.y1 - word.bbox.y0),
-              });
-            });
-          });
-        });
-      });
-
-      // La grille est lue dans le PDF (traits vectoriels) puis ramenée dans
-      // l'image tournée que l'OCR a lue.
-      const operatorList: PdfOperatorList = await page.getOperatorList();
-      const rulings = segmentsToRulings(extractRawSegments(operatorList, PDF_OPS), (x, y) => {
-        const [viewportX, viewportY] = viewport.convertToViewportPoint(x, y);
-        return rotatePoint(viewportX, viewportY, degrees, canvas.width, canvas.height);
-      });
-      pages.push({ words, grid: buildGrid(rulings) });
+      const result = await readScannedPage(page, ocrWorker, rotation, signal);
+      rotation = result.rotation;
+      pages.push(result.content);
       page.cleanup();
     }
   } finally {

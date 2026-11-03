@@ -55,6 +55,9 @@ export interface TableLayout {
   // Index de la première ligne de produits quand un en-tête a pu être isolé
   // sans connaître le sens des colonnes (colonne Code), sinon 0.
   bodyStart: number;
+  // Raisons de doute par cellule (ligne, colonne), pour une lecture OCR cellule
+  // par cellule : lectures divergentes, symbole illisible.
+  cellReasons?: string[][][];
 }
 
 export interface PdfOperatorList {

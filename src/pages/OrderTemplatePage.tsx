@@ -45,6 +45,7 @@ import {
   type ColumnRoleSuggestion,
 } from '../utils/orderTemplateColumnRoles';
 import { extractTemplateRows } from '../utils/orderTemplateRowExtraction';
+import { createRasterScanSession, type RasterProgress, type RasterSession } from '../utils/orderTemplateRasterScan';
 import { validateImportFile } from '../utils/importFileValidation';
 import {
   IMPORT_PROCESSING_TIMEOUTS,
@@ -102,6 +103,9 @@ interface PendingImport {
   layouts: TableLayout[];
   mode: ImportMode;
   scanned: boolean;
+  // Page 1 seulement lue (lecture cellule par cellule) : les pages suivantes
+  // seront lues après la confirmation des colonnes.
+  raster: boolean;
   suggestion: ColumnRoleSuggestion;
   roles: ColumnRole[];
   headerTexts: string[];
@@ -136,6 +140,11 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
   const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const pdfAbortControllerRef = useRef<AbortController | null>(null);
+  // Lecture cellule par cellule d'un PDF sans texte : la session et le document
+  // restent ouverts entre la page 1 et la confirmation des colonnes.
+  const rasterSessionRef = useRef<RasterSession | null>(null);
+  const rasterControllerRef = useRef<AbortController | null>(null);
+  const rasterTaskRef = useRef<{ destroy: () => Promise<unknown> } | null>(null);
 
   const [step, setStep] = useState<ProcessingStep>('idle');
   const [statusLabel, setStatusLabel] = useState('');
@@ -143,6 +152,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
   const [importQualityReport, setImportQualityReport] = useState<ImportQualityReport | null>(null);
   // Lignes importées à contrôler, surlignées dans le tableau. Non persisté.
   const [flaggedRowIds, setFlaggedRowIds] = useState<Set<string>>(() => new Set());
+  const [flaggedRowReasons, setFlaggedRowReasons] = useState<Record<string, string[]>>({});
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
   const supplierOptions = useMemo(
     () => getOrderTemplateSupplierOptions(supplierConfigs),
@@ -169,7 +179,26 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     ));
   });
 
-  useEffect(() => () => pdfAbortControllerRef.current?.abort(), []);
+  const disposeRasterSession = useCallback(() => {
+    rasterControllerRef.current?.abort();
+    rasterControllerRef.current = null;
+    const session = rasterSessionRef.current;
+    rasterSessionRef.current = null;
+    if (session) void session.dispose();
+    const task = rasterTaskRef.current;
+    rasterTaskRef.current = null;
+    if (task) void task.destroy().catch(() => undefined);
+  }, []);
+
+  useEffect(() => () => {
+    pdfAbortControllerRef.current?.abort();
+    disposeRasterSession();
+  }, [disposeRasterSession]);
+
+  const reportRasterProgress = useCallback(({ page, pageCount, cell, cellCount }: RasterProgress) => {
+    setStatusLabel(`Lecture de la page ${page}/${pageCount}, cellule ${cell}/${cellCount}`);
+    setAnalysisProgress(Math.round(((page - 1 + cell / Math.max(1, cellCount)) / pageCount) * 100));
+  }, []);
 
   // À l'ouverture de la page, le tableau de travail est rechargé depuis la trame
   // du fournisseur sélectionné : l'onglet fournisseur est partagé avec Calcul
@@ -250,8 +279,10 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     setHydratedSupplierId(supplierId);
     setImportQualityReport(null);
     setFlaggedRowIds(new Set());
+    setFlaggedRowReasons({});
     setPendingImport(null);
-  }, [orderTemplateRows, orderTemplatesBySupplier, products, selectedSupplierId, setOrderTemplateRows, setOrderTemplatesBySupplier, setRatioTab]);
+    disposeRasterSession();
+  }, [disposeRasterSession, orderTemplateRows, orderTemplatesBySupplier, products, selectedSupplierId, setOrderTemplateRows, setOrderTemplatesBySupplier, setRatioTab]);
 
   const handleCreateProducts = useCallback(() => {
     if (!canImport) return;
@@ -343,6 +374,9 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     setFlaggedRowIds(new Set(
       extracted.rows.flatMap((row, index) => (row.reasons.length > 0 ? [importedRows[index].id] : [])),
     ));
+    setFlaggedRowReasons(Object.fromEntries(
+      extracted.rows.flatMap((row, index) => (row.reasons.length > 0 ? [[importedRows[index].id, row.reasons]] : [])),
+    ));
     if (selectedSupplierId) {
       saveStoredColumnMapping(selectedSupplierId, buildStoredMapping(pending.headerTexts, roles));
     }
@@ -363,6 +397,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
   const handleFile = useCallback(async (file: File) => {
     if (!canImport || isProcessing) return;
     pdfAbortControllerRef.current?.abort();
+    disposeRasterSession();
     const controller = new AbortController();
     pdfAbortControllerRef.current = controller;
     let loadingTask: ReturnType<typeof getDocument> | null = null;
@@ -372,6 +407,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     setAnalysisProgress(0);
     setImportQualityReport(null);
     setFlaggedRowIds(new Set());
+    setFlaggedRowReasons({});
     setPendingImport(null);
 
     try {
@@ -402,24 +438,51 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
       // Moins de 20 caractères de texte natif : PDF scanné ou texte converti en tracés.
       const scanned = native.totalChars < NATIVE_TEXT_MIN_CHARS;
       let pages = native.pages;
+      let rasterLayout: TableLayout | null = null;
       if (scanned) {
         setStep('ocr');
-        pages = await withImportTimeout(
-          readScannedPages(pdf, {
-            signal: controller.signal,
-            onPage: (pageNumber, pageCount) => {
-              setStatusLabel(`Lecture visuelle — page ${pageNumber}/${pageCount}`);
-              setAnalysisProgress(Math.round(((pageNumber - 1) / pageCount) * 100));
-            },
-          }),
+        // Quadrillage détecté sur l'image puis OCR cellule par cellule : seule la
+        // page 1 est lue ici, les colonnes sont confirmées avant les autres pages.
+        const rasterController = new AbortController();
+        rasterControllerRef.current = rasterController;
+        const session = createRasterScanSession({
+          pdf,
+          signal: rasterController.signal,
+          onProgress: reportRasterProgress,
+        });
+        rasterSessionRef.current = session;
+        rasterLayout = await withImportTimeout(
+          session.readFirstPage(),
           IMPORT_PROCESSING_TIMEOUTS.pdfScanOcr,
-          'La lecture visuelle du PDF a dépassé 4 minutes et a été arrêtée.',
-          () => { controller.abort(); void loadingTask?.destroy(); },
+          'La lecture de la première page a dépassé 8 minutes et a été arrêtée.',
+          () => { disposeRasterSession(); controller.abort(); },
         );
+
+        if (rasterLayout) {
+          rasterTaskRef.current = loadingTask;
+        } else {
+          // Aucun quadrillage : repli sur la lecture visuelle par colonnes.
+          await session.dispose();
+          rasterSessionRef.current = null;
+          rasterControllerRef.current = null;
+          showToast('Aucun quadrillage détecté : lecture visuelle par colonnes, contrôle obligatoire.', 'warning');
+          pages = await withImportTimeout(
+            readScannedPages(pdf, {
+              signal: controller.signal,
+              onPage: (pageNumber, pageCount) => {
+                setStatusLabel(`Lecture visuelle — page ${pageNumber}/${pageCount}`);
+                setAnalysisProgress(Math.round(((pageNumber - 1) / pageCount) * 100));
+              },
+            }),
+            IMPORT_PROCESSING_TIMEOUTS.pdfScanOcr,
+            'La lecture visuelle du PDF a dépassé 8 minutes et a été arrêtée.',
+            () => { controller.abort(); void loadingTask?.destroy(); },
+          );
+        }
       }
       throwIfImportAborted(controller.signal);
 
-      const layouts = buildPageLayouts(pages);
+      const layouts = rasterLayout ? [rasterLayout] : buildPageLayouts(pages);
       if (layouts.length === 0) {
         showToast('Aucun tableau reconnu dans ce PDF. Vérifie le fichier ou saisis la trame manuellement.', 'warning');
         setStep('done');
@@ -436,6 +499,7 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
         layouts,
         mode: scanned ? 'scan' : reference.source,
         scanned,
+        raster: rasterLayout !== null,
         suggestion,
         roles,
         headerTexts: suggestion.headerTexts,
@@ -468,15 +532,16 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
       }
     } finally {
       controller.abort();
-      // Détruire la tâche de chargement libère aussi le document et son Worker.
-      if (loadingTask) await loadingTask.destroy().catch(() => undefined);
+      // Détruire la tâche de chargement libère aussi le document et son Worker,
+      // sauf quand la lecture cellule par cellule en a encore besoin.
+      if (loadingTask && rasterTaskRef.current !== loadingTask) await loadingTask.destroy().catch(() => undefined);
       if (pdfAbortControllerRef.current === controller) {
         pdfAbortControllerRef.current = null;
         setStatusLabel('');
         setAnalysisProgress(0);
       }
     }
-  }, [canImport, importWithRoles, isProcessing, selectedSupplierId, showToast]);
+  }, [canImport, disposeRasterSession, importWithRoles, isProcessing, reportRasterProgress, selectedSupplierId, showToast]);
 
   // Un rôle ne peut désigner qu'une colonne : le choisir ailleurs libère l'ancienne.
   const changeColumnRole = (columnIndex: number, role: ColumnRole) => {
@@ -490,8 +555,49 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     });
   };
 
-  const confirmImport = () => {
+  const confirmImport = async () => {
     if (!pendingImport) return;
+    const session = rasterSessionRef.current;
+
+    if (pendingImport.raster && session) {
+      // Lecture cellule par cellule des pages suivantes, avec les colonnes confirmées.
+      const { roles } = pendingImport;
+      setStep('ocr');
+      setStatusLabel('Lecture des pages suivantes…');
+      setAnalysisProgress(0);
+      try {
+        const result = await withImportTimeout(
+          (async () => {
+            const first = await session.completeFirstPage(pendingImport.layouts[0], roles);
+            const others = await session.readRemainingPages(roles, first);
+            return { first, ...others };
+          })(),
+          IMPORT_PROCESSING_TIMEOUTS.pdfScanOcr,
+          'La lecture des pages a dépassé 8 minutes et a été arrêtée.',
+          () => disposeRasterSession(),
+        );
+        const pending: PendingImport = { ...pendingImport, layouts: [result.first, ...result.layouts], raster: false };
+        if (result.wordPages.length > 0) {
+          showToast(
+            `Page(s) ${result.wordPages.join(', ')} sans quadrillage détecté : lues par colonnes, à contrôler.`,
+            'warning',
+          );
+        }
+        const imported = importWithRoles(pending, roles);
+        setPendingImport({ ...pending, imported, editing: !imported });
+        setStep('done');
+      } catch (err) {
+        showToast(toSafeImportErrorMessage(err, 'La lecture des pages suivantes a échoué.'), 'error');
+        setPendingImport(null);
+        setStep('error');
+      } finally {
+        disposeRasterSession();
+        setStatusLabel('');
+        setAnalysisProgress(0);
+      }
+      return;
+    }
+
     const imported = importWithRoles(pendingImport, pendingImport.roles);
     setPendingImport({ ...pendingImport, imported, editing: !imported });
     setStep('done');
@@ -519,8 +625,10 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
     if (orderTemplateRows.length === 0) return;
     if (!window.confirm('Vider entièrement la trame de commande ?')) return;
     setOrderTemplateRows([]);
+    disposeRasterSession();
     setImportQualityReport(null);
     setFlaggedRowIds(new Set());
+    setFlaggedRowReasons({});
     setPendingImport(null);
   };
 
@@ -725,10 +833,8 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
                   {importQualityReport.needsReview ? 'Lecture à contrôler' : 'Lecture vérifiée'} — {IMPORT_MODE_LABELS[importQualityReport.mode]}
                 </p>
                 <p className="mt-1">
-                  {importQualityReport.rowCount} ligne(s) restituée(s)
-                  {importQualityReport.flaggedRowCount > 0
-                    ? `, dont ${importQualityReport.flaggedRowCount} surlignée(s) à contrôler : cellule vide ou unité inattendue.`
-                    : '.'}
+                  {importQualityReport.rowCount} ligne(s) lue(s), {importQualityReport.flaggedRowCount} à contrôler
+                  {importQualityReport.flaggedRowCount > 0 ? ' (surlignées, avec la raison sous l’article).' : '.'}
                 </p>
               </div>
             )}
@@ -856,6 +962,11 @@ const OrderTemplatePage: React.FC<OrderTemplatePageProps> = ({
                             rows={Math.max(1, row.article.split('\n').length)}
                             className="min-h-[42px] w-full resize-y rounded-lg border-2 border-[#E2C39B] bg-[#FFFDF8] px-3 py-2 font-semibold text-[#2F1D14] focus:border-[#B66A2C] focus:outline-none disabled:cursor-not-allowed"
                           />
+                          {flaggedRowReasons[row.id] && (
+                            <p className="mt-1 text-xs font-semibold text-amber-800">
+                              ⚠ À contrôler : {flaggedRowReasons[row.id].join(' · ')}
+                            </p>
+                          )}
                         </td>
                         <td className="py-2 pr-4">
                           <input
