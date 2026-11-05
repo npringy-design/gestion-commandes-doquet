@@ -2,7 +2,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { RESERVED_VIEWS } from '../constants';
 import type { AppState } from '../hooks/useAppState';
-import { getDeliveryDates, getForecastForWindow } from '../utils/dateHelpers';
+import { getDeliveryDates, getForecastForWindow, getMinSelectableDeliveryDate } from '../utils/dateHelpers';
 import { calculateOrder, calculateTargetOrder, toNumber } from '../utils/calculations';
 import {
   buildOrderProductNameCounts,
@@ -172,8 +172,7 @@ const OrderAnomalyGuard: React.FC<OrderAnomalyGuardProps> = ({ state }) => {
     if (!currentConfig) return result;
 
     const dates = getDeliveryDates(currentConfig);
-    const minDelivery = new Date(dates.delivery);
-    minDelivery.setHours(0, 0, 0, 0);
+    const minDelivery = getMinSelectableDeliveryDate();
 
     const deliveryOverride = state.deliveryDateBySupplier[supplierId];
     const rawDelivery = deliveryOverride ? new Date(deliveryOverride) : dates.delivery;

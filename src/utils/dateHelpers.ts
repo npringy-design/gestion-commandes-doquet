@@ -140,6 +140,14 @@ const getNextDelivery = (now: Date, config: SupplierConfig): Date => {
   return nextRuleDelivery(now, rules, config.cutoffTime);
 };
 
+// Première date choisissable à la main : demain, même hors cycle ou après un cut-off.
+// La date proposée par défaut reste celle de getDeliveryDates.
+export const getMinSelectableDeliveryDate = (now: Date = new Date()): Date => {
+  const tomorrow = startOfDay(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return tomorrow;
+};
+
 export const getDeliveryDates = (config: SupplierConfig, now: Date = new Date()) => {
   // Cal 1 : prochaine livraison en respectant les cut-offs
   const delivery1 = getNextDelivery(now, config);

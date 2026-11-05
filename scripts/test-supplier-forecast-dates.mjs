@@ -34,7 +34,7 @@ try {
   const compiledPath = join(tempDir, 'dateHelpers.mjs');
   writeFileSync(compiledPath, outputText, 'utf8');
 
-  const { getDeliveryDates, getForecastForWindow } = await import(pathToFileURL(compiledPath).href);
+  const { getDeliveryDates, getForecastForWindow, getMinSelectableDeliveryDate } = await import(pathToFileURL(compiledPath).href);
 
   const doquet = {
     id: 'doquet',
@@ -96,6 +96,17 @@ try {
     crossMonth,
     { midi: 2, soir: 30, total: 32 },
     'Prévision à cheval sur deux mois : après 15h, exclure le midi du jour mais garder le soir et les jours suivants'
+  );
+
+  assert.equal(
+    getMinSelectableDeliveryDate(new Date(2026, 10, 9, 18, 30)).getTime(),
+    new Date(2026, 10, 10).getTime(),
+    'Choix manuel : le lendemain reste sélectionnable même après le cut-off du cycle'
+  );
+  assert.equal(
+    getMinSelectableDeliveryDate(new Date(2026, 11, 31, 8, 0)).getTime(),
+    new Date(2027, 0, 1).getTime(),
+    'Choix manuel : le lendemain franchit correctement la fin d’année'
   );
 
   console.log('Dates fournisseurs OK : Doquet, Domafrais, cut-offs, livraison suivante physique et prévision multi-mois protégés.');

@@ -9,7 +9,7 @@
 
 import React from 'react';
 import { View, SupplierId } from '../constants';
-import { getDeliveryDates, getForecastForWindow, getForecastLimonadeForWindow } from '../utils/dateHelpers';
+import { getDeliveryDates, getForecastForWindow, getForecastLimonadeForWindow, getMinSelectableDeliveryDate } from '../utils/dateHelpers';
 import { calculateOrder, calculateTargetOrder, capitalizeFirstLetter, toNumber } from '../utils/calculations';
 import { ResetConfirmModal } from '../components/Modals';
 import WindowsCalendar from '../components/WindowsCalendar';
@@ -113,12 +113,11 @@ const SupplierOrderPage: React.FC<SupplierOrderPageProps> = ({ state }) => {
   const dates = getDeliveryDates(currentConfig);
 
   // ── Contraintes de date ───────────────────────────────────────
-  const minDelivery1 = new Date(dates.delivery);
-  minDelivery1.setHours(0, 0, 0, 0);
+  const minDelivery1 = getMinSelectableDeliveryDate();
 
   // ── Livraison courante (calendrier 1) ────────────────────────
   // Par défaut = calculé par getDeliveryDates (respecte les cut-offs)
-  // Si l'override stocké est antérieur au minimum autorisé métier → réinitialiser
+  // Si l'override stocké est passé ou tombe aujourd'hui → réinitialiser
   const deliveryOverride = deliveryDateBySupplier[currentSupplierId];
   const _rawDelivery = deliveryOverride ? new Date(deliveryOverride) : dates.delivery;
   const selectedDeliveryDate = _rawDelivery < minDelivery1 ? dates.delivery : _rawDelivery;
