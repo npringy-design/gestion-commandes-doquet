@@ -110,6 +110,7 @@ Le workflow choisi :
 - Promotion production du correctif `Connexion non confirmée` valide sur test : timeout profil porte a 12 s, retry automatique du profil apres timeout, purge de toutes les cles `sb-*` local/session storage a la deconnexion forcee, deconnexion Supabase locale, retour propre vers `/` et `autoRefreshToken` desactive.
 - Affichage mobile des deux dates de commande en mode Marge : `Livraison` et `Livr. suivante`, chacune avec son calendrier. Le mode Cible conserve uniquement la date `Livraison`.
 - Calendrier de livraison préparé pour TEST : seuls les jours passés et le jour même sont grisés, tous les jours à partir du lendemain restent sélectionnables, y compris hors cycle ou après un cut-off (exemple : commande pour mardi au lieu de mercredi chez Domafrais). La date proposée par défaut reste celle du cycle fournisseur, sans changement de formule ni de données Supabase. Une date choisie à la main reste valable jusqu'à ce qu'elle soit passée.
+- Validation utilisateur reçue pour le calendrier de livraison (commit TEST `81f3fe9`) : promotion sur `main` autorisée, sans modification des données Supabase.
 
 ## Tests de non-regression calculs commande
 
