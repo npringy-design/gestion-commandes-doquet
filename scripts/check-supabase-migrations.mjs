@@ -15,6 +15,7 @@ assert.deepEqual(
     '20260713104108_migrate_data_into_order_line_states.sql',
     '20260719101200_hippo_commandes_baseline.sql',
     '20260719101210_converge_hippo_commandes_schema.sql',
+    '20261114120000_manuels_operatoires.sql',
   ],
   'Les trois ponts historiques doivent précéder la baseline et sa convergence'
 );
