@@ -12,6 +12,7 @@ import { View, MONTHS_DISPLAY_CONFIG, MONTH_KEY_TO_NAME } from '../constants';
 import { ImportModal } from '../components/Modals';
 import AppNavTile from '../components/AppNavTile';
 import AiAssistantDrawer from '../components/AiAssistantDrawer';
+import ManuelsSection from '../components/ManuelsSection';
 import { useAuth } from '../auth/AuthProvider';
 import { loadUiState, saveUiState } from '../hooks/appStateHelpers';
 import {
@@ -841,6 +842,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
                 </table>
               </div>
             </section>
+            <ManuelsSection />
           </div>
           </div>
         </main>

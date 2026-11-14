@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ACTIVE_SITE_STORAGE_KEY, SITES, View, getDisplaySiteName, getDisplaySiteShortName } from '../constants';
 import { PasswordModal } from '../components/Modals';
+import ManualSearch from '../components/ManualSearch';
 import { useAuth } from '../auth/AuthProvider';
 import { isSupabaseConfigured as isAuthConfigured } from '../lib/supabaseClient';
 import { canAccessAdminDashboard, canAccessStatsPage } from '../lib/permissions';
@@ -609,6 +610,8 @@ const HomePage: React.FC<HomePageProps> = ({ setView }) => {
 
         <main className="home-page-frame relative z-10 mx-auto flex w-full max-w-[1280px] flex-col px-4 sm:px-6 lg:px-8">
           {pageActions}
+
+          <ManualSearch />
 
           <header
             className={`mb-5 overflow-hidden rounded-lg border shadow-[0_22px_55px_rgba(65,37,18,0.24)] ${

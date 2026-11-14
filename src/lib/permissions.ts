@@ -75,6 +75,12 @@ export function canEditRatios(profile: AppProfile | null) {
   return hasRole(profile, EDIT_ROLES);
 }
 
+// Manuels opératoires : dépôt, remplacement, suppression et réglages (manager+ et au-dessus).
+// Doit rester aligné sur private.manuels_can_manage_site() côté Supabase.
+export function canManageManuels(profile: AppProfile | null) {
+  return hasRole(profile, EDIT_ROLES);
+}
+
 export function canEditPreviCouverts(profile: AppProfile | null) {
   return hasRole(profile, EDIT_ROLES);
 }

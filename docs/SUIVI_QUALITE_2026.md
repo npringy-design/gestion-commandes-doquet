@@ -354,3 +354,14 @@ Correctif de l'association des colonnes entre pages (recette partielle sur TEST 
 
 Toute autre idée future non critique est ajoutée ici sans modifier les lots ni
 l'avancement.
+
+## Chantier fonctionnel — Recherche dans les manuels opératoires (hors pourcentage)
+
+Indexation générique des manuels PDF (pages, fiches, rubriques) et recherche sur l'accueil. Ne modifie ni la feuille de route ni la progression globale (20 %). Nouvelle fonction avec migrations Supabase, appliquées sur TEST uniquement.
+
+- [x] migrations `20261114120000` (bucket privé, helpers de droits) et `20261114130000` (tables, réglages par site, RPC de remplacement, de réindexation et de recherche), avec retours arrière, appliquées sur Supabase TEST ;
+- [x] `src/utils/manualIndexer.ts` (module pur) et `manualPdfReader.ts`, test `test-manual-indexer` intégré à `npm run verify` ;
+- [x] Paramètres > Manuels opératoires (dépôt avec aperçu, réindexation, réglages, synonymes) et barre de recherche de l'accueil ;
+- [x] `npm run verify` vert ;
+- [ ] validation de Nicolas sur TEST : dépôt des manuels Chaud, Froid et Sous-fiches, contrôle de l'aperçu et de la recherche ;
+- [ ] migrations non appliquées sur la production, promotion sur `main` après validation.

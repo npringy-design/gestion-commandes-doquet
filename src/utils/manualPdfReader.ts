@@ -1,8 +1,8 @@
-// Adaptateur pdf.js -> découpage de manuel. Ne dépend pas de pdf.js : il
+// Adaptateur pdf.js -> indexation de manuel. Ne dépend pas de pdf.js : il
 // reçoit un document déjà ouvert (interface minimale), ce qui permet de
-// l'utiliser dans le navigateur comme dans un script Node.
+// l'utiliser dans le navigateur comme dans un test Node.
 
-import { splitManualPages, type ManualFiche, type ManualPageItems, type ManualTextItem } from './manualSplitter';
+import { indexManualPages, type ManualIndex, type ManualIndexSettings, type ManualPageItems, type ManualTextItem } from './manualIndexer';
 
 interface PdfTextItemLike {
   str?: string;
@@ -19,11 +19,6 @@ export interface PdfDocumentLike {
   getPage(pageNumber: number): Promise<PdfPageLike>;
 }
 
-export interface ManualReadResult {
-  nbPages: number;
-  fiches: ManualFiche[];
-}
-
 function toTextItem(raw: unknown): ManualTextItem | null {
   const item = raw as PdfTextItemLike;
   if (typeof item.str !== 'string' || !item.transform || item.transform.length < 6) return null;
@@ -32,7 +27,7 @@ function toTextItem(raw: unknown): ManualTextItem | null {
   return { str: item.str, x: e, y: f, size, width: item.width ?? 0 };
 }
 
-export async function readManualPdf(doc: PdfDocumentLike): Promise<ManualReadResult> {
+export async function readManualPdf(doc: PdfDocumentLike, settings: ManualIndexSettings): Promise<ManualIndex> {
   const pages: ManualPageItems[] = [];
   for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber += 1) {
     const page = await doc.getPage(pageNumber);
@@ -40,5 +35,5 @@ export async function readManualPdf(doc: PdfDocumentLike): Promise<ManualReadRes
     const items = content.items.map(toTextItem).filter((item): item is ManualTextItem => item !== null);
     pages.push({ page: pageNumber, items });
   }
-  return { nbPages: doc.numPages, fiches: splitManualPages(pages) };
+  return indexManualPages(pages, settings);
 }
