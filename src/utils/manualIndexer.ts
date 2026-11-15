@@ -1,53 +1,20 @@
 // Indexation générique d'un manuel opératoire (PDF avec vrai texte) en trois
 // niveaux : pages, fiches, rubriques. Module pur : aucune dépendance à React,
-// Supabase ni pdf.js. Rien de propre à une marque : les en-têtes de rubriques,
-// les lignes à ignorer et le préfixe de sous-fiche viennent des réglages du site.
+// Supabase ni pdf.js. Aucun réglage par site : les rubriques, les lignes à
+// ignorer, les sous-fiches et les synonymes sont détectés automatiquement ou
+// définis dans manualConstants.ts.
 
-export type SectionType =
-  | 'ingredients'
-  | 'mise_en_place'
-  | 'a_la_commande'
-  | 'dressage'
-  | 'qualite'
-  | 'autre';
+import {
+  HEADER_KEYWORDS,
+  MANUAL_FORMAT_VERSION,
+  STOP_WORDS,
+  SUB_FICHE_PREFIXES,
+  SYNONYMS,
+  UNITS,
+  type SectionType,
+} from './manualConstants';
 
-export const SECTION_TYPES: readonly SectionType[] = [
-  'ingredients',
-  'mise_en_place',
-  'a_la_commande',
-  'dressage',
-  'qualite',
-  'autre',
-];
-
-export const SECTION_TYPE_LABELS: Record<SectionType, string> = {
-  ingredients: 'Ingrédients',
-  mise_en_place: 'Mise en place',
-  a_la_commande: 'À la commande',
-  dressage: 'Dressage',
-  qualite: 'Qualité',
-  autre: 'Autre',
-};
-
-export interface HeaderRule {
-  text: string;
-  type: SectionType;
-}
-
-// Unités reconnues par défaut dans une ligne d'ingrédient (modifiables par site).
-export const DEFAULT_UNITS: readonly string[] = [
-  'g', 'kg', 'l', 'cl', 'ml', 'unite', 'unites', 'piece', 'pieces', 'portion', 'tranche',
-];
-
-// Version du format d'indexation : 2 = lignes typées dans chaque rubrique.
-export const MANUAL_FORMAT_VERSION = 2;
-
-export interface ManualIndexSettings {
-  headers: HeaderRule[];
-  ignoredLines: string[];
-  subFichePrefix: string;
-  units: string[];
-}
+export { MANUAL_FORMAT_VERSION, SECTION_TYPES, SECTION_TYPE_LABELS, type SectionType } from './manualConstants';
 
 export type LineKind = 'ingredient' | 'etape' | 'puce' | 'texte';
 
@@ -153,13 +120,31 @@ function groupLines(items: ManualTextItem[], tolerance: number): Line[] {
   return lines;
 }
 
+// Écart horizontal (en fraction de la taille du texte) sous lequel deux morceaux
+// d'une même ligne sont collés : « Caf » + « é » donne « Café ».
+const GLUE_GAP_RATIO = 0.12;
+
+// Texte d'une ligne (ou d'une suite d'éléments). Les morceaux sont collés quand
+// il n'y a pas d'écart réel entre eux (accent ou lettre isolée par le PDF) ;
+// sinon une espace est insérée. Le résultat est en Unicode NFC.
 function itemsText(items: ManualTextItem[]): string {
-  return items
-    .map((item) => item.str.trim())
-    .filter((part) => part.length > 0)
-    .join(' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  let text = '';
+  let previous: ManualTextItem | null = null;
+  for (const item of items) {
+    const part = item.str.normalize('NFC');
+    if (part.trim().length === 0) {
+      text += ' ';
+      continue;
+    }
+    if (previous && !/\s$/.test(text) && !/^\s/.test(part)) {
+      const known = previous.width > 0;
+      const gap = item.x - (previous.x + previous.width);
+      if (!known || gap > Math.max(previous.size, item.size) * GLUE_GAP_RATIO) text += ' ';
+    }
+    text += part;
+    previous = item;
+  }
+  return text.replace(/\s+/g, ' ').trim();
 }
 
 function itemEnd(item: ManualTextItem): number {
@@ -184,34 +169,58 @@ function splitRuns(line: Line, gap: number): ManualTextItem[][] {
 
 const BULLET_PREFIX = /^[\s❑□▪•■☐◦·\-–—*]+/u;
 
-function matchHeader(rawText: string, headers: readonly HeaderRule[]): { type: SectionType; libelle: string; rest: string } | null {
-  if (headers.length === 0) return null;
-  const stripped = rawText.replace(BULLET_PREFIX, '').trim();
-  if (!stripped) return null;
-  const normalized = normalizeText(stripped);
-  let best: HeaderRule | null = null;
-  let bestLength = 0;
-  for (const rule of headers) {
-    const head = normalizeText(rule.text);
-    if (head.length > bestLength && normalized.startsWith(head)) {
-      best = rule;
-      bestLength = head.length;
-    }
-  }
-  if (!best) return null;
-  const colon = stripped.indexOf(':');
-  return colon >= 0
-    ? { type: best.type, libelle: stripped.slice(0, colon).trim(), rest: stripped.slice(colon + 1).trim() }
-    : { type: best.type, libelle: stripped, rest: '' };
+interface HeaderMatch {
+  type: SectionType;
+  libelle: string;
 }
 
-function dropIgnoredRuns(items: ManualTextItem[], ignored: string[], tolerance: number, gap: number): ManualTextItem[] {
-  if (ignored.length === 0) return items;
+// En-tête de rubrique : ligne entièrement en majuscules (chiffres, ponctuation
+// et guillemets ignorés) qui se termine par « : ». Son type se déduit des mots
+// qu'elle contient (HEADER_KEYWORDS), sans tenir compte des accents.
+export function matchHeader(rawText: string): HeaderMatch | null {
+  const stripped = rawText.replace(BULLET_PREFIX, '').trim();
+  if (!stripped.endsWith(':')) return null;
+  const libelle = stripped.slice(0, -1).trim();
+  const letters = libelle.replace(/[^\p{L}]/gu, '');
+  if (letters.length < 2 || letters !== letters.toUpperCase()) return null;
+  const normalized = normalizeText(libelle);
+  for (const rule of HEADER_KEYWORDS) {
+    if (rule.words.some((word) => normalized.includes(word))) return { type: rule.type, libelle };
+  }
+  return { type: 'autre', libelle };
+}
+
+// Textes (morceaux de ligne) identiques, après normalisation, sur au moins la
+// moitié des pages : pieds de page, copyrights, quelle que soit la marque.
+// Les en-têtes de rubrique ne sont jamais considérés comme répétés.
+function findRepeatedTexts(pages: ManualPageItems[], tolerance: number, gap: number): Set<string> {
+  const counts = new Map<string, number>();
+  for (const page of pages) {
+    const seen = new Set<string>();
+    const items = page.items.filter((item) => item.str.trim().length > 0);
+    for (const line of groupLines(items, tolerance)) {
+      for (const run of splitRuns(line, gap)) {
+        const raw = itemsText(run);
+        const text = normalizeText(raw);
+        if (text.length >= 4 && matchHeader(raw) === null) seen.add(text);
+      }
+    }
+    for (const text of seen) counts.set(text, (counts.get(text) ?? 0) + 1);
+  }
+  const needed = Math.max(2, Math.ceil(pages.length / 2));
+  const repeated = new Set<string>();
+  for (const [text, count] of counts) {
+    if (count >= needed) repeated.add(text);
+  }
+  return repeated;
+}
+
+function dropRepeatedRuns(items: ManualTextItem[], repeated: Set<string>, tolerance: number, gap: number): ManualTextItem[] {
+  if (repeated.size === 0) return items;
   const kept: ManualTextItem[] = [];
   for (const line of groupLines(items, tolerance)) {
     for (const run of splitRuns(line, gap)) {
-      const text = normalizeText(itemsText(run));
-      if (!ignored.some((pattern) => text.includes(pattern))) kept.push(...run);
+      if (!repeated.has(normalizeText(itemsText(run)))) kept.push(...run);
     }
   }
   return kept;
@@ -248,7 +257,6 @@ function linesText(items: ManualTextItem[], tolerance: number): string {
 }
 
 interface SegmentContext {
-  settings: ManualIndexSettings;
   tolerance: number;
   gap: number;
   columnGap: number;
@@ -262,19 +270,23 @@ function escapeRegExp(value: string): string {
 
 // Première lettre en majuscule, reste en minuscules. Les mots contenant un
 // chiffre et les unités restent intacts.
-export function toDisplayCase(text: string, units: readonly string[] = DEFAULT_UNITS): string {
+export function toDisplayCase(text: string, units: readonly string[] = UNITS): string {
   const unitSet = new Set(units.map(normalizeText));
   let first = true;
   return text
     .split(/(\s+)/)
     .map((part) => {
       if (part === '' || /^\s+$/.test(part)) return part;
+      const hasLetter = /\p{L}/u.test(part);
       const letters = normalizeText(part.replace(/[^\p{L}\p{N}]/gu, ''));
       const keep = /\d/.test(part) || unitSet.has(letters);
       let value = keep ? part : part.toLowerCase();
-      if (first) {
+      if (first && hasLetter) {
         first = false;
-        if (!keep) value = value.charAt(0).toUpperCase() + value.slice(1);
+        if (!keep) {
+          const index = value.search(/\p{L}/u);
+          value = value.slice(0, index) + value.charAt(index).toUpperCase() + value.slice(index + 1);
+        }
       }
       return value;
     })
@@ -288,13 +300,54 @@ export function splitTitle(titre: string): { principal: string; sousTitre: strin
   return match ? { principal: match[1].trim(), sousTitre: match[2].trim() } : { principal: titre.trim(), sousTitre: '' };
 }
 
+const STOP_WORD_SET: ReadonlySet<string> = new Set(STOP_WORDS);
+
 // Clé de rapprochement tolérante entre un nom de sous-fiche et un titre de fiche :
-// sans accents ni ponctuation, en ignorant un grammage final (« creme brulee 50 g »).
+// sans accents, sans ponctuation, sans mots vides et sans grammage final
+// (« SF MOUSSE CHOCOLAT » et « MOUSSE AU CHOCOLAT » donnent « mousse chocolat »).
 export function matchKey(value: string): string {
-  let key = normalizeText(value).replace(/[^a-z0-9]+/g, ' ').trim();
-  const trailing = /\s+\d+(?:\s*(?:g|gr|kg|mg|l|cl|ml))?$/;
-  while (trailing.test(key)) key = key.replace(trailing, '').trim();
+  let key = normalizeText(value)
+    .replace(/[^a-z0-9]+/g, ' ')
+    .split(' ')
+    .filter((word) => word.length > 0 && !STOP_WORD_SET.has(word))
+    .join(' ');
+  const trailing = /\s*\b\d+(?:\s*(?:g|gr|kg|mg|l|cl|ml))?$/;
+  while (trailing.test(key) && key.replace(trailing, '').trim().length > 0) key = key.replace(trailing, '').trim();
   return key;
+}
+
+export interface QueryAnalysis {
+  // Mots à chercher : sans synonymes ni mots vides, normalisés.
+  terms: string[];
+  // Rubriques à mettre en avant, déduites des synonymes.
+  targets: SectionType[];
+  // La requête contenait des mots mais aucun mot de recherche : il faut préciser le plat.
+  vague: boolean;
+}
+
+const SYNONYM_TARGETS = new Map<string, SectionType[]>();
+for (const [type, words] of Object.entries(SYNONYMS) as [keyof typeof SYNONYMS, readonly string[]][]) {
+  for (const word of words) SYNONYM_TARGETS.set(word, [...(SYNONYM_TARGETS.get(word) ?? []), type]);
+}
+
+export function queryTokens(query: string): string[] {
+  return normalizeText(query).split(/[^a-z0-9]+/).filter((token) => token.length > 0);
+}
+
+// Un synonyme est retiré des termes et désigne une rubrique ; un mot vide est ignoré.
+export function analyzeQuery(query: string): QueryAnalysis {
+  const tokens = queryTokens(query);
+  const terms: string[] = [];
+  const targets: SectionType[] = [];
+  for (const token of tokens) {
+    const synonymTargets = SYNONYM_TARGETS.get(token);
+    if (synonymTargets) {
+      for (const target of synonymTargets) if (!targets.includes(target)) targets.push(target);
+    } else if (!STOP_WORD_SET.has(token) && !terms.includes(token)) {
+      terms.push(token);
+    }
+  }
+  return { terms, targets, vague: tokens.length > 0 && terms.length === 0 };
 }
 
 const PUCE_PATTERN = /^(?:[▪•◦·*]|[-–—](?!\d))\s*(.+)$/u;
@@ -302,10 +355,17 @@ const ETAPE_PATTERN = /^(\d+)\s*(?:-|–|\)|\.(?!\d))\s*(.+)$/u;
 const INGREDIENT_PATTERN = /^(\d+(?:[.,]\d+)?)\s*(.+)$/u;
 
 // Lignes typées : ingrédient, étape (avec sous-lignes), puce, texte.
-export function parseLines(rawLines: readonly string[], units: readonly string[], subFichePrefix: string): SectionLine[] {
+export function parseLines(
+  rawLines: readonly string[],
+  units: readonly string[] = UNITS,
+  subFichePrefixes: readonly string[] = SUB_FICHE_PREFIXES,
+): SectionLine[] {
   const unitSet = new Set(units.map(normalizeText));
-  const prefix = subFichePrefix.trim();
-  const prefixPattern = prefix ? new RegExp(`^${escapeRegExp(prefix)}\\s+(.+)$`, 'i') : null;
+  const prefixes = subFichePrefixes.map((prefix) => prefix.trim()).filter((prefix) => prefix.length > 0);
+  // Préfixe en mot isolé uniquement : « SF MOUSSE », pas « SFINGE ».
+  const prefixPattern = prefixes.length > 0
+    ? new RegExp(`^(?:${prefixes.map(escapeRegExp).join('|')})\\s+(.+)$`, 'i')
+    : null;
   const lines: SectionLine[] = [];
   let currentStep: SectionLine | null = null;
 
@@ -435,38 +495,35 @@ function readBlockLines(items: ManualTextItem[], context: SegmentContext): strin
 interface RawBlock {
   type: SectionType;
   libelle: string;
-  rest: string;
   items: ManualTextItem[];
 }
 
 function toSection(block: RawBlock, context: SegmentContext): ManualSection | null {
   const lines = readBlockLines(block.items, context);
-  if (block.rest) lines.unshift(block.rest);
   const texte = lines.join('\n').trim();
   if (!texte && !block.libelle) return null;
   return {
     typeRubrique: block.type,
     libelle: block.libelle,
     texte,
-    lignes: parseLines(lines, context.settings.units, context.settings.subFichePrefix),
+    lignes: parseLines(lines),
   };
 }
 
 // Répartit le texte d'un segment (une zone de fiche sur une page) en rubriques.
 function readSegment(items: ManualTextItem[], context: SegmentContext): ManualSection[] {
-  const { settings, tolerance, gap, columnTolerance } = context;
+  const { tolerance, gap, columnTolerance } = context;
   const whole = (): ManualSection[] => {
-    const section = toSection({ type: 'autre', libelle: '', rest: '', items }, context);
+    const section = toSection({ type: 'autre', libelle: '', items }, context);
     return section ? [section] : [];
   };
-  if (settings.headers.length === 0) return whole();
 
   // Colonnes : positions horizontales des en-têtes reconnus sur le segment.
   const headerXs: number[] = [];
   for (const line of groupLines(items, tolerance)) {
     for (const run of splitRuns(line, gap)) {
       const first = run.find((item) => item.str.replace(BULLET_PREFIX, '').trim().length > 0);
-      if (first && matchHeader(itemsText(run), settings.headers)) headerXs.push(first.x);
+      if (first && matchHeader(itemsText(run))) headerXs.push(first.x);
     }
   }
   if (headerXs.length === 0) return whole();
@@ -490,13 +547,13 @@ function readSegment(items: ManualTextItem[], context: SegmentContext): ManualSe
     let current: RawBlock | null = null;
     for (const line of groupLines(columnItems, tolerance)) {
       const runs = splitRuns(line, gap);
-      const header = matchHeader(itemsText(runs[0]), settings.headers);
+      const header = matchHeader(itemsText(runs[0]));
       if (header) {
-        current = { type: header.type, libelle: header.libelle, rest: header.rest, items: runs.slice(1).flat() };
+        current = { type: header.type, libelle: header.libelle, items: runs.slice(1).flat() };
         blocks.push(current);
       } else {
         if (!current) {
-          current = { type: 'autre', libelle: '', rest: '', items: [] };
+          current = { type: 'autre', libelle: '', items: [] };
           blocks.push(current);
         }
         current.items.push(...line.items);
@@ -526,8 +583,7 @@ interface FicheBuilder {
   segments: { items: ManualTextItem[]; continuation: boolean }[];
 }
 
-export function indexManualPages(pages: ManualPageItems[], settings: ManualIndexSettings): ManualIndex {
-  const ignored = settings.ignoredLines.map(normalizeText).filter((pattern) => pattern.length > 0);
+export function indexManualPages(pages: ManualPageItems[]): ManualIndex {
   const bodySize = median(
     pages.flatMap((page) => page.items.filter((item) => item.str.trim().length > 0 && item.size > 0).map((item) => item.size)),
   );
@@ -536,24 +592,23 @@ export function indexManualPages(pages: ManualPageItems[], settings: ManualIndex
   const columnTolerance = Math.max(8, bodySize * 2);
   const threshold = bodySize * TITLE_SIZE_RATIO;
   const columnGap = Math.max(30, bodySize * 5);
-  const units = settings.units.length > 0 ? settings.units : [];
   const context: SegmentContext = {
-    settings: { ...settings, units },
     tolerance,
     gap,
     columnGap,
     columnTolerance,
-    units: new Set(units.map(normalizeText)),
+    units: new Set(UNITS.map(normalizeText)),
   };
+  const repeated = findRepeatedTexts(pages, tolerance, gap);
 
   const indexedPages: IndexedPage[] = [];
   const builders: FicheBuilder[] = [];
   let current: FicheBuilder | null = null;
 
   for (const page of pages) {
-    const items = dropIgnoredRuns(
+    const items = dropRepeatedRuns(
       page.items.filter((item) => item.str.trim().length > 0),
-      ignored,
+      repeated,
       tolerance,
       gap,
     );
@@ -589,7 +644,7 @@ export function indexManualPages(pages: ManualPageItems[], settings: ManualIndex
       const last = sections[sections.length - 1];
       if (segment.continuation && head && head.typeRubrique === 'autre' && head.libelle === '' && last) {
         last.texte = `${last.texte}\n${head.texte}`.trim();
-        last.lignes = parseLines(last.texte.split('\n'), units, settings.subFichePrefix);
+        last.lignes = parseLines(last.texte.split('\n'));
         sections.push(...segmentSections.slice(1));
       } else {
         sections.push(...segmentSections);
@@ -606,7 +661,7 @@ export function indexManualPages(pages: ManualPageItems[], settings: ManualIndex
     });
   }
 
-  const hasRubriques = fiches.some((fiche) => fiche.sections.some((section) => section.typeRubrique !== 'autre'));
+  const hasRubriques = fiches.some((fiche) => fiche.sections.some((section) => section.typeRubrique !== 'autre' || section.libelle !== ''));
   const niveau: IndexLevel = fiches.length === 0 ? 1 : hasRubriques ? 3 : 2;
   return { nbPages: pages.length, niveau, pages: indexedPages, fiches };
 }
@@ -682,9 +737,10 @@ export function describeLevel(index: ManualIndex): string {
   return `${index.pages.length} pages indexées, aucune fiche repérée`;
 }
 
-// Mots de la requête, normalisés : sert à surligner sans tenir compte des accents.
-export function highlightSegments(text: string, query: string): { text: string; match: boolean }[] {
-  const tokens = normalizeText(query).split(/[^a-z0-9]+/).filter((token) => token.length > 0);
+// Surligne les termes de recherche (déjà nettoyés par analyzeQuery : ni synonymes
+// ni mots vides), sans tenir compte des accents ni de la casse.
+export function highlightSegments(text: string, terms: readonly string[]): { text: string; match: boolean }[] {
+  const tokens = terms.map((term) => normalizeText(term)).filter((token) => token.length > 0);
   if (tokens.length === 0 || text.length === 0) return [{ text, match: false }];
   // NFD retire les accents sans changer la longueur d'un caractère de base : on
   // compare caractère par caractère sur une copie normalisée de même longueur.

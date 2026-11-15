@@ -3,14 +3,12 @@
 
 import { supabase } from './supabaseClient';
 import {
-  DEFAULT_UNITS,
   SECTION_TYPES,
+  analyzeQuery,
   buildManualRows,
   matchKey,
   normalizeText,
-  type HeaderRule,
   type ManualIndex,
-  type ManualIndexSettings,
   type LineKind,
   type ManualSection,
   type SectionLine,
@@ -31,12 +29,6 @@ export interface ManuelRecord {
   nb_fiches: number;
   niveau_obtenu: number;
   depose_le: string;
-}
-
-export interface SynonymeRecord {
-  id: string;
-  mot: string;
-  type_rubrique: SectionType;
 }
 
 export interface SearchResult {
@@ -130,16 +122,6 @@ const parseSections = (value: unknown): ManualSection[] => {
   return sections;
 };
 
-const parseHeaders = (value: unknown): HeaderRule[] => {
-  if (!Array.isArray(value)) return [];
-  const headers: HeaderRule[] = [];
-  for (const entry of value) {
-    if (!isRecord(entry) || typeof entry.texte !== 'string' || !isSectionType(entry.type_rubrique)) continue;
-    headers.push({ text: entry.texte, type: entry.type_rubrique });
-  }
-  return headers;
-};
-
 const toStringArray = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
 
@@ -147,14 +129,14 @@ const toStringArray = (value: unknown): string[] =>
 // Lecture d'un PDF
 // ---------------------------------------------------------------------------
 
-export async function indexPdfData(data: ArrayBuffer, settings: ManualIndexSettings): Promise<ManualIndex> {
+export async function indexPdfData(data: ArrayBuffer): Promise<ManualIndex> {
   const pdfjs = await import('pdfjs-dist');
   const worker = await import('pdfjs-dist/build/pdf.worker.mjs?url');
   pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
   const task = pdfjs.getDocument({ data: new Uint8Array(data) });
   try {
     const doc = await task.promise;
-    return await readManualPdf(doc, settings);
+    return await readManualPdf(doc);
   } finally {
     await task.destroy();
   }
@@ -226,11 +208,11 @@ export async function deposerManuel(params: {
   if (previousPath && previousPath !== path) await sb.storage.from(BUCKET).remove([previousPath]);
 }
 
-export async function reindexerManuel(manuel: ManuelRecord, settings: ManualIndexSettings): Promise<ManualIndex> {
+export async function reindexerManuel(manuel: ManuelRecord): Promise<ManualIndex> {
   const sb = client();
   const download = await sb.storage.from(BUCKET).download(manuel.chemin_stockage);
   if (download.error || !download.data) throw new Error(download.error?.message ?? 'Fichier introuvable.');
-  const index = await indexPdfData(await download.data.arrayBuffer(), settings);
+  const index = await indexPdfData(await download.data.arrayBuffer());
   const rpc = await sb.rpc('reindexer_manuel', {
     p_manuel: manuel.id,
     p_niveau: index.niveau,
@@ -254,71 +236,45 @@ export async function urlPdf(cheminStockage: string, page: number): Promise<stri
 }
 
 // ---------------------------------------------------------------------------
-// Réglages et synonymes
-// ---------------------------------------------------------------------------
-
-export const EMPTY_SETTINGS: ManualIndexSettings = { headers: [], ignoredLines: [], subFichePrefix: '', units: [...DEFAULT_UNITS] };
-
-export async function loadSettings(site: string): Promise<ManualIndexSettings> {
-  const { data, error } = await client()
-    .from('fiches_reglages')
-    .select('entetes, lignes_ignorees, prefixe_sous_fiche, unites')
-    .eq('site', site)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!data) return EMPTY_SETTINGS;
-  const row = data as { entetes: unknown; lignes_ignorees: unknown; prefixe_sous_fiche: unknown; unites: unknown };
-  return {
-    headers: parseHeaders(row.entetes),
-    ignoredLines: toStringArray(row.lignes_ignorees),
-    subFichePrefix: typeof row.prefixe_sous_fiche === 'string' ? row.prefixe_sous_fiche : '',
-    units: Array.isArray(row.unites) ? toStringArray(row.unites) : [...DEFAULT_UNITS],
-  };
-}
-
-export async function saveSettings(site: string, settings: ManualIndexSettings): Promise<void> {
-  const { error } = await client().from('fiches_reglages').upsert({
-    site,
-    entetes: settings.headers
-      .filter((header) => header.text.trim().length > 0)
-      .map((header) => ({ texte: header.text.trim(), type_rubrique: header.type })),
-    lignes_ignorees: settings.ignoredLines.map((line) => line.trim()).filter((line) => line.length > 0),
-    prefixe_sous_fiche: settings.subFichePrefix.trim(),
-    unites: settings.units.map((unit) => normalizeText(unit)).filter((unit) => unit.length > 0),
-    updated_at: new Date().toISOString(),
-  });
-  if (error) throw new Error(error.message);
-}
-
-export async function listSynonymes(site: string): Promise<SynonymeRecord[]> {
-  const { data, error } = await client().from('fiches_synonymes').select('id, mot, type_rubrique').eq('site', site).order('type_rubrique').order('mot');
-  if (error) throw new Error(error.message);
-  return ((data ?? []) as { id: string; mot: string; type_rubrique: unknown }[]).filter(
-    (row): row is SynonymeRecord => isSectionType(row.type_rubrique),
-  );
-}
-
-export async function addSynonyme(site: string, mot: string, type: SectionType): Promise<void> {
-  const normalized = normalizeText(mot).replace(/[^a-z0-9]+/g, '');
-  if (!normalized) throw new Error('Mot invalide.');
-  const { error } = await client().from('fiches_synonymes').upsert(
-    { site, mot: normalized, type_rubrique: type },
-    { onConflict: 'site,mot,type_rubrique', ignoreDuplicates: true },
-  );
-  if (error) throw new Error(error.message);
-}
-
-export async function deleteSynonyme(id: string): Promise<void> {
-  const { error } = await client().from('fiches_synonymes').delete().eq('id', id);
-  if (error) throw new Error(error.message);
-}
-
-// ---------------------------------------------------------------------------
 // Recherche
 // ---------------------------------------------------------------------------
 
-export async function rechercherFiches(site: string, requete: string): Promise<SearchResult[]> {
-  const { data, error } = await client().rpc('rechercher_fiches', { p_site: site, p_requete: requete });
+export interface SearchOutcome {
+  results: SearchResult[];
+  // Mots cherchés (sans synonymes ni mots vides) : sert aussi au surlignage.
+  terms: string[];
+  // Aucune fiche ne contenait tous les mots : résultats contenant au moins un mot.
+  partial: boolean;
+  // Requête sans nom de plat (uniquement des synonymes et des mots vides).
+  vague: boolean;
+}
+
+// Les synonymes et mots vides sont traités ici : la fonction SQL reçoit les
+// termes déjà nettoyés et les rubriques visées. D'abord tous les termes ;
+// sans résultat, au moins un terme, classés par nombre de termes trouvés.
+export async function rechercherFiches(site: string, requete: string): Promise<SearchOutcome> {
+  const analysis = analyzeQuery(requete);
+  if (analysis.terms.length === 0) return { results: [], terms: [], partial: false, vague: analysis.vague };
+  const strict = await appelRecherche(site, analysis.terms, analysis.targets, 'tous');
+  if (strict.length > 0 || analysis.terms.length < 2) {
+    return { results: strict, terms: analysis.terms, partial: false, vague: false };
+  }
+  const loose = await appelRecherche(site, analysis.terms, analysis.targets, 'un');
+  return { results: loose, terms: analysis.terms, partial: loose.length > 0, vague: false };
+}
+
+async function appelRecherche(
+  site: string,
+  terms: string[],
+  targets: SectionType[],
+  mode: 'tous' | 'un',
+): Promise<SearchResult[]> {
+  const { data, error } = await client().rpc('rechercher_fiches', {
+    p_site: site,
+    p_termes: terms,
+    p_cibles: targets,
+    p_mode: mode,
+  });
   if (error) throw new Error(error.message);
   const rows = Array.isArray(data) ? (data as unknown[]) : [];
   const results: SearchResult[] = [];

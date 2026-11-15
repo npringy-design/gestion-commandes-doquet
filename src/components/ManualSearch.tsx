@@ -15,6 +15,7 @@ import {
   type SearchResult,
 } from '../lib/manuels';
 import {
+  MANUAL_FORMAT_VERSION,
   SECTION_TYPE_LABELS,
   highlightSegments,
   matchKey,
@@ -67,9 +68,9 @@ const useIsDesktop = () => {
   return desktop;
 };
 
-const Highlighted: React.FC<{ text: string; query: string }> = ({ text, query }) => (
+const Highlighted: React.FC<{ text: string; terms: readonly string[] }> = ({ text, terms }) => (
   <>
-    {highlightSegments(text, query).map((segment, index) =>
+    {highlightSegments(text, terms).map((segment, index) =>
       segment.match ? (
         <mark key={index} className="rounded bg-yellow-200 px-0.5 text-inherit">{segment.text}</mark>
       ) : (
@@ -96,16 +97,16 @@ const groupLines = (lines: SectionLine[]): GroupedLines[] => {
 
 interface SectionViewProps {
   section: ManualSection;
-  query: string;
+  terms: readonly string[];
   targeted: boolean;
   titles: Map<string, string>;
   onSubFiche: (name: string) => void;
   sectionRef?: (element: HTMLElement | null) => void;
 }
 
-const SectionView: React.FC<SectionViewProps> = ({ section, query, targeted, titles, onSubFiche, sectionRef }) => {
+const SectionView: React.FC<SectionViewProps> = ({ section, terms, targeted, titles, onSubFiche, sectionRef }) => {
   const heading = section.libelle
-    ? toDisplayCase(section.libelle)
+    ? toDisplayCase(section.libelle, [])
     : section.typeRubrique === 'autre'
       ? ''
       : SECTION_TYPE_LABELS[section.typeRubrique];
@@ -120,7 +121,7 @@ const SectionView: React.FC<SectionViewProps> = ({ section, query, targeted, tit
       ) : null}
       {section.lignes.length === 0 ? (
         <p className="whitespace-pre-line text-sm text-[#2F1D14]">
-          <Highlighted text={section.texte} query={query} />
+          <Highlighted text={section.texte} terms={terms} />
         </p>
       ) : (
         <div className="space-y-2">
@@ -138,7 +139,7 @@ const SectionView: React.FC<SectionViewProps> = ({ section, query, targeted, tit
                             {line.unite ? ` ${line.unite}` : ''}
                           </td>
                           <td className="py-1 align-top text-[#2F1D14]">
-                            <Highlighted text={line.produit ?? line.affichage} query={query} />
+                            <Highlighted text={line.produit ?? line.affichage} terms={terms} />
                             {target && line.sousFiche ? (
                               <button
                                 type="button"
@@ -164,11 +165,11 @@ const SectionView: React.FC<SectionViewProps> = ({ section, query, targeted, tit
                     <li key={index} className="flex gap-2">
                       <span className="w-6 shrink-0 text-right font-black text-[#8A4B1F]">{line.numero}.</span>
                       <div className="min-w-0">
-                        <Highlighted text={line.affichage} query={query} />
+                        <Highlighted text={line.affichage} terms={terms} />
                         {line.sousLignes ? (
                           <ul className="mt-1 list-disc space-y-0.5 pl-5">
                             {line.sousLignes.map((sub, subIndex) => (
-                              <li key={subIndex}><Highlighted text={sub.affichage} query={query} /></li>
+                              <li key={subIndex}><Highlighted text={sub.affichage} terms={terms} /></li>
                             ))}
                           </ul>
                         ) : null}
@@ -182,7 +183,7 @@ const SectionView: React.FC<SectionViewProps> = ({ section, query, targeted, tit
               return (
                 <ul key={groupIndex} className="list-disc space-y-0.5 pl-5 text-sm text-[#2F1D14]">
                   {group.lines.map((line, index) => (
-                    <li key={index}><Highlighted text={line.affichage} query={query} /></li>
+                    <li key={index}><Highlighted text={line.affichage} terms={terms} /></li>
                   ))}
                 </ul>
               );
@@ -190,7 +191,7 @@ const SectionView: React.FC<SectionViewProps> = ({ section, query, targeted, tit
             return (
               <div key={groupIndex} className="space-y-1 text-sm text-[#2F1D14]">
                 {group.lines.map((line, index) => (
-                  <p key={index}><Highlighted text={line.affichage} query={query} /></p>
+                  <p key={index}><Highlighted text={line.affichage} terms={terms} /></p>
                 ))}
               </div>
             );
@@ -203,7 +204,7 @@ const SectionView: React.FC<SectionViewProps> = ({ section, query, targeted, tit
 
 interface FicheViewProps {
   model: FicheModel;
-  query: string;
+  terms: readonly string[];
   canManage: boolean;
   titles: Map<string, string>;
   backLabel: string | null;
@@ -212,7 +213,7 @@ interface FicheViewProps {
   onError: (message: string) => void;
 }
 
-const FicheView: React.FC<FicheViewProps> = ({ model, query, canManage, titles, backLabel, onBack, onSubFiche, onError }) => {
+const FicheView: React.FC<FicheViewProps> = ({ model, terms, canManage, titles, backLabel, onBack, onSubFiche, onError }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const targetRef = useRef<HTMLElement | null>(null);
   const structured = model.type === 'fiche' && model.formatVersion >= 2;
@@ -256,7 +257,7 @@ const FicheView: React.FC<FicheViewProps> = ({ model, query, canManage, titles, 
             <span className="rounded-full bg-[#FFF2CF] px-2 py-0.5 text-[11px] font-bold text-[#512A16]">
               {model.poste} · p. {model.page}
             </span>
-            {canManage && model.type === 'fiche' && model.formatVersion < 2 ? (
+            {canManage && model.type === 'fiche' && model.formatVersion < MANUAL_FORMAT_VERSION ? (
               <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[11px] font-black text-amber-900">À réindexer</span>
             ) : null}
           </div>
@@ -280,7 +281,7 @@ const FicheView: React.FC<FicheViewProps> = ({ model, query, canManage, titles, 
               <SectionView
                 key={index}
                 section={section}
-                query={query}
+                terms={terms}
                 targeted={targeted}
                 titles={titles}
                 onSubFiche={onSubFiche}
@@ -291,13 +292,13 @@ const FicheView: React.FC<FicheViewProps> = ({ model, query, canManage, titles, 
         </div>
       ) : model.extrait ? (
         <p className="text-sm text-[#2F1D14]">
-          <Highlighted text={toDisplayCase(stripMarks(model.extrait))} query={query} />
+          <Highlighted text={toDisplayCase(stripMarks(model.extrait))} terms={terms} />
         </p>
       ) : (
         <div className="space-y-2">
           {model.sections.map((section, index) => (
             <p key={index} className="whitespace-pre-line text-sm text-[#2F1D14]">
-              <Highlighted text={toDisplayCase(section.texte)} query={query} />
+              <Highlighted text={toDisplayCase(section.texte)} terms={terms} />
             </p>
           ))}
         </div>
@@ -313,6 +314,9 @@ const ManualSearch: React.FC = () => {
   const [query, setQueryState] = useState(rememberedQuery);
   const [open, setOpen] = useState(false);
   const [results, setResults] = useState<SearchResult[] | null>(null);
+  const [terms, setTerms] = useState<string[]>([]);
+  const [partial, setPartial] = useState(false);
+  const [vague, setVague] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState(0);
@@ -342,6 +346,9 @@ const ManualSearch: React.FC = () => {
     if (trimmed.length < 2) {
       requestId.current += 1;
       setResults(null);
+      setTerms([]);
+      setPartial(false);
+      setVague(false);
       setLoading(false);
       setError(null);
       return undefined;
@@ -354,7 +361,10 @@ const ManualSearch: React.FC = () => {
       try {
         const found = await rechercherFiches(activeSiteId, trimmed);
         if (requestId.current === current) {
-          setResults(found);
+          setResults(found.results);
+          setTerms(found.terms);
+          setPartial(found.partial);
+          setVague(found.vague);
           setSelected(0);
           setStack([]);
           setMobileDetail(false);
@@ -488,7 +498,7 @@ const ManualSearch: React.FC = () => {
             setOpen(event.target.value.trim().length >= 2);
           }}
           onClick={() => { if (trimmed.length >= 2) setOpen(true); }}
-          placeholder="Rechercher dans les manuels (ex. poids crème brûlée)"
+          placeholder="Rechercher dans les manuels (ex. recette mousse au chocolat)"
           className="w-full rounded-lg border border-[#D99A4A] bg-[#FFF8E8] px-4 py-3 text-sm font-semibold text-[#2F1D14] shadow-[0_10px_22px_rgba(26,13,8,0.18)] placeholder:text-[#8A6A4B] focus:outline-none focus:ring-2 focus:ring-[#F6B24A]"
         />
         {loading ? <span className="absolute right-4 top-3.5 text-xs font-bold text-[#8A4B1F]">Recherche…</span> : null}
@@ -507,7 +517,7 @@ const ManualSearch: React.FC = () => {
             <div className="flex h-full flex-col overflow-hidden rounded-xl border border-[#D99A4A] bg-[#FFFBF2] shadow-2xl">
               <div className="flex items-center justify-between border-b border-[#E2C79B] px-4 py-2">
                 <span className="text-xs font-bold uppercase text-[#8A4B1F]">
-                  {loading ? 'Recherche…' : results ? `${count} résultat${count > 1 ? 's' : ''}` : ''}
+                  {loading ? 'Recherche…' : results && !vague ?`${count} résultat${count > 1 ? 's' : ''}` : ''}
                 </span>
                 <button
                   type="button"
@@ -521,8 +531,20 @@ const ManualSearch: React.FC = () => {
 
               {error ? <p className="m-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
 
-              {!error && results !== null && count === 0 ? (
+              {!error && vague ? (
+                <p className="m-4 text-sm font-semibold text-[#512A16]">
+                  Précisez le nom du plat ou du produit recherché (par exemple « recette mousse au chocolat »).
+                </p>
+              ) : null}
+
+              {!error && !vague && results !== null && count === 0 ? (
                 <p className="m-4 text-sm font-semibold text-[#512A16]">Aucun résultat pour « {trimmed} ».</p>
+              ) : null}
+
+              {!error && partial && count > 0 ? (
+                <p className="border-b border-[#E2C79B] bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-900">
+                  Aucune fiche ne contient tous les mots : voici celles qui en contiennent au moins un.
+                </p>
               ) : null}
 
               {!error && count > 0 ? (
@@ -543,7 +565,7 @@ const ManualSearch: React.FC = () => {
                               {result.poste} · p. {result.page}
                             </span>
                             <div className="mt-1 line-clamp-1 text-xs text-[#6B4A33]">
-                              <Highlighted text={toDisplayCase(stripMarks(result.extrait))} query={query} />
+                              <Highlighted text={toDisplayCase(stripMarks(result.extrait))} terms={terms} />
                             </div>
                           </button>
                         </li>
@@ -554,7 +576,7 @@ const ManualSearch: React.FC = () => {
                     <div className="min-h-0">
                       <FicheView
                         model={current}
-                        query={query}
+                        terms={terms}
                         canManage={canManage}
                         titles={titles}
                         backLabel={stack.length > 0 ? backLabel : null}

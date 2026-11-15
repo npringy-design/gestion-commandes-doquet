@@ -1,6 +1,7 @@
-// Paramètres > Manuels opératoires : dépôt avec aperçu, réindexation, réglages
-// d'indexation et synonymes du site actif. Consultation pour tous, modification
-// réservée à « manager + » et au-dessus (et contrôlée aussi par la RLS).
+// Paramètres > Manuels opératoires : liste, dépôt avec aperçu, réindexation et
+// suppression pour le site actif. Aucun réglage : tout est automatique.
+// Consultation pour tous, modification réservée à « manager + » et au-dessus
+// (et contrôlée aussi par la RLS).
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
@@ -9,30 +10,20 @@ import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { canManageManuels } from '../lib/permissions';
 import { validateImportFile } from '../utils/importFileValidation';
 import {
-  EMPTY_SETTINGS,
-  addSynonyme,
-  deleteSynonyme,
   deposerManuel,
   guessPosteFromFileName,
   indexPdfData,
   listManuels,
-  listSynonymes,
-  loadSettings,
   reindexerManuel,
-  saveSettings,
   supprimerManuel,
   urlPdf,
   type ManuelRecord,
-  type SynonymeRecord,
 } from '../lib/manuels';
 import {
-  SECTION_TYPES,
   SECTION_TYPE_LABELS,
   describeLevel,
   normalizeText,
   type ManualIndex,
-  type ManualIndexSettings,
-  type SectionType,
 } from '../utils/manualIndexer';
 
 interface Preview {
@@ -57,15 +48,9 @@ const ManuelsSection: React.FC = () => {
   const canManage = canManageManuels(profile);
 
   const [manuels, setManuels] = useState<ManuelRecord[]>([]);
-  const [settings, setSettings] = useState<ManualIndexSettings>(EMPTY_SETTINGS);
-  const [ignoredText, setIgnoredText] = useState('');
-  const [unitsText, setUnitsText] = useState('');
-  const [synonymes, setSynonymes] = useState<SynonymeRecord[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [openTitle, setOpenTitle] = useState<number | null>(null);
-  const [newSynonym, setNewSynonym] = useState('');
-  const [newSynonymType, setNewSynonymType] = useState<SectionType>('ingredients');
 
   const fail = useCallback((error: unknown, fallback: string) => {
     showToast(error instanceof Error && error.message ? error.message : fallback, 'error');
@@ -73,16 +58,7 @@ const ManuelsSection: React.FC = () => {
 
   const refresh = useCallback(async () => {
     try {
-      const [list, loaded, syn] = await Promise.all([
-        listManuels(activeSiteId),
-        loadSettings(activeSiteId),
-        listSynonymes(activeSiteId),
-      ]);
-      setManuels(list);
-      setSettings(loaded);
-      setIgnoredText(loaded.ignoredLines.join('\n'));
-      setSynonymes(syn);
-      setUnitsText(loaded.units.join(', '));
+      setManuels(await listManuels(activeSiteId));
     } catch (error) {
       fail(error, 'Chargement des manuels impossible.');
     }
@@ -95,12 +71,6 @@ const ManuelsSection: React.FC = () => {
 
   if (!isSupabaseConfigured()) return null;
 
-  const currentSettings = (): ManualIndexSettings => ({
-    ...settings,
-    units: unitsText.split(/[,;]/).map((unit) => unit.trim()).filter((unit) => unit.length > 0),
-    ignoredLines: ignoredText.split('\n').map((line) => line.trim()).filter((line) => line.length > 0),
-  });
-
   const handleFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -109,7 +79,7 @@ const ManuelsSection: React.FC = () => {
     setPreview(null);
     try {
       await validateImportFile(file, 'order-template-pdf');
-      const index = await indexPdfData(await file.arrayBuffer(), currentSettings());
+      const index = await indexPdfData(await file.arrayBuffer());
       setOpenTitle(null);
       setPreview({ file, poste: guessPosteFromFileName(file.name), index });
     } catch (error) {
@@ -149,7 +119,7 @@ const ManuelsSection: React.FC = () => {
   const handleReindex = async (manuel: ManuelRecord) => {
     setBusy(`Réindexation de ${manuel.poste}…`);
     try {
-      const index = await reindexerManuel(manuel, currentSettings());
+      const index = await reindexerManuel(manuel);
       showToast(`${manuel.poste} : ${describeLevel(index)}.`, 'success');
       await refresh();
     } catch (error) {
@@ -177,39 +147,6 @@ const ManuelsSection: React.FC = () => {
       window.open(await urlPdf(manuel.chemin_stockage, 1), '_blank', 'noopener,noreferrer');
     } catch (error) {
       fail(error, 'Impossible d’ouvrir le PDF.');
-    }
-  };
-
-  const handleSaveSettings = async () => {
-    setBusy('Enregistrement des réglages…');
-    try {
-      const next = currentSettings();
-      await saveSettings(activeSiteId, next);
-      showToast('Réglages enregistrés. Utilisez « Réindexer » pour les appliquer aux manuels existants.', 'success');
-      await refresh();
-    } catch (error) {
-      fail(error, 'Enregistrement des réglages impossible.');
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const handleAddSynonym = async () => {
-    try {
-      await addSynonyme(activeSiteId, newSynonym, newSynonymType);
-      setNewSynonym('');
-      setSynonymes(await listSynonymes(activeSiteId));
-    } catch (error) {
-      fail(error, 'Ajout du synonyme impossible.');
-    }
-  };
-
-  const handleDeleteSynonym = async (id: string) => {
-    try {
-      await deleteSynonyme(id);
-      setSynonymes(await listSynonymes(activeSiteId));
-    } catch (error) {
-      fail(error, 'Suppression du synonyme impossible.');
     }
   };
 
@@ -270,7 +207,7 @@ const ManuelsSection: React.FC = () => {
       </div>
 
       {!canManage ? (
-        <p className="mt-4 text-sm text-[#6B4A33]">Le dépôt et les réglages sont réservés aux rôles manager + et au-dessus.</p>
+        <p className="mt-4 text-sm text-[#6B4A33]">Le dépôt est réservé aux rôles manager + et au-dessus.</p>
       ) : (
         <>
           {/* Dépôt */}
@@ -345,111 +282,6 @@ const ManuelsSection: React.FC = () => {
             ) : null}
           </div>
 
-          {/* Réglages d'indexation */}
-          <div className="mt-6 border-t border-[#E2C79B] pt-4">
-            <h3 className="text-sm font-black uppercase text-[#512A16]">Réglages d’indexation du site</h3>
-            <p className="mt-1 text-xs text-[#6B4A33]">
-              Un en-tête est reconnu au début d’une ligne, sans tenir compte des majuscules ni des accents. Sans en-tête, les fiches restent en un seul bloc.
-            </p>
-            <div className="mt-3 space-y-2">
-              {settings.headers.map((header, position) => (
-                <div key={position} className="flex flex-wrap items-center gap-2">
-                  <input
-                    className={`${inputClass} w-64`}
-                    value={header.text}
-                    placeholder="Texte de l’en-tête"
-                    onChange={(event) => setSettings({
-                      ...settings,
-                      headers: settings.headers.map((entry, i) => (i === position ? { ...entry, text: event.target.value } : entry)),
-                    })}
-                  />
-                  <select
-                    className={inputClass}
-                    value={header.type}
-                    onChange={(event) => setSettings({
-                      ...settings,
-                      headers: settings.headers.map((entry, i) => (
-                        i === position ? { ...entry, type: SECTION_TYPES.find((type) => type === event.target.value) ?? 'autre' } : entry
-                      )),
-                    })}
-                  >
-                    {SECTION_TYPES.map((type) => <option key={type} value={type}>{SECTION_TYPE_LABELS[type]}</option>)}
-                  </select>
-                  <button
-                    type="button"
-                    className={secondaryButton}
-                    onClick={() => setSettings({ ...settings, headers: settings.headers.filter((_, i) => i !== position) })}
-                  >
-                    Retirer
-                  </button>
-                </div>
-              ))}
-              <button
-                type="button"
-                className={secondaryButton}
-                onClick={() => setSettings({ ...settings, headers: [...settings.headers, { text: '', type: 'autre' }] })}
-              >
-                Ajouter un en-tête
-              </button>
-            </div>
-            <label className="mt-4 block text-xs font-bold uppercase text-[#8A4B1F]">
-              Lignes à ignorer (une par ligne)
-              <textarea
-                className={`${inputClass} mt-1 block h-20 w-full max-w-md`}
-                value={ignoredText}
-                onChange={(event) => setIgnoredText(event.target.value)}
-              />
-            </label>
-            <label className="mt-3 block text-xs font-bold uppercase text-[#8A4B1F]">
-              Préfixe de sous-fiche
-              <input
-                className={`${inputClass} mt-1 block w-40`}
-                value={settings.subFichePrefix}
-                onChange={(event) => setSettings({ ...settings, subFichePrefix: event.target.value })}
-              />
-            </label>
-            <label className="mt-3 block text-xs font-bold uppercase text-[#8A4B1F]">
-              Unités reconnues dans les ingrédients (séparées par des virgules)
-              <input
-                className={`${inputClass} mt-1 block w-full max-w-md`}
-                value={unitsText}
-                onChange={(event) => setUnitsText(event.target.value)}
-              />
-            </label>
-            <button type="button" className={`${primaryButton} mt-4`} disabled={busy !== null} onClick={() => void handleSaveSettings()}>
-              Enregistrer les réglages
-            </button>
-          </div>
-
-          {/* Synonymes */}
-          <div className="mt-6 border-t border-[#E2C79B] pt-4">
-            <h3 className="text-sm font-black uppercase text-[#512A16]">Synonymes de recherche</h3>
-            <p className="mt-1 text-xs text-[#6B4A33]">
-              Ces mots sont retirés de la recherche et désignent la rubrique à mettre en avant (« poids » : ingrédients).
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {synonymes.map((synonyme) => (
-                <span key={synonyme.id} className="inline-flex items-center gap-1 rounded-full border border-[#E2C79B] bg-[#FFF8E8] px-2 py-1 text-xs">
-                  <strong>{synonyme.mot}</strong>
-                  <span className="text-[#8A4B1F]">→ {SECTION_TYPE_LABELS[synonyme.type_rubrique]}</span>
-                  <button type="button" className="ml-1 font-black text-red-700" aria-label={`Retirer ${synonyme.mot}`} onClick={() => void handleDeleteSynonym(synonyme.id)}>×</button>
-                </span>
-              ))}
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <input className={`${inputClass} w-40`} value={newSynonym} placeholder="Nouveau mot" onChange={(event) => setNewSynonym(event.target.value)} />
-              <select
-                className={inputClass}
-                value={newSynonymType}
-                onChange={(event) => setNewSynonymType(SECTION_TYPES.find((type) => type === event.target.value) ?? 'autre')}
-              >
-                {SECTION_TYPES.map((type) => <option key={type} value={type}>{SECTION_TYPE_LABELS[type]}</option>)}
-              </select>
-              <button type="button" className={secondaryButton} disabled={newSynonym.trim().length === 0} onClick={() => void handleAddSynonym()}>
-                Ajouter
-              </button>
-            </div>
-          </div>
         </>
       )}
     </section>

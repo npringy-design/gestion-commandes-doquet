@@ -363,5 +363,6 @@ Indexation générique des manuels PDF (pages, fiches, rubriques) et recherche s
 - [x] `src/utils/manualIndexer.ts` (module pur) et `manualPdfReader.ts`, test `test-manual-indexer` intégré à `npm run verify` ;
 - [x] Paramètres > Manuels opératoires (dépôt avec aperçu, réindexation, réglages, synonymes) et barre de recherche de l'accueil ;
 - [x] `npm run verify` vert ;
-- [ ] validation de Nicolas sur TEST : dépôt des manuels Chaud, Froid et Sous-fiches, contrôle de l'aperçu et de la recherche ;
+- [x] zéro paramétrage : constantes dans `manualConstants.ts`, détection automatique, recherche tolérante, migration `20261116100000` (suppression des tables de réglages et synonymes) appliquée sur TEST, format de fiche version 3 ;
+- [ ] validation de Nicolas sur TEST : réindexation des trois manuels puis contrôle de la recherche ; dépôt des manuels Chaud, Froid et Sous-fiches, contrôle de l'aperçu et de la recherche ;
 - [ ] migrations non appliquées sur la production, promotion sur `main` après validation.

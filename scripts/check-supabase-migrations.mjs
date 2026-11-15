@@ -18,6 +18,7 @@ assert.deepEqual(
     '20261114120000_manuels_operatoires.sql',
     '20261114130000_manuels_indexation_generique.sql',
     '20261115100000_manuels_affichage.sql',
+    '20261116100000_manuels_sans_reglages.sql',
   ],
   'Les trois ponts historiques doivent précéder la baseline et sa convergence'
 );

@@ -2,7 +2,7 @@
 // reçoit un document déjà ouvert (interface minimale), ce qui permet de
 // l'utiliser dans le navigateur comme dans un test Node.
 
-import { indexManualPages, type ManualIndex, type ManualIndexSettings, type ManualPageItems, type ManualTextItem } from './manualIndexer';
+import { indexManualPages, type ManualIndex, type ManualPageItems, type ManualTextItem } from './manualIndexer';
 
 interface PdfTextItemLike {
   str?: string;
@@ -24,10 +24,10 @@ function toTextItem(raw: unknown): ManualTextItem | null {
   if (typeof item.str !== 'string' || !item.transform || item.transform.length < 6) return null;
   const [a, b, c, d, e, f] = Array.from(item.transform);
   const size = Math.hypot(c, d) || Math.hypot(a, b);
-  return { str: item.str, x: e, y: f, size, width: item.width ?? 0 };
+  return { str: item.str.normalize('NFC'), x: e, y: f, size, width: item.width ?? 0 };
 }
 
-export async function readManualPdf(doc: PdfDocumentLike, settings: ManualIndexSettings): Promise<ManualIndex> {
+export async function readManualPdf(doc: PdfDocumentLike): Promise<ManualIndex> {
   const pages: ManualPageItems[] = [];
   for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber += 1) {
     const page = await doc.getPage(pageNumber);
@@ -35,5 +35,5 @@ export async function readManualPdf(doc: PdfDocumentLike, settings: ManualIndexS
     const items = content.items.map(toTextItem).filter((item): item is ManualTextItem => item !== null);
     pages.push({ page: pageNumber, items });
   }
-  return indexManualPages(pages, settings);
+  return indexManualPages(pages);
 }
