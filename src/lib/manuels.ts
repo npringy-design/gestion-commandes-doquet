@@ -2,6 +2,7 @@
 // synonymes et recherche. Le découpage lui-même est dans utils/manualIndexer.ts.
 
 import { supabase } from './supabaseClient';
+import { rechercherAllergenes, type AllergenPlat } from './allergenes';
 import {
   SECTION_TYPES,
   analyzeQuery,
@@ -241,6 +242,10 @@ export async function urlPdf(cheminStockage: string, page: number): Promise<stri
 
 export interface SearchOutcome {
   results: SearchResult[];
+  // Plats du tableau des allergènes (recherche active si la requête contient « allergènes »).
+  allergenes: AllergenPlat[];
+  // La requête demandait les allergènes (même sans résultat).
+  allergenSearch: boolean;
   // Mots cherchés (sans synonymes ni mots vides) : sert aussi au surlignage.
   terms: string[];
   // Aucune fiche ne contenait tous les mots : résultats contenant au moins un mot.
@@ -249,18 +254,32 @@ export interface SearchOutcome {
   vague: boolean;
 }
 
-// Les synonymes et mots vides sont traités ici : la fonction SQL reçoit les
-// termes déjà nettoyés et les rubriques visées. D'abord tous les termes ;
-// sans résultat, au moins un terme, classés par nombre de termes trouvés.
+// Recherche en deux temps : tous les termes, puis au moins un terme (classés
+// par nombre de termes trouvés). Renvoie aussi si le second temps a été utilisé.
+async function deuxTemps<T>(
+  terms: string[],
+  call: (mode: 'tous' | 'un') => Promise<T[]>,
+): Promise<{ rows: T[]; partial: boolean }> {
+  const strict = await call('tous');
+  if (strict.length > 0 || terms.length < 2) return { rows: strict, partial: false };
+  const loose = await call('un');
+  return { rows: loose, partial: loose.length > 0 };
+}
+
+// Les synonymes et mots vides sont traités ici : les fonctions SQL reçoivent les
+// termes déjà nettoyés. Avec un synonyme d'allergène, les plats du tableau des
+// allergènes sont cherchés en plus (ils passent en tête dans l'affichage).
 export async function rechercherFiches(site: string, requete: string): Promise<SearchOutcome> {
   const analysis = analyzeQuery(requete);
-  if (analysis.terms.length === 0) return { results: [], terms: [], partial: false, vague: analysis.vague };
-  const strict = await appelRecherche(site, analysis.terms, analysis.targets, 'tous');
-  if (strict.length > 0 || analysis.terms.length < 2) {
-    return { results: strict, terms: analysis.terms, partial: false, vague: false };
-  }
-  const loose = await appelRecherche(site, analysis.terms, analysis.targets, 'un');
-  return { results: loose, terms: analysis.terms, partial: loose.length > 0, vague: false };
+  const base = { allergenes: [], allergenSearch: analysis.allergens, terms: analysis.terms, partial: false, vague: false };
+  if (analysis.terms.length === 0) return { ...base, results: [], terms: [], vague: analysis.vague };
+  const [fiches, plats] = await Promise.all([
+    deuxTemps(analysis.terms, (mode) => appelRecherche(site, analysis.terms, analysis.targets, mode)),
+    analysis.allergens
+      ? deuxTemps(analysis.terms, (mode) => rechercherAllergenes(site, analysis.terms, mode))
+      : Promise.resolve({ rows: [] as AllergenPlat[], partial: false }),
+  ]);
+  return { ...base, results: fiches.rows, allergenes: plats.rows, partial: fiches.partial || plats.partial };
 }
 
 async function appelRecherche(

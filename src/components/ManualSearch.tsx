@@ -7,6 +7,8 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { useAuth } from '../auth/AuthProvider';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { canManageManuels } from '../lib/permissions';
+import { trouverAllergenesParNoms, type AllergenPlat } from '../lib/allergenes';
+import AllergenCard, { flaggedSummary } from './AllergenCard';
 import {
   listTitresFiches,
   rechercherFiches,
@@ -54,6 +56,21 @@ const modelFromResult = (result: SearchResult): FicheModel => ({
   extrait: result.extrait,
   rubriquesCiblees: result.rubriquesCiblees,
 });
+
+// Ce qui s'affiche dans le panneau de droite : une fiche technique ou la carte allergènes d'un plat.
+type PanelModel =
+  | { kind: 'fiche'; fiche: FicheModel }
+  | { kind: 'allergene'; plat: AllergenPlat };
+
+// Ligne de la liste de résultats : les allergènes passent en tête.
+type ListEntry =
+  | { kind: 'allergene'; plat: AllergenPlat }
+  | { kind: 'fiche'; result: SearchResult };
+
+const modelTitle = (model: PanelModel): string => {
+  if (model.kind === 'allergene') return toDisplayCase(model.plat.nom);
+  return model.fiche.titre ? toDisplayCase(splitTitle(model.fiche.titre).principal) : `la page ${model.fiche.page}`;
+};
 
 const stripMarks = (text: string) => text.replace(/[⟦⟧]/g, '');
 
@@ -210,10 +227,12 @@ interface FicheViewProps {
   backLabel: string | null;
   onBack: (() => void) | null;
   onSubFiche: (name: string) => void;
+  allergenLink: AllergenPlat | null;
+  onOpenAllergen: (plat: AllergenPlat) => void;
   onError: (message: string) => void;
 }
 
-const FicheView: React.FC<FicheViewProps> = ({ model, terms, canManage, titles, backLabel, onBack, onSubFiche, onError }) => {
+const FicheView: React.FC<FicheViewProps> = ({ model, terms, canManage, titles, backLabel, onBack, onSubFiche, allergenLink, onOpenAllergen, onError }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const targetRef = useRef<HTMLElement | null>(null);
   const structured = model.type === 'fiche' && model.formatVersion >= 2;
@@ -261,6 +280,19 @@ const FicheView: React.FC<FicheViewProps> = ({ model, terms, canManage, titles, 
               <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[11px] font-black text-amber-900">À réindexer</span>
             ) : null}
           </div>
+          {allergenLink ? (
+            <p className="mt-2 text-xs font-semibold text-[#2F1D14]">
+              <span className="font-black uppercase text-red-800">Allergènes : </span>
+              {flaggedSummary(allergenLink)}
+              <button
+                type="button"
+                onClick={() => onOpenAllergen(allergenLink)}
+                className="ml-2 rounded border border-[#D99A4A] bg-[#FFF8E8] px-1.5 py-0.5 text-[11px] font-bold text-[#512A16] hover:bg-[#FFF2CF]"
+              >
+                Voir la carte ›
+              </button>
+            </p>
+          ) : null}
         </div>
         <button
           type="button"
@@ -314,6 +346,9 @@ const ManualSearch: React.FC = () => {
   const [query, setQueryState] = useState(rememberedQuery);
   const [open, setOpen] = useState(false);
   const [results, setResults] = useState<SearchResult[] | null>(null);
+  const [plats, setPlats] = useState<AllergenPlat[]>([]);
+  const [allergenSearch, setAllergenSearch] = useState(false);
+  const [allergenLink, setAllergenLink] = useState<AllergenPlat | null>(null);
   const [terms, setTerms] = useState<string[]>([]);
   const [partial, setPartial] = useState(false);
   const [vague, setVague] = useState(false);
@@ -321,7 +356,7 @@ const ManualSearch: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState(0);
   const [mobileDetail, setMobileDetail] = useState(false);
-  const [stack, setStack] = useState<FicheModel[]>([]);
+  const [stack, setStack] = useState<PanelModel[]>([]);
   const [titles, setTitles] = useState<Map<string, string>>(new Map());
   const [panelTop, setPanelTop] = useState(80);
   const requestId = useRef(0);
@@ -346,6 +381,8 @@ const ManualSearch: React.FC = () => {
     if (trimmed.length < 2) {
       requestId.current += 1;
       setResults(null);
+      setPlats([]);
+      setAllergenSearch(false);
       setTerms([]);
       setPartial(false);
       setVague(false);
@@ -362,6 +399,8 @@ const ManualSearch: React.FC = () => {
         const found = await rechercherFiches(activeSiteId, trimmed);
         if (requestId.current === current) {
           setResults(found.results);
+          setPlats(found.allergenes);
+          setAllergenSearch(found.allergenSearch);
           setTerms(found.terms);
           setPartial(found.partial);
           setVague(found.vague);
@@ -410,7 +449,15 @@ const ManualSearch: React.FC = () => {
     return () => window.removeEventListener('resize', measure);
   }, [panelVisible, isDesktop]);
 
-  const count = results?.length ?? 0;
+  // Les résultats allergènes passent en tête de la liste.
+  const entries = useMemo<ListEntry[]>(
+    () => [
+      ...plats.map((plat): ListEntry => ({ kind: 'allergene', plat })),
+      ...(results ?? []).map((result): ListEntry => ({ kind: 'fiche', result })),
+    ],
+    [plats, results],
+  );
+  const count = entries.length;
 
   const select = useCallback((index: number) => {
     setSelected(index);
@@ -453,7 +500,7 @@ const ManualSearch: React.FC = () => {
     try {
       const found = await trouverFicheParTitre(activeSiteId, titreNormalise);
       if (!found) return;
-      const model: FicheModel = {
+      const fiche: FicheModel = {
         type: 'fiche',
         titre: found.titre,
         poste: found.poste,
@@ -464,24 +511,35 @@ const ManualSearch: React.FC = () => {
         extrait: '',
         rubriquesCiblees: [],
       };
-      setStack((current) => [...current, model]);
+      setStack((current) => [...current, { kind: 'fiche', fiche }]);
     } catch (subError) {
       setError(subError instanceof Error ? subError.message : 'Sous-fiche indisponible.');
     }
   };
 
-  const base = useMemo(
-    () => (results && results[selected] ? modelFromResult(results[selected]) : null),
-    [results, selected],
-  );
-
-  if (!isSupabaseConfigured()) return null;
+  const base = useMemo<PanelModel | null>(() => {
+    const entry = entries[selected];
+    if (!entry) return null;
+    return entry.kind === 'allergene' ? { kind: 'allergene', plat: entry.plat } : { kind: 'fiche', fiche: modelFromResult(entry.result) };
+  }, [entries, selected]);
 
   const current = stack.length > 0 ? stack[stack.length - 1] : base;
   const previousModel = stack.length > 1 ? stack[stack.length - 2] : base;
-  const backLabel = previousModel
-    ? `Retour à ${previousModel.titre ? toDisplayCase(splitTitle(previousModel.titre).principal) : `la page ${previousModel.page}`}`
-    : null;
+  const backLabel = previousModel ? `Retour à ${modelTitle(previousModel)}` : null;
+
+  // Lien fiche technique -> allergènes : correspondance EXACTE du nom normalisé, sinon rien.
+  const linkTitle = current && current.kind === 'fiche' && current.fiche.type === 'fiche' ? current.fiche.titre : null;
+  useEffect(() => {
+    setAllergenLink(null);
+    if (!panelVisible || !linkTitle) return undefined;
+    let cancelled = false;
+    trouverAllergenesParNoms(activeSiteId, [linkTitle, splitTitle(linkTitle).principal])
+      .then((plat) => { if (!cancelled) setAllergenLink(plat); })
+      .catch(() => { if (!cancelled) setAllergenLink(null); });
+    return () => { cancelled = true; };
+  }, [panelVisible, linkTitle, activeSiteId]);
+
+  if (!isSupabaseConfigured()) return null;
 
   const fullScreenDetail = !isDesktop && mobileDetail;
   const showList = isDesktop || !mobileDetail;
@@ -517,7 +575,7 @@ const ManualSearch: React.FC = () => {
             <div className="flex h-full flex-col overflow-hidden rounded-xl border border-[#D99A4A] bg-[#FFFBF2] shadow-2xl">
               <div className="flex items-center justify-between border-b border-[#E2C79B] px-4 py-2">
                 <span className="text-xs font-bold uppercase text-[#8A4B1F]">
-                  {loading ? 'Recherche…' : results && !vague ?`${count} résultat${count > 1 ? 's' : ''}` : ''}
+                  {loading ? 'Recherche…' : results && !vague ? `${count} résultat${count > 1 ? 's' : ''}` : ''}
                 </span>
                 <button
                   type="button"
@@ -537,6 +595,12 @@ const ManualSearch: React.FC = () => {
                 </p>
               ) : null}
 
+              {!error && !vague && allergenSearch && results !== null && plats.length === 0 ? (
+                <p className="border-b border-[#E2C79B] bg-red-50 px-4 py-2 text-xs font-semibold text-red-800">
+                  Aucun plat correspondant dans le tableau des allergènes (ou aucun tableau déposé pour ce site). Consultez le document officiel.
+                </p>
+              ) : null}
+
               {!error && !vague && results !== null && count === 0 ? (
                 <p className="m-4 text-sm font-semibold text-[#512A16]">Aucun résultat pour « {trimmed} ».</p>
               ) : null}
@@ -551,22 +615,36 @@ const ManualSearch: React.FC = () => {
                 <div className="grid min-h-0 flex-1 md:grid-cols-[minmax(280px,380px)_1fr]">
                   {showList ? (
                     <ul ref={listRef} className="min-h-0 divide-y divide-[#F0E2C8] overflow-y-auto border-[#E2C79B] md:border-r">
-                      {(results ?? []).map((result, index) => (
-                        <li key={result.id}>
+                      {entries.map((entry, index) => (
+                        <li key={entry.kind === 'allergene' ? `a-${entry.plat.id}` : entry.result.id}>
                           <button
                             type="button"
                             onClick={() => { select(index); setMobileDetail(true); }}
                             className={`block w-full px-4 py-3 text-left ${index === selected ? 'bg-[#FFF2CF]' : 'hover:bg-[#FFF8E8]'}`}
                           >
-                            <div className="text-sm font-black text-[#3A2116]">
-                              {result.titre ? toDisplayCase(splitTitle(result.titre).principal) : `Page ${result.page}`}
-                            </div>
-                            <span className="mt-1 inline-block rounded-full bg-[#FFF2CF] px-2 py-0.5 text-[11px] font-bold text-[#512A16]">
-                              {result.poste} · p. {result.page}
-                            </span>
-                            <div className="mt-1 line-clamp-1 text-xs text-[#6B4A33]">
-                              <Highlighted text={toDisplayCase(stripMarks(result.extrait))} terms={terms} />
-                            </div>
+                            {entry.kind === 'allergene' ? (
+                              <>
+                                <div className="text-sm font-black text-[#3A2116]">
+                                  <Highlighted text={toDisplayCase(entry.plat.nom)} terms={terms} />
+                                </div>
+                                <span className="mt-1 inline-block rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-black uppercase text-red-800">
+                                  Allergènes
+                                </span>
+                                <div className="mt-1 line-clamp-2 text-xs text-[#6B4A33]">{flaggedSummary(entry.plat)}</div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="text-sm font-black text-[#3A2116]">
+                                  {entry.result.titre ? toDisplayCase(splitTitle(entry.result.titre).principal) : `Page ${entry.result.page}`}
+                                </div>
+                                <span className="mt-1 inline-block rounded-full bg-[#FFF2CF] px-2 py-0.5 text-[11px] font-bold text-[#512A16]">
+                                  {entry.result.poste} · p. {entry.result.page}
+                                </span>
+                                <div className="mt-1 line-clamp-1 text-xs text-[#6B4A33]">
+                                  <Highlighted text={toDisplayCase(stripMarks(entry.result.extrait))} terms={terms} />
+                                </div>
+                              </>
+                            )}
                           </button>
                         </li>
                       ))}
@@ -574,22 +652,30 @@ const ManualSearch: React.FC = () => {
                   ) : null}
                   {showDetail && current ? (
                     <div className="min-h-0">
-                      <FicheView
-                        model={current}
-                        terms={terms}
-                        canManage={canManage}
-                        titles={titles}
-                        backLabel={stack.length > 0 ? backLabel : null}
-                        onBack={
-                          stack.length > 0
-                            ? () => setStack((items) => items.slice(0, -1))
-                            : !isDesktop
-                              ? () => setMobileDetail(false)
-                              : null
-                        }
-                        onSubFiche={(name) => void handleSubFiche(name)}
-                        onError={setError}
-                      />
+                      {(() => {
+                        const onBack = stack.length > 0
+                          ? () => setStack((items) => items.slice(0, -1))
+                          : !isDesktop
+                            ? () => setMobileDetail(false)
+                            : null;
+                        const shownBack = stack.length > 0 ? backLabel : null;
+                        return current.kind === 'allergene' ? (
+                          <AllergenCard plat={current.plat} backLabel={shownBack} onBack={onBack} onError={setError} />
+                        ) : (
+                          <FicheView
+                            model={current.fiche}
+                            terms={terms}
+                            canManage={canManage}
+                            titles={titles}
+                            backLabel={shownBack}
+                            onBack={onBack}
+                            onSubFiche={(name) => void handleSubFiche(name)}
+                            allergenLink={allergenLink}
+                            onOpenAllergen={(plat) => setStack((items) => [...items, { kind: 'allergene', plat }])}
+                            onError={setError}
+                          />
+                        );
+                      })()}
                     </div>
                   ) : null}
                 </div>

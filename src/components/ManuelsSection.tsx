@@ -8,6 +8,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { useToast } from './Toast';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { canManageManuels } from '../lib/permissions';
+import AllergenesSection from './AllergenesSection';
 import { validateImportFile } from '../utils/importFileValidation';
 import {
   deposerManuel,
@@ -284,6 +285,7 @@ const ManuelsSection: React.FC = () => {
 
         </>
       )}
+      <AllergenesSection />
     </section>
   );
 };

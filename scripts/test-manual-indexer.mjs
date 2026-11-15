@@ -268,16 +268,16 @@ try {
 
   // --- Analyse de la requête ---
   assert.deepEqual(analyzeQuery('recette mousse au chocolat'), {
-    terms: ['mousse', 'chocolat'], targets: ['mise_en_place', 'a_la_commande'], vague: false,
+    terms: ['mousse', 'chocolat'], targets: ['mise_en_place', 'a_la_commande'], vague: false, allergens: false,
   });
-  assert.deepEqual(analyzeQuery('Poids mousse au chocolat'), { terms: ['mousse', 'chocolat'], targets: ['ingredients'], vague: false });
-  assert.deepEqual(analyzeQuery('café gourmand'), { terms: ['cafe', 'gourmand'], targets: [], vague: false });
+  assert.deepEqual(analyzeQuery('Poids mousse au chocolat'), { terms: ['mousse', 'chocolat'], targets: ['ingredients'], vague: false, allergens: false });
+  assert.deepEqual(analyzeQuery('café gourmand'), { terms: ['cafe', 'gourmand'], targets: [], vague: false, allergens: false });
   assert.deepEqual(analyzeQuery('température brochette poulet'), {
-    terms: ['brochette', 'poulet'], targets: ['mise_en_place', 'a_la_commande'], vague: false,
+    terms: ['brochette', 'poulet'], targets: ['mise_en_place', 'a_la_commande'], vague: false, allergens: false,
   });
-  assert.deepEqual(analyzeQuery('la cuisson'), { terms: [], targets: ['mise_en_place', 'a_la_commande'], vague: true });
-  assert.deepEqual(analyzeQuery('le la de'), { terms: [], targets: [], vague: true });
-  assert.deepEqual(analyzeQuery('  '), { terms: [], targets: [], vague: false });
+  assert.deepEqual(analyzeQuery('la cuisson'), { terms: [], targets: ['mise_en_place', 'a_la_commande'], vague: true, allergens: false });
+  assert.deepEqual(analyzeQuery('le la de'), { terms: [], targets: [], vague: true, allergens: false });
+  assert.deepEqual(analyzeQuery('  '), { terms: [], targets: [], vague: false, allergens: false });
   assert.deepEqual(analyzeQuery('mousse mousse').terms, ['mousse'], 'doublons retirés');
   // Un synonyme n'est jamais surligné : il n'est pas dans les termes.
   const noSynonymMark = highlightSegments('Poids de la recette', analyzeQuery('poids recette').terms);

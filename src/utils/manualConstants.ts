@@ -77,4 +77,79 @@ export const SYNONYMS: Readonly<Record<Exclude<SectionType, 'autre'>, readonly s
 export const STOP_WORDS: readonly string[] = [
   'le', 'la', 'les', 'l', 'un', 'une', 'des', 'de', 'du', 'd', 'au', 'aux', 'a', 'et', 'ou', 'en',
   'pour', 'par', 'sur', 'avec', 'sans', 'dans',
+  // Questions en français (« quelles sont les allergènes pour… », « dis moi si y'a… »).
+// « y'a », « y a » et « qu'est-ce » sont découpés en « y », « a », « qu », « est », « ce ».
+  'quel', 'quels', 'quelle', 'quelles', 'sont', 'est', 'dis', 'moi', 'si', 'y', 'ya', 'il', 'ce', 'que',
+  'qui', 'qu', 'contient', 'contenir', 'avoir', 'peux', 'tu',
 ];
+
+// ---------------------------------------------------------------------------
+// Allergènes
+// ---------------------------------------------------------------------------
+
+export type AllergenCode =
+  | 'gluten'
+  | 'crustaces'
+  | 'oeufs'
+  | 'poissons'
+  | 'arachides'
+  | 'soja'
+  | 'lait'
+  | 'fruits_a_coques'
+  | 'celeri'
+  | 'moutarde'
+  | 'sesame'
+  | 'sulfites'
+  | 'lupin'
+  | 'mollusques';
+
+// Les 14 allergènes réglementaires, dans l'ordre d'affichage.
+export const ALLERGEN_CODES: readonly AllergenCode[] = [
+  'gluten', 'crustaces', 'oeufs', 'poissons', 'arachides', 'soja', 'lait',
+  'fruits_a_coques', 'celeri', 'moutarde', 'sesame', 'sulfites', 'lupin', 'mollusques',
+];
+
+export const ALLERGEN_LABELS: Readonly<Record<AllergenCode, string>> = {
+  gluten: 'Gluten',
+  crustaces: 'Crustacés',
+  oeufs: 'Œufs',
+  poissons: 'Poissons',
+  arachides: 'Arachides',
+  soja: 'Soja',
+  lait: 'Lait',
+  fruits_a_coques: 'Fruits à coques',
+  celeri: 'Céleri',
+  moutarde: 'Moutarde',
+  sesame: 'Sésame',
+  sulfites: 'Sulfites',
+  lupin: 'Lupin',
+  mollusques: 'Mollusques',
+};
+
+// Libellés acceptés dans l'en-tête du tableau (comparés sans accents ni majuscules).
+export const ALLERGEN_HEADER_LABELS: Readonly<Record<AllergenCode, readonly string[]>> = {
+  gluten: ['gluten'],
+  crustaces: ['crustaces'],
+  oeufs: ['oeufs', 'œufs'],
+  poissons: ['poissons'],
+  arachides: ['arachides'],
+  soja: ['soja'],
+  lait: ['lait'],
+  fruits_a_coques: ['fruits a coques', 'fruits à coques', 'fruits a coque', 'fruits à coque'],
+  celeri: ['celeri'],
+  moutarde: ['moutarde'],
+  sesame: ['sesame'],
+  sulfites: ['sulfites'],
+  lupin: ['lupin'],
+  mollusques: ['mollusques'],
+};
+
+// Un de ces mots dans la requête active la recherche d'allergènes. Comme les
+// autres synonymes, il est retiré des termes et jamais surligné.
+export const ALLERGEN_SYNONYMS: readonly string[] = ['allergene', 'allergenes', 'allergie', 'allergies', 'allergique'];
+
+export const ALLERGEN_DISCLAIMER =
+  'Ne tient pas compte des éventuelles contaminations croisées. En cas de doute, consulter le document officiel.';
+
+// Plat sans case colorée : jamais « sans allergène ». Le texte est complété par la date du document.
+export const ALLERGEN_NONE_FLAGGED = 'Aucun des 14 allergènes signalé dans le document du';

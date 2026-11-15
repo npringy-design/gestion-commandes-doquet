@@ -5,6 +5,7 @@
 // définis dans manualConstants.ts.
 
 import {
+  ALLERGEN_SYNONYMS,
   HEADER_KEYWORDS,
   MANUAL_FORMAT_VERSION,
   STOP_WORDS,
@@ -89,6 +90,8 @@ export function normalizeText(value: string): string {
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
+    .replace(/œ/g, 'oe')
+    .replace(/æ/g, 'ae')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -100,12 +103,12 @@ function median(values: number[]): number {
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
-interface Line {
+export interface Line {
   y: number;
   items: ManualTextItem[];
 }
 
-function groupLines(items: ManualTextItem[], tolerance: number): Line[] {
+export function groupLines(items: ManualTextItem[], tolerance: number): Line[] {
   const sorted = [...items].sort((a, b) => b.y - a.y || a.x - b.x);
   const lines: Line[] = [];
   for (const item of sorted) {
@@ -127,7 +130,7 @@ const GLUE_GAP_RATIO = 0.12;
 // Texte d'une ligne (ou d'une suite d'éléments). Les morceaux sont collés quand
 // il n'y a pas d'écart réel entre eux (accent ou lettre isolée par le PDF) ;
 // sinon une espace est insérée. Le résultat est en Unicode NFC.
-function itemsText(items: ManualTextItem[]): string {
+export function itemsText(items: ManualTextItem[]): string {
   let text = '';
   let previous: ManualTextItem | null = null;
   for (const item of items) {
@@ -323,8 +326,11 @@ export interface QueryAnalysis {
   targets: SectionType[];
   // La requête contenait des mots mais aucun mot de recherche : il faut préciser le plat.
   vague: boolean;
+  // La requête contenait un synonyme d'allergène : recherche aussi dans le tableau des allergènes.
+  allergens: boolean;
 }
 
+const ALLERGEN_SYNONYM_SET: ReadonlySet<string> = new Set(ALLERGEN_SYNONYMS);
 const SYNONYM_TARGETS = new Map<string, SectionType[]>();
 for (const [type, words] of Object.entries(SYNONYMS) as [keyof typeof SYNONYMS, readonly string[]][]) {
   for (const word of words) SYNONYM_TARGETS.set(word, [...(SYNONYM_TARGETS.get(word) ?? []), type]);
@@ -339,7 +345,12 @@ export function analyzeQuery(query: string): QueryAnalysis {
   const tokens = queryTokens(query);
   const terms: string[] = [];
   const targets: SectionType[] = [];
+  let allergens = false;
   for (const token of tokens) {
+    if (ALLERGEN_SYNONYM_SET.has(token)) {
+      allergens = true;
+      continue;
+    }
     const synonymTargets = SYNONYM_TARGETS.get(token);
     if (synonymTargets) {
       for (const target of synonymTargets) if (!targets.includes(target)) targets.push(target);
@@ -347,7 +358,7 @@ export function analyzeQuery(query: string): QueryAnalysis {
       terms.push(token);
     }
   }
-  return { terms, targets, vague: tokens.length > 0 && terms.length === 0 };
+  return { terms, targets, vague: tokens.length > 0 && terms.length === 0, allergens };
 }
 
 const PUCE_PATTERN = /^(?:[▪•◦·*]|[-–—](?!\d))\s*(.+)$/u;
