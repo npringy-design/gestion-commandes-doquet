@@ -579,7 +579,8 @@ const ManualSearch: React.FC = () => {
             setOpen(event.target.value.trim().length >= 2);
           }}
           onClick={() => { if (trimmed.length >= 2) setOpen(true); }}
-          placeholder="Rechercher dans les manuels (ex. recette mousse au chocolat)"
+          placeholder="Recherche un plat : recette, dressage ou allergènes"
+          aria-label="Rechercher un plat dans les manuels et le tableau des allergènes"
           className="w-full rounded-lg border border-[#D99A4A] bg-[#FFF8E8] px-4 py-3 text-sm font-semibold text-[#2F1D14] shadow-[0_10px_22px_rgba(26,13,8,0.18)] placeholder:text-[#8A6A4B] focus:outline-none focus:ring-2 focus:ring-[#F6B24A]"
         />
         {loading ? <span className="absolute right-4 top-3.5 text-xs font-bold text-[#8A4B1F]">Recherche…</span> : null}
