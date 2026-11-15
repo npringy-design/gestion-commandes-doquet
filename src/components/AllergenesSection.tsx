@@ -72,6 +72,9 @@ const AllergenesSection: React.FC = () => {
 
   const confirmDeposit = async () => {
     if (!preview) return;
+    const ignored = preview.document.ignorees.length;
+    // Lignes non reconnues : seconde confirmation explicite avant d'enregistrer.
+    if (ignored > 0 && !window.confirm(`${ignored} ligne(s) du tableau n’ont pas été reconnues et seront absentes de la recherche. Enregistrer malgré tout ?`)) return;
     setBusy('Enregistrement…');
     try {
       await deposerAllergenes({ site: activeSiteId, file: preview.file, document: preview.document });
@@ -114,6 +117,11 @@ const AllergenesSection: React.FC = () => {
                 Mise à jour du {formatAllergenDate(current.date_mise_a_jour)}
                 {current.date_trouvee ? '' : ' (date de dépôt, date non trouvée dans le PDF)'} · {current.nb_plats} plats
               </div>
+              <div className={current.lignes_ignorees > 0 ? 'font-bold text-red-800' : 'text-[#6B4A33]'}>
+                {current.lignes_ignorees > 0
+                  ? `${current.lignes_ignorees} ligne${current.lignes_ignorees > 1 ? 's' : ''} non reconnue${current.lignes_ignorees > 1 ? 's' : ''} lors du dépôt : vérifier le document`
+                  : '0 ligne non reconnue'}
+              </div>
             </div>
             <button type="button" className={secondaryButton} onClick={() => void handleOpen()}>Ouvrir</button>
           </div>
@@ -143,6 +151,19 @@ const AllergenesSection: React.FC = () => {
                   ? formatAllergenDate(preview.document.date)
                   : 'non trouvée dans le PDF (la date de dépôt sera utilisée)'}
               </p>
+              {preview.document.ignorees.length > 0 ? (
+                <div className="mt-3 rounded-md border-2 border-red-400 bg-red-50 p-3 text-sm text-red-900" role="alert">
+                  <p className="font-black">
+                    {preview.document.ignorees.length} ligne{preview.document.ignorees.length > 1 ? 's' : ''} non reconnue{preview.document.ignorees.length > 1 ? 's' : ''}
+                  </p>
+                  <p className="mt-1">Ces textes de la première colonne ne sont devenus ni un plat ni une catégorie : ils ne seront pas cherchables.</p>
+                  <ul className="mt-2 max-h-40 list-disc space-y-0.5 overflow-auto pl-5 text-xs">
+                    {preview.document.ignorees.map((line, index) => (
+                      <li key={index}>Page {line.page} : {line.text}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
               {current ? (
                 <p className="mt-2 rounded-md bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-900">
                   Un tableau existe déjà : il sera remplacé, sans historique.
@@ -178,7 +199,7 @@ const AllergenesSection: React.FC = () => {
 
               <div className="mt-4 flex gap-2">
                 <button type="button" className={primaryButton} disabled={busy !== null} onClick={() => void confirmDeposit()}>
-                  {current ? 'Confirmer le remplacement' : 'Confirmer'}
+                  {preview.document.ignorees.length > 0 ? 'Confirmer malgré tout' : current ? 'Confirmer le remplacement' : 'Confirmer'}
                 </button>
                 <button type="button" className={secondaryButton} disabled={busy !== null} onClick={() => setPreview(null)}>
                   Annuler

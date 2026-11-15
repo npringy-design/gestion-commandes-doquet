@@ -368,7 +368,8 @@ const ManualSearch: React.FC = () => {
   const [vague, setVague] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState(0);
+  // Choix explicite de l'utilisateur dans la liste ; sinon la sélection est dérivée des résultats (voir activeIndex).
+  const [picked, setPicked] = useState<number | null>(null);
   const [mobileDetail, setMobileDetail] = useState(false);
   const [stack, setStack] = useState<PanelModel[]>([]);
   const [titles, setTitles] = useState<Map<string, string>>(new Map());
@@ -420,10 +421,7 @@ const ManualSearch: React.FC = () => {
           setTerms(found.terms);
           setPartial(found.partial);
           setVague(found.vague);
-          // SÉCURITÉ : une carte allergènes ne s'ouvre seule que si UN SEUL plat contient tous les termes.
-          const autoOpen = !found.allergenSearch || found.allergenes.length === 0
-            || (found.allergenes.length === 1 && !found.allergenPartial);
-          setSelected(autoOpen ? 0 : -1);
+          setPicked(null);
           setStack([]);
           setMobileDetail(false);
         }
@@ -478,8 +476,14 @@ const ManualSearch: React.FC = () => {
   );
   const count = entries.length;
 
+  // SÉCURITÉ : en recherche d'allergènes, une carte ne s'ouvre seule que si UN SEUL plat contient tous
+  // les termes. Dérivé des résultats courants (pas d'état à resynchroniser) : valable au premier
+  // affichage comme quand la liste change. Sinon, rien n'est sélectionné tant que l'utilisateur ne choisit pas.
+  const autoOpenAllowed = !allergenSearch || plats.length === 0 || (plats.length === 1 && !allergenPartial);
+  const selected = picked ?? (autoOpenAllowed && count > 0 ? 0 : -1);
+
   const select = useCallback((index: number) => {
-    setSelected(index);
+    setPicked(index);
     setStack([]);
   }, []);
 
@@ -677,7 +681,7 @@ const ManualSearch: React.FC = () => {
                   ) : null}
                   {showDetail && !current ? (
                     <div className="flex min-h-0 items-center justify-center p-6 text-center text-sm font-semibold text-[#6B4A33]">
-                      Choisis un plat dans la liste pour afficher ses allergènes.
+                      Choisis le plat dans la liste.
                     </div>
                   ) : null}
                   {showDetail && current ? (

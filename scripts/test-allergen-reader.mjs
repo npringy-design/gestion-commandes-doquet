@@ -89,10 +89,10 @@ try {
       horizontal('TABLEAU DES ALLERGENES', 40, 780),
       horizontal('Mise à jour du 15/10/2026', 40, 760),
       ...headerItems(),
-      horizontal('LES SAUCES', 60, 671),
+      horizontal('LES SAUCES', 300, 671),
       horizontal('ŒUFS MAYONNAISE', 40, 650),
       horizontal('POIREAUX SIGNATURE', 40, 630),
-      horizontal('LES BURGERS', 60, 591),
+      horizontal('LES BURGERS', 300, 591),
       horizontal('BURGER MONTAGNARD', 40, 570),
       horizontal('SALADE VERTE', 40, 550),
       horizontal('Ne tient pas compte des éventuelles contaminations croisées. Document officiel à consulter.', 40, 100),
@@ -200,6 +200,66 @@ try {
   assert.equal(flatResult.ok, true, flatResult.ok ? '' : flatResult.error);
   assert.deepEqual(flatResult.document.plats.map((plat) => plat.nom), ['PLAT PLAT', 'Moutarde de Dijon']);
   assert.deepEqual(flatResult.document.plats[0].allergenes, ['moutarde']);
+
+  // --- Un plat qui revient sur plusieurs pages (menus) n'est pas un pied de page ---
+  const repeated1 = buildPage({ texts: [...headerItems(), horizontal('BURGER X', 40, 650), horizontal('PLAT UNIQUE', 40, 630)], drawings: [color('#ffc000'), fill(cellRect(0, 0, 650))] });
+  const repeated2 = buildPage({ texts: [horizontal('BURGER X', 40, 700), horizontal('MENU DU JOUR SUITE', 40, 600)], drawings: [color('#ffc000'), fill(cellRect(0, 0, 700))] });
+  const repeated3 = buildPage({ texts: [horizontal('BURGER X', 40, 720)], drawings: [color('#ffc000'), fill(cellRect(0, 0, 720))] });
+  const repeatedResult = await readAllergenPdf(docOf(repeated1, repeated2, repeated3), OPS);
+  assert.equal(repeatedResult.ok, true, repeatedResult.ok ? '' : repeatedResult.error);
+  assert.equal(repeatedResult.document.plats.filter((plat) => plat.nom === 'BURGER X').length, 3, 'plat repété à des hauteurs différentes : conservé');
+  assert.deepEqual(repeatedResult.document.ignorees, []);
+  // Même texte à la même hauteur sur toutes les pages : pied de page, ignoré ET compté.
+  const footer = (text, y) => buildPage({ texts: [...headerItems(), horizontal('UN PLAT', 40, y), horizontal(text, 40, 120)], drawings: [] });
+  const footerResult = await readAllergenPdf(docOf(footer('Société X', 650), footer('Société X', 640)), OPS);
+  assert.equal(footerResult.ok, true);
+  assert.equal(footerResult.document.plats.filter((plat) => plat.nom === 'Société X').length, 0);
+  assert.equal(footerResult.document.ignorees.length >= 1, true, 'une ligne ignorée est comptée');
+
+  // --- Un plat dont le nom est un libellé d'allergène n'est jamais un libellé de colonne ---
+  const named = buildPage({
+    texts: [...headerItems(), horizontal('Œufs', 40, 650), horizontal('Lait', 40, 630), horizontal('ŒUFS MAYONNAISE', 40, 610)],
+    drawings: [color('#ffc000'), fill(cellRect(0, 0, 650)), fill(cellRect(6, 6, 630)), fill(cellRect(0, 2, 610)), fill(cellRect(6, 6, 610)), fill(cellRect(9, 9, 610)), fill(cellRect(11, 11, 610))],
+  });
+  const namedResult = await readAllergenPdf(docOf(named), OPS);
+  assert.equal(namedResult.ok, true, namedResult.ok ? '' : namedResult.error);
+  assert.deepEqual(namedResult.document.plats.map((plat) => plat.nom), ['Œufs', 'Lait', 'ŒUFS MAYONNAISE']);
+  assert.deepEqual(namedResult.document.plats[2].allergenes, ['gluten', 'crustaces', 'oeufs', 'lait', 'moutarde', 'sulfites']);
+
+  // --- Ligne entièrement colorée dans la première colonne : refus ---
+  const highlighted = buildPage({
+    texts: [...headerItems(), horizontal('PLAT SURLIGNE', 40, 650)],
+    drawings: [color('#ffff99'), fill(rect(30, 646, 500, 660))],
+  });
+  const highlightedResult = await readAllergenPdf(docOf(highlighted), OPS);
+  assert.equal(highlightedResult.ok, false);
+  assert.match(highlightedResult.error, /entièrement colorée/);
+
+  // --- Texte à cheval sur les colonnes : compté comme ligne non reconnue ---
+  const overflow = buildPage({
+    texts: [...headerItems(), horizontal('PLAT NORMAL', 40, 650), horizontal('Texte libre qui déborde largement sur les colonnes du tableau', 100, 620)],
+    drawings: [],
+  });
+  const overflowResult = await readAllergenPdf(docOf(overflow), OPS);
+  assert.equal(overflowResult.ok, true);
+  assert.deepEqual(overflowResult.document.plats.map((plat) => plat.nom), ['PLAT NORMAL']);
+  assert.equal(overflowResult.document.ignorees.length, 1);
+  assert.match(overflowResult.document.ignorees[0].text, /déborde/);
+
+  // --- Libellés penchés, décalés par rapport aux cases : la grille des traits fait foi ---
+  const tilted = [];
+  LABELS.forEach((label, i) => {
+    const name = Array.isArray(label) ? label.join(' ') : label;
+    tilted.push({ str: name, transform: [1.68, 2.91, -2.91, 1.68, 200 + 20 * (i + 1) - 2, 700], width: name.length * 1.5 });
+  });
+  const thin = (x) => fill(rect(x, 560, x + 0.5, 680));
+  const grid = buildPage({
+    texts: [...tilted, horizontal('PLAT GRILLE', 40, 650)],
+    drawings: [color('#000000'), ...Array.from({ length: 15 }, (_, k) => thin(200 + 20 * k)), color('#ffc000'), fill(cellRect(2, 2, 650)), fill(cellRect(7, 7, 650))],
+  });
+  const gridResult = await readAllergenPdf(docOf(grid), OPS);
+  assert.equal(gridResult.ok, true, gridResult.ok ? '' : gridResult.error);
+  assert.deepEqual(gridResult.document.plats[0].allergenes, ['oeufs', 'fruits_a_coques']);
 
   // --- Date de mise à jour ---
   assert.equal(findUpdateDate('Mise à jour du 15/10/2026\nautre 01/01/2020'), '2026-10-15');

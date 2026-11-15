@@ -21,6 +21,7 @@ assert.deepEqual(
     '20261116100000_manuels_sans_reglages.sql',
     '20261117100000_allergenes.sql',
     '20261118100000_normalisation_elisions.sql',
+    '20261119100000_allergenes_lignes_ignorees.sql',
   ],
   'Les trois ponts historiques doivent précéder la baseline et sa convergence'
 );

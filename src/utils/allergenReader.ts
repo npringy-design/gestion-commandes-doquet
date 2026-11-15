@@ -57,8 +57,16 @@ export interface AllergenDish {
   page: number;
 }
 
+// Ligne de texte de la première colonne du tableau qui n'est devenue ni plat ni catégorie.
+export interface AllergenIgnoredLine {
+  page: number;
+  text: string;
+}
+
 export interface AllergenDocument {
   plats: AllergenDish[];
+  // Lignes ignorées : le dépôt doit être revu avant d'être confirmé.
+  ignorees: AllergenIgnoredLine[];
   // Date de mise à jour au format AAAA-MM-JJ, ou null si elle n'est pas dans le PDF.
   date: string | null;
 }
@@ -172,6 +180,17 @@ function detectHeader(items: AllergenTextItem[]): HeaderDetection {
     chosen = best;
   }
 
+  // Un libellé d'allergène écrit aussi ailleurs (nom de plat dans la première colonne :
+  // « Œufs mayonnaise », « Lait ribot »…) n'est jamais un libellé de colonne : seuls
+  // comptent les candidats situés dans l'étendue horizontale des libellés sans doublon.
+  const occurrences = (code: AllergenCode) => chosen.filter((candidate) => candidate.code === code).length;
+  const unique = chosen.filter((candidate) => occurrences(candidate.code) === 1);
+  if (unique.length > 0) {
+    const low = Math.min(...unique.map((candidate) => candidate.cx));
+    const high = Math.max(...unique.map((candidate) => candidate.cx));
+    chosen = chosen.filter((candidate) => occurrences(candidate.code) === 1 || (candidate.cx >= low && candidate.cx <= high));
+  }
+
   const codes = [...new Set(chosen.map((candidate) => candidate.code))];
   if (codes.length < ALLERGEN_CODES.length) return { kind: 'none' };
   if (chosen.length !== codes.length) return { kind: 'ambiguous', codes };
@@ -188,8 +207,37 @@ interface Geometry {
 
 // Bornes des colonnes : traits verticaux du tableau, sinon milieux entre les
 // centres des libellés.
+// Grille régulière de n + 1 traits verticaux (une colonne entre deux traits). Les
+// libellés penchés ne sont pas centrés sur leur colonne : si la grille est
+// unique, la i-ème colonne de gauche à droite est celle du i-ème libellé.
+function gridFromVlines(columns: Column[], vlines: AllergenVLine[]): number[] | null {
+  const n = columns.length;
+  const pitch = (columns[n - 1].cx - columns[0].cx) / (n - 1);
+  if (!(pitch > 1)) return null;
+  const sorted = vlines.map((line) => line.x).sort((a, b) => a - b);
+  const xs: number[] = [];
+  for (const x of sorted) {
+    if (xs.length === 0 || x - xs[xs.length - 1] > 0.8) xs.push(x);
+  }
+  const grids: number[][] = [];
+  for (const start of xs) {
+    const grid = [start];
+    for (let k = 1; k <= n; k += 1) {
+      const expected = start + pitch * k;
+      const near = xs.filter((x) => Math.abs(x - expected) <= pitch * 0.12).sort((a, b) => Math.abs(a - expected) - Math.abs(b - expected));
+      if (near.length === 0) break;
+      grid.push(near[0]);
+    }
+    if (grid.length === n + 1) grids.push(grid);
+  }
+  // Grille unique seulement : sinon la correspondance libellé / colonne serait ambiguë.
+  return grids.length === 1 ? grids[0] : null;
+}
+
 function columnGeometry(columns: Column[], vlines: AllergenVLine[]): Geometry {
   const n = columns.length;
+  const grid = gridFromVlines(columns, vlines);
+  if (grid) return { bounds: grid, centers: columns.map((_, i) => (grid[i] + grid[i + 1]) / 2) };
   const bounds: number[] = new Array<number>(n + 1).fill(0);
   for (let i = 1; i < n; i += 1) {
     const left = columns[i - 1].cx;
@@ -252,6 +300,8 @@ export function findUpdateDate(text: string): string | null {
 
 interface NameLine {
   text: string;
+  // Ligne de base (pour reconnaître un pied de page répété à la même hauteur).
+  y: number;
   cy: number;
   x0: number;
 }
@@ -272,20 +322,29 @@ export function readAllergenPages(pages: AllergenPageData[]): AllergenReadResult
   const pageLines = pages.map((page) => {
     const horizontal = page.items.filter((item) => !item.vertical && item.str.trim().length > 0).map(toManualItem);
     const size = median(horizontal.map((item) => item.size)) || 9;
-    return groupLines(horizontal, Math.max(1.5, size * 0.4)).map((line) => itemsText(line.items));
+    return groupLines(horizontal, Math.max(1.5, size * 0.4)).map((line) => ({ text: itemsText(line.items), y: line.y }));
   });
-  const repeatCounts = new Map<string, number>();
-  for (const lines of pageLines) {
-    for (const text of new Set(lines.map(normalizeText))) repeatCounts.set(text, (repeatCounts.get(text) ?? 0) + 1);
-  }
+  // Pied de page = même texte À LA MÊME HAUTEUR sur au moins la moitié des pages. Un plat qui revient
+  // sur plusieurs pages (menus, formules) à des hauteurs différentes n'est PAS un pied de page.
+  const positions = new Map<string, { page: number; y: number }[]>();
+  pageLines.forEach((lines, pageIndex) => {
+    for (const line of lines) {
+      const key = normalizeText(line.text);
+      positions.set(key, [...(positions.get(key) ?? []), { page: pageIndex, y: line.y }]);
+    }
+  });
   const repeatedNeeded = Math.max(2, Math.ceil(pages.length / 2));
-  const isRepeated = (text: string) => (repeatCounts.get(normalizeText(text)) ?? 0) >= repeatedNeeded;
+  const isRepeated = (text: string, y: number) => {
+    const seen = positions.get(normalizeText(text)) ?? [];
+    return new Set(seen.filter((entry) => Math.abs(entry.y - y) <= 3.5).map((entry) => entry.page)).size >= repeatedNeeded;
+  };
 
-  const date = findUpdateDate(pageLines.map((lines) => lines.join('\n')).join('\n'));
+  const date = findUpdateDate(pageLines.map((lines) => lines.map((line) => line.text).join('\n')).join('\n'));
 
   let current: PageColumns | null = null;
   let category = ''; // la catégorie continue d'une page à la suivante
   const plats: AllergenDish[] = [];
+  const ignorees: AllergenIgnoredLine[] = [];
 
   for (const page of pages) {
     const detection = detectHeader(page.items);
@@ -320,6 +379,7 @@ export function readAllergenPages(pages: AllergenPageData[]): AllergenReadResult
       const ordered = [...group].sort((a, b) => a.x0 - b.x0);
       lines.push({
         text: itemsText(ordered.map(toManualItem)),
+        y: Math.min(...group.map((item) => item.y0)),
         cy: (Math.min(...group.map((item) => item.y0)) + Math.max(...group.map((item) => item.y1))) / 2,
         x0: ordered[0].x0,
       });
@@ -363,12 +423,34 @@ export function readAllergenPages(pages: AllergenPageData[]): AllergenReadResult
       });
       const text = itemsText(inside.map(toManualItem));
       const cy = (bar.y0 + bar.y1) / 2;
-      if (text && cy < active.headerBottom && cy <= lineTop && cy >= lineBottom) events.push({ cy, kind: 'category', text });
+      if (!text || cy >= active.headerBottom || cy > lineTop || cy < lineBottom) continue;
+      // Un texte uniquement dans la première colonne d'une ligne entièrement colorée est un plat,
+      // pas une catégorie : ses cases sont masquées par la couleur, donc illisibles.
+      const onlyNameColumn = inside.every((item) => item.x1 <= tableLeft + bodySize * 0.5);
+      if (onlyNameColumn) {
+        return refuse(
+          `Dépôt refusé : la ligne « ${text} » est entièrement colorée (page ${page.page}), ses allergènes ne peuvent pas être lus avec certitude.`,
+        );
+      }
+      events.push({ cy, kind: 'category', text });
     }
+    // Texte à cheval sur la première colonne et les colonnes d'allergènes (paragraphe, nom trop long) :
+    // jamais lu comme un plat, donc signalé (sauf catégories dans une barre et avertissements connus).
+    for (const item of page.items) {
+      const c = center(item);
+      if (item.vertical || item.str.trim().length === 0 || c.cy >= active.headerBottom || c.cy > lineTop || c.cy < lineBottom) continue;
+      if (item.x0 < tableLeft && item.x1 > tableLeft + bodySize * 0.5 && !insideBar(c.cy) && !AVERTISSEMENT.test(normalizeText(item.str))) {
+        ignorees.push({ page: page.page, text: item.str.trim() });
+      }
+    }
+
     for (const line of lines) {
       if (insideBar(line.cy)) continue;
       if (line.cy > lineTop || line.cy < lineBottom) continue;
-      if (isRepeated(line.text) || AVERTISSEMENT.test(normalizeText(line.text))) continue;
+      if (isRepeated(line.text, line.y) || AVERTISSEMENT.test(normalizeText(line.text))) {
+        ignorees.push({ page: page.page, text: line.text });
+        continue;
+      }
       events.push({ cy: line.cy, kind: 'dish', text: line.text });
     }
     events.sort((a, b) => b.cy - a.cy);
@@ -411,5 +493,5 @@ export function readAllergenPages(pages: AllergenPageData[]): AllergenReadResult
     return refuse('Dépôt refusé : les 14 colonnes d’allergènes n’ont pas toutes été retrouvées dans l’en-tête du tableau.');
   }
   if (plats.length === 0) return refuse('Dépôt refusé : aucun plat n’a été trouvé dans le tableau.');
-  return { ok: true, document: { plats, date } };
+  return { ok: true, document: { plats, date, ignorees } };
 }

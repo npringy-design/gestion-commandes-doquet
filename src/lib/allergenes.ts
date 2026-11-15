@@ -18,6 +18,8 @@ export interface AllergenDocRecord {
   date_mise_a_jour: string;
   date_trouvee: boolean;
   nb_plats: number;
+  // Lignes de la première colonne ignorées à la lecture (0 = tout a été reconnu).
+  lignes_ignorees: number;
   depose_le: string;
 }
 
@@ -69,7 +71,7 @@ export async function indexAllergenPdf(data: ArrayBuffer): Promise<AllergenReadR
 export async function getAllergenDocument(site: string): Promise<AllergenDocRecord | null> {
   const { data, error } = await client()
     .from('allergenes_documents')
-    .select('id, site, nom_fichier, chemin_stockage, date_mise_a_jour, date_trouvee, nb_plats, depose_le')
+    .select('id, site, nom_fichier, chemin_stockage, date_mise_a_jour, date_trouvee, nb_plats, lignes_ignorees, depose_le')
     .eq('site', site)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -97,6 +99,7 @@ export async function deposerAllergenes(params: { site: string; file: File; docu
     p_chemin: path,
     p_date: document.date ?? today,
     p_date_trouvee: document.date !== null,
+    p_lignes_ignorees: document.ignorees.length,
     p_plats: document.plats.map((plat) => ({
       categorie: plat.categorie,
       nom: plat.nom,
