@@ -250,6 +250,9 @@ export interface SearchOutcome {
   terms: string[];
   // Aucune fiche ne contenait tous les mots : résultats contenant au moins un mot.
   partial: boolean;
+  // Aucun plat d'allergènes ne contenait tous les mots : plats contenant au moins un mot.
+  // Ils ne doivent JAMAIS être ouverts automatiquement.
+  allergenPartial: boolean;
   // Requête sans nom de plat (uniquement des synonymes et des mots vides).
   vague: boolean;
 }
@@ -271,7 +274,7 @@ async function deuxTemps<T>(
 // allergènes sont cherchés en plus (ils passent en tête dans l'affichage).
 export async function rechercherFiches(site: string, requete: string): Promise<SearchOutcome> {
   const analysis = analyzeQuery(requete);
-  const base = { allergenes: [], allergenSearch: analysis.allergens, terms: analysis.terms, partial: false, vague: false };
+  const base = { allergenes: [], allergenSearch: analysis.allergens, terms: analysis.terms, partial: false, allergenPartial: false, vague: false };
   if (analysis.terms.length === 0) return { ...base, results: [], terms: [], vague: analysis.vague };
   const [fiches, plats] = await Promise.all([
     deuxTemps(analysis.terms, (mode) => appelRecherche(site, analysis.terms, analysis.targets, mode)),
@@ -279,7 +282,7 @@ export async function rechercherFiches(site: string, requete: string): Promise<S
       ? deuxTemps(analysis.terms, (mode) => rechercherAllergenes(site, analysis.terms, mode))
       : Promise.resolve({ rows: [] as AllergenPlat[], partial: false }),
   ]);
-  return { ...base, results: fiches.rows, allergenes: plats.rows, partial: fiches.partial || plats.partial };
+  return { ...base, results: fiches.rows, allergenes: plats.rows, partial: fiches.partial, allergenPartial: plats.partial };
 }
 
 async function appelRecherche(

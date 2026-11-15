@@ -85,6 +85,10 @@ export interface ManualPageItems {
 // Un titre est un texte de taille >= 1,5 fois la taille médiane du document.
 export const TITLE_SIZE_RATIO = 1.5;
 
+// Normalisation unique, utilisée partout (manuels, allergènes, requêtes) et
+// reproduite à l'identique côté SQL par private.manuels_normaliser :
+// minuscules, sans accents, œ -> oe, æ -> ae, élisions retirées devant un mot
+// (« l'oeuf » -> « oeuf », apostrophe droite ou courbe), espaces réduites.
 export function normalizeText(value: string): string {
   return value
     .normalize('NFD')
@@ -92,6 +96,7 @@ export function normalizeText(value: string): string {
     .toLowerCase()
     .replace(/œ/g, 'oe')
     .replace(/æ/g, 'ae')
+    .replace(/(^|[^a-z0-9])(?:l|d|j|m|n|s|t|c|qu)['’‘`´]/g, '$1')
     .replace(/\s+/g, ' ')
     .trim();
 }

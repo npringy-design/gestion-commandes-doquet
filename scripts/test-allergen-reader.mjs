@@ -30,8 +30,8 @@ try {
   }
   const { readAllergenPdf, isColoredFill } = await import(pathToFileURL(join(tempDir, 'allergenPdfReader.mjs')).href);
   const { findUpdateDate } = await import(pathToFileURL(join(tempDir, 'allergenReader.mjs')).href);
-  const { ALLERGEN_CODES, ALLERGEN_DISCLAIMER } = await import(pathToFileURL(join(tempDir, 'manualConstants.mjs')).href);
-  const { analyzeQuery } = await import(pathToFileURL(join(tempDir, 'manualIndexer.mjs')).href);
+  const { ALLERGEN_CODES, ALLERGEN_WARNING, ALLERGEN_WARNING_SHORT } = await import(pathToFileURL(join(tempDir, 'manualConstants.mjs')).href);
+  const { analyzeQuery, normalizeText } = await import(pathToFileURL(join(tempDir, 'manualIndexer.mjs')).href);
 
   // Opérateurs pdf.js (valeurs de pdfjs.OPS).
   const OPS = {
@@ -233,8 +233,21 @@ try {
   assert.equal(analyzeQuery('recette mousse').allergens, false);
   assert.deepEqual(analyzeQuery("qu'est-ce qu'il y a dans les burgers").terms, ['burgers']);
 
+  // --- Normalisation unique : élisions, ligatures ---
+  assert.equal(normalizeText("l'oeuf mayo"), 'oeuf mayo');
+  assert.equal(normalizeText('l’oeuf mayo'), 'oeuf mayo', 'apostrophe courbe');
+  assert.equal(normalizeText('Œufs mayonnaise'), 'oeufs mayonnaise');
+  assert.equal(normalizeText("Tarte d'orange"), 'tarte orange');
+  assert.equal(normalizeText("AUJOURD'HUI"), "aujourd'hui", 'une apostrophe au milieu d’un mot reste');
+  assert.deepEqual(analyzeQuery('qu’est-ce'), { terms: [], targets: [], vague: true, allergens: false }, 'qu’est-ce est entièrement retiré');
+  assert.deepEqual(analyzeQuery("quelles sont les allergenes de l'oeuf mayo").terms, ['oeuf', 'mayo']);
+  assert.deepEqual(analyzeQuery('allergènes mayo').terms, ['mayo']);
+  assert.equal(analyzeQuery('allergènes mayo').allergens, true);
+
   assert.equal(ALLERGEN_CODES.length, 14);
-  assert.match(ALLERGEN_DISCLAIMER, /contaminations croisées/);
+  assert.match(ALLERGEN_WARNING, /contaminations croisées/);
+  assert.match(ALLERGEN_WARNING, /guide allergènes officiel/);
+  assert.match(ALLERGEN_WARNING_SHORT, /guide officiel/);
 
   console.log('Allergènes : en-têtes verticaux et horizontaux, cases contiguës, catégories, refus en cas de doute et requêtes OK.');
 } finally {

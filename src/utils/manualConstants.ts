@@ -148,8 +148,14 @@ export const ALLERGEN_HEADER_LABELS: Readonly<Record<AllergenCode, readonly stri
 // autres synonymes, il est retiré des termes et jamais surligné.
 export const ALLERGEN_SYNONYMS: readonly string[] = ['allergene', 'allergenes', 'allergie', 'allergies', 'allergique'];
 
-export const ALLERGEN_DISCLAIMER =
-  'Ne tient pas compte des éventuelles contaminations croisées. En cas de doute, consulter le document officiel.';
+// Message de prévention, en haut de chaque carte allergènes.
+export const ALLERGEN_WARNING =
+  'Information indicative. Vérifie toujours dans le guide allergènes officiel et présente-le au client en cas de demande. Ne tient pas compte des contaminations croisées.';
+
+// Version courte, à côté des allergènes d'une fiche technique.
+export const ALLERGEN_WARNING_SHORT = 'Information indicative : vérifie dans le guide officiel.';
+
+export const ALLERGEN_APPROXIMATE_BANNER = 'Plat exact non trouvé. Vérifie le nom du plat avant de lire ses allergènes.';
 
 // Plat sans case colorée : jamais « sans allergène ». Le texte est complété par la date du document.
 export const ALLERGEN_NONE_FLAGGED = 'Aucun des 14 allergènes signalé dans le document du';

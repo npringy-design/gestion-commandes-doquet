@@ -6,7 +6,7 @@ import React from 'react';
 import { formatAllergenDate, urlAllergenPdf, type AllergenPlat } from '../lib/allergenes';
 import {
   ALLERGEN_CODES,
-  ALLERGEN_DISCLAIMER,
+  ALLERGEN_WARNING,
   ALLERGEN_LABELS,
   ALLERGEN_NONE_FLAGGED,
   type AllergenCode,
@@ -36,16 +36,18 @@ export const AllergenChips: React.FC<{ codes: readonly AllergenCode[]; muted?: b
 
 interface AllergenCardProps {
   plat: AllergenPlat;
+  // Plat trouvé par une recherche approximative (au moins un mot) : à confirmer par l'utilisateur.
+  approximate: boolean;
   backLabel: string | null;
   onBack: (() => void) | null;
   onError: (message: string) => void;
 }
 
-const AllergenCard: React.FC<AllergenCardProps> = ({ plat, backLabel, onBack, onError }) => {
+const AllergenCard: React.FC<AllergenCardProps> = ({ plat, approximate, backLabel, onBack, onError }) => {
   const others = ALLERGEN_CODES.filter((code) => !plat.allergenes.includes(code));
   const documentDate = formatAllergenDate(plat.dateMiseAJour);
 
-  const handlePdf = async () => {
+  const openGuide = async () => {
     try {
       window.open(await urlAllergenPdf(plat.cheminStockage, plat.page), '_blank', 'noopener,noreferrer');
     } catch (error) {
@@ -60,23 +62,31 @@ const AllergenCard: React.FC<AllergenCardProps> = ({ plat, backLabel, onBack, on
           ← {backLabel ?? 'Retour'}
         </button>
       ) : null}
-      <header className="mb-4 flex flex-wrap items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-black uppercase text-red-800">Allergènes</span>
-          <h3 className="mt-1 text-xl font-black leading-tight text-[#3A2116]">{toDisplayCase(plat.nom)}</h3>
-          {plat.categorie ? <p className="text-sm font-semibold text-[#6B4A33]">{toDisplayCase(plat.categorie)}</p> : null}
-          <p className="mt-1 text-xs font-bold text-[#8A4B1F]">
-            Document du {documentDate}
-            {plat.dateTrouvee ? '' : ' (date de dépôt : date de mise à jour non trouvée dans le PDF)'}
-          </p>
-        </div>
+      <div className="mb-4 rounded-xl border-2 border-amber-400 bg-amber-100 p-4" role="alert">
+        <p className="flex items-start gap-3 text-base font-bold leading-snug text-amber-950">
+          <span aria-hidden="true" className="text-2xl leading-none">⚠️</span>
+          <span>{ALLERGEN_WARNING}</span>
+        </p>
         <button
           type="button"
-          onClick={() => void handlePdf()}
-          className="rounded-md bg-[#512A16] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#3A2116]"
+          onClick={() => void openGuide()}
+          className="mt-3 w-full rounded-lg bg-[#512A16] px-4 py-3 text-base font-black text-white hover:bg-[#3A2116] sm:w-auto"
         >
-          PDF
+          Ouvrir le guide officiel
         </button>
+      </div>
+
+      <header className="mb-4">
+        {approximate ? (
+          <p className="mb-1 rounded-md bg-orange-100 px-3 py-1.5 text-sm font-black text-orange-900">Est-ce bien ce plat ?</p>
+        ) : null}
+        <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-black uppercase text-red-800">Allergènes</span>
+        <h3 className={`mt-1 font-black leading-tight text-[#3A2116] ${approximate ? 'text-3xl' : 'text-xl'}`}>{toDisplayCase(plat.nom)}</h3>
+        {plat.categorie ? <p className="text-sm font-semibold text-[#6B4A33]">{toDisplayCase(plat.categorie)}</p> : null}
+        <p className="mt-1 text-xs font-bold text-[#8A4B1F]">
+          Document du {documentDate}
+          {plat.dateTrouvee ? '' : ' (date de dépôt : date de mise à jour non trouvée dans le PDF)'}
+        </p>
       </header>
 
       {plat.allergenes.length > 0 ? (
@@ -100,7 +110,6 @@ const AllergenCard: React.FC<AllergenCardProps> = ({ plat, backLabel, onBack, on
         </details>
       ) : null}
 
-      <p className="mt-5 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">{ALLERGEN_DISCLAIMER}</p>
     </div>
   );
 };

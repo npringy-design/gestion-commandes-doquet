@@ -7,7 +7,8 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { useAuth } from '../auth/AuthProvider';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { canManageManuels } from '../lib/permissions';
-import { trouverAllergenesParNoms, type AllergenPlat } from '../lib/allergenes';
+import { trouverAllergenesParNoms, urlAllergenPdf, type AllergenPlat } from '../lib/allergenes';
+import { ALLERGEN_APPROXIMATE_BANNER, ALLERGEN_WARNING_SHORT } from '../utils/manualConstants';
 import AllergenCard, { flaggedSummary } from './AllergenCard';
 import {
   listTitresFiches,
@@ -60,11 +61,11 @@ const modelFromResult = (result: SearchResult): FicheModel => ({
 // Ce qui s'affiche dans le panneau de droite : une fiche technique ou la carte allergènes d'un plat.
 type PanelModel =
   | { kind: 'fiche'; fiche: FicheModel }
-  | { kind: 'allergene'; plat: AllergenPlat };
+  | { kind: 'allergene'; plat: AllergenPlat; approximate: boolean };
 
 // Ligne de la liste de résultats : les allergènes passent en tête.
 type ListEntry =
-  | { kind: 'allergene'; plat: AllergenPlat }
+  | { kind: 'allergene'; plat: AllergenPlat; approximate: boolean }
   | { kind: 'fiche'; result: SearchResult };
 
 const modelTitle = (model: PanelModel): string => {
@@ -251,6 +252,14 @@ const FicheView: React.FC<FicheViewProps> = ({ model, terms, canManage, titles, 
     }
   }, [model]);
 
+  const openGuide = async (plat: AllergenPlat) => {
+    try {
+      window.open(await urlAllergenPdf(plat.cheminStockage, plat.page), '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Impossible d’ouvrir le guide.');
+    }
+  };
+
   const handlePdf = async () => {
     try {
       window.open(await urlPdf(model.cheminStockage, model.page), '_blank', 'noopener,noreferrer');
@@ -284,6 +293,10 @@ const FicheView: React.FC<FicheViewProps> = ({ model, terms, canManage, titles, 
             <p className="mt-2 text-xs font-semibold text-[#2F1D14]">
               <span className="font-black uppercase text-red-800">Allergènes : </span>
               {flaggedSummary(allergenLink)}
+              <span className="ml-2 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-bold text-amber-900">
+                ⚠ {ALLERGEN_WARNING_SHORT}{' '}
+                <button type="button" className="underline" onClick={() => void openGuide(allergenLink)}>Ouvrir le guide</button>
+              </span>
               <button
                 type="button"
                 onClick={() => onOpenAllergen(allergenLink)}
@@ -348,6 +361,7 @@ const ManualSearch: React.FC = () => {
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [plats, setPlats] = useState<AllergenPlat[]>([]);
   const [allergenSearch, setAllergenSearch] = useState(false);
+  const [allergenPartial, setAllergenPartial] = useState(false);
   const [allergenLink, setAllergenLink] = useState<AllergenPlat | null>(null);
   const [terms, setTerms] = useState<string[]>([]);
   const [partial, setPartial] = useState(false);
@@ -383,6 +397,7 @@ const ManualSearch: React.FC = () => {
       setResults(null);
       setPlats([]);
       setAllergenSearch(false);
+      setAllergenPartial(false);
       setTerms([]);
       setPartial(false);
       setVague(false);
@@ -401,10 +416,14 @@ const ManualSearch: React.FC = () => {
           setResults(found.results);
           setPlats(found.allergenes);
           setAllergenSearch(found.allergenSearch);
+          setAllergenPartial(found.allergenPartial);
           setTerms(found.terms);
           setPartial(found.partial);
           setVague(found.vague);
-          setSelected(0);
+          // SÉCURITÉ : une carte allergènes ne s'ouvre seule que si UN SEUL plat contient tous les termes.
+          const autoOpen = !found.allergenSearch || found.allergenes.length === 0
+            || (found.allergenes.length === 1 && !found.allergenPartial);
+          setSelected(autoOpen ? 0 : -1);
           setStack([]);
           setMobileDetail(false);
         }
@@ -452,10 +471,10 @@ const ManualSearch: React.FC = () => {
   // Les résultats allergènes passent en tête de la liste.
   const entries = useMemo<ListEntry[]>(
     () => [
-      ...plats.map((plat): ListEntry => ({ kind: 'allergene', plat })),
+      ...plats.map((plat): ListEntry => ({ kind: 'allergene', plat, approximate: allergenPartial })),
       ...(results ?? []).map((result): ListEntry => ({ kind: 'fiche', result })),
     ],
-    [plats, results],
+    [plats, results, allergenPartial],
   );
   const count = entries.length;
 
@@ -480,7 +499,7 @@ const ManualSearch: React.FC = () => {
       } else if (event.key === 'ArrowUp' && count > 0) {
         event.preventDefault();
         select(Math.max(0, selected - 1));
-      } else if (event.key === 'Enter' && count > 0) {
+      } else if (event.key === 'Enter' && count > 0 && selected >= 0) {
         event.preventDefault();
         setMobileDetail(true);
       }
@@ -520,7 +539,7 @@ const ManualSearch: React.FC = () => {
   const base = useMemo<PanelModel | null>(() => {
     const entry = entries[selected];
     if (!entry) return null;
-    return entry.kind === 'allergene' ? { kind: 'allergene', plat: entry.plat } : { kind: 'fiche', fiche: modelFromResult(entry.result) };
+    return entry.kind === 'allergene' ? { kind: 'allergene', plat: entry.plat, approximate: entry.approximate } : { kind: 'fiche', fiche: modelFromResult(entry.result) };
   }, [entries, selected]);
 
   const current = stack.length > 0 ? stack[stack.length - 1] : base;
@@ -605,6 +624,12 @@ const ManualSearch: React.FC = () => {
                 <p className="m-4 text-sm font-semibold text-[#512A16]">Aucun résultat pour « {trimmed} ».</p>
               ) : null}
 
+              {!error && allergenSearch && allergenPartial && plats.length > 0 ? (
+                <p className="border-b border-orange-300 bg-orange-100 px-4 py-2 text-sm font-black text-orange-900" role="alert">
+                  {ALLERGEN_APPROXIMATE_BANNER}
+                </p>
+              ) : null}
+
               {!error && partial && count > 0 ? (
                 <p className="border-b border-[#E2C79B] bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-900">
                   Aucune fiche ne contient tous les mots : voici celles qui en contiennent au moins un.
@@ -650,6 +675,11 @@ const ManualSearch: React.FC = () => {
                       ))}
                     </ul>
                   ) : null}
+                  {showDetail && !current ? (
+                    <div className="flex min-h-0 items-center justify-center p-6 text-center text-sm font-semibold text-[#6B4A33]">
+                      Choisis un plat dans la liste pour afficher ses allergènes.
+                    </div>
+                  ) : null}
                   {showDetail && current ? (
                     <div className="min-h-0">
                       {(() => {
@@ -660,7 +690,7 @@ const ManualSearch: React.FC = () => {
                             : null;
                         const shownBack = stack.length > 0 ? backLabel : null;
                         return current.kind === 'allergene' ? (
-                          <AllergenCard plat={current.plat} backLabel={shownBack} onBack={onBack} onError={setError} />
+                          <AllergenCard plat={current.plat} approximate={current.approximate} backLabel={shownBack} onBack={onBack} onError={setError} />
                         ) : (
                           <FicheView
                             model={current.fiche}
@@ -671,7 +701,7 @@ const ManualSearch: React.FC = () => {
                             onBack={onBack}
                             onSubFiche={(name) => void handleSubFiche(name)}
                             allergenLink={allergenLink}
-                            onOpenAllergen={(plat) => setStack((items) => [...items, { kind: 'allergene', plat }])}
+                            onOpenAllergen={(plat) => setStack((items) => [...items, { kind: 'allergene', plat, approximate: false }])}
                             onError={setError}
                           />
                         );
