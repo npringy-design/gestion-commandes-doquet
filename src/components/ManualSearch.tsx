@@ -1,18 +1,71 @@
-// Barre de recherche dans les manuels opératoires (accueil, tous les rôles).
+// Recherche dans les manuels opératoires (accueil, tous les rôles).
+// La barre reste dans l'accueil ; dès la saisie, un panneau s'ouvre par-dessus
+// la page : liste des résultats à gauche, fiche à droite (téléphone : liste puis
+// fiche en plein écran).
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
+import { canManageManuels } from '../lib/permissions';
 import {
+  listTitresFiches,
   rechercherFiches,
   trouverFicheParTitre,
   urlPdf,
-  type FicheDetail,
   type SearchResult,
 } from '../lib/manuels';
-import { SECTION_TYPE_LABELS, highlightSegments, type ManualSection } from '../utils/manualIndexer';
+import {
+  SECTION_TYPE_LABELS,
+  highlightSegments,
+  matchKey,
+  splitTitle,
+  toDisplayCase,
+  type ManualSection,
+  type SectionLine,
+  type SectionType,
+} from '../utils/manualIndexer';
 
 const DEBOUNCE_MS = 350;
+
+// La saisie est conservée tant que la page n'est pas rechargée.
+let rememberedQuery = '';
+
+interface FicheModel {
+  type: 'page' | 'fiche';
+  titre: string | null;
+  poste: string;
+  page: number;
+  cheminStockage: string;
+  sections: ManualSection[];
+  formatVersion: number;
+  extrait: string;
+  rubriquesCiblees: SectionType[];
+}
+
+const modelFromResult = (result: SearchResult): FicheModel => ({
+  type: result.type,
+  titre: result.titre,
+  poste: result.poste,
+  page: result.page,
+  cheminStockage: result.cheminStockage,
+  sections: result.sections,
+  formatVersion: result.formatVersion,
+  extrait: result.extrait,
+  rubriquesCiblees: result.rubriquesCiblees,
+});
+
+const stripMarks = (text: string) => text.replace(/[⟦⟧]/g, '');
+
+const useIsDesktop = () => {
+  const [desktop, setDesktop] = useState(() => (typeof window === 'undefined' ? true : window.matchMedia('(min-width: 768px)').matches));
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 768px)');
+    const update = () => setDesktop(media.matches);
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+  return desktop;
+};
 
 const Highlighted: React.FC<{ text: string; query: string }> = ({ text, query }) => (
   <>
@@ -26,130 +79,266 @@ const Highlighted: React.FC<{ text: string; query: string }> = ({ text, query })
   </>
 );
 
-const SectionBlocks: React.FC<{ sections: ManualSection[]; query: string }> = ({ sections, query }) => (
-  <div className="space-y-3">
-    {sections.map((section, index) => (
-      <div key={index}>
-        {section.libelle ? (
-          <div className="text-[11px] font-black uppercase tracking-wide text-[#8A4B1F]">{section.libelle}</div>
-        ) : null}
-        <div className="whitespace-pre-line text-sm text-[#2F1D14]">
-          <Highlighted text={section.texte} query={query} />
-        </div>
-      </div>
-    ))}
-  </div>
-);
+interface GroupedLines {
+  kind: SectionLine['kind'];
+  lines: SectionLine[];
+}
 
-const openPdf = async (path: string, page: number, onError: (message: string) => void) => {
-  try {
-    const url = await urlPdf(path, page);
-    window.open(url, '_blank', 'noopener,noreferrer');
-  } catch (error) {
-    onError(error instanceof Error ? error.message : 'Impossible d’ouvrir le PDF.');
+const groupLines = (lines: SectionLine[]): GroupedLines[] => {
+  const groups: GroupedLines[] = [];
+  for (const line of lines) {
+    const last = groups[groups.length - 1];
+    if (last && last.kind === line.kind) last.lines.push(line);
+    else groups.push({ kind: line.kind, lines: [line] });
   }
+  return groups;
 };
 
-const ResultCard: React.FC<{ result: SearchResult; query: string; site: string }> = ({ result, query, site }) => {
-  const [message, setMessage] = useState<string | null>(null);
-  const [subFiche, setSubFiche] = useState<FicheDetail | null>(null);
+interface SectionViewProps {
+  section: ManualSection;
+  query: string;
+  targeted: boolean;
+  titles: Map<string, string>;
+  onSubFiche: (name: string) => void;
+  sectionRef?: (element: HTMLElement | null) => void;
+}
 
-  const targeted = result.sections.filter((section) => result.rubriquesCiblees.includes(section.typeRubrique));
-  const showTargeted = result.type === 'fiche' && targeted.length > 0;
-  const heading = result.titre ?? `Page ${result.page}`;
+const SectionView: React.FC<SectionViewProps> = ({ section, query, targeted, titles, onSubFiche, sectionRef }) => {
+  const heading = section.libelle
+    ? toDisplayCase(section.libelle)
+    : section.typeRubrique === 'autre'
+      ? ''
+      : SECTION_TYPE_LABELS[section.typeRubrique];
 
-  const handleSubFiche = async (name: string) => {
-    setMessage(null);
+  return (
+    <section
+      ref={sectionRef}
+      className={`rounded-lg p-3 ${targeted ? 'bg-amber-50 ring-2 ring-amber-400' : ''}`}
+    >
+      {heading ? (
+        <h4 className="mb-2 text-[11px] font-black uppercase tracking-wide text-[#8A4B1F]">{heading}</h4>
+      ) : null}
+      {section.lignes.length === 0 ? (
+        <p className="whitespace-pre-line text-sm text-[#2F1D14]">
+          <Highlighted text={section.texte} query={query} />
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {groupLines(section.lignes).map((group, groupIndex) => {
+            if (group.kind === 'ingredient') {
+              return (
+                <table key={groupIndex} className="w-full text-sm">
+                  <tbody>
+                    {group.lines.map((line, index) => {
+                      const target = line.sousFiche ? titles.get(matchKey(line.sousFiche)) : undefined;
+                      return (
+                        <tr key={index} className="border-b border-[#F0E2C8] last:border-0">
+                          <td className="w-px whitespace-nowrap py-1 pr-3 text-right align-top font-semibold tabular-nums text-[#3A2116]">
+                            {line.quantite}
+                            {line.unite ? ` ${line.unite}` : ''}
+                          </td>
+                          <td className="py-1 align-top text-[#2F1D14]">
+                            <Highlighted text={line.produit ?? line.affichage} query={query} />
+                            {target && line.sousFiche ? (
+                              <button
+                                type="button"
+                                onClick={() => onSubFiche(line.sousFiche ?? '')}
+                                className="ml-2 rounded border border-[#D99A4A] bg-[#FFF8E8] px-1.5 py-0.5 text-[11px] font-bold text-[#512A16] hover:bg-[#FFF2CF]"
+                                title="Ouvrir la sous-fiche"
+                              >
+                                Fiche ›
+                              </button>
+                            ) : null}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              );
+            }
+            if (group.kind === 'etape') {
+              return (
+                <ol key={groupIndex} className="space-y-1.5 text-sm text-[#2F1D14]">
+                  {group.lines.map((line, index) => (
+                    <li key={index} className="flex gap-2">
+                      <span className="w-6 shrink-0 text-right font-black text-[#8A4B1F]">{line.numero}.</span>
+                      <div className="min-w-0">
+                        <Highlighted text={line.affichage} query={query} />
+                        {line.sousLignes ? (
+                          <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                            {line.sousLignes.map((sub, subIndex) => (
+                              <li key={subIndex}><Highlighted text={sub.affichage} query={query} /></li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              );
+            }
+            if (group.kind === 'puce') {
+              return (
+                <ul key={groupIndex} className="list-disc space-y-0.5 pl-5 text-sm text-[#2F1D14]">
+                  {group.lines.map((line, index) => (
+                    <li key={index}><Highlighted text={line.affichage} query={query} /></li>
+                  ))}
+                </ul>
+              );
+            }
+            return (
+              <div key={groupIndex} className="space-y-1 text-sm text-[#2F1D14]">
+                {group.lines.map((line, index) => (
+                  <p key={index}><Highlighted text={line.affichage} query={query} /></p>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+};
+
+interface FicheViewProps {
+  model: FicheModel;
+  query: string;
+  canManage: boolean;
+  titles: Map<string, string>;
+  backLabel: string | null;
+  onBack: (() => void) | null;
+  onSubFiche: (name: string) => void;
+  onError: (message: string) => void;
+}
+
+const FicheView: React.FC<FicheViewProps> = ({ model, query, canManage, titles, backLabel, onBack, onSubFiche, onError }) => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const targetRef = useRef<HTMLElement | null>(null);
+  const structured = model.type === 'fiche' && model.formatVersion >= 2;
+  const { principal, sousTitre } = splitTitle(model.titre ?? '');
+  const title = model.titre ? toDisplayCase(principal) : `Page ${model.page}`;
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const target = targetRef.current;
+    if (target) {
+      const offset = target.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop - 8;
+      container.scrollTo({ top: Math.max(0, offset), behavior: 'smooth' });
+    } else {
+      container.scrollTo({ top: 0 });
+    }
+  }, [model]);
+
+  const handlePdf = async () => {
     try {
-      const found = await trouverFicheParTitre(site, name);
-      if (found) setSubFiche(found);
-      else setMessage(`Aucune fiche « ${name} » trouvée dans les manuels de ce site.`);
+      window.open(await urlPdf(model.cheminStockage, model.page), '_blank', 'noopener,noreferrer');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Recherche de la sous-fiche impossible.');
+      onError(error instanceof Error ? error.message : 'Impossible d’ouvrir le PDF.');
     }
   };
 
+  targetRef.current = null;
+  let firstTargetAssigned = false;
   return (
-    <article className="rounded-lg border border-[#E2C79B] bg-white p-4 shadow-sm">
-      <header className="flex flex-wrap items-center gap-2">
-        <h3 className="text-base font-black text-[#3A2116]">{heading}</h3>
-        <span className="rounded-full bg-[#FFF2CF] px-2 py-0.5 text-[11px] font-bold text-[#512A16]">
-          {result.poste} · p. {result.page}
-        </span>
-      </header>
-
-      <div className="mt-3">
-        {showTargeted ? (
-          <>
-            <div className="mb-1 text-[11px] font-bold uppercase text-[#8A4B1F]">
-              {[...new Set(targeted.map((section) => SECTION_TYPE_LABELS[section.typeRubrique]))].join(' · ')}
-            </div>
-            <SectionBlocks sections={targeted} query={query} />
-          </>
-        ) : (
-          <p className="text-sm text-[#2F1D14]">
-            <Highlighted text={result.extrait.replace(/[⟦⟧]/g, '')} query={query} />
-          </p>
-        )}
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-2">
+    <div ref={containerRef} className="h-full overflow-y-auto p-4 md:p-5">
+      {onBack ? (
+        <button type="button" onClick={onBack} className="mb-3 text-xs font-bold text-[#8A4B1F] hover:underline">
+          ← {backLabel ?? 'Retour'}
+        </button>
+      ) : null}
+      <header className="mb-4 flex flex-wrap items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-xl font-black leading-tight text-[#3A2116]">{title}</h3>
+          {sousTitre ? <p className="text-sm font-semibold text-[#6B4A33]">{toDisplayCase(sousTitre)}</p> : null}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-[#FFF2CF] px-2 py-0.5 text-[11px] font-bold text-[#512A16]">
+              {model.poste} · p. {model.page}
+            </span>
+            {canManage && model.type === 'fiche' && model.formatVersion < 2 ? (
+              <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[11px] font-black text-amber-900">À réindexer</span>
+            ) : null}
+          </div>
+        </div>
         <button
           type="button"
-          onClick={() => void openPdf(result.cheminStockage, result.page, setMessage)}
+          onClick={() => void handlePdf()}
           className="rounded-md bg-[#512A16] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#3A2116]"
         >
-          Ouvrir le PDF
+          PDF
         </button>
-        {result.sousFiches.map((name) => (
-          <button
-            key={name}
-            type="button"
-            onClick={() => void handleSubFiche(name)}
-            className="rounded-md border border-[#D99A4A] bg-[#FFF8E8] px-3 py-1.5 text-xs font-bold uppercase text-[#512A16] hover:bg-[#FFF2CF]"
-          >
-            Sous-fiche : {name}
-          </button>
-        ))}
-      </div>
+      </header>
 
-      {message ? <p className="mt-2 text-xs text-red-700">{message}</p> : null}
-
-      {subFiche ? (
-        <div className="mt-3 rounded-md border border-[#E2C79B] bg-[#FFFBF2] p-3">
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <h4 className="text-sm font-black text-[#3A2116]">{subFiche.titre}</h4>
-            <span className="rounded-full bg-[#FFF2CF] px-2 py-0.5 text-[11px] font-bold text-[#512A16]">
-              {subFiche.poste} · p. {subFiche.page}
-            </span>
-            <button
-              type="button"
-              onClick={() => void openPdf(subFiche.cheminStockage, subFiche.page, setMessage)}
-              className="rounded-md bg-[#512A16] px-2 py-1 text-[11px] font-bold text-white"
-            >
-              Ouvrir le PDF
-            </button>
-            <button type="button" onClick={() => setSubFiche(null)} className="ml-auto text-xs font-bold text-[#8A4B1F]">
-              Fermer
-            </button>
-          </div>
-          <SectionBlocks sections={subFiche.sections} query="" />
+      {structured ? (
+        <div className="space-y-3">
+          {model.sections.map((section, index) => {
+            const targeted = model.rubriquesCiblees.includes(section.typeRubrique);
+            const assignRef = targeted && !firstTargetAssigned;
+            if (assignRef) firstTargetAssigned = true;
+            return (
+              <SectionView
+                key={index}
+                section={section}
+                query={query}
+                targeted={targeted}
+                titles={titles}
+                onSubFiche={onSubFiche}
+                sectionRef={assignRef ? (element) => { targetRef.current = element; } : undefined}
+              />
+            );
+          })}
         </div>
-      ) : null}
-    </article>
+      ) : model.extrait ? (
+        <p className="text-sm text-[#2F1D14]">
+          <Highlighted text={toDisplayCase(stripMarks(model.extrait))} query={query} />
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {model.sections.map((section, index) => (
+            <p key={index} className="whitespace-pre-line text-sm text-[#2F1D14]">
+              <Highlighted text={toDisplayCase(section.texte)} query={query} />
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 
 const ManualSearch: React.FC = () => {
-  const { activeSiteId } = useAuth();
-  const [query, setQuery] = useState('');
+  const { activeSiteId, profile } = useAuth();
+  const canManage = canManageManuels(profile);
+  const isDesktop = useIsDesktop();
+  const [query, setQueryState] = useState(rememberedQuery);
+  const [open, setOpen] = useState(false);
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState(0);
+  const [mobileDetail, setMobileDetail] = useState(false);
+  const [stack, setStack] = useState<FicheModel[]>([]);
+  const [titles, setTitles] = useState<Map<string, string>>(new Map());
+  const [panelTop, setPanelTop] = useState(80);
   const requestId = useRef(0);
+  const barRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLUListElement | null>(null);
 
+  const setQuery = (value: string) => {
+    rememberedQuery = value;
+    setQueryState(value);
+  };
+
+  const trimmed = query.trim();
+  const panelVisible = open && trimmed.length >= 2;
+
+  const close = useCallback(() => {
+    setOpen(false);
+    setMobileDetail(false);
+  }, []);
+
+  // Recherche après une courte pause de frappe.
   useEffect(() => {
-    const trimmed = query.trim();
     if (trimmed.length < 2) {
       requestId.current += 1;
       setResults(null);
@@ -164,7 +353,12 @@ const ManualSearch: React.FC = () => {
       setError(null);
       try {
         const found = await rechercherFiches(activeSiteId, trimmed);
-        if (requestId.current === current) setResults(found);
+        if (requestId.current === current) {
+          setResults(found);
+          setSelected(0);
+          setStack([]);
+          setMobileDetail(false);
+        }
       } catch (searchError) {
         if (requestId.current === current) {
           setResults(null);
@@ -175,37 +369,212 @@ const ManualSearch: React.FC = () => {
       }
     }, DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
-  }, [query, activeSiteId]);
+  }, [trimmed, activeSiteId]);
+
+  // Titres des fiches du site : un lien de sous-fiche n'apparaît que si elle existe.
+  useEffect(() => {
+    if (!panelVisible) return;
+    let cancelled = false;
+    listTitresFiches(activeSiteId)
+      .then((map) => { if (!cancelled) setTitles(map); })
+      .catch(() => { if (!cancelled) setTitles(new Map()); });
+    return () => { cancelled = true; };
+  }, [panelVisible, activeSiteId]);
+
+  // L'accueil ne bouge plus tant que le panneau est ouvert.
+  useEffect(() => {
+    if (!panelVisible) return undefined;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previous; };
+  }, [panelVisible]);
+
+  useLayoutEffect(() => {
+    if (!panelVisible) return undefined;
+    const measure = () => {
+      const rect = barRef.current?.getBoundingClientRect();
+      if (rect) setPanelTop(Math.max(0, rect.bottom + 8));
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [panelVisible, isDesktop]);
+
+  const count = results?.length ?? 0;
+
+  const select = useCallback((index: number) => {
+    setSelected(index);
+    setStack([]);
+  }, []);
+
+  // Clavier : Échap ferme, flèches parcourent la liste, Entrée ouvre.
+  useEffect(() => {
+    if (!panelVisible) return undefined;
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        if (!isDesktop && mobileDetail) setMobileDetail(false);
+        else close();
+      } else if (event.key === 'ArrowDown' && count > 0) {
+        event.preventDefault();
+        select(Math.min(count - 1, selected + 1));
+      } else if (event.key === 'ArrowUp' && count > 0) {
+        event.preventDefault();
+        select(Math.max(0, selected - 1));
+      } else if (event.key === 'Enter' && count > 0) {
+        event.preventDefault();
+        setMobileDetail(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [panelVisible, count, selected, isDesktop, mobileDetail, close, select]);
+
+  useEffect(() => {
+    const item = listRef.current?.children[selected];
+    if (item instanceof HTMLElement) item.scrollIntoView({ block: 'nearest' });
+  }, [selected, results]);
+
+  const handleSubFiche = async (name: string) => {
+    const titreNormalise = titles.get(matchKey(name));
+    if (!titreNormalise) return;
+    try {
+      const found = await trouverFicheParTitre(activeSiteId, titreNormalise);
+      if (!found) return;
+      const model: FicheModel = {
+        type: 'fiche',
+        titre: found.titre,
+        poste: found.poste,
+        page: found.page,
+        cheminStockage: found.cheminStockage,
+        sections: found.sections,
+        formatVersion: found.formatVersion,
+        extrait: '',
+        rubriquesCiblees: [],
+      };
+      setStack((current) => [...current, model]);
+    } catch (subError) {
+      setError(subError instanceof Error ? subError.message : 'Sous-fiche indisponible.');
+    }
+  };
+
+  const base = useMemo(
+    () => (results && results[selected] ? modelFromResult(results[selected]) : null),
+    [results, selected],
+  );
 
   if (!isSupabaseConfigured()) return null;
 
+  const current = stack.length > 0 ? stack[stack.length - 1] : base;
+  const previousModel = stack.length > 1 ? stack[stack.length - 2] : base;
+  const backLabel = previousModel
+    ? `Retour à ${previousModel.titre ? toDisplayCase(splitTitle(previousModel.titre).principal) : `la page ${previousModel.page}`}`
+    : null;
+
+  const fullScreenDetail = !isDesktop && mobileDetail;
+  const showList = isDesktop || !mobileDetail;
+  const showDetail = isDesktop || mobileDetail;
+
   return (
     <section className="mb-4" aria-label="Recherche dans les manuels opératoires">
-      <div className="relative">
+      <div ref={barRef} className={`relative ${panelVisible ? 'z-[60]' : ''}`}>
         <input
           type="search"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setOpen(event.target.value.trim().length >= 2);
+          }}
+          onClick={() => { if (trimmed.length >= 2) setOpen(true); }}
           placeholder="Rechercher dans les manuels (ex. poids crème brûlée)"
           className="w-full rounded-lg border border-[#D99A4A] bg-[#FFF8E8] px-4 py-3 text-sm font-semibold text-[#2F1D14] shadow-[0_10px_22px_rgba(26,13,8,0.18)] placeholder:text-[#8A6A4B] focus:outline-none focus:ring-2 focus:ring-[#F6B24A]"
         />
         {loading ? <span className="absolute right-4 top-3.5 text-xs font-bold text-[#8A4B1F]">Recherche…</span> : null}
       </div>
 
-      {error ? <p className="mt-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+      {panelVisible ? (
+        <>
+          <div className="fixed inset-0 z-50 bg-black/60" onClick={close} aria-hidden="true" />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Résultats de recherche"
+            className="fixed inset-x-0 z-[55] mx-auto w-full max-w-[1280px] px-2 sm:px-4"
+            style={fullScreenDetail ? { top: 0, bottom: 0 } : { top: panelTop, bottom: 12 }}
+          >
+            <div className="flex h-full flex-col overflow-hidden rounded-xl border border-[#D99A4A] bg-[#FFFBF2] shadow-2xl">
+              <div className="flex items-center justify-between border-b border-[#E2C79B] px-4 py-2">
+                <span className="text-xs font-bold uppercase text-[#8A4B1F]">
+                  {loading ? 'Recherche…' : results ? `${count} résultat${count > 1 ? 's' : ''}` : ''}
+                </span>
+                <button
+                  type="button"
+                  onClick={close}
+                  aria-label="Fermer la recherche"
+                  className="rounded-md px-2 py-1 text-lg font-black leading-none text-[#512A16] hover:bg-[#FFF2CF]"
+                >
+                  ×
+                </button>
+              </div>
 
-      {results !== null && !error ? (
-        results.length === 0 ? (
-          <p className="mt-2 rounded-md bg-[#FFF8E8] px-3 py-2 text-sm font-semibold text-[#512A16]">
-            Aucun résultat pour « {query.trim()} ».
-          </p>
-        ) : (
-          <div className="mt-3 max-h-[70vh] space-y-3 overflow-y-auto pr-1">
-            {results.map((result) => (
-              <ResultCard key={result.id} result={result} query={query} site={activeSiteId} />
-            ))}
+              {error ? <p className="m-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+
+              {!error && results !== null && count === 0 ? (
+                <p className="m-4 text-sm font-semibold text-[#512A16]">Aucun résultat pour « {trimmed} ».</p>
+              ) : null}
+
+              {!error && count > 0 ? (
+                <div className="grid min-h-0 flex-1 md:grid-cols-[minmax(280px,380px)_1fr]">
+                  {showList ? (
+                    <ul ref={listRef} className="min-h-0 divide-y divide-[#F0E2C8] overflow-y-auto border-[#E2C79B] md:border-r">
+                      {(results ?? []).map((result, index) => (
+                        <li key={result.id}>
+                          <button
+                            type="button"
+                            onClick={() => { select(index); setMobileDetail(true); }}
+                            className={`block w-full px-4 py-3 text-left ${index === selected ? 'bg-[#FFF2CF]' : 'hover:bg-[#FFF8E8]'}`}
+                          >
+                            <div className="text-sm font-black text-[#3A2116]">
+                              {result.titre ? toDisplayCase(splitTitle(result.titre).principal) : `Page ${result.page}`}
+                            </div>
+                            <span className="mt-1 inline-block rounded-full bg-[#FFF2CF] px-2 py-0.5 text-[11px] font-bold text-[#512A16]">
+                              {result.poste} · p. {result.page}
+                            </span>
+                            <div className="mt-1 line-clamp-1 text-xs text-[#6B4A33]">
+                              <Highlighted text={toDisplayCase(stripMarks(result.extrait))} query={query} />
+                            </div>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {showDetail && current ? (
+                    <div className="min-h-0">
+                      <FicheView
+                        model={current}
+                        query={query}
+                        canManage={canManage}
+                        titles={titles}
+                        backLabel={stack.length > 0 ? backLabel : null}
+                        onBack={
+                          stack.length > 0
+                            ? () => setStack((items) => items.slice(0, -1))
+                            : !isDesktop
+                              ? () => setMobileDetail(false)
+                              : null
+                        }
+                        onSubFiche={(name) => void handleSubFiche(name)}
+                        onError={setError}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
           </div>
-        )
+        </>
       ) : null}
     </section>
   );

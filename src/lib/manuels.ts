@@ -3,14 +3,19 @@
 
 import { supabase } from './supabaseClient';
 import {
+  DEFAULT_UNITS,
   SECTION_TYPES,
   buildManualRows,
+  matchKey,
   normalizeText,
   type HeaderRule,
   type ManualIndex,
   type ManualIndexSettings,
+  type LineKind,
   type ManualSection,
+  type SectionLine,
   type SectionType,
+  type SubLine,
 } from '../utils/manualIndexer';
 import { readManualPdf } from '../utils/manualPdfReader';
 
@@ -47,6 +52,7 @@ export interface SearchResult {
   sousFiches: string[];
   extrait: string;
   score: number;
+  formatVersion: number;
 }
 
 export interface FicheDetail {
@@ -55,6 +61,7 @@ export interface FicheDetail {
   page: number;
   cheminStockage: string;
   sections: ManualSection[];
+  formatVersion: number;
 }
 
 const client = () => {
@@ -68,6 +75,46 @@ const isSectionType = (value: unknown): value is SectionType =>
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
+const LINE_KINDS: readonly string[] = ['ingredient', 'etape', 'puce', 'texte'];
+
+const optionalString = (value: unknown): string | undefined => (typeof value === 'string' ? value : undefined);
+
+const parseSubLines = (value: unknown): SubLine[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+  const result: SubLine[] = [];
+  for (const entry of value) {
+    if (!isRecord(entry) || typeof entry.brut !== 'string') continue;
+    result.push({ brut: entry.brut, affichage: typeof entry.affichage === 'string' ? entry.affichage : entry.brut });
+  }
+  return result.length > 0 ? result : undefined;
+};
+
+const parseLignes = (value: unknown): SectionLine[] => {
+  if (!Array.isArray(value)) return [];
+  const lignes: SectionLine[] = [];
+  for (const entry of value) {
+    if (!isRecord(entry) || typeof entry.brut !== 'string' || typeof entry.kind !== 'string' || !LINE_KINDS.includes(entry.kind)) continue;
+    const quantite = optionalString(entry.quantite);
+    const unite = optionalString(entry.unite);
+    const produit = optionalString(entry.produit);
+    const sousFiche = optionalString(entry.sous_fiche);
+    const numero = optionalString(entry.numero);
+    const sousLignes = parseSubLines(entry.sous_lignes);
+    lignes.push({
+      kind: entry.kind as LineKind,
+      brut: entry.brut,
+      affichage: typeof entry.affichage === 'string' ? entry.affichage : entry.brut,
+      ...(quantite !== undefined ? { quantite } : {}),
+      ...(unite !== undefined ? { unite } : {}),
+      ...(produit !== undefined ? { produit } : {}),
+      ...(sousFiche !== undefined ? { sousFiche } : {}),
+      ...(numero !== undefined ? { numero } : {}),
+      ...(sousLignes ? { sousLignes } : {}),
+    });
+  }
+  return lignes;
+};
+
 const parseSections = (value: unknown): ManualSection[] => {
   if (!Array.isArray(value)) return [];
   const sections: ManualSection[] = [];
@@ -77,6 +124,7 @@ const parseSections = (value: unknown): ManualSection[] => {
       typeRubrique: isSectionType(entry.type_rubrique) ? entry.type_rubrique : 'autre',
       libelle: typeof entry.libelle === 'string' ? entry.libelle : '',
       texte: typeof entry.texte === 'string' ? entry.texte : '',
+      lignes: parseLignes(entry.lignes),
     });
   }
   return sections;
@@ -209,21 +257,22 @@ export async function urlPdf(cheminStockage: string, page: number): Promise<stri
 // Réglages et synonymes
 // ---------------------------------------------------------------------------
 
-export const EMPTY_SETTINGS: ManualIndexSettings = { headers: [], ignoredLines: [], subFichePrefix: '' };
+export const EMPTY_SETTINGS: ManualIndexSettings = { headers: [], ignoredLines: [], subFichePrefix: '', units: [...DEFAULT_UNITS] };
 
 export async function loadSettings(site: string): Promise<ManualIndexSettings> {
   const { data, error } = await client()
     .from('fiches_reglages')
-    .select('entetes, lignes_ignorees, prefixe_sous_fiche')
+    .select('entetes, lignes_ignorees, prefixe_sous_fiche, unites')
     .eq('site', site)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return EMPTY_SETTINGS;
-  const row = data as { entetes: unknown; lignes_ignorees: unknown; prefixe_sous_fiche: unknown };
+  const row = data as { entetes: unknown; lignes_ignorees: unknown; prefixe_sous_fiche: unknown; unites: unknown };
   return {
     headers: parseHeaders(row.entetes),
     ignoredLines: toStringArray(row.lignes_ignorees),
     subFichePrefix: typeof row.prefixe_sous_fiche === 'string' ? row.prefixe_sous_fiche : '',
+    units: Array.isArray(row.unites) ? toStringArray(row.unites) : [...DEFAULT_UNITS],
   };
 }
 
@@ -235,6 +284,7 @@ export async function saveSettings(site: string, settings: ManualIndexSettings):
       .map((header) => ({ texte: header.text.trim(), type_rubrique: header.type })),
     lignes_ignorees: settings.ignoredLines.map((line) => line.trim()).filter((line) => line.length > 0),
     prefixe_sous_fiche: settings.subFichePrefix.trim(),
+    unites: settings.units.map((unit) => normalizeText(unit)).filter((unit) => unit.length > 0),
     updated_at: new Date().toISOString(),
   });
   if (error) throw new Error(error.message);
@@ -287,6 +337,7 @@ export async function rechercherFiches(site: string, requete: string): Promise<S
       sousFiches: toStringArray(row.sous_fiches),
       extrait: typeof row.extrait === 'string' ? row.extrait : '',
       score: Number(row.score ?? 0),
+      formatVersion: Number(row.format_version ?? 1),
     });
   }
   return results;
@@ -297,13 +348,13 @@ export async function trouverFicheParTitre(site: string, titreNormalise: string)
   const sb = client();
   const { data, error } = await sb
     .from('fiches_operatoires')
-    .select('titre, poste, page, sections, manuel_id')
+    .select('titre, poste, page, sections, manuel_id, format_version')
     .eq('site', site)
     .eq('type', 'fiche')
     .eq('titre_normalise', titreNormalise)
     .limit(10);
   if (error) throw new Error(error.message);
-  const rows = (data ?? []) as { titre: string | null; poste: string; page: number; sections: unknown; manuel_id: string }[];
+  const rows = (data ?? []) as { titre: string | null; poste: string; page: number; sections: unknown; manuel_id: string; format_version: number }[];
   if (rows.length === 0) return null;
   const preferred = rows.find((row) => normalizeText(row.poste).includes('sous')) ?? rows[0];
   const manuel = await sb.from('fiches_manuels').select('chemin_stockage').eq('id', preferred.manuel_id).maybeSingle();
@@ -316,5 +367,23 @@ export async function trouverFicheParTitre(site: string, titreNormalise: string)
     page: preferred.page,
     cheminStockage: path,
     sections: parseSections(preferred.sections),
+    formatVersion: Number(preferred.format_version ?? 1),
   };
+}
+
+// Titres des fiches du site, pour n'afficher un lien de sous-fiche que si la
+// fiche existe (rapprochement tolérant par clé, voir matchKey).
+export async function listTitresFiches(site: string): Promise<Map<string, string>> {
+  const { data, error } = await client()
+    .from('fiches_operatoires')
+    .select('titre_normalise')
+    .eq('site', site)
+    .eq('type', 'fiche');
+  if (error) throw new Error(error.message);
+  const keys = new Map<string, string>();
+  for (const row of (data ?? []) as { titre_normalise: string }[]) {
+    const key = matchKey(row.titre_normalise);
+    if (key && !keys.has(key)) keys.set(key, row.titre_normalise);
+  }
+  return keys;
 }

@@ -59,6 +59,7 @@ const ManuelsSection: React.FC = () => {
   const [manuels, setManuels] = useState<ManuelRecord[]>([]);
   const [settings, setSettings] = useState<ManualIndexSettings>(EMPTY_SETTINGS);
   const [ignoredText, setIgnoredText] = useState('');
+  const [unitsText, setUnitsText] = useState('');
   const [synonymes, setSynonymes] = useState<SynonymeRecord[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -81,6 +82,7 @@ const ManuelsSection: React.FC = () => {
       setSettings(loaded);
       setIgnoredText(loaded.ignoredLines.join('\n'));
       setSynonymes(syn);
+      setUnitsText(loaded.units.join(', '));
     } catch (error) {
       fail(error, 'Chargement des manuels impossible.');
     }
@@ -95,6 +97,7 @@ const ManuelsSection: React.FC = () => {
 
   const currentSettings = (): ManualIndexSettings => ({
     ...settings,
+    units: unitsText.split(/[,;]/).map((unit) => unit.trim()).filter((unit) => unit.length > 0),
     ignoredLines: ignoredText.split('\n').map((line) => line.trim()).filter((line) => line.length > 0),
   });
 
@@ -403,6 +406,14 @@ const ManuelsSection: React.FC = () => {
                 className={`${inputClass} mt-1 block w-40`}
                 value={settings.subFichePrefix}
                 onChange={(event) => setSettings({ ...settings, subFichePrefix: event.target.value })}
+              />
+            </label>
+            <label className="mt-3 block text-xs font-bold uppercase text-[#8A4B1F]">
+              Unités reconnues dans les ingrédients (séparées par des virgules)
+              <input
+                className={`${inputClass} mt-1 block w-full max-w-md`}
+                value={unitsText}
+                onChange={(event) => setUnitsText(event.target.value)}
               />
             </label>
             <button type="button" className={`${primaryButton} mt-4`} disabled={busy !== null} onClick={() => void handleSaveSettings()}>
