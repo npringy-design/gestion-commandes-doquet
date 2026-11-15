@@ -4,6 +4,7 @@
 import { supabase } from './supabaseClient';
 import { rechercherAllergenes, type AllergenPlat } from './allergenes';
 import {
+  MANUAL_FORMAT_VERSION,
   SECTION_TYPES,
   analyzeQuery,
   buildManualRows,
@@ -169,6 +170,18 @@ export async function listManuels(site: string): Promise<ManuelRecord[]> {
     .order('poste');
   if (error) throw new Error(error.message);
   return (data ?? []) as ManuelRecord[];
+}
+
+// Manuels dont au moins une fiche est à l'ancien format (« À réindexer »).
+export async function listManuelsAReindexer(site: string): Promise<Set<string>> {
+  const { data, error } = await client()
+    .from('fiches_operatoires')
+    .select('manuel_id')
+    .eq('site', site)
+    .eq('type', 'fiche')
+    .lt('format_version', MANUAL_FORMAT_VERSION);
+  if (error) throw new Error(error.message);
+  return new Set(((data ?? []) as { manuel_id: string }[]).map((row) => row.manuel_id));
 }
 
 const slug = (value: string) =>

@@ -479,7 +479,8 @@ const ManualSearch: React.FC = () => {
   // SÉCURITÉ : en recherche d'allergènes, une carte ne s'ouvre seule que si UN SEUL plat contient tous
   // les termes. Dérivé des résultats courants (pas d'état à resynchroniser) : valable au premier
   // affichage comme quand la liste change. Sinon, rien n'est sélectionné tant que l'utilisateur ne choisit pas.
-  const autoOpenAllowed = !allergenSearch || plats.length === 0 || (plats.length === 1 && !allergenPartial);
+  // La règle s'applique APRÈS le regroupement des doublons ; un nom présent avec des allergènes différents n'est jamais ouvert seul.
+  const autoOpenAllowed = !allergenSearch || plats.length === 0 || (plats.length === 1 && !allergenPartial && !plats[0].conflict);
   const selected = picked ?? (autoOpenAllowed && count > 0 ? 0 : -1);
 
   const select = useCallback((index: number) => {
@@ -660,6 +661,9 @@ const ManualSearch: React.FC = () => {
                                 <span className="mt-1 inline-block rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-black uppercase text-red-800">
                                   Allergènes
                                 </span>
+                                {entry.plat.conflict && entry.plat.categorie ? (
+                                  <div className="mt-1 text-xs font-black text-orange-800">Catégorie : {toDisplayCase(entry.plat.categorie)}</div>
+                                ) : null}
                                 <div className="mt-1 line-clamp-2 text-xs text-[#6B4A33]">{flaggedSummary(entry.plat)}</div>
                               </>
                             ) : (

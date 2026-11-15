@@ -495,3 +495,74 @@ export function readAllergenPages(pages: AllergenPageData[]): AllergenReadResult
   if (plats.length === 0) return refuse('Dépôt refusé : aucun plat n’a été trouvé dans le tableau.');
   return { ok: true, document: { plats, date, ignorees } };
 }
+
+// ---------------------------------------------------------------------------
+// Regroupement des plats en double (plat à la carte ET dans des menus)
+// ---------------------------------------------------------------------------
+
+export interface GroupableDish {
+  nom: string;
+  categorie: string;
+  allergenes: readonly AllergenCode[];
+}
+
+export interface DishGroup<T extends GroupableDish> {
+  // Ligne représentative (la première rencontrée).
+  item: T;
+  // Catégories des AUTRES lignes regroupées (mêmes allergènes, même nom normalisé).
+  alsoIn: string[];
+  // Le même nom existe avec des allergènes DIFFÉRENTS : lignes jamais fusionnées.
+  conflict: boolean;
+}
+
+const signature = (dish: GroupableDish): string => [...dish.allergenes].sort().join('|');
+
+// Regroupe les lignes d'un même nom normalisé en UN seul résultat, SI ET
+// SEULEMENT SI leurs listes d'allergènes sont strictement identiques. Si les
+// allergènes diffèrent, les lignes restent séparées et marquées « conflit ».
+export function groupDishes<T extends GroupableDish>(rows: readonly T[]): DishGroup<T>[] {
+  const byName = new Map<string, T[]>();
+  for (const row of rows) {
+    const key = normalizeText(row.nom);
+    byName.set(key, [...(byName.get(key) ?? []), row]);
+  }
+  const groups: DishGroup<T>[] = [];
+  for (const lines of byName.values()) {
+    const bySignature = new Map<string, T[]>();
+    for (const line of lines) {
+      const key = signature(line);
+      bySignature.set(key, [...(bySignature.get(key) ?? []), line]);
+    }
+    const conflict = bySignature.size > 1;
+    for (const same of bySignature.values()) {
+      const item = same[0];
+      const alsoIn: string[] = [];
+      for (const other of same.slice(1)) {
+        const category = other.categorie.trim();
+        if (category && category !== item.categorie.trim() && !alsoIn.includes(category)) alsoIn.push(category);
+      }
+      groups.push({ item, alsoIn, conflict });
+    }
+  }
+  return groups;
+}
+
+export interface DishSummary {
+  lignes: number;
+  // Nombre de noms normalisés distincts.
+  distincts: number;
+  // Noms en double dont les allergènes diffèrent (à vérifier avant d'enregistrer).
+  conflits: { nom: string; variantes: { categorie: string; allergenes: AllergenCode[] }[] }[];
+}
+
+export function summarizeDishes(plats: readonly AllergenDish[]): DishSummary {
+  const byName = new Map<string, AllergenDish[]>();
+  for (const plat of plats) byName.set(plat.nomNormalise, [...(byName.get(plat.nomNormalise) ?? []), plat]);
+  const conflits: DishSummary['conflits'] = [];
+  for (const lines of byName.values()) {
+    if (new Set(lines.map(signature)).size > 1) {
+      conflits.push({ nom: lines[0].nom, variantes: lines.map((line) => ({ categorie: line.categorie, allergenes: line.allergenes })) });
+    }
+  }
+  return { lignes: plats.length, distincts: byName.size, conflits };
+}

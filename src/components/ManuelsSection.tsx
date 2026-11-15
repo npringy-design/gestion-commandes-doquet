@@ -9,12 +9,28 @@ import { useToast } from './Toast';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { canManageManuels } from '../lib/permissions';
 import AllergenesSection from './AllergenesSection';
+import {
+  BowlIcon,
+  DocumentIcon,
+  EyeIcon,
+  FlameIcon,
+  IconButton,
+  ItemCard,
+  RefreshIcon,
+  SectionHeader,
+  SnowflakeIcon,
+  Tag,
+  TrashIcon,
+  UploadIcon,
+  headerButtonClass,
+} from './ManualUi';
 import { validateImportFile } from '../utils/importFileValidation';
 import {
   deposerManuel,
   guessPosteFromFileName,
   indexPdfData,
   listManuels,
+  listManuelsAReindexer,
   reindexerManuel,
   supprimerManuel,
   urlPdf,
@@ -33,10 +49,13 @@ interface Preview {
   index: ManualIndex;
 }
 
-const LEVEL_LABELS: Record<number, string> = {
-  1: 'Pages',
-  2: 'Fiches',
-  3: 'Fiches + rubriques',
+// Icône et teinte du poste, déduites du nom sans accents ni majuscules.
+const posteVisual = (poste: string): { icon: React.ReactNode; className: string } => {
+  const name = normalizeText(poste);
+  if (name.includes('sous') && name.includes('fiche')) return { icon: <BowlIcon />, className: 'bg-violet-100 text-violet-600' };
+  if (name.includes('chaud')) return { icon: <FlameIcon />, className: 'bg-orange-100 text-orange-600' };
+  if (name.includes('froid')) return { icon: <SnowflakeIcon />, className: 'bg-sky-100 text-sky-600' };
+  return { icon: <DocumentIcon />, className: 'bg-[#F5ECD9] text-[#8A4B1F]' };
 };
 
 const inputClass = 'rounded-md border border-[#C89245]/60 bg-white px-2 py-1.5 text-sm text-[#2F1D14]';
@@ -49,6 +68,7 @@ const ManuelsSection: React.FC = () => {
   const canManage = canManageManuels(profile);
 
   const [manuels, setManuels] = useState<ManuelRecord[]>([]);
+  const [toReindex, setToReindex] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState<string | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [openTitle, setOpenTitle] = useState<number | null>(null);
@@ -59,7 +79,9 @@ const ManuelsSection: React.FC = () => {
 
   const refresh = useCallback(async () => {
     try {
-      setManuels(await listManuels(activeSiteId));
+      const [list, old] = await Promise.all([listManuels(activeSiteId), listManuelsAReindexer(activeSiteId)]);
+      setManuels(list);
+      setToReindex(old);
     } catch (error) {
       fail(error, 'Chargement des manuels impossible.');
     }
@@ -155,70 +177,25 @@ const ManuelsSection: React.FC = () => {
     ? manuels.find((manuel) => normalizeText(manuel.poste) === normalizeText(preview.poste.trim()))
     : undefined;
 
+  const depositButton = (
+    <label className={`${headerButtonClass} ${busy !== null ? 'pointer-events-none opacity-50' : ''}`}>
+      <UploadIcon />
+      Déposer un manuel
+      <input type="file" accept="application/pdf,.pdf" className="hidden" disabled={busy !== null} onChange={(event) => void handleFile(event)} />
+    </label>
+  );
+
   return (
     <section className="mt-6 rounded-[24px] border border-[#C89245]/55 bg-white/90 p-4 shadow-sm md:p-6">
-      <h2 className="text-xl font-black text-[#3A2116]">Manuels opératoires</h2>
-      <p className="mt-1 text-sm text-[#6B4A33]">
-        Un manuel PDF par poste, indexé pour la recherche de l’accueil. Ces manuels sont propres au site actif.
-      </p>
+      <SectionHeader
+        title="Manuels opératoires"
+        subtitle="Fiches techniques et process du site, consultables depuis la recherche de l’accueil."
+        action={canManage ? depositButton : null}
+      />
       {busy ? <p className="mt-2 text-sm font-bold text-[#8A4B1F]">{busy}</p> : null}
 
-      {/* Liste */}
-      <div className="mt-4 overflow-x-auto">
-        {manuels.length === 0 ? (
-          <p className="text-sm text-[#6B4A33]">Aucun manuel déposé pour ce site.</p>
-        ) : (
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-[#E2C79B] text-xs uppercase text-[#8A4B1F]">
-                <th className="py-2 pr-3">Poste</th>
-                <th className="py-2 pr-3">Fichier</th>
-                <th className="py-2 pr-3">Déposé le</th>
-                <th className="py-2 pr-3">Niveau</th>
-                <th className="py-2 pr-3">Contenu</th>
-                <th className="py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {manuels.map((manuel) => (
-                <tr key={manuel.id} className="border-b border-[#F0E2C8]">
-                  <td className="py-2 pr-3 font-bold">{manuel.poste}</td>
-                  <td className="py-2 pr-3 text-[#6B4A33]">{manuel.nom_fichier}</td>
-                  <td className="py-2 pr-3">{new Date(manuel.depose_le).toLocaleDateString('fr-FR')}</td>
-                  <td className="py-2 pr-3">{LEVEL_LABELS[manuel.niveau_obtenu] ?? manuel.niveau_obtenu}</td>
-                  <td className="py-2 pr-3">
-                    {manuel.niveau_obtenu >= 2 ? `${manuel.nb_fiches} fiches` : `${manuel.nb_pages} pages`}
-                  </td>
-                  <td className="py-2">
-                    <div className="flex flex-wrap justify-end gap-2">
-                      <button type="button" className={secondaryButton} onClick={() => void handleOpen(manuel)}>Ouvrir</button>
-                      {canManage ? (
-                        <>
-                          <button type="button" className={secondaryButton} disabled={busy !== null} onClick={() => void handleReindex(manuel)}>Réindexer</button>
-                          <button type="button" className={secondaryButton} disabled={busy !== null} onClick={() => void handleDelete(manuel)}>Supprimer</button>
-                        </>
-                      ) : null}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {!canManage ? (
-        <p className="mt-4 text-sm text-[#6B4A33]">Le dépôt est réservé aux rôles manager + et au-dessus.</p>
-      ) : (
+      {canManage ? (
         <>
-          {/* Dépôt */}
-          <div className="mt-6 border-t border-[#E2C79B] pt-4">
-            <h3 className="text-sm font-black uppercase text-[#512A16]">Déposer un manuel</h3>
-            <label className={`${primaryButton} mt-2 inline-block cursor-pointer`}>
-              Déposer un manuel
-              <input type="file" accept="application/pdf,.pdf" className="hidden" disabled={busy !== null} onChange={(event) => void handleFile(event)} />
-            </label>
-
             {preview ? (
               <div className="mt-4 rounded-lg border border-[#E2C79B] bg-[#FFFBF2] p-4">
                 <h4 className="font-black text-[#3A2116]">Aperçu avant enregistrement</h4>
@@ -281,10 +258,62 @@ const ManuelsSection: React.FC = () => {
                 </div>
               </div>
             ) : null}
-          </div>
-
         </>
-      )}
+      ) : null}
+
+      <div className="mt-4 space-y-2">
+        {manuels.length === 0 ? (
+          <div className="rounded-xl border-2 border-dashed border-[#E2C79B] bg-[#FFFBF2] p-6 text-center">
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-[#F5ECD9] text-[#8A4B1F]">
+              <DocumentIcon />
+            </div>
+            <p className="mt-3 text-sm font-semibold text-[#512A16]">
+              Dépose ton premier manuel pour le rendre consultable depuis l’accueil.
+            </p>
+            {canManage ? <div className="mt-3 flex justify-center">{depositButton}</div> : null}
+          </div>
+        ) : (
+          manuels.map((manuel) => {
+            const visual = posteVisual(manuel.poste);
+            const fichesLabel = `${manuel.nb_fiches} fiche${manuel.nb_fiches > 1 ? 's' : ''}`;
+            const pagesLabel = `${manuel.nb_pages} page${manuel.nb_pages > 1 ? 's' : ''}`;
+            return (
+              <ItemCard
+                key={manuel.id}
+                icon={visual.icon}
+                iconClass={visual.className}
+                actions={(
+                  <>
+                    <IconButton label={`Ouvrir le manuel ${manuel.poste}`} onClick={() => void handleOpen(manuel)}>
+                      <EyeIcon />
+                    </IconButton>
+                    {canManage ? (
+                      <>
+                        <IconButton label={`Réindexer le manuel ${manuel.poste}`} disabled={busy !== null} onClick={() => void handleReindex(manuel)}>
+                          <RefreshIcon />
+                        </IconButton>
+                        <IconButton label={`Supprimer le manuel ${manuel.poste}`} danger disabled={busy !== null} onClick={() => void handleDelete(manuel)}>
+                          <TrashIcon />
+                        </IconButton>
+                      </>
+                    ) : null}
+                  </>
+                )}
+              >
+                <div className="font-black text-[#3A2116]">{manuel.poste}</div>
+                <div className="truncate text-xs text-[#8A7A6A]" title={manuel.nom_fichier}>{manuel.nom_fichier}</div>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  <Tag>{manuel.niveau_obtenu >= 2 ? fichesLabel : pagesLabel}</Tag>
+                  <Tag>Déposé le {new Date(manuel.depose_le).toLocaleDateString('fr-FR')}</Tag>
+                  {manuel.niveau_obtenu === 1 ? <Tag tone="orange">Pages seulement</Tag> : null}
+                  {toReindex.has(manuel.id) ? <Tag tone="orange">À réindexer</Tag> : null}
+                </div>
+              </ItemCard>
+            );
+          })
+        )}
+      </div>
+
       <AllergenesSection />
     </section>
   );

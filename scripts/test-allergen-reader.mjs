@@ -29,7 +29,7 @@ try {
     );
   }
   const { readAllergenPdf, isColoredFill } = await import(pathToFileURL(join(tempDir, 'allergenPdfReader.mjs')).href);
-  const { findUpdateDate } = await import(pathToFileURL(join(tempDir, 'allergenReader.mjs')).href);
+  const { findUpdateDate, groupDishes, summarizeDishes } = await import(pathToFileURL(join(tempDir, 'allergenReader.mjs')).href);
   const { ALLERGEN_CODES, ALLERGEN_WARNING, ALLERGEN_WARNING_SHORT } = await import(pathToFileURL(join(tempDir, 'manualConstants.mjs')).href);
   const { analyzeQuery, normalizeText } = await import(pathToFileURL(join(tempDir, 'manualIndexer.mjs')).href);
 
@@ -260,6 +260,30 @@ try {
   const gridResult = await readAllergenPdf(docOf(grid), OPS);
   assert.equal(gridResult.ok, true, gridResult.ok ? '' : gridResult.error);
   assert.deepEqual(gridResult.document.plats[0].allergenes, ['oeufs', 'fruits_a_coques']);
+
+  // --- Regroupement des plats en double ---
+  const dish = (nom, categorie, allergenes) => ({ nom, categorie, allergenes, nomNormalise: nom.toLowerCase().replace('œ', 'oe') });
+  const same = ['gluten', 'oeufs', 'lait', 'moutarde', 'sulfites'];
+  const rowsSame = [
+    dish('Œufs mayonnaise', 'LES ENTRÉES', same),
+    dish('ŒUFS MAYONNAISE', 'MENU COUP DE CŒUR', [...same].reverse()),
+    dish('Œufs mayonnaise', 'MENU DÉJEUNER', same),
+    dish('Mousse au chocolat', 'LES DESSERTS', ['oeufs', 'lait']),
+  ];
+  const groupedSame = groupDishes(rowsSame);
+  assert.equal(groupedSame.length, 2, 'mêmes allergènes : un seul résultat par plat');
+  assert.deepEqual(groupedSame[0].alsoIn, ['MENU COUP DE CŒUR', 'MENU DÉJEUNER']);
+  assert.equal(groupedSame[0].conflict, false);
+  assert.equal(groupedSame[1].alsoIn.length, 0);
+  const groupedDiff = groupDishes([dish('Mousse au chocolat', 'LES DESSERTS', ['oeufs', 'lait']), dish('Mousse au chocolat', 'MENU', ['oeufs'])]);
+  assert.equal(groupedDiff.length, 2, 'allergènes différents : jamais regroupés');
+  assert.ok(groupedDiff.every((group) => group.conflict), 'conflit signalé sur chaque résultat');
+  assert.deepEqual(groupDishes([dish('Œufs mayonnaise', 'A', same), dish('Œufs mayonnaise XL', 'B', same)]).length, 2, 'un nom contenu dans un autre n’est jamais regroupé');
+  const summary = summarizeDishes([...rowsSame, dish('Mousse au chocolat', 'MENU', ['oeufs'])]);
+  assert.equal(summary.lignes, 5);
+  assert.equal(summary.distincts, 2);
+  assert.equal(summary.conflits.length, 1);
+  assert.equal(summary.conflits[0].nom, 'Mousse au chocolat');
 
   // --- Date de mise à jour ---
   assert.equal(findUpdateDate('Mise à jour du 15/10/2026\nautre 01/01/2020'), '2026-10-15');

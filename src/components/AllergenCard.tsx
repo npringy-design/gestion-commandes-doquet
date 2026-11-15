@@ -82,7 +82,21 @@ const AllergenCard: React.FC<AllergenCardProps> = ({ plat, approximate, backLabe
         ) : null}
         <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-black uppercase text-red-800">Allergènes</span>
         <h3 className={`mt-1 font-black leading-tight text-[#3A2116] ${approximate ? 'text-3xl' : 'text-xl'}`}>{toDisplayCase(plat.nom)}</h3>
-        {plat.categorie ? <p className="text-sm font-semibold text-[#6B4A33]">{toDisplayCase(plat.categorie)}</p> : null}
+        {plat.categorie ? (
+          <p className={plat.conflict ? 'mt-1 inline-block rounded-md bg-orange-100 px-2 py-1 text-base font-black text-orange-900' : 'text-sm font-semibold text-[#6B4A33]'}>
+            {plat.conflict ? 'Catégorie : ' : ''}{toDisplayCase(plat.categorie)}
+          </p>
+        ) : null}
+        {plat.conflict ? (
+          <p className="mt-2 rounded-md bg-orange-100 px-3 py-2 text-sm font-bold text-orange-900">
+            Ce plat existe avec des allergènes différents selon la catégorie : vérifie la catégorie avant de lire ses allergènes.
+          </p>
+        ) : null}
+        {plat.alsoIn.length > 0 ? (
+          <p className="mt-1 text-xs font-semibold text-[#6B4A33]">
+            Aussi présent dans : {plat.alsoIn.map((category) => toDisplayCase(category)).join(', ')}
+          </p>
+        ) : null}
         <p className="mt-1 text-xs font-bold text-[#8A4B1F]">
           Document du {documentDate}
           {plat.dateTrouvee ? '' : ' (date de dépôt : date de mise à jour non trouvée dans le PDF)'}
