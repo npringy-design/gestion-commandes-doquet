@@ -367,4 +367,4 @@ Indexation générique des manuels PDF (pages, fiches, rubriques) et recherche s
 - [x] allergènes : dépôt du tableau par site avec aperçu et refus en cas de doute, recherche par plat depuis l'accueil, migration `20261117100000` appliquée sur TEST, test `test-allergen-reader` intégré à `npm run verify` ;
 - [x] validation de Nicolas sur TEST : dépôt du PDF d'allergènes et contrôle de l'aperçu ; réindexation des trois manuels puis contrôle de la recherche ; dépôt des manuels Chaud, Froid et Sous-fiches, contrôle de l'aperçu et de la recherche ;
 - [x] promotion sur `main` après validation de Nicolas sur TEST ;
-- [ ] migrations manuels non appliquées sur la production (20261114120000 à 20261119100000) : à appliquer avant que les manuels et les allergènes fonctionnent en production.
+- [x] structure SQL appliquée sur la production (projet npringy-design) : tables, fonctions et bucket des manuels et des allergènes, état final équivalent aux migrations 20261114120000 à 20261119100000, aucune donnée existante touchée ; reste à déposer les PDF en production (manuels Chaud, Froid, Sous-fiches puis allergènes).
